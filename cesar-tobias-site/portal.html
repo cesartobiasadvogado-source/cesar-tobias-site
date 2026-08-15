@@ -74,6 +74,16 @@
   .chip.good { background: var(--good-soft); color: var(--good); }
   .chip.warn { background: var(--warn-soft); color: var(--warn); }
   .chip.crit { background: var(--crit-soft); color: var(--crit); }
+  .chip.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
+
+  .processo-cabecalho { padding: 14px 16px; cursor: pointer; }
+  .processo-cabecalho:hover { background: var(--surface-sunken); }
+  .processo-corpo { display: none; padding: 0 16px 16px; }
+  .processo-corpo.aberto { display: block; }
+  .timeline { border-left: 2px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+  .timeline-data { font-size: 11.5px; color: var(--ink-faint); }
+  .timeline-tipo { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+  .timeline-resumo { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
   .empty-state { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--ink-faint); }
   .btn-baixar { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-decoration: none; display: inline-block; }
   .hidden { display: none !important; }
@@ -216,12 +226,26 @@
           '</div>';
         }).join('');
 
-    var htmlPrazos = dados.prazos.length === 0
-      ? '<div class="empty-state">Nenhum prazo em aberto no momento.</div>'
-      : dados.prazos.map(function (p) {
-          return '<div class="item">' +
+    var processos = dados.processos || [];
+    var htmlProcessos = processos.length === 0
+      ? '<div class="empty-state">Nenhum processo vinculado no momento.</div>'
+      : processos.map(function (p, idx) {
+          var timelineHtml = p.timeline.map(function (item) {
+            return '<div class="timeline-entrada">' +
+              '<div class="timeline-data">' + item.data + '</div>' +
+              '<div class="timeline-tipo">' + item.tipo + '</div>' +
+              (item.resumo ? '<div class="timeline-resumo">' + item.resumo + '</div>' : '') +
+            '</div>';
+          }).join('');
+
+          return '<div class="processo-cabecalho" data-toggle-processo="' + idx + '">' +
             '<div class="item-titulo">' + p.processo + '</div>' +
-            '<div class="item-sub">' + p.tipo + ' — prazo até ' + p.data_limite + '</div>' +
+            '<div class="item-sub">' + p.status_atual + ' · última movimentação: ' + p.ultima_movimentacao + '</div>' +
+            (p.proximo_prazo ? '<span class="chip warn">Prazo ' + p.proximo_prazo + '</span>' : '') +
+            (p.proxima_audiencia ? '<span class="chip crit" style="margin-left:6px;">Audiência ' + p.proxima_audiencia + '</span>' : '') +
+          '</div>' +
+          '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
+            '<div class="timeline">' + timelineHtml + '</div>' +
           '</div>';
         }).join('');
 
@@ -230,9 +254,16 @@
       '<section><p class="section-label">Olá, ' + dados.nome + '</p></section>' +
       '<section><p class="section-label">Seus contratos</p><div class="panel">' + htmlContratos + '</div></section>' +
       '<section><p class="section-label">Parcelas pendentes</p><div class="panel">' + htmlParcelas + '</div></section>' +
-      '<section><p class="section-label">Prazos do processo</p><div class="panel">' + htmlPrazos + '</div></section>' +
+      '<section><p class="section-label">Ficha do processo</p><div class="panel">' + htmlProcessos + '</div></section>' +
       '<section><p class="section-label">Documentos</p><div class="panel">' + htmlDocumentos + '</div></section>' +
       '<button class="btn-sair" id="btn-sair">Sair</button>';
+
+    document.querySelectorAll('[data-toggle-processo]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
+        corpo.classList.toggle('aberto');
+      });
+    });
 
     document.getElementById('btn-sair').addEventListener('click', function () {
       sessionStorage.removeItem('portal_token');
