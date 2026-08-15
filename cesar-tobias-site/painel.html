@@ -287,8 +287,10 @@
           '</td></tr>';
       }).join('');
       htmlVencidas =
-        '<table><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
-        '<tbody>' + linhas + '</tbody></table>';
+        '<div style="overflow-x:auto;">' +
+        '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
+        '<tbody>' + linhas + '</tbody></table>' +
+        '</div>';
     }
 
     var chipVencidas = f.parcelas_vencidas.length === 0
