@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Portal do Cliente</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-sunken: #efece4;
+    --ink: #1c2438;
+    --ink-soft: #5b6178;
+    --ink-faint: #8b90a3;
+    --line: #e2ded3;
+    --brand: #1c2c4f;
+    --accent: #a9793a;
+    --good: #2f7a4f;
+    --good-soft: #e4f1e8;
+    --warn: #b8842e;
+    --warn-soft: #faf0dc;
+    --crit: #b33a3a;
+    --crit-soft: #fbe9e9;
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Cascadia Code', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14182a; --surface: #1c2238; --surface-sunken: #171c2f;
+      --ink: #eef0f6; --ink-soft: #a7acc2; --ink-faint: #6d7290; --line: #2b3250;
+      --brand: #c7d0ec; --accent: #d3a869;
+      --good: #5fbd85; --good-soft: #16261d;
+      --warn: #e0ab5a; --warn-soft: #2c2313;
+      --crit: #e57b7b; --crit-soft: #2c1717;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  .page { max-width: 640px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .gate-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 32px; max-width: 360px; width: 100%; }
+  .gate-title { font-family: var(--font-display); font-size: 20px; color: var(--brand); margin: 0 0 4px; }
+  .gate-sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 20px; line-height: 1.5; }
+  .gate-card input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 12px;
+  }
+  .gate-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .gate-card button {
+    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--brand);
+    color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
+  }
+  .gate-card button:hover { opacity: 0.92; }
+  .gate-card button.secundario { background: none; border: 1px solid var(--line); color: var(--ink-faint); margin-top: 8px; }
+  .gate-error { color: var(--crit); font-size: 13px; margin-top: 10px; min-height: 16px; }
+  .gate-msg { color: var(--good); font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+  header.masthead { text-align: center; padding-bottom: 20px; border-bottom: 2px solid var(--brand); margin-bottom: 28px; }
+  .masthead-name { font-family: var(--font-display); font-size: 24px; font-weight: 600; color: var(--brand); }
+  .masthead-name small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 6px; }
+
+  section { margin-bottom: 28px; }
+  .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 12px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .item { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: none; }
+  .item-titulo { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .item-sub { font-size: 12.5px; color: var(--ink-faint); margin-top: 3px; }
+  .chip { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-top: 6px; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); }
+  .empty-state { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--ink-faint); }
+  .btn-baixar { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .hidden { display: none !important; }
+  .btn-sair { display: block; margin: 32px auto 0; background: none; border: none; color: var(--ink-faint); font-size: 12.5px; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <p class="gate-title">Portal do Cliente</p>
+      <p class="gate-sub">César Tobias Advocacia<br>Digite seu telefone (WhatsApp) para receber um código de acesso.</p>
+
+      <div id="passo-telefone">
+        <input type="tel" id="input-telefone" placeholder="(96) 99999-9999" autocomplete="tel">
+        <button id="btn-solicitar">Receber código</button>
+      </div>
+
+      <div id="passo-codigo" class="hidden">
+        <input type="text" id="input-codigo" placeholder="Código de 6 dígitos" autocomplete="one-time-code" inputmode="numeric" maxlength="6">
+        <button id="btn-verificar">Entrar</button>
+        <button class="secundario" id="btn-voltar">Usar outro número</button>
+      </div>
+
+      <div class="gate-error" id="gate-error"></div>
+      <div class="gate-msg" id="gate-msg"></div>
+    </div>
+  </div>
+
+  <div id="conteudo" class="page hidden"></div>
+
+<script>
+(function () {
+  var gate = document.getElementById('gate');
+  var conteudo = document.getElementById('conteudo');
+  var passoTelefone = document.getElementById('passo-telefone');
+  var passoCodigo = document.getElementById('passo-codigo');
+  var inputTelefone = document.getElementById('input-telefone');
+  var inputCodigo = document.getElementById('input-codigo');
+  var gateError = document.getElementById('gate-error');
+  var gateMsg = document.getElementById('gate-msg');
+  var telefoneAtual = '';
+
+  function fmtMoeda(v) {
+    return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  document.getElementById('btn-solicitar').addEventListener('click', function () {
+    gateError.textContent = '';
+    gateMsg.textContent = '';
+    telefoneAtual = inputTelefone.value.trim();
+    if (!telefoneAtual) return;
+    fetch('/api/portal?acao=solicitar_codigo&telefone=' + encodeURIComponent(telefoneAtual))
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200) {
+          gateError.textContent = resultado.corpo.erro || 'Não foi possível enviar o código.';
+          return;
+        }
+        gateMsg.textContent = 'Código enviado no seu WhatsApp!';
+        passoTelefone.classList.add('hidden');
+        passoCodigo.classList.remove('hidden');
+      })
+      .catch(function () { gateError.textContent = 'Não foi possível enviar o código agora.'; });
+  });
+
+  document.getElementById('btn-voltar').addEventListener('click', function () {
+    passoCodigo.classList.add('hidden');
+    passoTelefone.classList.remove('hidden');
+    gateError.textContent = '';
+    gateMsg.textContent = '';
+  });
+
+  document.getElementById('btn-verificar').addEventListener('click', function () {
+    var codigo = inputCodigo.value.trim();
+    if (!codigo) return;
+    gateError.textContent = '';
+    fetch('/api/portal?acao=verificar_codigo&telefone=' + encodeURIComponent(telefoneAtual) + '&codigo=' + encodeURIComponent(codigo))
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200 || !resultado.corpo.token) {
+          gateError.textContent = resultado.corpo.erro || 'Código inválido.';
+          return;
+        }
+        sessionStorage.setItem('portal_token', resultado.corpo.token);
+        carregarDados(resultado.corpo.token);
+      })
+      .catch(function () { gateError.textContent = 'Não foi possível verificar agora.'; });
+  });
+
+  function carregarDados(token) {
+    fetch('/api/portal?token=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('sessao');
+        return r.json();
+      })
+      .then(function (dados) {
+        gate.classList.add('hidden');
+        conteudo.classList.remove('hidden');
+        renderPortal(dados, token);
+      })
+      .catch(function () {
+        sessionStorage.removeItem('portal_token');
+        gateError.textContent = 'Sua sessão expirou. Solicite um novo código.';
+      });
+  }
+
+  function renderPortal(dados, token) {
+    var htmlContratos = dados.contratos.length === 0
+      ? '<div class="empty-state">Nenhum contrato encontrado.</div>'
+      : dados.contratos.map(function (c) {
+          var saldo = (c.valor_total || 0) - (c.entrada_recebida || 0);
+          var classeStatus = String(c.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn';
+          return '<div class="item">' +
+            '<div class="item-titulo">' + c.tipo_servico + '</div>' +
+            '<div class="item-sub">Valor total: R$ ' + fmtMoeda(c.valor_total) + '</div>' +
+            '<span class="chip ' + classeStatus + '">' + c.status + '</span>' +
+          '</div>';
+        }).join('');
+
+    var parcelasPendentes = dados.parcelas.filter(function (p) { return p.saldo > 0; });
+    var htmlParcelas = parcelasPendentes.length === 0
+      ? '<div class="empty-state">Nenhuma parcela pendente. Tudo em dia!</div>'
+      : parcelasPendentes.map(function (p) {
+          var classe = p.situacao === 'Vencida' ? 'crit' : 'warn';
+          return '<div class="item">' +
+            '<div class="item-titulo">R$ ' + fmtMoeda(p.saldo) + '</div>' +
+            '<div class="item-sub">Vencimento: ' + p.vencimento + '</div>' +
+            '<span class="chip ' + classe + '">' + (p.situacao || 'Pendente') + '</span>' +
+          '</div>';
+        }).join('');
+
+    var htmlDocumentos = dados.documentos.length === 0
+      ? '<div class="empty-state">Nenhum documento disponível ainda.</div>'
+      : dados.documentos.map(function (d) {
+          return '<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+            '<div class="item-titulo" style="flex:1;">' + d.nome + '</div>' +
+            '<a class="btn-baixar" href="/api/portal?acao=documento&id=' + encodeURIComponent(d.id) +
+            '&token=' + encodeURIComponent(token) + '" target="_blank" rel="noopener">Ver/Baixar</a>' +
+          '</div>';
+        }).join('');
+
+    var htmlPrazos = dados.prazos.length === 0
+      ? '<div class="empty-state">Nenhum prazo em aberto no momento.</div>'
+      : dados.prazos.map(function (p) {
+          return '<div class="item">' +
+            '<div class="item-titulo">' + p.processo + '</div>' +
+            '<div class="item-sub">' + p.tipo + ' — prazo até ' + p.data_limite + '</div>' +
+          '</div>';
+        }).join('');
+
+    conteudo.innerHTML =
+      '<header class="masthead"><div class="masthead-name">César Tobias Advocacia<small>Portal do Cliente</small></div></header>' +
+      '<section><p class="section-label">Olá, ' + dados.nome + '</p></section>' +
+      '<section><p class="section-label">Seus contratos</p><div class="panel">' + htmlContratos + '</div></section>' +
+      '<section><p class="section-label">Parcelas pendentes</p><div class="panel">' + htmlParcelas + '</div></section>' +
+      '<section><p class="section-label">Prazos do processo</p><div class="panel">' + htmlPrazos + '</div></section>' +
+      '<section><p class="section-label">Documentos</p><div class="panel">' + htmlDocumentos + '</div></section>' +
+      '<button class="btn-sair" id="btn-sair">Sair</button>';
+
+    document.getElementById('btn-sair').addEventListener('click', function () {
+      sessionStorage.removeItem('portal_token');
+      location.reload();
+    });
+  }
+
+  var tokenSalvo = sessionStorage.getItem('portal_token');
+  if (tokenSalvo) carregarDados(tokenSalvo);
+})();
+</script>
+</body>
+</html>
