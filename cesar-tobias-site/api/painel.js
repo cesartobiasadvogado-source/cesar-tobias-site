@@ -5,10 +5,8 @@ function obterIp(req) {
 }
 
 module.exports = async (req, res) => {
-  const senhaEsperada = process.env.PAINEL_SENHA;
   const segredoLambda = process.env.DASHBOARD_SECRET;
-
-  if (!senhaEsperada || !segredoLambda) {
+  if (!segredoLambda) {
     res.status(500).json({ erro: 'Configuracao ausente no servidor.' });
     return;
   }
@@ -16,39 +14,39 @@ module.exports = async (req, res) => {
   const base = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
   const segredoQS = '&secret=' + encodeURIComponent(segredoLambda);
   const ip = obterIp(req);
+  const acao = (req.query && req.query.acao) || 'dados';
 
-  try {
-    const respostaCheck = await fetch(
-      base + '?action=painel_rate_check&ip=' + encodeURIComponent(ip) + segredoQS
-    );
-    const dadosCheck = await respostaCheck.json();
-    if (dadosCheck.bloqueado) {
-      res.status(429).json({ erro: 'Muitas tentativas de senha erradas. Tente novamente mais tarde.' });
-      return;
+  if (acao === 'login') {
+    const usuario = (req.query && req.query.usuario) || '';
+    const senha = (req.query && req.query.senha) || '';
+
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_login' +
+        '&usuario=' + encodeURIComponent(usuario) +
+        '&senha=' + encodeURIComponent(senha) +
+        '&ip=' + encodeURIComponent(ip) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao autenticar.' });
     }
-  } catch (e) {
-    // se o rate check falhar, segue o fluxo normal em vez de travar o acesso
-  }
-
-  const senhaRecebida = (req.query && req.query.senha) || '';
-  const senhaCorreta = senhaRecebida === senhaEsperada;
-
-  fetch(
-    base + '?action=painel_log&ip=' + encodeURIComponent(ip) +
-    '&sucesso=' + (senhaCorreta ? 'true' : 'false') + segredoQS
-  ).catch(function () {});
-
-  if (!senhaCorreta) {
-    res.status(401).json({ erro: 'Senha invalida.' });
     return;
   }
 
-  const url = base + '?action=dashboard' + segredoQS;
+  const tokenSessao = (req.query && req.query.token) || '';
+  if (!tokenSessao) {
+    res.status(401).json({ erro: 'Sessao ausente.' });
+    return;
+  }
+
+  const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
     const resposta = await fetch(url);
     if (!resposta.ok) {
-      res.status(502).json({ erro: 'Falha ao consultar dados do escritorio.' });
+      res.status(resposta.status).json({ erro: 'sessao_invalida' });
       return;
     }
     const dados = await resposta.json();
