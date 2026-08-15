@@ -121,6 +121,18 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'clientes') {
+    var url5 = base + '?action=painel_clientes&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(url5);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar clientes.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
