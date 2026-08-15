@@ -86,6 +86,7 @@
   .timeline-resumo { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
   .timeline-explicacao { font-size: 13px; color: var(--ink); margin-top: 4px; line-height: 1.55; background: var(--surface-sunken); border-radius: 6px; padding: 8px 10px; }
   .timeline-ver-detalhe { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; cursor: pointer; text-decoration: underline; display: inline-block; }
+  .aviso-ia { font-size: 11px; color: var(--ink-faint); line-height: 1.5; padding: 8px 10px; margin-bottom: 12px; border: 1px dashed var(--line); border-radius: 6px; }
   .empty-state { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--ink-faint); }
   .btn-baixar { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-decoration: none; display: inline-block; }
   .hidden { display: none !important; }
@@ -254,6 +255,9 @@
             (p.proxima_audiencia ? '<span class="chip crit" style="margin-left:6px;">Audiência ' + p.proxima_audiencia + '</span>' : '') +
           '</div>' +
           '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
+            '<div class="aviso-ia">Os textos em destaque são resumos gerados automaticamente para facilitar a leitura ' +
+            'e podem não refletir todos os detalhes. O texto oficial da comunicação é sempre a referência válida — ' +
+            'consulte-o em caso de dúvida ou fale com o escritório.</div>' +
             '<div class="timeline">' + timelineHtml + '</div>' +
           '</div>';
         }).join('');
