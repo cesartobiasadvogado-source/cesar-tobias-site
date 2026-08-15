@@ -235,6 +235,7 @@
               '<div class="timeline-data">' + item.data + '</div>' +
               '<div class="timeline-tipo">' + item.tipo + '</div>' +
               (item.resumo ? '<div class="timeline-resumo">' + item.resumo + '</div>' : '') +
+              (item.link ? '<div style="margin-top:4px;"><a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
             '</div>';
           }).join('');
 
