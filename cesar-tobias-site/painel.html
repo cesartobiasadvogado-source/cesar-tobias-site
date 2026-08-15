@@ -113,6 +113,15 @@
   .btn-refresh { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
   .btn-refresh:hover { background: var(--surface-sunken); }
 
+  .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
+  .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .admin-form button:hover { opacity: 0.92; }
+  .admin-msg { padding: 0 20px 12px; font-size: 12.5px; color: var(--ink-faint); }
+  .btn-remover { background: none; border: 1px solid var(--crit); color: var(--crit); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+  .btn-remover:hover { background: var(--crit-soft); }
+  @media (max-width: 640px) { .admin-form { grid-template-columns: 1fr; } }
+
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .stat-grid { grid-template-columns: 1fr; }
@@ -245,12 +254,30 @@
         htmlPrazos +
       '</div></section>' +
       '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
+      (dados.usuario_admin ?
+        '<section><p class="section-label">Administração — usuários</p>' +
+        '<div class="panel">' +
+          '<div class="admin-form">' +
+            '<input type="text" id="admin-nome" placeholder="Nome">' +
+            '<input type="text" id="admin-login" placeholder="Login" autocomplete="off">' +
+            '<input type="password" id="admin-senha" placeholder="Senha" autocomplete="new-password">' +
+            '<button id="admin-btn-criar">Adicionar</button>' +
+          '</div>' +
+          '<div class="admin-msg" id="admin-msg"></div>' +
+          '<div id="admin-lista-usuarios"></div>' +
+        '</div></section>'
+        : '') +
       '<footer><span>Dados de Contratos, Controle de Parcelas, Comunicações PJe e Funil de leads</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
     document.getElementById('btn-atualizar').addEventListener('click', function () {
       carregarDados(sessionStorage.getItem('painel_token'));
     });
+
+    if (dados.usuario_admin) {
+      carregarListaUsuarios();
+      document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
+    }
   }
 
   function carregarDados(token) {
@@ -273,6 +300,78 @@
         gateError.textContent = e.message === 'sessao'
           ? 'Sua sessão expirou. Entre novamente.'
           : 'Não foi possível carregar os dados agora.';
+      });
+  }
+
+  function carregarListaUsuarios() {
+    var token = sessionStorage.getItem('painel_token');
+    fetch('/api/painel?acao=usuarios_listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        var container = document.getElementById('admin-lista-usuarios');
+        if (!container || !dados.usuarios) return;
+        if (dados.usuarios.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
+          return;
+        }
+        var linhas = dados.usuarios.map(function (u) {
+          return '<tr><td>' + u.nome + '</td><td>' + u.usuario + '</td>' +
+            '<td>' + (u.admin ? '<span class="chip good">Admin</span>' : '<span class="chip neutral">Padrão</span>') + '</td>' +
+            '<td style="text-align:right"><button class="btn-remover" data-login="' + u.usuario + '">Remover</button></td></tr>';
+        }).join('');
+        container.innerHTML =
+          '<table><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table>';
+        var botoes = container.querySelectorAll('.btn-remover');
+        for (var i = 0; i < botoes.length; i++) {
+          botoes[i].addEventListener('click', function (e) {
+            removerUsuarioAdmin(e.target.getAttribute('data-login'));
+          });
+        }
+      });
+  }
+
+  function criarUsuarioAdmin() {
+    var nome = document.getElementById('admin-nome').value;
+    var login = document.getElementById('admin-login').value;
+    var senha = document.getElementById('admin-senha').value;
+    var msg = document.getElementById('admin-msg');
+    var token = sessionStorage.getItem('painel_token');
+    msg.textContent = '';
+
+    fetch(
+      '/api/painel?acao=usuarios_criar&token=' + encodeURIComponent(token) +
+      '&nome=' + encodeURIComponent(nome) + '&login=' + encodeURIComponent(login) +
+      '&senha=' + encodeURIComponent(senha),
+      { cache: 'no-store' }
+    )
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200) {
+          msg.textContent = resultado.corpo.erro || 'Erro ao criar usuario.';
+          return;
+        }
+        document.getElementById('admin-nome').value = '';
+        document.getElementById('admin-login').value = '';
+        document.getElementById('admin-senha').value = '';
+        msg.textContent = 'Usuário adicionado com sucesso.';
+        carregarListaUsuarios();
+      });
+  }
+
+  function removerUsuarioAdmin(login) {
+    var msg = document.getElementById('admin-msg');
+    var token = sessionStorage.getItem('painel_token');
+    fetch('/api/painel?acao=usuarios_remover&token=' + encodeURIComponent(token) +
+      '&login=' + encodeURIComponent(login), { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200) {
+          msg.textContent = resultado.corpo.erro || 'Erro ao remover usuario.';
+          return;
+        }
+        msg.textContent = 'Usuário removido.';
+        carregarListaUsuarios();
       });
   }
 
