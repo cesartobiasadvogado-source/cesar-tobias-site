@@ -312,9 +312,13 @@
             '<input type="text" id="evento-titulo" placeholder="Título">' +
             '<input type="date" id="evento-data">' +
             '<input type="time" id="evento-hora">' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;">' +
+              '<input type="checkbox" id="evento-meet" style="width:auto;"> Gerar link do Meet' +
+            '</label>' +
             '<button id="evento-btn-salvar">Criar</button>' +
             '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
           '</div>' +
+          '<div class="admin-msg hidden" id="evento-meet-resultado"></div>' +
           '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
 
@@ -553,21 +557,31 @@
       var titulo = document.getElementById('evento-titulo').value.trim();
       var data = document.getElementById('evento-data').value;
       var hora = document.getElementById('evento-hora').value;
+      var comMeet = document.getElementById('evento-meet').checked;
       if (!titulo || !data) return;
       var token = sessionStorage.getItem('painel_token');
       var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
       var url = '/api/painel?acao=agenda&op=' + op +
         '&titulo=' + encodeURIComponent(titulo) + '&data=' + encodeURIComponent(data) +
         (hora ? '&hora=' + encodeURIComponent(hora) : '') +
+        (comMeet && !eventoEditandoId ? '&meet=true' : '') +
         (eventoEditandoId ? '&id=' + encodeURIComponent(eventoEditandoId) : '') +
         '&token=' + encodeURIComponent(token);
-      fetch(url).then(function () {
+      var resultadoEl = document.getElementById('evento-meet-resultado');
+      fetch(url).then(function (r) { return r.json(); }).then(function (dados) {
         eventoEditandoId = null;
         document.getElementById('evento-titulo').value = '';
         document.getElementById('evento-data').value = '';
         document.getElementById('evento-hora').value = '';
+        document.getElementById('evento-meet').checked = false;
         document.getElementById('evento-btn-salvar').textContent = 'Criar';
         document.getElementById('evento-btn-cancelar').classList.add('hidden');
+        if (dados.link_meet) {
+          resultadoEl.classList.remove('hidden');
+          resultadoEl.innerHTML = 'Link do Meet: <a href="' + dados.link_meet + '" target="_blank" rel="noopener" style="color:var(--accent);">' + dados.link_meet + '</a>';
+        } else {
+          resultadoEl.classList.add('hidden');
+        }
         carregarAgenda();
       });
     });
