@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
   if (acao === 'executar') {
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta'];
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento'];
     camposPermitidos.forEach(function (campo) {
       if (req.query && req.query[campo]) {
         url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
