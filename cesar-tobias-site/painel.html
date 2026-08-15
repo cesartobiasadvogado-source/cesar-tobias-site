@@ -367,6 +367,11 @@
       '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
         htmlPrazos +
       '</div></section>' +
+      '<section><p class="section-label">Clientes</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
+          '<input type="text" id="clientes-busca" placeholder="Buscar cliente pelo nome..." style="width:100%;box-sizing:border-box;padding:10px 14px;border:none;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+          '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>' +
       '<section><p class="section-label">Ficha de processos</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
@@ -519,6 +524,94 @@
     wireOlhinhos(dados);
     carregarAgenda();
     carregarProcessos();
+    carregarClientes();
+  }
+
+  var clientesCarregados = [];
+
+  function carregarClientes() {
+    var token = sessionStorage.getItem('painel_token');
+    fetch('/api/painel?acao=clientes&token=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        clientesCarregados = dados.clientes || [];
+        renderClientes(clientesCarregados);
+        var busca = document.getElementById('clientes-busca');
+        if (busca) {
+          busca.addEventListener('input', function () {
+            var termo = busca.value.toLowerCase();
+            renderClientes(clientesCarregados.filter(function (c) {
+              return c.nome.toLowerCase().indexOf(termo) !== -1;
+            }));
+          });
+        }
+      })
+      .catch(function () {
+        document.getElementById('clientes-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes.</div></div>';
+      });
+  }
+
+  function renderClientes(clientes) {
+    var container = document.getElementById('clientes-lista');
+    if (clientes.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente encontrado.</div></div>';
+      return;
+    }
+
+    container.innerHTML = clientes.map(function (c, idx) {
+      var parcelasPendentes = c.parcelas.length;
+      var valorPendente = c.parcelas.reduce(function (soma, p) { return soma + (p.saldo || 0); }, 0);
+      var contratosAtivos = c.contratos.filter(function (ct) { return String(ct.status).toUpperCase() === 'ATIVO'; }).length;
+
+      var badges = '';
+      if (contratosAtivos > 0) badges += '<span class="chip good">' + contratosAtivos + ' contrato(s) ativo(s)</span> ';
+      if (parcelasPendentes > 0) badges += '<span class="chip crit">R$ ' + fmtMoeda(valorPendente) + ' pendente</span> ';
+      if (c.processos.length > 0) badges += '<span class="chip neutral">' + c.processos.length + ' processo(s)</span>';
+
+      var contratosHtml = c.contratos.map(function (ct) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + ct.tipo_servico + '</div>' +
+          '<div class="prazo-meta">Valor total: R$ ' + fmtMoeda(ct.valor_total) + '</div></div>' +
+          '<span class="days-badge ' + (String(ct.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn') + '">' + ct.status + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Sem contratos.</div></div>';
+
+      var parcelasHtml = c.parcelas.map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">R$ ' + fmtMoeda(p.saldo) + '</div>' +
+          '<div class="prazo-meta">Vencimento: ' + p.vencimento + '</div></div>' +
+          '<span class="days-badge ' + (p.situacao === 'Vencida' ? 'crit' : 'warn') + '">' + (p.situacao || 'Pendente') + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhuma parcela pendente.</div></div>';
+
+      var processosHtml = c.processos.map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + p.processo + '</div>' +
+          '<div class="prazo-meta">' + p.status_atual + ' · última movimentação: ' + p.ultima_movimentacao + '</div></div>' +
+          (p.proximo_prazo ? '<span class="days-badge warn">Prazo ' + p.proximo_prazo + '</span>' : '') +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo vinculado.</div></div>';
+
+      return '<div class="processo-card">' +
+        '<div class="processo-cabecalho" data-toggle-cliente="' + idx + '">' +
+          '<div><div class="processo-numero">' + c.nome + '</div>' +
+          '<div class="processo-meta">' + badges + '</div></div>' +
+        '</div>' +
+        '<div class="processo-corpo" id="cliente-corpo-' + idx + '">' +
+          '<p class="section-label" style="margin-top:8px;">Contratos</p>' + contratosHtml +
+          '<p class="section-label" style="margin-top:16px;">Parcelas pendentes</p>' + parcelasHtml +
+          '<p class="section-label" style="margin-top:16px;">Processos</p>' + processosHtml +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-cliente]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('cliente-corpo-' + el.getAttribute('data-toggle-cliente'));
+        corpo.classList.toggle('aberto');
+      });
+    });
   }
 
   function carregarProcessos() {
