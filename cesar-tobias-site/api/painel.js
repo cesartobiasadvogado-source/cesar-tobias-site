@@ -41,6 +41,29 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'usuarios_listar' || acao === 'usuarios_criar' || acao === 'usuarios_remover') {
+    const op = acao === 'usuarios_listar' ? 'listar' : acao === 'usuarios_criar' ? 'criar' : 'remover';
+    let url = base + '?action=painel_admin&op=' + op + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+
+    if (op === 'criar') {
+      url += '&nome=' + encodeURIComponent((req.query && req.query.nome) || '') +
+             '&login=' + encodeURIComponent((req.query && req.query.login) || '') +
+             '&senha=' + encodeURIComponent((req.query && req.query.senha) || '');
+    }
+    if (op === 'remover') {
+      url += '&login=' + encodeURIComponent((req.query && req.query.login) || '');
+    }
+
+    try {
+      const resposta = await fetch(url);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao gerenciar usuarios.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
