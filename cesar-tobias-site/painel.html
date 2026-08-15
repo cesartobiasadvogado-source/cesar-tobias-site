@@ -113,6 +113,14 @@
   .btn-refresh { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
   .btn-refresh:hover { background: var(--surface-sunken); }
 
+  .prazo-card { padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .prazo-card:last-child { border-bottom: none; }
+  .prazo-card-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .prazo-processo { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .prazo-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .prazo-orgao { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
+  .prazo-resumo { font-size: 13px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
+
   .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
   .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -218,14 +226,23 @@
     if (p.prazos_semana.length === 0) {
       htmlPrazos =
         '<div class="empty-state"><div class="glyph">—</div>' +
-        '<div class="msg">Nenhum prazo com vencimento nos próximos 7 dias.</div></div>';
+        '<div class="msg">Nenhum prazo com vencimento nos próximos 14 dias.</div></div>';
     } else {
-      var linhasPrazo = p.prazos_semana.map(function (item) {
-        return '<tr><td>' + item.processo + '</td><td>' + item.tipo + '</td><td class="num">' + item.data_limite + '</td></tr>';
+      htmlPrazos = p.prazos_semana.map(function (item) {
+        var linkHtml = item.link
+          ? '<a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+          : '';
+        return '<div class="prazo-card">' +
+          '<div class="prazo-card-topo">' +
+            '<div><div class="prazo-processo">' + item.processo + '</div>' +
+            '<div class="prazo-meta">' + item.tribunal + (item.tipo ? ' · ' + item.tipo : '') + '</div></div>' +
+            '<span class="days-badge warn">' + item.data_limite + '</span>' +
+          '</div>' +
+          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
+          (item.resumo ? '<div class="prazo-resumo">' + item.resumo + '</div>' : '') +
+          (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+        '</div>';
       }).join('');
-      htmlPrazos =
-        '<table><thead><tr><th>Processo</th><th>Tipo</th><th style="text-align:right">Prazo</th></tr></thead>' +
-        '<tbody>' + linhasPrazo + '</tbody></table>';
     }
 
     var chipPrazos = p.prazos_semana.length === 0
