@@ -102,6 +102,25 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processos') {
+    var url4 = base + '?action=painel_processos&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposProcessos = ['op', 'processo', 'cliente', 'proxima_audiencia', 'observacoes'];
+    camposProcessos.forEach(function (campo) {
+      if (req.query && req.query[campo] !== undefined) {
+        url4 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      }
+    });
+
+    try {
+      const resposta = await fetch(url4);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar processos.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
