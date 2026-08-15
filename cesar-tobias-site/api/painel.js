@@ -64,6 +64,25 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'executar') {
+    var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'etapa', 'origem', 'midia', 'campanha'];
+    camposPermitidos.forEach(function (campo) {
+      if (req.query && req.query[campo]) {
+        url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      }
+    });
+
+    try {
+      const resposta = await fetch(url2);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao executar a ação.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
