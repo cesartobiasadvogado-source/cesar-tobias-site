@@ -127,8 +127,9 @@
   <div id="gate" class="gate">
     <div class="gate-card">
       <p class="gate-title">Painel do Escritório</p>
-      <p class="gate-sub">Acesso restrito. Digite a senha para continuar.</p>
-      <input type="password" id="senha-input" placeholder="Senha" autocomplete="off">
+      <p class="gate-sub">Acesso restrito. Entre com seu usuário.</p>
+      <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:var(--bg);color:var(--ink);margin-bottom:12px;">
+      <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
       <button id="btn-entrar">Entrar</button>
       <div class="gate-error" id="gate-error"></div>
     </div>
@@ -140,6 +141,7 @@
 (function () {
   var gate = document.getElementById('gate');
   var conteudo = document.getElementById('conteudo');
+  var usuarioInput = document.getElementById('usuario-input');
   var senhaInput = document.getElementById('senha-input');
   var btnEntrar = document.getElementById('btn-entrar');
   var gateError = document.getElementById('gate-error');
@@ -224,7 +226,8 @@
     conteudo.innerHTML =
       '<header class="masthead">' +
         '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
-        '<div class="masthead-meta">Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong><br>Fuso America/Fortaleza</div>' +
+        '<div class="masthead-meta">Logado como <strong>' + (dados.usuario_logado || '') + '</strong><br>' +
+        'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
       '<section><p class="section-label">Visão geral</p><div class="stat-grid">' +
         '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
@@ -246,43 +249,69 @@
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
     document.getElementById('btn-atualizar').addEventListener('click', function () {
-      carregarDados(sessionStorage.getItem('painel_senha'));
+      carregarDados(sessionStorage.getItem('painel_token'));
     });
   }
 
-  function carregarDados(senha) {
+  function carregarDados(token) {
     gateError.textContent = '';
-    fetch('/api/painel?senha=' + encodeURIComponent(senha), { cache: 'no-store' })
+    fetch('/api/painel?acao=dados&token=' + encodeURIComponent(token), { cache: 'no-store' })
       .then(function (r) {
-        if (r.status === 401) throw new Error('senha');
+        if (r.status === 401) throw new Error('sessao');
         if (!r.ok) throw new Error('falha');
         return r.json();
       })
       .then(function (dados) {
-        sessionStorage.setItem('painel_senha', senha);
         gate.classList.add('hidden');
         conteudo.classList.remove('hidden');
         renderPainel(dados);
       })
       .catch(function (e) {
-        sessionStorage.removeItem('painel_senha');
+        sessionStorage.removeItem('painel_token');
         gate.classList.remove('hidden');
         conteudo.classList.add('hidden');
-        gateError.textContent = e.message === 'senha'
-          ? 'Senha incorreta.'
+        gateError.textContent = e.message === 'sessao'
+          ? 'Sua sessão expirou. Entre novamente.'
           : 'Não foi possível carregar os dados agora.';
       });
   }
 
+  function fazerLogin(usuario, senha) {
+    gateError.textContent = '';
+    fetch(
+      '/api/painel?acao=login&usuario=' + encodeURIComponent(usuario) +
+      '&senha=' + encodeURIComponent(senha),
+      { cache: 'no-store' }
+    )
+      .then(function (r) {
+        return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; });
+      })
+      .then(function (resultado) {
+        if (resultado.status === 429) {
+          gateError.textContent = 'Muitas tentativas erradas. Tente novamente mais tarde.';
+          return;
+        }
+        if (resultado.status !== 200 || !resultado.corpo.token) {
+          gateError.textContent = 'Usuário ou senha incorretos.';
+          return;
+        }
+        sessionStorage.setItem('painel_token', resultado.corpo.token);
+        carregarDados(resultado.corpo.token);
+      })
+      .catch(function () {
+        gateError.textContent = 'Não foi possível entrar agora. Tente novamente.';
+      });
+  }
+
   btnEntrar.addEventListener('click', function () {
-    carregarDados(senhaInput.value);
+    fazerLogin(usuarioInput.value, senhaInput.value);
   });
   senhaInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') carregarDados(senhaInput.value);
+    if (e.key === 'Enter') fazerLogin(usuarioInput.value, senhaInput.value);
   });
 
-  var senhaSalva = sessionStorage.getItem('painel_senha');
-  if (senhaSalva) carregarDados(senhaSalva);
+  var tokenSalvo = sessionStorage.getItem('painel_token');
+  if (tokenSalvo) carregarDados(tokenSalvo);
 })();
 </script>
 </body>
