@@ -1,805 +1,119 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow, noarchive">
-<title>Painel do Escritório</title>
-<style>
-  :root {
-    --bg: #f6f4ef;
-    --surface: #ffffff;
-    --surface-sunken: #efece4;
-    --ink: #1c2438;
-    --ink-soft: #5b6178;
-    --ink-faint: #8b90a3;
-    --line: #e2ded3;
-    --brand: #1c2c4f;
-    --accent: #a9793a;
-    --good: #2f7a4f;
-    --good-soft: #e4f1e8;
-    --warn: #b8842e;
-    --warn-soft: #faf0dc;
-    --crit: #b33a3a;
-    --crit-soft: #fbe9e9;
-    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'SF Mono', 'Cascadia Code', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+function obterIp(req) {
+  const encaminhado = req.headers['x-forwarded-for'];
+  if (encaminhado) return encaminhado.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || 'desconhecido';
+}
+
+module.exports = async (req, res) => {
+  const segredoLambda = process.env.DASHBOARD_SECRET;
+  if (!segredoLambda) {
+    res.status(500).json({ erro: 'Configuracao ausente no servidor.' });
+    return;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14182a; --surface: #1c2238; --surface-sunken: #171c2f;
-      --ink: #eef0f6; --ink-soft: #a7acc2; --ink-faint: #6d7290; --line: #2b3250;
-      --brand: #c7d0ec; --accent: #d3a869;
-      --good: #5fbd85; --good-soft: #16261d;
-      --warn: #e0ab5a; --warn-soft: #2c2313;
-      --crit: #e57b7b; --crit-soft: #2c1717;
+
+  const base = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
+  const segredoQS = '&secret=' + encodeURIComponent(segredoLambda);
+  const ip = obterIp(req);
+  const acao = (req.query && req.query.acao) || 'dados';
+
+  if (acao === 'login') {
+    const usuario = (req.query && req.query.usuario) || '';
+    const senha = (req.query && req.query.senha) || '';
+
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_login' +
+        '&usuario=' + encodeURIComponent(usuario) +
+        '&senha=' + encodeURIComponent(senha) +
+        '&ip=' + encodeURIComponent(ip) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao autenticar.' });
     }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-  .page { max-width: 920px; margin: 0 auto; padding: 40px 24px 72px; }
-
-  /* Password gate */
-  .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .gate-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 32px; max-width: 340px; width: 100%; }
-  .gate-title { font-family: var(--font-display); font-size: 20px; color: var(--brand); margin: 0 0 4px; }
-  .gate-sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 20px; }
-  .gate input[type="password"] {
-    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
-    font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 12px;
-  }
-  .gate input[type="password"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .gate button {
-    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--brand);
-    color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
-  }
-  .gate button:hover { opacity: 0.92; }
-  .gate-error { color: var(--crit); font-size: 13px; margin-top: 10px; min-height: 16px; }
-
-  header.masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid var(--brand); margin-bottom: 32px; flex-wrap: wrap; }
-  .masthead-name { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--brand); text-wrap: balance; }
-  .masthead-name small { display: block; font-family: var(--font-body); font-size: 12.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
-  .masthead-meta { text-align: right; font-size: 13px; color: var(--ink-faint); line-height: 1.5; }
-  .masthead-meta strong { color: var(--ink-soft); font-weight: 600; }
-
-  section { margin-bottom: 40px; }
-  .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
-
-  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 18px; }
-  .stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 600; color: var(--brand); line-height: 1.1; }
-  .stat-value.money::before { content: 'R$ '; font-size: 18px; font-weight: 500; color: var(--ink-faint); }
-  .stat-label { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
-  .stat-sub { margin-top: 2px; font-size: 12px; color: var(--ink-faint); }
-
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
-  .panel-title { font-size: 15px; font-weight: 600; color: var(--ink); }
-  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
-  .chip.crit { background: var(--crit-soft); color: var(--crit); }
-  .chip.good { background: var(--good-soft); color: var(--good); }
-  .chip.warn { background: var(--warn-soft); color: var(--warn); }
-  .chip.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
-
-  .funil-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-  .funil-coluna { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-height: 90px; }
-  .funil-coluna-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  .funil-count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; background: var(--surface-sunken); color: var(--ink-faint); padding: 1px 7px; border-radius: 999px; font-size: 11.5px; }
-  .funil-coluna-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .lead-card { background: var(--surface-sunken); border-radius: 7px; padding: 8px 10px; }
-  .lead-nome { font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 4px; word-break: break-word; }
-  .funil-vazio { padding: 14px 8px; text-align: center; font-size: 12px; color: var(--ink-faint); }
-  @media (max-width: 860px) { .funil-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .funil-grid { grid-template-columns: 1fr; } }
-
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); padding: 10px 20px; border-bottom: 1px solid var(--line); }
-  td { padding: 13px 20px; font-size: 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
-  tbody tr:last-child td { border-bottom: none; }
-  td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
-  .days-badge { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
-  .days-badge.crit { background: var(--crit-soft); color: var(--crit); }
-  .days-badge.warn { background: var(--warn-soft); color: var(--warn); }
-
-  .empty-state { padding: 36px 20px; text-align: center; }
-  .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
-  .empty-state .msg { font-size: 13.5px; color: var(--ink-faint); }
-
-  .overview-line { display: flex; gap: 28px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; }
-  .overview-line b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
-
-  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-  .btn-refresh { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
-  .btn-refresh:hover { background: var(--surface-sunken); }
-
-  .prazo-card { padding: 14px 20px; border-bottom: 1px solid var(--line); }
-  .prazo-card:last-child { border-bottom: none; }
-  .prazo-card-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .prazo-processo { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
-  .prazo-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
-  .prazo-orgao { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
-  .prazo-resumo { font-size: 13px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
-
-  .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
-  .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
-  .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .admin-form button:hover { opacity: 0.92; }
-  .admin-msg { padding: 0 20px 12px; font-size: 12.5px; color: var(--ink-faint); }
-  .btn-remover { background: none; border: 1px solid var(--crit); color: var(--crit); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
-  .btn-remover:hover { background: var(--crit-soft); }
-  @media (max-width: 640px) { .admin-form { grid-template-columns: 1fr; } }
-
-  .agenda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .agenda-form { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .agenda-form input { flex: 1; min-width: 110px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
-  .agenda-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-  .agenda-form button:hover { opacity: 0.92; }
-  .agenda-form .cancelar-edicao { background: none; border: 1px solid var(--line); color: var(--ink-faint); }
-  .agenda-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
-  .agenda-item:last-child { border-bottom: none; }
-  .agenda-item-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-  .agenda-item-data { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
-  .agenda-item-acoes { display: flex; gap: 6px; flex-shrink: 0; }
-  .btn-editar { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
-  .btn-editar:hover { background: var(--surface-sunken); }
-  @media (max-width: 760px) { .agenda-grid { grid-template-columns: 1fr; } }
-
-  .automacoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .automacao-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-  .automacao-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-  .automacao-desc { font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
-  .automacao-card input, .automacao-card select {
-    padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;
-    background: var(--bg); color: var(--ink);
-  }
-  .automacao-card button {
-    padding: 8px 12px; border: none; border-radius: 6px; background: var(--brand); color: #fff;
-    font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 2px;
-  }
-  .automacao-card button:hover { opacity: 0.92; }
-  .automacao-card button:disabled { opacity: 0.6; cursor: default; }
-  .automacao-resultado { font-size: 12px; color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
-  @media (max-width: 860px) { .automacoes-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 560px) { .automacoes-grid { grid-template-columns: 1fr; } }
-
-  .hidden { display: none !important; }
-  @media (max-width: 640px) {
-    .stat-grid { grid-template-columns: 1fr; }
-    .masthead { flex-direction: column; }
-    .masthead-meta { text-align: left; }
-    th:nth-child(3), td:nth-child(3) { display: none; }
-  }
-</style>
-</head>
-<body>
-
-  <div id="gate" class="gate">
-    <div class="gate-card">
-      <p class="gate-title">Painel do Escritório</p>
-      <p class="gate-sub">Acesso restrito. Entre com seu usuário.</p>
-      <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:var(--bg);color:var(--ink);margin-bottom:12px;">
-      <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
-      <button id="btn-entrar">Entrar</button>
-      <div class="gate-error" id="gate-error"></div>
-    </div>
-  </div>
-
-  <div id="conteudo" class="page hidden"></div>
-
-<script>
-(function () {
-  var gate = document.getElementById('gate');
-  var conteudo = document.getElementById('conteudo');
-  var usuarioInput = document.getElementById('usuario-input');
-  var senhaInput = document.getElementById('senha-input');
-  var btnEntrar = document.getElementById('btn-entrar');
-  var gateError = document.getElementById('gate-error');
-
-  function fmtMoeda(v) {
-    return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return;
   }
 
-  function fmtDataHora(iso) {
-    var d = new Date(iso);
-    return d.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const tokenSessao = (req.query && req.query.token) || '';
+  if (!tokenSessao) {
+    res.status(401).json({ erro: 'Sessao ausente.' });
+    return;
   }
 
-  function renderFunil(crm) {
-    if (!crm || !crm.etapas) {
-      return '<div class="panel"><div class="empty-state"><div class="msg">Sem dados de leads ainda.</div></div></div>';
+  if (acao === 'usuarios_listar' || acao === 'usuarios_criar' || acao === 'usuarios_remover') {
+    const op = acao === 'usuarios_listar' ? 'listar' : acao === 'usuarios_criar' ? 'criar' : 'remover';
+    let url = base + '?action=painel_admin&op=' + op + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+
+    if (op === 'criar') {
+      url += '&nome=' + encodeURIComponent((req.query && req.query.nome) || '') +
+             '&login=' + encodeURIComponent((req.query && req.query.login) || '') +
+             '&senha=' + encodeURIComponent((req.query && req.query.senha) || '');
     }
-    var colunas = crm.etapas.map(function (etapa) {
-      var cardsHtml;
-      if (etapa.leads.length === 0) {
-        cardsHtml = '<div class="funil-vazio">Vazio</div>';
-      } else {
-        cardsHtml = etapa.leads.map(function (lead) {
-          var badgeClasse = lead.dias_na_etapa > 5 ? 'warn' : 'neutral';
-          return '<div class="lead-card">' +
-            '<div class="lead-nome">' + lead.nome + '</div>' +
-            '<span class="days-badge ' + badgeClasse + '" style="background:var(--surface-sunken);color:var(--ink-faint)">' +
-            lead.dias_na_etapa + 'd nesta etapa</span></div>';
-        }).join('');
+    if (op === 'remover') {
+      url += '&login=' + encodeURIComponent((req.query && req.query.login) || '');
+    }
+
+    try {
+      const resposta = await fetch(url);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao gerenciar usuarios.' });
+    }
+    return;
+  }
+
+  if (acao === 'executar') {
+    var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta'];
+    camposPermitidos.forEach(function (campo) {
+      if (req.query && req.query[campo]) {
+        url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
       }
-      return '<div class="funil-coluna">' +
-        '<div class="funil-coluna-header">' + etapa.nome + '<span class="funil-count">' + etapa.quantidade + '</span></div>' +
-        '<div class="funil-coluna-body">' + cardsHtml + '</div></div>';
-    }).join('');
-    return '<div class="funil-grid">' + colunas + '</div>';
-  }
-
-  function renderPainel(dados) {
-    var f = dados.financeiro;
-    var p = dados.pje;
-
-    var htmlVencidas;
-    if (f.parcelas_vencidas.length === 0) {
-      htmlVencidas =
-        '<div class="empty-state"><div class="glyph">✓</div>' +
-        '<div class="msg">Nenhuma parcela em atraso agora. Tudo em dia.</div></div>';
-    } else {
-      var linhas = f.parcelas_vencidas.map(function (item) {
-        var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
-        return '<tr><td>' + item.nome + '</td>' +
-          '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
-          '<td>' + item.vencimento + '</td>' +
-          '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td></tr>';
-      }).join('');
-      htmlVencidas =
-        '<table><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th></tr></thead>' +
-        '<tbody>' + linhas + '</tbody></table>';
-    }
-
-    var chipVencidas = f.parcelas_vencidas.length === 0
-      ? '<span class="chip good">Nenhuma vencida</span>'
-      : '<span class="chip crit">' + f.parcelas_vencidas.length + ' vencida(s)</span>';
-
-    var htmlPrazos;
-    if (p.prazos_semana.length === 0) {
-      htmlPrazos =
-        '<div class="empty-state"><div class="glyph">—</div>' +
-        '<div class="msg">Nenhum prazo com vencimento nos próximos 14 dias.</div></div>';
-    } else {
-      htmlPrazos = p.prazos_semana.map(function (item) {
-        var linkHtml = item.link
-          ? '<a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
-          : '';
-        return '<div class="prazo-card">' +
-          '<div class="prazo-card-topo">' +
-            '<div><div class="prazo-processo">' + item.processo + '</div>' +
-            '<div class="prazo-meta">' + item.tribunal + (item.tipo ? ' · ' + item.tipo : '') + '</div></div>' +
-            '<span class="days-badge warn">' + item.data_limite + '</span>' +
-          '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
-          (item.resumo ? '<div class="prazo-resumo">' + item.resumo + '</div>' : '') +
-          (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
-        '</div>';
-      }).join('');
-    }
-
-    var chipPrazos = p.prazos_semana.length === 0
-      ? '<span class="chip neutral">Sem prazos</span>'
-      : '<span class="chip warn">' + p.prazos_semana.length + ' prazo(s)</span>';
-
-    conteudo.innerHTML =
-      '<header class="masthead">' +
-        '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
-        '<div class="masthead-meta">Logado como <strong>' + (dados.usuario_logado || '') + '</strong><br>' +
-        'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
-      '</header>' +
-      '<section><p class="section-label">Visão geral</p><div class="stat-grid">' +
-        '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
-        '<div class="stat-card"><div class="stat-value money">' + fmtMoeda(f.total_a_receber) + '</div><div class="stat-label">A receber</div><div class="stat-sub">saldo de honorários em aberto</div></div>' +
-        '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
-      '</div></section>' +
-      '<section><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
-        '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
-        htmlVencidas +
-      '</div></section>' +
-      '<section><p class="section-label">Processual — PJe</p>' +
-      '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
-      '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
-      '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
-        htmlPrazos +
-      '</div></section>' +
-      '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
-      '<section><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
-
-        '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">Eventos</span></div>' +
-          '<div class="agenda-form">' +
-            '<input type="text" id="evento-titulo" placeholder="Título">' +
-            '<input type="date" id="evento-data">' +
-            '<input type="time" id="evento-hora">' +
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;">' +
-              '<input type="checkbox" id="evento-meet" style="width:auto;"> Gerar link do Meet' +
-            '</label>' +
-            '<button id="evento-btn-salvar">Criar</button>' +
-            '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
-          '</div>' +
-          '<div class="admin-msg hidden" id="evento-meet-resultado"></div>' +
-          '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
-
-        '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">Tarefas</span></div>' +
-          '<div class="agenda-form">' +
-            '<input type="text" id="tarefa-titulo" placeholder="Título">' +
-            '<input type="date" id="tarefa-data">' +
-            '<button id="tarefa-btn-salvar">Criar</button>' +
-            '<button class="cancelar-edicao hidden" id="tarefa-btn-cancelar">Cancelar</button>' +
-          '</div>' +
-          '<div id="agenda-lista-tarefas"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
-
-      '</div></section>' +
-      '<section><p class="section-label">Automações</p><div class="automacoes-grid">' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Verificar PJe agora</div>' +
-          '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
-          '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="verificar_pje"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Resumo semanal PJe</div>' +
-          '<div class="automacao-desc">Envia o resumo dos últimos 7 dias no WhatsApp.</div>' +
-          '<button data-tipo="resumo_pje" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="resumo_pje"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Verificar Autentique</div>' +
-          '<div class="automacao-desc">Checa documentos assinados agora.</div>' +
-          '<button data-tipo="verificar_autentique" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="verificar_autentique"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Gerar contrato</div>' +
-          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
-          '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
-          '<button data-tipo="gerar_contrato" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_contrato"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Declaração de residência</div>' +
-          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
-          '<input type="text" placeholder="Endereço (opcional, se ainda não tiver salvo)" data-campo="endereco" data-form="gerar_residencia">' +
-          '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_residencia"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Declaração de hipossuficiência</div>' +
-          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_hipossuficiencia">' +
-          '<input type="text" placeholder="Motivo da ação (opcional)" data-campo="descricao" data-form="gerar_hipossuficiencia">' +
-          '<button data-tipo="gerar_hipossuficiencia" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_hipossuficiencia"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Enviar assinatura</div>' +
-          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
-          '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
-          '<div class="automacao-resultado" data-resultado="enviar_assinatura"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Mover lead de etapa</div>' +
-          '<input type="text" placeholder="Nome do lead" data-campo="nome" data-form="mover_lead">' +
-          '<select data-campo="etapa" data-form="mover_lead">' +
-            '<option value="Novo contato">Novo contato</option>' +
-            '<option value="Em conversa">Em conversa</option>' +
-            '<option value="Contrato enviado">Contrato enviado</option>' +
-            '<option value="Assinado">Assinado</option>' +
-            '<option value="Perdido">Perdido</option>' +
-          '</select>' +
-          '<button data-tipo="mover_lead" class="btn-automacao">Mover</button>' +
-          '<div class="automacao-resultado" data-resultado="mover_lead"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Gerar link com UTM</div>' +
-          '<input type="text" placeholder="Origem (ex: instagram)" data-campo="origem" data-form="gerar_utm">' +
-          '<input type="text" placeholder="Mídia (ex: stories)" data-campo="midia" data-form="gerar_utm">' +
-          '<input type="text" placeholder="Campanha" data-campo="campanha" data-form="gerar_utm">' +
-          '<button data-tipo="gerar_utm" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_utm"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Responder confirmação pendente</div>' +
-          '<div class="automacao-desc">Use quando alguma ação acima pedir uma escolha (ex: qual documento enviar).</div>' +
-          '<input type="text" placeholder="Ex: 1,2 ou todos" data-campo="resposta" data-form="responder_pendente">' +
-          '<button data-tipo="responder_pendente" class="btn-automacao">Responder</button>' +
-          '<div class="automacao-resultado" data-resultado="responder_pendente"></div>' +
-        '</div>' +
-
-      '</div></section>' +
-      (dados.usuario_admin ?
-        '<section><p class="section-label">Administração — usuários</p>' +
-        '<div class="panel">' +
-          '<div class="admin-form">' +
-            '<input type="text" id="admin-nome" placeholder="Nome">' +
-            '<input type="text" id="admin-login" placeholder="Login" autocomplete="off">' +
-            '<input type="password" id="admin-senha" placeholder="Senha" autocomplete="new-password">' +
-            '<button id="admin-btn-criar">Adicionar</button>' +
-          '</div>' +
-          '<div class="admin-msg" id="admin-msg"></div>' +
-          '<div id="admin-lista-usuarios"></div>' +
-        '</div></section>'
-        : '') +
-      '<footer><span>Dados de Contratos, Controle de Parcelas, Comunicações PJe e Funil de leads</span>' +
-      '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
-
-    document.getElementById('btn-atualizar').addEventListener('click', function () {
-      carregarDados(sessionStorage.getItem('painel_token'));
     });
 
-    if (dados.usuario_admin) {
-      carregarListaUsuarios();
-      document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
+    try {
+      const resposta = await fetch(url2);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao executar a ação.' });
     }
-
-    wireAutomacoes();
-    wireAgenda();
-    carregarAgenda();
+    return;
   }
 
-  var eventoEditandoId = null;
-  var tarefaEditandoId = null;
+  if (acao === 'agenda') {
+    var url3 = base + '?action=painel_agenda&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora', 'meet'];
+    camposAgenda.forEach(function (campo) {
+      if (req.query && req.query[campo]) {
+        url3 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      }
+    });
 
-  function fmtDataCurta(iso) {
-    if (!iso) return '';
-    var dataParte = iso.split('T')[0];
-    var horaParte = iso.includes('T') ? iso.split('T')[1].substring(0, 5) : '';
-    var partes = dataParte.split('-');
-    var dataFmt = partes[2] + '/' + partes[1] + '/' + partes[0];
-    return horaParte ? dataFmt + ' às ' + horaParte : dataFmt;
+    try {
+      const resposta = await fetch(url3);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao com a agenda.' });
+    }
+    return;
   }
 
-  function carregarAgenda() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=agenda&op=listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (dados) {
-        renderAgendaEventos(dados.eventos || []);
-        renderAgendaTarefas(dados.tarefas || []);
-      })
-      .catch(function () {
-        document.getElementById('agenda-lista-eventos').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar os eventos.</div></div>';
-        document.getElementById('agenda-lista-tarefas').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar as tarefas.</div></div>';
-      });
-  }
+  const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
-  function renderAgendaEventos(eventos) {
-    var container = document.getElementById('agenda-lista-eventos');
-    if (eventos.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum evento nos próximos 30 dias.</div></div>';
+  try {
+    const resposta = await fetch(url);
+    if (!resposta.ok) {
+      res.status(resposta.status).json({ erro: 'sessao_invalida' });
       return;
     }
-    container.innerHTML = eventos.map(function (ev) {
-      return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + ev.titulo + '</div>' +
-        '<div class="agenda-item-data">' + fmtDataCurta(ev.inicio) + '</div></div>' +
-        '<div class="agenda-item-acoes">' +
-          '<button class="btn-editar" data-editar-evento="' + ev.id + '" data-titulo="' + ev.titulo.replace(/"/g, '&quot;') + '" data-inicio="' + ev.inicio + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-evento="' + ev.id + '">Excluir</button>' +
-        '</div></div>';
-    }).join('');
-
-    container.querySelectorAll('[data-editar-evento]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        eventoEditandoId = btn.getAttribute('data-editar-evento');
-        document.getElementById('evento-titulo').value = btn.getAttribute('data-titulo');
-        var inicio = btn.getAttribute('data-inicio');
-        document.getElementById('evento-data').value = inicio.split('T')[0];
-        document.getElementById('evento-hora').value = inicio.includes('T') ? inicio.split('T')[1].substring(0, 5) : '';
-        document.getElementById('evento-btn-salvar').textContent = 'Salvar edição';
-        document.getElementById('evento-btn-cancelar').classList.remove('hidden');
-      });
-    });
-    container.querySelectorAll('[data-excluir-evento]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Excluir esse evento?')) return;
-        var token = sessionStorage.getItem('painel_token');
-        fetch('/api/painel?acao=agenda&op=excluir_evento&id=' + encodeURIComponent(btn.getAttribute('data-excluir-evento')) +
-          '&token=' + encodeURIComponent(token))
-          .then(function () { carregarAgenda(); });
-      });
-    });
+    const dados = await resposta.json();
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(200).json(dados);
+  } catch (e) {
+    res.status(502).json({ erro: 'Erro de conexao ao buscar os dados.' });
   }
-
-  function renderAgendaTarefas(tarefas) {
-    var container = document.getElementById('agenda-lista-tarefas');
-    if (tarefas.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma tarefa pendente.</div></div>';
-      return;
-    }
-    container.innerHTML = tarefas.map(function (t) {
-      return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + t.titulo + '</div>' +
-        '<div class="agenda-item-data">' + (t.data_vencimento ? fmtDataCurta(t.data_vencimento) : 'Sem prazo') + '</div></div>' +
-        '<div class="agenda-item-acoes">' +
-          '<button class="btn-editar" data-editar-tarefa="' + t.id + '" data-titulo="' + t.titulo.replace(/"/g, '&quot;') + '" data-venc="' + (t.data_vencimento || '') + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-tarefa="' + t.id + '">Excluir</button>' +
-        '</div></div>';
-    }).join('');
-
-    container.querySelectorAll('[data-editar-tarefa]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        tarefaEditandoId = btn.getAttribute('data-editar-tarefa');
-        document.getElementById('tarefa-titulo').value = btn.getAttribute('data-titulo');
-        document.getElementById('tarefa-data').value = btn.getAttribute('data-venc');
-        document.getElementById('tarefa-btn-salvar').textContent = 'Salvar edição';
-        document.getElementById('tarefa-btn-cancelar').classList.remove('hidden');
-      });
-    });
-    container.querySelectorAll('[data-excluir-tarefa]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Excluir essa tarefa?')) return;
-        var token = sessionStorage.getItem('painel_token');
-        fetch('/api/painel?acao=agenda&op=excluir_tarefa&id=' + encodeURIComponent(btn.getAttribute('data-excluir-tarefa')) +
-          '&token=' + encodeURIComponent(token))
-          .then(function () { carregarAgenda(); });
-      });
-    });
-  }
-
-  function wireAgenda() {
-    document.getElementById('evento-btn-salvar').addEventListener('click', function () {
-      var titulo = document.getElementById('evento-titulo').value.trim();
-      var data = document.getElementById('evento-data').value;
-      var hora = document.getElementById('evento-hora').value;
-      var comMeet = document.getElementById('evento-meet').checked;
-      if (!titulo || !data) return;
-      var token = sessionStorage.getItem('painel_token');
-      var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
-      var url = '/api/painel?acao=agenda&op=' + op +
-        '&titulo=' + encodeURIComponent(titulo) + '&data=' + encodeURIComponent(data) +
-        (hora ? '&hora=' + encodeURIComponent(hora) : '') +
-        (comMeet && !eventoEditandoId ? '&meet=true' : '') +
-        (eventoEditandoId ? '&id=' + encodeURIComponent(eventoEditandoId) : '') +
-        '&token=' + encodeURIComponent(token);
-      var resultadoEl = document.getElementById('evento-meet-resultado');
-      fetch(url).then(function (r) { return r.json(); }).then(function (dados) {
-        eventoEditandoId = null;
-        document.getElementById('evento-titulo').value = '';
-        document.getElementById('evento-data').value = '';
-        document.getElementById('evento-hora').value = '';
-        document.getElementById('evento-meet').checked = false;
-        document.getElementById('evento-btn-salvar').textContent = 'Criar';
-        document.getElementById('evento-btn-cancelar').classList.add('hidden');
-        if (dados.link_meet) {
-          resultadoEl.classList.remove('hidden');
-          resultadoEl.innerHTML = 'Link do Meet: <a href="' + dados.link_meet + '" target="_blank" rel="noopener" style="color:var(--accent);">' + dados.link_meet + '</a>';
-        } else {
-          resultadoEl.classList.add('hidden');
-        }
-        carregarAgenda();
-      });
-    });
-
-    document.getElementById('evento-btn-cancelar').addEventListener('click', function () {
-      eventoEditandoId = null;
-      document.getElementById('evento-titulo').value = '';
-      document.getElementById('evento-data').value = '';
-      document.getElementById('evento-hora').value = '';
-      document.getElementById('evento-btn-salvar').textContent = 'Criar';
-      this.classList.add('hidden');
-    });
-
-    document.getElementById('tarefa-btn-salvar').addEventListener('click', function () {
-      var titulo = document.getElementById('tarefa-titulo').value.trim();
-      var data = document.getElementById('tarefa-data').value;
-      if (!titulo) return;
-      var token = sessionStorage.getItem('painel_token');
-      var op = tarefaEditandoId ? 'editar_tarefa' : 'criar_tarefa';
-      var url = '/api/painel?acao=agenda&op=' + op +
-        '&titulo=' + encodeURIComponent(titulo) +
-        (data ? '&data=' + encodeURIComponent(data) : '') +
-        (tarefaEditandoId ? '&id=' + encodeURIComponent(tarefaEditandoId) : '') +
-        '&token=' + encodeURIComponent(token);
-      fetch(url).then(function () {
-        tarefaEditandoId = null;
-        document.getElementById('tarefa-titulo').value = '';
-        document.getElementById('tarefa-data').value = '';
-        document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
-        document.getElementById('tarefa-btn-cancelar').classList.add('hidden');
-        carregarAgenda();
-      });
-    });
-
-    document.getElementById('tarefa-btn-cancelar').addEventListener('click', function () {
-      tarefaEditandoId = null;
-      document.getElementById('tarefa-titulo').value = '';
-      document.getElementById('tarefa-data').value = '';
-      document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
-      this.classList.add('hidden');
-    });
-  }
-
-  function wireAutomacoes() {
-    var botoes = document.querySelectorAll('.btn-automacao');
-    for (var i = 0; i < botoes.length; i++) {
-      botoes[i].addEventListener('click', function (e) {
-        executarAutomacao(e.target.getAttribute('data-tipo'), e.target);
-      });
-    }
-  }
-
-  function executarAutomacao(tipo, botao) {
-    var resultadoEl = document.querySelector('[data-resultado="' + tipo + '"]');
-    var campos = document.querySelectorAll('[data-form="' + tipo + '"]');
-    var params = 'acao=executar&tipo=' + encodeURIComponent(tipo) +
-      '&token=' + encodeURIComponent(sessionStorage.getItem('painel_token'));
-
-    for (var i = 0; i < campos.length; i++) {
-      var nomeCampo = campos[i].getAttribute('data-campo');
-      params += '&' + nomeCampo + '=' + encodeURIComponent(campos[i].value);
-    }
-
-    botao.disabled = true;
-    var textoOriginal = botao.textContent;
-    botao.textContent = 'Executando...';
-    if (resultadoEl) resultadoEl.textContent = '';
-
-    fetch('/api/painel?' + params, { cache: 'no-store' })
-      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
-      .then(function (resultado) {
-        if (resultadoEl) {
-          resultadoEl.textContent = resultado.status === 200
-            ? (resultado.corpo.resposta || 'Concluído.')
-            : (resultado.corpo.erro || 'Erro ao executar.');
-        }
-      })
-      .catch(function () {
-        if (resultadoEl) resultadoEl.textContent = 'Não foi possível executar agora.';
-      })
-      .finally(function () {
-        botao.disabled = false;
-        botao.textContent = textoOriginal;
-      });
-  }
-
-  function carregarDados(token) {
-    gateError.textContent = '';
-    fetch('/api/painel?acao=dados&token=' + encodeURIComponent(token), { cache: 'no-store' })
-      .then(function (r) {
-        if (r.status === 401) throw new Error('sessao');
-        if (!r.ok) throw new Error('falha');
-        return r.json();
-      })
-      .then(function (dados) {
-        gate.classList.add('hidden');
-        conteudo.classList.remove('hidden');
-        renderPainel(dados);
-      })
-      .catch(function (e) {
-        sessionStorage.removeItem('painel_token');
-        gate.classList.remove('hidden');
-        conteudo.classList.add('hidden');
-        gateError.textContent = e.message === 'sessao'
-          ? 'Sua sessão expirou. Entre novamente.'
-          : 'Não foi possível carregar os dados agora.';
-      });
-  }
-
-  function carregarListaUsuarios() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=usuarios_listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (dados) {
-        var container = document.getElementById('admin-lista-usuarios');
-        if (!container || !dados.usuarios) return;
-        if (dados.usuarios.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
-          return;
-        }
-        var linhas = dados.usuarios.map(function (u) {
-          return '<tr><td>' + u.nome + '</td><td>' + u.usuario + '</td>' +
-            '<td>' + (u.admin ? '<span class="chip good">Admin</span>' : '<span class="chip neutral">Padrão</span>') + '</td>' +
-            '<td style="text-align:right"><button class="btn-remover" data-login="' + u.usuario + '">Remover</button></td></tr>';
-        }).join('');
-        container.innerHTML =
-          '<table><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
-          '<tbody>' + linhas + '</tbody></table>';
-        var botoes = container.querySelectorAll('.btn-remover');
-        for (var i = 0; i < botoes.length; i++) {
-          botoes[i].addEventListener('click', function (e) {
-            removerUsuarioAdmin(e.target.getAttribute('data-login'));
-          });
-        }
-      });
-  }
-
-  function criarUsuarioAdmin() {
-    var nome = document.getElementById('admin-nome').value;
-    var login = document.getElementById('admin-login').value;
-    var senha = document.getElementById('admin-senha').value;
-    var msg = document.getElementById('admin-msg');
-    var token = sessionStorage.getItem('painel_token');
-    msg.textContent = '';
-
-    fetch(
-      '/api/painel?acao=usuarios_criar&token=' + encodeURIComponent(token) +
-      '&nome=' + encodeURIComponent(nome) + '&login=' + encodeURIComponent(login) +
-      '&senha=' + encodeURIComponent(senha),
-      { cache: 'no-store' }
-    )
-      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
-      .then(function (resultado) {
-        if (resultado.status !== 200) {
-          msg.textContent = resultado.corpo.erro || 'Erro ao criar usuario.';
-          return;
-        }
-        document.getElementById('admin-nome').value = '';
-        document.getElementById('admin-login').value = '';
-        document.getElementById('admin-senha').value = '';
-        msg.textContent = 'Usuário adicionado com sucesso.';
-        carregarListaUsuarios();
-      });
-  }
-
-  function removerUsuarioAdmin(login) {
-    var msg = document.getElementById('admin-msg');
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=usuarios_remover&token=' + encodeURIComponent(token) +
-      '&login=' + encodeURIComponent(login), { cache: 'no-store' })
-      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
-      .then(function (resultado) {
-        if (resultado.status !== 200) {
-          msg.textContent = resultado.corpo.erro || 'Erro ao remover usuario.';
-          return;
-        }
-        msg.textContent = 'Usuário removido.';
-        carregarListaUsuarios();
-      });
-  }
-
-  function fazerLogin(usuario, senha) {
-    gateError.textContent = '';
-    fetch(
-      '/api/painel?acao=login&usuario=' + encodeURIComponent(usuario) +
-      '&senha=' + encodeURIComponent(senha),
-      { cache: 'no-store' }
-    )
-      .then(function (r) {
-        return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; });
-      })
-      .then(function (resultado) {
-        if (resultado.status === 429) {
-          gateError.textContent = 'Muitas tentativas erradas. Tente novamente mais tarde.';
-          return;
-        }
-        if (resultado.status !== 200 || !resultado.corpo.token) {
-          gateError.textContent = 'Usuário ou senha incorretos.';
-          return;
-        }
-        sessionStorage.setItem('painel_token', resultado.corpo.token);
-        carregarDados(resultado.corpo.token);
-      })
-      .catch(function () {
-        gateError.textContent = 'Não foi possível entrar agora. Tente novamente.';
-      });
-  }
-
-  btnEntrar.addEventListener('click', function () {
-    fazerLogin(usuarioInput.value, senhaInput.value);
-  });
-  senhaInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') fazerLogin(usuarioInput.value, senhaInput.value);
-  });
-
-  var tokenSalvo = sessionStorage.getItem('painel_token');
-  if (tokenSalvo) carregarDados(tokenSalvo);
-})();
-</script>
-</body>
-</html>
+};
