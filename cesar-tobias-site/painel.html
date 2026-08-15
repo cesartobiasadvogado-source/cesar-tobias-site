@@ -130,6 +130,24 @@
   .btn-remover:hover { background: var(--crit-soft); }
   @media (max-width: 640px) { .admin-form { grid-template-columns: 1fr; } }
 
+  .automacoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .automacao-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .automacao-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .automacao-desc { font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
+  .automacao-card input, .automacao-card select {
+    padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;
+    background: var(--bg); color: var(--ink);
+  }
+  .automacao-card button {
+    padding: 8px 12px; border: none; border-radius: 6px; background: var(--brand); color: #fff;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 2px;
+  }
+  .automacao-card button:hover { opacity: 0.92; }
+  .automacao-card button:disabled { opacity: 0.6; cursor: default; }
+  .automacao-resultado { font-size: 12px; color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
+  @media (max-width: 860px) { .automacoes-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .automacoes-grid { grid-template-columns: 1fr; } }
+
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .stat-grid { grid-template-columns: 1fr; }
@@ -271,6 +289,83 @@
         htmlPrazos +
       '</div></section>' +
       '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
+      '<section><p class="section-label">Automações</p><div class="automacoes-grid">' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Verificar PJe agora</div>' +
+          '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
+          '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_pje"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Resumo semanal PJe</div>' +
+          '<div class="automacao-desc">Envia o resumo dos últimos 7 dias no WhatsApp.</div>' +
+          '<button data-tipo="resumo_pje" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="resumo_pje"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Verificar Autentique</div>' +
+          '<div class="automacao-desc">Checa documentos assinados agora.</div>' +
+          '<button data-tipo="verificar_autentique" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_autentique"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Gerar contrato</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
+          '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
+          '<button data-tipo="gerar_contrato" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_contrato"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Declaração de residência</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
+          '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_residencia"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Declaração de hipossuficiência</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_hipossuficiencia">' +
+          '<input type="text" placeholder="Motivo da ação (opcional)" data-campo="descricao" data-form="gerar_hipossuficiencia">' +
+          '<button data-tipo="gerar_hipossuficiencia" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_hipossuficiencia"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Enviar assinatura</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
+          '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
+          '<div class="automacao-resultado" data-resultado="enviar_assinatura"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Mover lead de etapa</div>' +
+          '<input type="text" placeholder="Nome do lead" data-campo="nome" data-form="mover_lead">' +
+          '<select data-campo="etapa" data-form="mover_lead">' +
+            '<option value="Novo contato">Novo contato</option>' +
+            '<option value="Em conversa">Em conversa</option>' +
+            '<option value="Contrato enviado">Contrato enviado</option>' +
+            '<option value="Assinado">Assinado</option>' +
+            '<option value="Perdido">Perdido</option>' +
+          '</select>' +
+          '<button data-tipo="mover_lead" class="btn-automacao">Mover</button>' +
+          '<div class="automacao-resultado" data-resultado="mover_lead"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Gerar link com UTM</div>' +
+          '<input type="text" placeholder="Origem (ex: instagram)" data-campo="origem" data-form="gerar_utm">' +
+          '<input type="text" placeholder="Mídia (ex: stories)" data-campo="midia" data-form="gerar_utm">' +
+          '<input type="text" placeholder="Campanha" data-campo="campanha" data-form="gerar_utm">' +
+          '<button data-tipo="gerar_utm" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_utm"></div>' +
+        '</div>' +
+
+      '</div></section>' +
       (dados.usuario_admin ?
         '<section><p class="section-label">Administração — usuários</p>' +
         '<div class="panel">' +
@@ -295,6 +390,51 @@
       carregarListaUsuarios();
       document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
     }
+
+    wireAutomacoes();
+  }
+
+  function wireAutomacoes() {
+    var botoes = document.querySelectorAll('.btn-automacao');
+    for (var i = 0; i < botoes.length; i++) {
+      botoes[i].addEventListener('click', function (e) {
+        executarAutomacao(e.target.getAttribute('data-tipo'), e.target);
+      });
+    }
+  }
+
+  function executarAutomacao(tipo, botao) {
+    var resultadoEl = document.querySelector('[data-resultado="' + tipo + '"]');
+    var campos = document.querySelectorAll('[data-form="' + tipo + '"]');
+    var params = 'acao=executar&tipo=' + encodeURIComponent(tipo) +
+      '&token=' + encodeURIComponent(sessionStorage.getItem('painel_token'));
+
+    for (var i = 0; i < campos.length; i++) {
+      var nomeCampo = campos[i].getAttribute('data-campo');
+      params += '&' + nomeCampo + '=' + encodeURIComponent(campos[i].value);
+    }
+
+    botao.disabled = true;
+    var textoOriginal = botao.textContent;
+    botao.textContent = 'Executando...';
+    if (resultadoEl) resultadoEl.textContent = '';
+
+    fetch('/api/painel?' + params, { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultadoEl) {
+          resultadoEl.textContent = resultado.status === 200
+            ? (resultado.corpo.resposta || 'Concluído.')
+            : (resultado.corpo.erro || 'Erro ao executar.');
+        }
+      })
+      .catch(function () {
+        if (resultadoEl) resultadoEl.textContent = 'Não foi possível executar agora.';
+      })
+      .finally(function () {
+        botao.disabled = false;
+        botao.textContent = textoOriginal;
+      });
   }
 
   function carregarDados(token) {
