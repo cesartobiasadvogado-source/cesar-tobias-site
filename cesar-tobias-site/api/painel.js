@@ -85,7 +85,7 @@ module.exports = async (req, res) => {
 
   if (acao === 'agenda') {
     var url3 = base + '?action=painel_agenda&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora'];
+    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora', 'meet'];
     camposAgenda.forEach(function (campo) {
       if (req.query && req.query[campo]) {
         url3 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
