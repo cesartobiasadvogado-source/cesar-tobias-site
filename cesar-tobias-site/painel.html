@@ -130,6 +130,21 @@
   .btn-remover:hover { background: var(--crit-soft); }
   @media (max-width: 640px) { .admin-form { grid-template-columns: 1fr; } }
 
+  .agenda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .agenda-form { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .agenda-form input { flex: 1; min-width: 110px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
+  .agenda-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .agenda-form button:hover { opacity: 0.92; }
+  .agenda-form .cancelar-edicao { background: none; border: 1px solid var(--line); color: var(--ink-faint); }
+  .agenda-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+  .agenda-item:last-child { border-bottom: none; }
+  .agenda-item-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .agenda-item-data { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .agenda-item-acoes { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-editar { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+  .btn-editar:hover { background: var(--surface-sunken); }
+  @media (max-width: 760px) { .agenda-grid { grid-template-columns: 1fr; } }
+
   .automacoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .automacao-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
   .automacao-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
@@ -289,6 +304,32 @@
         htmlPrazos +
       '</div></section>' +
       '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
+      '<section><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
+
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Eventos</span></div>' +
+          '<div class="agenda-form">' +
+            '<input type="text" id="evento-titulo" placeholder="Título">' +
+            '<input type="date" id="evento-data">' +
+            '<input type="time" id="evento-hora">' +
+            '<button id="evento-btn-salvar">Criar</button>' +
+            '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
+          '</div>' +
+          '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Tarefas</span></div>' +
+          '<div class="agenda-form">' +
+            '<input type="text" id="tarefa-titulo" placeholder="Título">' +
+            '<input type="date" id="tarefa-data">' +
+            '<button id="tarefa-btn-salvar">Criar</button>' +
+            '<button class="cancelar-edicao hidden" id="tarefa-btn-cancelar">Cancelar</button>' +
+          '</div>' +
+          '<div id="agenda-lista-tarefas"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+
+      '</div></section>' +
       '<section><p class="section-label">Automações</p><div class="automacoes-grid">' +
 
         '<div class="automacao-card">' +
@@ -323,6 +364,7 @@
         '<div class="automacao-card">' +
           '<div class="automacao-titulo">Declaração de residência</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
+          '<input type="text" placeholder="Endereço (opcional, se ainda não tiver salvo)" data-campo="endereco" data-form="gerar_residencia">' +
           '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
           '<div class="automacao-resultado" data-resultado="gerar_residencia"></div>' +
         '</div>' +
@@ -365,6 +407,14 @@
           '<div class="automacao-resultado" data-resultado="gerar_utm"></div>' +
         '</div>' +
 
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo">Responder confirmação pendente</div>' +
+          '<div class="automacao-desc">Use quando alguma ação acima pedir uma escolha (ex: qual documento enviar).</div>' +
+          '<input type="text" placeholder="Ex: 1,2 ou todos" data-campo="resposta" data-form="responder_pendente">' +
+          '<button data-tipo="responder_pendente" class="btn-automacao">Responder</button>' +
+          '<div class="automacao-resultado" data-resultado="responder_pendente"></div>' +
+        '</div>' +
+
       '</div></section>' +
       (dados.usuario_admin ?
         '<section><p class="section-label">Administração — usuários</p>' +
@@ -392,6 +442,173 @@
     }
 
     wireAutomacoes();
+    wireAgenda();
+    carregarAgenda();
+  }
+
+  var eventoEditandoId = null;
+  var tarefaEditandoId = null;
+
+  function fmtDataCurta(iso) {
+    if (!iso) return '';
+    var dataParte = iso.split('T')[0];
+    var horaParte = iso.includes('T') ? iso.split('T')[1].substring(0, 5) : '';
+    var partes = dataParte.split('-');
+    var dataFmt = partes[2] + '/' + partes[1] + '/' + partes[0];
+    return horaParte ? dataFmt + ' às ' + horaParte : dataFmt;
+  }
+
+  function carregarAgenda() {
+    var token = sessionStorage.getItem('painel_token');
+    fetch('/api/painel?acao=agenda&op=listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        renderAgendaEventos(dados.eventos || []);
+        renderAgendaTarefas(dados.tarefas || []);
+      })
+      .catch(function () {
+        document.getElementById('agenda-lista-eventos').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os eventos.</div></div>';
+        document.getElementById('agenda-lista-tarefas').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar as tarefas.</div></div>';
+      });
+  }
+
+  function renderAgendaEventos(eventos) {
+    var container = document.getElementById('agenda-lista-eventos');
+    if (eventos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum evento nos próximos 30 dias.</div></div>';
+      return;
+    }
+    container.innerHTML = eventos.map(function (ev) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + ev.titulo + '</div>' +
+        '<div class="agenda-item-data">' + fmtDataCurta(ev.inicio) + '</div></div>' +
+        '<div class="agenda-item-acoes">' +
+          '<button class="btn-editar" data-editar-evento="' + ev.id + '" data-titulo="' + ev.titulo.replace(/"/g, '&quot;') + '" data-inicio="' + ev.inicio + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-evento="' + ev.id + '">Excluir</button>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-editar-evento]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        eventoEditandoId = btn.getAttribute('data-editar-evento');
+        document.getElementById('evento-titulo').value = btn.getAttribute('data-titulo');
+        var inicio = btn.getAttribute('data-inicio');
+        document.getElementById('evento-data').value = inicio.split('T')[0];
+        document.getElementById('evento-hora').value = inicio.includes('T') ? inicio.split('T')[1].substring(0, 5) : '';
+        document.getElementById('evento-btn-salvar').textContent = 'Salvar edição';
+        document.getElementById('evento-btn-cancelar').classList.remove('hidden');
+      });
+    });
+    container.querySelectorAll('[data-excluir-evento]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Excluir esse evento?')) return;
+        var token = sessionStorage.getItem('painel_token');
+        fetch('/api/painel?acao=agenda&op=excluir_evento&id=' + encodeURIComponent(btn.getAttribute('data-excluir-evento')) +
+          '&token=' + encodeURIComponent(token))
+          .then(function () { carregarAgenda(); });
+      });
+    });
+  }
+
+  function renderAgendaTarefas(tarefas) {
+    var container = document.getElementById('agenda-lista-tarefas');
+    if (tarefas.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma tarefa pendente.</div></div>';
+      return;
+    }
+    container.innerHTML = tarefas.map(function (t) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + t.titulo + '</div>' +
+        '<div class="agenda-item-data">' + (t.data_vencimento ? fmtDataCurta(t.data_vencimento) : 'Sem prazo') + '</div></div>' +
+        '<div class="agenda-item-acoes">' +
+          '<button class="btn-editar" data-editar-tarefa="' + t.id + '" data-titulo="' + t.titulo.replace(/"/g, '&quot;') + '" data-venc="' + (t.data_vencimento || '') + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-tarefa="' + t.id + '">Excluir</button>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-editar-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tarefaEditandoId = btn.getAttribute('data-editar-tarefa');
+        document.getElementById('tarefa-titulo').value = btn.getAttribute('data-titulo');
+        document.getElementById('tarefa-data').value = btn.getAttribute('data-venc');
+        document.getElementById('tarefa-btn-salvar').textContent = 'Salvar edição';
+        document.getElementById('tarefa-btn-cancelar').classList.remove('hidden');
+      });
+    });
+    container.querySelectorAll('[data-excluir-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Excluir essa tarefa?')) return;
+        var token = sessionStorage.getItem('painel_token');
+        fetch('/api/painel?acao=agenda&op=excluir_tarefa&id=' + encodeURIComponent(btn.getAttribute('data-excluir-tarefa')) +
+          '&token=' + encodeURIComponent(token))
+          .then(function () { carregarAgenda(); });
+      });
+    });
+  }
+
+  function wireAgenda() {
+    document.getElementById('evento-btn-salvar').addEventListener('click', function () {
+      var titulo = document.getElementById('evento-titulo').value.trim();
+      var data = document.getElementById('evento-data').value;
+      var hora = document.getElementById('evento-hora').value;
+      if (!titulo || !data) return;
+      var token = sessionStorage.getItem('painel_token');
+      var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
+      var url = '/api/painel?acao=agenda&op=' + op +
+        '&titulo=' + encodeURIComponent(titulo) + '&data=' + encodeURIComponent(data) +
+        (hora ? '&hora=' + encodeURIComponent(hora) : '') +
+        (eventoEditandoId ? '&id=' + encodeURIComponent(eventoEditandoId) : '') +
+        '&token=' + encodeURIComponent(token);
+      fetch(url).then(function () {
+        eventoEditandoId = null;
+        document.getElementById('evento-titulo').value = '';
+        document.getElementById('evento-data').value = '';
+        document.getElementById('evento-hora').value = '';
+        document.getElementById('evento-btn-salvar').textContent = 'Criar';
+        document.getElementById('evento-btn-cancelar').classList.add('hidden');
+        carregarAgenda();
+      });
+    });
+
+    document.getElementById('evento-btn-cancelar').addEventListener('click', function () {
+      eventoEditandoId = null;
+      document.getElementById('evento-titulo').value = '';
+      document.getElementById('evento-data').value = '';
+      document.getElementById('evento-hora').value = '';
+      document.getElementById('evento-btn-salvar').textContent = 'Criar';
+      this.classList.add('hidden');
+    });
+
+    document.getElementById('tarefa-btn-salvar').addEventListener('click', function () {
+      var titulo = document.getElementById('tarefa-titulo').value.trim();
+      var data = document.getElementById('tarefa-data').value;
+      if (!titulo) return;
+      var token = sessionStorage.getItem('painel_token');
+      var op = tarefaEditandoId ? 'editar_tarefa' : 'criar_tarefa';
+      var url = '/api/painel?acao=agenda&op=' + op +
+        '&titulo=' + encodeURIComponent(titulo) +
+        (data ? '&data=' + encodeURIComponent(data) : '') +
+        (tarefaEditandoId ? '&id=' + encodeURIComponent(tarefaEditandoId) : '') +
+        '&token=' + encodeURIComponent(token);
+      fetch(url).then(function () {
+        tarefaEditandoId = null;
+        document.getElementById('tarefa-titulo').value = '';
+        document.getElementById('tarefa-data').value = '';
+        document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
+        document.getElementById('tarefa-btn-cancelar').classList.add('hidden');
+        carregarAgenda();
+      });
+    });
+
+    document.getElementById('tarefa-btn-cancelar').addEventListener('click', function () {
+      tarefaEditandoId = null;
+      document.getElementById('tarefa-titulo').value = '';
+      document.getElementById('tarefa-data').value = '';
+      document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
+      this.classList.add('hidden');
+    });
   }
 
   function wireAutomacoes() {
