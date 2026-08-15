@@ -123,6 +123,26 @@
   .prazo-orgao { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; }
   .prazo-resumo { font-size: 13px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
 
+  .processo-card { border-bottom: 1px solid var(--line); }
+  .processo-card:last-child { border-bottom: none; }
+  .processo-cabecalho { padding: 14px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; cursor: pointer; }
+  .processo-cabecalho:hover { background: var(--surface-sunken); }
+  .processo-numero { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .processo-cliente { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 2px; }
+  .processo-meta { font-size: 12px; color: var(--ink-faint); margin-top: 3px; }
+  .processo-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .processo-corpo { display: none; padding: 0 20px 18px; }
+  .processo-corpo.aberto { display: block; }
+  .processo-edit-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 14px; }
+  .processo-edit-form input { padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
+  .processo-edit-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .processo-edit-form textarea { grid-column: 1 / -1; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; min-height: 50px; resize: vertical; }
+  @media (max-width: 640px) { .processo-edit-form { grid-template-columns: 1fr; } }
+  .timeline { border-left: 2px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .timeline-item-data { font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint); }
+  .timeline-item-tipo { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+  .timeline-item-resumo { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+
   .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
   .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
@@ -347,6 +367,10 @@
       '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
         htmlPrazos +
       '</div></section>' +
+      '<section><p class="section-label">Ficha de processos</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
+          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>' +
       '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
       '<section><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
 
@@ -494,6 +518,96 @@
     wireCobranca();
     wireOlhinhos(dados);
     carregarAgenda();
+    carregarProcessos();
+  }
+
+  function carregarProcessos() {
+    var token = sessionStorage.getItem('painel_token');
+    fetch('/api/painel?acao=processos&op=listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        renderProcessos(dados.processos || []);
+      })
+      .catch(function () {
+        document.getElementById('processos-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os processos.</div></div>';
+      });
+  }
+
+  function renderProcessos(processos) {
+    var container = document.getElementById('processos-lista');
+    if (processos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo com comunicações registradas ainda.</div></div>';
+      return;
+    }
+
+    container.innerHTML = processos.map(function (p, idx) {
+      var timelineHtml = p.timeline.map(function (item) {
+        return '<div class="timeline-item">' +
+          '<div class="timeline-item-data">' + item.data + (item.prazo ? ' · prazo ' + item.prazo : '') + '</div>' +
+          '<div class="timeline-item-tipo">' + item.tipo + (item.tribunal ? ' — ' + item.tribunal : '') + '</div>' +
+          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
+          (item.resumo ? '<div class="timeline-item-resumo">' + item.resumo + '</div>' : '') +
+          (item.link ? '<div style="margin-top:4px;"><a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
+        '</div>';
+      }).join('');
+
+      var badges = '<span class="chip neutral">' + p.total_movimentacoes + ' movimentação(ões)</span>';
+      if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + p.proximo_prazo + '</span>' + badges;
+
+      return '<div class="processo-card">' +
+        '<div class="processo-cabecalho" data-toggle-processo="' + idx + '">' +
+          '<div><div class="processo-numero">' + p.processo + '</div>' +
+          (p.cliente ? '<div class="processo-cliente">' + p.cliente + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
+          '<div class="processo-meta">' + p.tribunal + (p.orgao_atual ? ' · ' + p.orgao_atual : '') + ' · última movimentação: ' + p.ultima_movimentacao + '</div></div>' +
+          '<div class="processo-badges">' + badges + '</div>' +
+        '</div>' +
+        '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
+          '<div class="processo-edit-form">' +
+            '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + (p.cliente || '').replace(/"/g, '&quot;') + '">' +
+            '<input type="date" placeholder="Próxima audiência" id="processo-audiencia-' + idx + '" value="' + (p.proxima_audiencia || '') + '">' +
+            '<button data-salvar-processo="' + idx + '">Salvar</button>' +
+            '<textarea placeholder="Observações internas" id="processo-obs-' + idx + '">' + (p.observacoes || '') + '</textarea>' +
+          '</div>' +
+          (p.proxima_audiencia ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + fmtDataCurta(p.proxima_audiencia) + '</div>' : '') +
+          '<div class="timeline">' + timelineHtml + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-processo]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
+        corpo.classList.toggle('aberto');
+      });
+    });
+
+    container.querySelectorAll('[data-salvar-processo]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-salvar-processo');
+        var processo = processos[idx].processo;
+        var cliente = document.getElementById('processo-cliente-' + idx).value;
+        var audiencia = document.getElementById('processo-audiencia-' + idx).value;
+        var observacoes = document.getElementById('processo-obs-' + idx).value;
+        var token = sessionStorage.getItem('painel_token');
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+        var url = '/api/painel?acao=processos&op=salvar_meta&token=' + encodeURIComponent(token) +
+          '&processo=' + encodeURIComponent(processo) +
+          '&cliente=' + encodeURIComponent(cliente) +
+          '&proxima_audiencia=' + encodeURIComponent(audiencia) +
+          '&observacoes=' + encodeURIComponent(observacoes);
+        fetch(url).then(function (r) { return r.json(); }).then(function () {
+          carregarProcessos();
+        }).catch(function () {
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+          alert('Não foi possível salvar agora.');
+        });
+      });
+    });
   }
 
   function wireCobranca() {
