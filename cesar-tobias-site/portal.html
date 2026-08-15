@@ -84,6 +84,8 @@
   .timeline-data { font-size: 11.5px; color: var(--ink-faint); }
   .timeline-tipo { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 2px; }
   .timeline-resumo { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
+  .timeline-explicacao { font-size: 13px; color: var(--ink); margin-top: 4px; line-height: 1.55; background: var(--surface-sunken); border-radius: 6px; padding: 8px 10px; }
+  .timeline-ver-detalhe { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; cursor: pointer; text-decoration: underline; display: inline-block; }
   .empty-state { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--ink-faint); }
   .btn-baixar { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-decoration: none; display: inline-block; }
   .hidden { display: none !important; }
@@ -230,11 +232,17 @@
     var htmlProcessos = processos.length === 0
       ? '<div class="empty-state">Nenhum processo vinculado no momento.</div>'
       : processos.map(function (p, idx) {
-          var timelineHtml = p.timeline.map(function (item) {
+          var timelineHtml = p.timeline.map(function (item, itemIdx) {
+            var detalheId = 'detalhe-' + idx + '-' + itemIdx;
             return '<div class="timeline-entrada">' +
               '<div class="timeline-data">' + item.data + '</div>' +
               '<div class="timeline-tipo">' + item.tipo + '</div>' +
-              (item.resumo ? '<div class="timeline-resumo">' + item.resumo + '</div>' : '') +
+              (item.explicacao_simples
+                ? '<div class="timeline-explicacao">' + item.explicacao_simples + '</div>' +
+                  '<div class="timeline-ver-detalhe" data-toggle-detalhe="' + detalheId + '">Ver texto original ▾</div>' +
+                  '<div class="timeline-resumo hidden" id="' + detalheId + '">' + (item.resumo || '') + '</div>'
+                : (item.resumo ? '<div class="timeline-resumo">' + item.resumo + '</div>' : '')
+              ) +
               (item.link ? '<div style="margin-top:4px;"><a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
             '</div>';
           }).join('');
@@ -263,6 +271,16 @@
       el.addEventListener('click', function () {
         var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
         corpo.classList.toggle('aberto');
+      });
+    });
+
+    document.querySelectorAll('[data-toggle-detalhe]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var alvo = document.getElementById(el.getAttribute('data-toggle-detalhe'));
+        var abrindo = alvo.classList.contains('hidden');
+        alvo.classList.toggle('hidden');
+        el.textContent = abrindo ? 'Ocultar texto original ▴' : 'Ver texto original ▾';
       });
     });
 
