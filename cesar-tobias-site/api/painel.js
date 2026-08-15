@@ -1,9 +1,3 @@
-function obterIp(req) {
-  const encaminhado = req.headers['x-forwarded-for'];
-  if (encaminhado) return encaminhado.split(',')[0].trim();
-  return (req.socket && req.socket.remoteAddress) || 'desconhecido';
-}
-
 module.exports = async (req, res) => {
   const segredoLambda = process.env.DASHBOARD_SECRET;
   if (!segredoLambda) {
@@ -13,24 +7,34 @@ module.exports = async (req, res) => {
 
   const base = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
   const segredoQS = '&secret=' + encodeURIComponent(segredoLambda);
-  const ip = obterIp(req);
-  const acao = (req.query && req.query.acao) || 'dados';
+  const acao = (req.query && req.query.acao) || '';
 
-  if (acao === 'login') {
-    const usuario = (req.query && req.query.usuario) || '';
-    const senha = (req.query && req.query.senha) || '';
-
+  if (acao === 'solicitar_codigo') {
+    const telefone = (req.query && req.query.telefone) || '';
     try {
       const resposta = await fetch(
-        base + '?action=painel_login' +
-        '&usuario=' + encodeURIComponent(usuario) +
-        '&senha=' + encodeURIComponent(senha) +
-        '&ip=' + encodeURIComponent(ip) + segredoQS
+        base + '?action=portal_solicitar_codigo&telefone=' + encodeURIComponent(telefone) + segredoQS
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
     } catch (e) {
-      res.status(502).json({ erro: 'Erro de conexao ao autenticar.' });
+      res.status(502).json({ erro: 'Erro de conexao.' });
+    }
+    return;
+  }
+
+  if (acao === 'verificar_codigo') {
+    const telefone = (req.query && req.query.telefone) || '';
+    const codigo = (req.query && req.query.codigo) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=portal_verificar_codigo&telefone=' + encodeURIComponent(telefone) +
+        '&codigo=' + encodeURIComponent(codigo) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao.' });
     }
     return;
   }
@@ -41,68 +45,30 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (acao === 'usuarios_listar' || acao === 'usuarios_criar' || acao === 'usuarios_remover') {
-    const op = acao === 'usuarios_listar' ? 'listar' : acao === 'usuarios_criar' ? 'criar' : 'remover';
-    let url = base + '?action=painel_admin&op=' + op + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-
-    if (op === 'criar') {
-      url += '&nome=' + encodeURIComponent((req.query && req.query.nome) || '') +
-             '&login=' + encodeURIComponent((req.query && req.query.login) || '') +
-             '&senha=' + encodeURIComponent((req.query && req.query.senha) || '');
-    }
-    if (op === 'remover') {
-      url += '&login=' + encodeURIComponent((req.query && req.query.login) || '');
-    }
-
+  if (acao === 'documento') {
+    const idDoc = (req.query && req.query.id) || '';
     try {
-      const resposta = await fetch(url);
-      const dados = await resposta.json();
-      res.status(resposta.status).json(dados);
-    } catch (e) {
-      res.status(502).json({ erro: 'Erro de conexao ao gerenciar usuarios.' });
-    }
-    return;
-  }
-
-  if (acao === 'executar') {
-    var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento'];
-    camposPermitidos.forEach(function (campo) {
-      if (req.query && req.query[campo]) {
-        url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      const resposta = await fetch(
+        base + '?action=portal_documento&token=' + encodeURIComponent(tokenSessao) +
+        '&id=' + encodeURIComponent(idDoc) + segredoQS
+      );
+      if (!resposta.ok) {
+        const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter documento.' }; });
+        res.status(resposta.status).json(erroJson);
+        return;
       }
-    });
-
-    try {
-      const resposta = await fetch(url2);
-      const dados = await resposta.json();
-      res.status(resposta.status).json(dados);
+      const buffer = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader('Content-Type', resposta.headers.get('content-type') || 'application/pdf');
+      const disposicao = resposta.headers.get('content-disposition');
+      if (disposicao) res.setHeader('Content-Disposition', disposicao);
+      res.status(200).send(buffer);
     } catch (e) {
-      res.status(502).json({ erro: 'Erro de conexao ao executar a ação.' });
+      res.status(502).json({ erro: 'Erro de conexao ao buscar documento.' });
     }
     return;
   }
 
-  if (acao === 'agenda') {
-    var url3 = base + '?action=painel_agenda&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora', 'meet'];
-    camposAgenda.forEach(function (campo) {
-      if (req.query && req.query[campo]) {
-        url3 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
-      }
-    });
-
-    try {
-      const resposta = await fetch(url3);
-      const dados = await resposta.json();
-      res.status(resposta.status).json(dados);
-    } catch (e) {
-      res.status(502).json({ erro: 'Erro de conexao com a agenda.' });
-    }
-    return;
-  }
-
-  const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+  const url = base + '?action=portal_dados&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
     const resposta = await fetch(url);
