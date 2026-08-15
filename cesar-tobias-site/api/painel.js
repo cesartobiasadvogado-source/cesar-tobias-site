@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
   if (acao === 'executar') {
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'etapa', 'origem', 'midia', 'campanha'];
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta'];
     camposPermitidos.forEach(function (campo) {
       if (req.query && req.query[campo]) {
         url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
@@ -79,6 +79,25 @@ module.exports = async (req, res) => {
       res.status(resposta.status).json(dados);
     } catch (e) {
       res.status(502).json({ erro: 'Erro de conexao ao executar a ação.' });
+    }
+    return;
+  }
+
+  if (acao === 'agenda') {
+    var url3 = base + '?action=painel_agenda&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora'];
+    camposAgenda.forEach(function (campo) {
+      if (req.query && req.query[campo]) {
+        url3 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      }
+    });
+
+    try {
+      const resposta = await fetch(url3);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao com a agenda.' });
     }
     return;
   }
