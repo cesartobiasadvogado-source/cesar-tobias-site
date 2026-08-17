@@ -103,6 +103,8 @@
   .days-badge { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
   .days-badge.crit { background: var(--crit-soft); color: var(--crit); }
   .days-badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .days-badge.good { background: var(--good-soft); color: var(--good); }
+  .days-badge.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
 
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
@@ -344,6 +346,33 @@
       ? '<span class="chip neutral">Sem prazos</span>'
       : '<span class="chip warn">' + p.prazos_semana.length + ' prazo(s)</span>';
 
+    var avisosSemPrazo = p.avisos_sem_prazo || [];
+    var htmlAvisos;
+    if (avisosSemPrazo.length === 0) {
+      htmlAvisos =
+        '<div class="empty-state"><div class="glyph">—</div>' +
+        '<div class="msg">Nenhum aviso sem prazo nos últimos 7 dias.</div></div>';
+    } else {
+      htmlAvisos = avisosSemPrazo.map(function (item) {
+        var linkHtml = item.link
+          ? '<a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+          : '';
+        return '<div class="prazo-card">' +
+          '<div class="prazo-card-topo">' +
+            '<div><div class="prazo-processo">' + item.processo + '</div>' +
+            '<div class="prazo-meta">' + item.tribunal + (item.tipo ? ' · ' + item.tipo : '') + '</div></div>' +
+            '<span class="days-badge neutral">' + item.data + '</span>' +
+          '</div>' +
+          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
+          (item.resumo ? '<div class="prazo-resumo">' + item.resumo + '</div>' : '') +
+          (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+    var chipAvisos = avisosSemPrazo.length === 0
+      ? '<span class="chip neutral">Nenhum</span>'
+      : '<span class="chip neutral">' + avisosSemPrazo.length + ' aviso(s)</span>';
+
     conteudo.innerHTML =
       '<header class="masthead">' +
         '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
@@ -366,6 +395,10 @@
       '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
       '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
         htmlPrazos +
+      '</div></section>' +
+      '<section><p class="section-label">Avisos recentes sem prazo</p>' +
+      '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
+        htmlAvisos +
       '</div></section>' +
       '<section><p class="section-label">Clientes</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
