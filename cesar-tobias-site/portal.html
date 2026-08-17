@@ -188,6 +188,10 @@
     apiPost('/api/portal?acao=verificar_codigo', { telefone: telefoneAtual, codigo: codigo })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
+        if (resultado.status === 429) {
+          gateError.textContent = 'Muitas tentativas erradas. Tente novamente mais tarde.';
+          return;
+        }
         if (resultado.status !== 200 || !resultado.corpo.token) {
           gateError.textContent = resultado.corpo.erro || 'Código inválido.';
           return;
