@@ -224,6 +224,28 @@
     return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function esc(valor) {
+    return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
+      return ESC_MAPA[c];
+    });
+  }
+
+  function apiGet(url) {
+    var token = sessionStorage.getItem('painel_token');
+    return fetch(url, { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + token } });
+  }
+
+  function apiPost(url, corpo) {
+    var token = sessionStorage.getItem('painel_token');
+    return fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo || {})
+    });
+  }
+
   function valorOculto(chave) {
     return localStorage.getItem('painel_oculto_' + chave) === '1';
   }
@@ -275,13 +297,13 @@
         cardsHtml = etapa.leads.map(function (lead) {
           var badgeClasse = lead.dias_na_etapa > 5 ? 'warn' : 'neutral';
           return '<div class="lead-card">' +
-            '<div class="lead-nome">' + lead.nome + '</div>' +
+            '<div class="lead-nome">' + esc(lead.nome) + '</div>' +
             '<span class="days-badge ' + badgeClasse + '" style="background:var(--surface-sunken);color:var(--ink-faint)">' +
             lead.dias_na_etapa + 'd nesta etapa</span></div>';
         }).join('');
       }
       return '<div class="funil-coluna">' +
-        '<div class="funil-coluna-header">' + etapa.nome + '<span class="funil-count">' + etapa.quantidade + '</span></div>' +
+        '<div class="funil-coluna-header">' + esc(etapa.nome) + '<span class="funil-count">' + etapa.quantidade + '</span></div>' +
         '<div class="funil-coluna-body">' + cardsHtml + '</div></div>';
     }).join('');
     return '<div class="funil-grid">' + colunas + '</div>';
@@ -299,13 +321,13 @@
     } else {
       var linhas = f.parcelas_vencidas.map(function (item) {
         var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
-        return '<tr><td>' + item.nome + '</td>' +
+        return '<tr><td>' + esc(item.nome) + '</td>' +
           '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
-          '<td>' + item.vencimento + '</td>' +
+          '<td>' + esc(item.vencimento) + '</td>' +
           '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
           '<td style="text-align:right">' +
-            '<button class="btn-editar" data-cobrar-nome="' + item.nome.replace(/"/g, '&quot;') + '" ' +
-            'data-cobrar-valor="' + item.saldo + '" data-cobrar-vencimento="' + item.vencimento + '">Cobrar</button>' +
+            '<button class="btn-editar" data-cobrar-nome="' + esc(item.nome) + '" ' +
+            'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '">Cobrar</button>' +
           '</td></tr>';
       }).join('');
       htmlVencidas =
@@ -327,16 +349,16 @@
     } else {
       htmlPrazos = p.prazos_semana.map(function (item) {
         var linkHtml = item.link
-          ? '<a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+          ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
           : '';
         return '<div class="prazo-card">' +
           '<div class="prazo-card-topo">' +
-            '<div><div class="prazo-processo">' + item.processo + '</div>' +
-            '<div class="prazo-meta">' + item.tribunal + (item.tipo ? ' · ' + item.tipo : '') + '</div></div>' +
-            '<span class="days-badge warn">' + item.data_limite + '</span>' +
+            '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+            '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+            '<span class="days-badge warn">' + esc(item.data_limite) + '</span>' +
           '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
-          (item.resumo ? '<div class="prazo-resumo">' + item.resumo + '</div>' : '') +
+          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+          (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
           (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
         '</div>';
       }).join('');
@@ -355,16 +377,16 @@
     } else {
       htmlAvisos = avisosSemPrazo.map(function (item) {
         var linkHtml = item.link
-          ? '<a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+          ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
           : '';
         return '<div class="prazo-card">' +
           '<div class="prazo-card-topo">' +
-            '<div><div class="prazo-processo">' + item.processo + '</div>' +
-            '<div class="prazo-meta">' + item.tribunal + (item.tipo ? ' · ' + item.tipo : '') + '</div></div>' +
-            '<span class="days-badge neutral">' + item.data + '</span>' +
+            '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+            '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+            '<span class="days-badge neutral">' + esc(item.data) + '</span>' +
           '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
-          (item.resumo ? '<div class="prazo-resumo">' + item.resumo + '</div>' : '') +
+          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+          (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
           (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
         '</div>';
       }).join('');
@@ -376,7 +398,7 @@
     conteudo.innerHTML =
       '<header class="masthead">' +
         '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
-        '<div class="masthead-meta">Logado como <strong>' + (dados.usuario_logado || '') + '</strong><br>' +
+        '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
       '<section><p class="section-label">Visão geral</p><div class="stat-grid">' +
@@ -543,7 +565,7 @@
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
     document.getElementById('btn-atualizar').addEventListener('click', function () {
-      carregarDados(sessionStorage.getItem('painel_token'));
+      carregarDados();
     });
 
     if (dados.usuario_admin) {
@@ -563,8 +585,7 @@
   var clientesCarregados = [];
 
   function carregarClientes() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=clientes&token=' + encodeURIComponent(token), { cache: 'no-store' })
+    apiGet('/api/painel?acao=clientes')
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         clientesCarregados = dados.clientes || [];
@@ -604,31 +625,31 @@
 
       var contratosHtml = c.contratos.map(function (ct) {
         return '<div class="prazo-card"><div class="prazo-card-topo">' +
-          '<div><div class="prazo-processo">' + ct.tipo_servico + '</div>' +
+          '<div><div class="prazo-processo">' + esc(ct.tipo_servico) + '</div>' +
           '<div class="prazo-meta">Valor total: R$ ' + fmtMoeda(ct.valor_total) + '</div></div>' +
-          '<span class="days-badge ' + (String(ct.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn') + '">' + ct.status + '</span>' +
+          '<span class="days-badge ' + (String(ct.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn') + '">' + esc(ct.status) + '</span>' +
         '</div></div>';
       }).join('') || '<div class="empty-state"><div class="msg">Sem contratos.</div></div>';
 
       var parcelasHtml = c.parcelas.map(function (p) {
         return '<div class="prazo-card"><div class="prazo-card-topo">' +
           '<div><div class="prazo-processo">R$ ' + fmtMoeda(p.saldo) + '</div>' +
-          '<div class="prazo-meta">Vencimento: ' + p.vencimento + '</div></div>' +
-          '<span class="days-badge ' + (p.situacao === 'Vencida' ? 'crit' : 'warn') + '">' + (p.situacao || 'Pendente') + '</span>' +
+          '<div class="prazo-meta">Vencimento: ' + esc(p.vencimento) + '</div></div>' +
+          '<span class="days-badge ' + (p.situacao === 'Vencida' ? 'crit' : 'warn') + '">' + esc(p.situacao || 'Pendente') + '</span>' +
         '</div></div>';
       }).join('') || '<div class="empty-state"><div class="msg">Nenhuma parcela pendente.</div></div>';
 
       var processosHtml = c.processos.map(function (p) {
         return '<div class="prazo-card"><div class="prazo-card-topo">' +
-          '<div><div class="prazo-processo">' + p.processo + '</div>' +
-          '<div class="prazo-meta">' + p.status_atual + ' · última movimentação: ' + p.ultima_movimentacao + '</div></div>' +
-          (p.proximo_prazo ? '<span class="days-badge warn">Prazo ' + p.proximo_prazo + '</span>' : '') +
+          '<div><div class="prazo-processo">' + esc(p.processo) + '</div>' +
+          '<div class="prazo-meta">' + esc(p.status_atual) + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
+          (p.proximo_prazo ? '<span class="days-badge warn">Prazo ' + esc(p.proximo_prazo) + '</span>' : '') +
         '</div></div>';
       }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo vinculado.</div></div>';
 
       return '<div class="processo-card">' +
         '<div class="processo-cabecalho" data-toggle-cliente="' + idx + '">' +
-          '<div><div class="processo-numero">' + c.nome + '</div>' +
+          '<div><div class="processo-numero">' + esc(c.nome) + '</div>' +
           '<div class="processo-meta">' + badges + '</div></div>' +
         '</div>' +
         '<div class="processo-corpo" id="cliente-corpo-' + idx + '">' +
@@ -648,8 +669,7 @@
   }
 
   function carregarProcessos() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=processos&op=listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+    apiGet('/api/painel?acao=processos&op=listar')
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         renderProcessos(dados.processos || []);
@@ -670,32 +690,32 @@
     container.innerHTML = processos.map(function (p, idx) {
       var timelineHtml = p.timeline.map(function (item) {
         return '<div class="timeline-item">' +
-          '<div class="timeline-item-data">' + item.data + (item.prazo ? ' · prazo ' + item.prazo : '') + '</div>' +
-          '<div class="timeline-item-tipo">' + item.tipo + (item.tribunal ? ' — ' + item.tribunal : '') + '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + item.orgao + '</div>' : '') +
-          (item.resumo ? '<div class="timeline-item-resumo">' + item.resumo + '</div>' : '') +
-          (item.link ? '<div style="margin-top:4px;"><a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
+          '<div class="timeline-item-data">' + esc(item.data) + (item.prazo ? ' · prazo ' + esc(item.prazo) : '') + '</div>' +
+          '<div class="timeline-item-tipo">' + esc(item.tipo) + (item.tribunal ? ' — ' + esc(item.tribunal) : '') + '</div>' +
+          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+          (item.resumo ? '<div class="timeline-item-resumo">' + esc(item.resumo) + '</div>' : '') +
+          (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
         '</div>';
       }).join('');
 
       var badges = '<span class="chip neutral">' + p.total_movimentacoes + ' movimentação(ões)</span>';
-      if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + p.proximo_prazo + '</span>' + badges;
+      if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' + badges;
 
       return '<div class="processo-card">' +
         '<div class="processo-cabecalho" data-toggle-processo="' + idx + '">' +
-          '<div><div class="processo-numero">' + p.processo + '</div>' +
-          (p.cliente ? '<div class="processo-cliente">' + p.cliente + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
-          '<div class="processo-meta">' + p.tribunal + (p.orgao_atual ? ' · ' + p.orgao_atual : '') + ' · última movimentação: ' + p.ultima_movimentacao + '</div></div>' +
+          '<div><div class="processo-numero">' + esc(p.processo) + '</div>' +
+          (p.cliente ? '<div class="processo-cliente">' + esc(p.cliente) + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
+          '<div class="processo-meta">' + esc(p.tribunal) + (p.orgao_atual ? ' · ' + esc(p.orgao_atual) : '') + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
           '<div class="processo-badges">' + badges + '</div>' +
         '</div>' +
         '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
           '<div class="processo-edit-form">' +
-            '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + (p.cliente || '').replace(/"/g, '&quot;') + '">' +
-            '<input type="date" placeholder="Próxima audiência" id="processo-audiencia-' + idx + '" value="' + (p.proxima_audiencia || '') + '">' +
+            '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + esc(p.cliente || '') + '">' +
+            '<input type="date" placeholder="Próxima audiência" id="processo-audiencia-' + idx + '" value="' + esc(p.proxima_audiencia || '') + '">' +
             '<button data-salvar-processo="' + idx + '">Salvar</button>' +
-            '<textarea placeholder="Observações internas" id="processo-obs-' + idx + '">' + (p.observacoes || '') + '</textarea>' +
+            '<textarea placeholder="Observações internas" id="processo-obs-' + idx + '">' + esc(p.observacoes || '') + '</textarea>' +
           '</div>' +
-          (p.proxima_audiencia ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + fmtDataCurta(p.proxima_audiencia) + '</div>' : '') +
+          (p.proxima_audiencia ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + esc(fmtDataCurta(p.proxima_audiencia)) + '</div>' : '') +
           '<div class="timeline">' + timelineHtml + '</div>' +
         '</div>' +
       '</div>';
@@ -716,16 +736,16 @@
         var cliente = document.getElementById('processo-cliente-' + idx).value;
         var audiencia = document.getElementById('processo-audiencia-' + idx).value;
         var observacoes = document.getElementById('processo-obs-' + idx).value;
-        var token = sessionStorage.getItem('painel_token');
         var textoOriginal = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Salvando...';
-        var url = '/api/painel?acao=processos&op=salvar_meta&token=' + encodeURIComponent(token) +
-          '&processo=' + encodeURIComponent(processo) +
-          '&cliente=' + encodeURIComponent(cliente) +
-          '&proxima_audiencia=' + encodeURIComponent(audiencia) +
-          '&observacoes=' + encodeURIComponent(observacoes);
-        fetch(url).then(function (r) { return r.json(); }).then(function () {
+        apiPost('/api/painel?acao=processos', {
+          op: 'salvar_meta',
+          processo: processo,
+          cliente: cliente,
+          proxima_audiencia: audiencia,
+          observacoes: observacoes
+        }).then(function (r) { return r.json(); }).then(function () {
           carregarProcessos();
         }).catch(function () {
           btn.disabled = false;
@@ -744,13 +764,12 @@
         var textoOriginal = btn.textContent;
         btn.disabled = true;
         btn.textContent = 'Enviando...';
-        var token = sessionStorage.getItem('painel_token');
-        var url = '/api/painel?acao=executar&tipo=cobrar_cliente' +
-          '&nome=' + encodeURIComponent(btn.getAttribute('data-cobrar-nome')) +
-          '&valor=' + encodeURIComponent(btn.getAttribute('data-cobrar-valor')) +
-          '&vencimento=' + encodeURIComponent(btn.getAttribute('data-cobrar-vencimento')) +
-          '&token=' + encodeURIComponent(token);
-        fetch(url).then(function (r) { return r.json(); }).then(function (dados) {
+        apiPost('/api/painel?acao=executar', {
+          tipo: 'cobrar_cliente',
+          nome: btn.getAttribute('data-cobrar-nome'),
+          valor: btn.getAttribute('data-cobrar-valor'),
+          vencimento: btn.getAttribute('data-cobrar-vencimento')
+        }).then(function (r) { return r.json(); }).then(function (dados) {
           alert(dados.resposta || dados.erro || 'Concluído.');
           btn.disabled = false;
           btn.textContent = textoOriginal;
@@ -776,8 +795,7 @@
   }
 
   function carregarAgenda() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=agenda&op=listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+    apiGet('/api/painel?acao=agenda&op=listar')
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         renderAgendaEventos(dados.eventos || []);
@@ -799,11 +817,11 @@
     }
     container.innerHTML = eventos.map(function (ev) {
       return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + ev.titulo + '</div>' +
-        '<div class="agenda-item-data">' + fmtDataCurta(ev.inicio) + '</div></div>' +
+        '<div><div class="agenda-item-titulo">' + esc(ev.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + esc(fmtDataCurta(ev.inicio)) + '</div></div>' +
         '<div class="agenda-item-acoes">' +
-          '<button class="btn-editar" data-editar-evento="' + ev.id + '" data-titulo="' + ev.titulo.replace(/"/g, '&quot;') + '" data-inicio="' + ev.inicio + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-evento="' + ev.id + '">Excluir</button>' +
+          '<button class="btn-editar" data-editar-evento="' + esc(ev.id) + '" data-titulo="' + esc(ev.titulo) + '" data-inicio="' + esc(ev.inicio) + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-evento="' + esc(ev.id) + '">Excluir</button>' +
         '</div></div>';
     }).join('');
 
@@ -821,9 +839,7 @@
     container.querySelectorAll('[data-excluir-evento]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (!confirm('Excluir esse evento?')) return;
-        var token = sessionStorage.getItem('painel_token');
-        fetch('/api/painel?acao=agenda&op=excluir_evento&id=' + encodeURIComponent(btn.getAttribute('data-excluir-evento')) +
-          '&token=' + encodeURIComponent(token))
+        apiPost('/api/painel?acao=agenda', { op: 'excluir_evento', id: btn.getAttribute('data-excluir-evento') })
           .then(function () { carregarAgenda(); });
       });
     });
@@ -837,11 +853,11 @@
     }
     container.innerHTML = tarefas.map(function (t) {
       return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + t.titulo + '</div>' +
-        '<div class="agenda-item-data">' + (t.data_vencimento ? fmtDataCurta(t.data_vencimento) : 'Sem prazo') + '</div></div>' +
+        '<div><div class="agenda-item-titulo">' + esc(t.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + (t.data_vencimento ? esc(fmtDataCurta(t.data_vencimento)) : 'Sem prazo') + '</div></div>' +
         '<div class="agenda-item-acoes">' +
-          '<button class="btn-editar" data-editar-tarefa="' + t.id + '" data-titulo="' + t.titulo.replace(/"/g, '&quot;') + '" data-venc="' + (t.data_vencimento || '') + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-tarefa="' + t.id + '">Excluir</button>' +
+          '<button class="btn-editar" data-editar-tarefa="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) + '" data-venc="' + esc(t.data_vencimento || '') + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-tarefa="' + esc(t.id) + '">Excluir</button>' +
         '</div></div>';
     }).join('');
 
@@ -857,9 +873,7 @@
     container.querySelectorAll('[data-excluir-tarefa]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (!confirm('Excluir essa tarefa?')) return;
-        var token = sessionStorage.getItem('painel_token');
-        fetch('/api/painel?acao=agenda&op=excluir_tarefa&id=' + encodeURIComponent(btn.getAttribute('data-excluir-tarefa')) +
-          '&token=' + encodeURIComponent(token))
+        apiPost('/api/painel?acao=agenda', { op: 'excluir_tarefa', id: btn.getAttribute('data-excluir-tarefa') })
           .then(function () { carregarAgenda(); });
       });
     });
@@ -872,16 +886,13 @@
       var hora = document.getElementById('evento-hora').value;
       var comMeet = document.getElementById('evento-meet').checked;
       if (!titulo || !data) return;
-      var token = sessionStorage.getItem('painel_token');
       var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
-      var url = '/api/painel?acao=agenda&op=' + op +
-        '&titulo=' + encodeURIComponent(titulo) + '&data=' + encodeURIComponent(data) +
-        (hora ? '&hora=' + encodeURIComponent(hora) : '') +
-        (comMeet && !eventoEditandoId ? '&meet=true' : '') +
-        (eventoEditandoId ? '&id=' + encodeURIComponent(eventoEditandoId) : '') +
-        '&token=' + encodeURIComponent(token);
+      var corpoEvento = { op: op, titulo: titulo, data: data };
+      if (hora) corpoEvento.hora = hora;
+      if (comMeet && !eventoEditandoId) corpoEvento.meet = 'true';
+      if (eventoEditandoId) corpoEvento.id = eventoEditandoId;
       var resultadoEl = document.getElementById('evento-meet-resultado');
-      fetch(url).then(function (r) { return r.json(); }).then(function (dados) {
+      apiPost('/api/painel?acao=agenda', corpoEvento).then(function (r) { return r.json(); }).then(function (dados) {
         eventoEditandoId = null;
         document.getElementById('evento-titulo').value = '';
         document.getElementById('evento-data').value = '';
@@ -891,7 +902,7 @@
         document.getElementById('evento-btn-cancelar').classList.add('hidden');
         if (dados.link_meet) {
           resultadoEl.classList.remove('hidden');
-          resultadoEl.innerHTML = 'Link do Meet: <a href="' + dados.link_meet + '" target="_blank" rel="noopener" style="color:var(--accent);">' + dados.link_meet + '</a>';
+          resultadoEl.innerHTML = 'Link do Meet: <a href="' + esc(dados.link_meet) + '" target="_blank" rel="noopener" style="color:var(--accent);">' + esc(dados.link_meet) + '</a>';
         } else {
           resultadoEl.classList.add('hidden');
         }
@@ -912,14 +923,11 @@
       var titulo = document.getElementById('tarefa-titulo').value.trim();
       var data = document.getElementById('tarefa-data').value;
       if (!titulo) return;
-      var token = sessionStorage.getItem('painel_token');
       var op = tarefaEditandoId ? 'editar_tarefa' : 'criar_tarefa';
-      var url = '/api/painel?acao=agenda&op=' + op +
-        '&titulo=' + encodeURIComponent(titulo) +
-        (data ? '&data=' + encodeURIComponent(data) : '') +
-        (tarefaEditandoId ? '&id=' + encodeURIComponent(tarefaEditandoId) : '') +
-        '&token=' + encodeURIComponent(token);
-      fetch(url).then(function () {
+      var corpoTarefa = { op: op, titulo: titulo };
+      if (data) corpoTarefa.data = data;
+      if (tarefaEditandoId) corpoTarefa.id = tarefaEditandoId;
+      apiPost('/api/painel?acao=agenda', corpoTarefa).then(function () {
         tarefaEditandoId = null;
         document.getElementById('tarefa-titulo').value = '';
         document.getElementById('tarefa-data').value = '';
@@ -950,12 +958,11 @@
   function executarAutomacao(tipo, botao) {
     var resultadoEl = document.querySelector('[data-resultado="' + tipo + '"]');
     var campos = document.querySelectorAll('[data-form="' + tipo + '"]');
-    var params = 'acao=executar&tipo=' + encodeURIComponent(tipo) +
-      '&token=' + encodeURIComponent(sessionStorage.getItem('painel_token'));
+    var corpo = { tipo: tipo };
 
     for (var i = 0; i < campos.length; i++) {
       var nomeCampo = campos[i].getAttribute('data-campo');
-      params += '&' + nomeCampo + '=' + encodeURIComponent(campos[i].value);
+      corpo[nomeCampo] = campos[i].value;
     }
 
     botao.disabled = true;
@@ -963,7 +970,7 @@
     botao.textContent = 'Executando...';
     if (resultadoEl) resultadoEl.textContent = '';
 
-    fetch('/api/painel?' + params, { cache: 'no-store' })
+    apiPost('/api/painel?acao=executar', corpo)
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultadoEl) {
@@ -981,9 +988,9 @@
       });
   }
 
-  function carregarDados(token) {
+  function carregarDados() {
     gateError.textContent = '';
-    fetch('/api/painel?acao=dados&token=' + encodeURIComponent(token), { cache: 'no-store' })
+    apiGet('/api/painel?acao=dados')
       .then(function (r) {
         if (r.status === 401) throw new Error('sessao');
         if (!r.ok) throw new Error('falha');
@@ -1005,8 +1012,7 @@
   }
 
   function carregarListaUsuarios() {
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=usuarios_listar&token=' + encodeURIComponent(token), { cache: 'no-store' })
+    apiGet('/api/painel?acao=usuarios_listar')
       .then(function (r) { return r.json(); })
       .then(function (dados) {
         var container = document.getElementById('admin-lista-usuarios');
@@ -1016,9 +1022,9 @@
           return;
         }
         var linhas = dados.usuarios.map(function (u) {
-          return '<tr><td>' + u.nome + '</td><td>' + u.usuario + '</td>' +
+          return '<tr><td>' + esc(u.nome) + '</td><td>' + esc(u.usuario) + '</td>' +
             '<td>' + (u.admin ? '<span class="chip good">Admin</span>' : '<span class="chip neutral">Padrão</span>') + '</td>' +
-            '<td style="text-align:right"><button class="btn-remover" data-login="' + u.usuario + '">Remover</button></td></tr>';
+            '<td style="text-align:right"><button class="btn-remover" data-login="' + esc(u.usuario) + '">Remover</button></td></tr>';
         }).join('');
         container.innerHTML =
           '<table><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
@@ -1037,15 +1043,9 @@
     var login = document.getElementById('admin-login').value;
     var senha = document.getElementById('admin-senha').value;
     var msg = document.getElementById('admin-msg');
-    var token = sessionStorage.getItem('painel_token');
     msg.textContent = '';
 
-    fetch(
-      '/api/painel?acao=usuarios_criar&token=' + encodeURIComponent(token) +
-      '&nome=' + encodeURIComponent(nome) + '&login=' + encodeURIComponent(login) +
-      '&senha=' + encodeURIComponent(senha),
-      { cache: 'no-store' }
-    )
+    apiPost('/api/painel?acao=usuarios_criar', { nome: nome, login: login, senha: senha })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultado.status !== 200) {
@@ -1062,9 +1062,7 @@
 
   function removerUsuarioAdmin(login) {
     var msg = document.getElementById('admin-msg');
-    var token = sessionStorage.getItem('painel_token');
-    fetch('/api/painel?acao=usuarios_remover&token=' + encodeURIComponent(token) +
-      '&login=' + encodeURIComponent(login), { cache: 'no-store' })
+    apiPost('/api/painel?acao=usuarios_remover', { login: login })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultado.status !== 200) {
@@ -1078,11 +1076,12 @@
 
   function fazerLogin(usuario, senha) {
     gateError.textContent = '';
-    fetch(
-      '/api/painel?acao=login&usuario=' + encodeURIComponent(usuario) +
-      '&senha=' + encodeURIComponent(senha),
-      { cache: 'no-store' }
-    )
+    fetch('/api/painel?acao=login', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario: usuario, senha: senha })
+    })
       .then(function (r) {
         return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; });
       })
@@ -1096,7 +1095,7 @@
           return;
         }
         sessionStorage.setItem('painel_token', resultado.corpo.token);
-        carregarDados(resultado.corpo.token);
+        carregarDados();
       })
       .catch(function () {
         gateError.textContent = 'Não foi possível entrar agora. Tente novamente.';
@@ -1111,7 +1110,7 @@
   });
 
   var tokenSalvo = sessionStorage.getItem('painel_token');
-  if (tokenSalvo) carregarDados(tokenSalvo);
+  if (tokenSalvo) carregarDados();
 })();
 </script>
 </body>

@@ -4,6 +4,12 @@ function obterIp(req) {
   return (req.socket && req.socket.remoteAddress) || 'desconhecido';
 }
 
+function obterToken(req) {
+  const auth = req.headers['authorization'] || '';
+  if (auth.indexOf('Bearer ') === 0) return auth.slice(7).trim();
+  return (req.query && req.query.token) || '';
+}
+
 module.exports = async (req, res) => {
   const segredoLambda = process.env.DASHBOARD_SECRET;
   if (!segredoLambda) {
@@ -15,10 +21,15 @@ module.exports = async (req, res) => {
   const segredoQS = '&secret=' + encodeURIComponent(segredoLambda);
   const ip = obterIp(req);
   const acao = (req.query && req.query.acao) || 'dados';
+  const corpo = (req.body && typeof req.body === 'object') ? req.body : {};
 
   if (acao === 'login') {
-    const usuario = (req.query && req.query.usuario) || '';
-    const senha = (req.query && req.query.senha) || '';
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    const usuario = corpo.usuario || '';
+    const senha = corpo.senha || '';
 
     try {
       const resposta = await fetch(
@@ -35,7 +46,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const tokenSessao = (req.query && req.query.token) || '';
+  const tokenSessao = obterToken(req);
   if (!tokenSessao) {
     res.status(401).json({ erro: 'Sessao ausente.' });
     return;
@@ -43,15 +54,19 @@ module.exports = async (req, res) => {
 
   if (acao === 'usuarios_listar' || acao === 'usuarios_criar' || acao === 'usuarios_remover') {
     const op = acao === 'usuarios_listar' ? 'listar' : acao === 'usuarios_criar' ? 'criar' : 'remover';
+    if (op !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
     let url = base + '?action=painel_admin&op=' + op + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
     if (op === 'criar') {
-      url += '&nome=' + encodeURIComponent((req.query && req.query.nome) || '') +
-             '&login=' + encodeURIComponent((req.query && req.query.login) || '') +
-             '&senha=' + encodeURIComponent((req.query && req.query.senha) || '');
+      url += '&nome=' + encodeURIComponent(corpo.nome || '') +
+             '&login=' + encodeURIComponent(corpo.login || '') +
+             '&senha=' + encodeURIComponent(corpo.senha || '');
     }
     if (op === 'remover') {
-      url += '&login=' + encodeURIComponent((req.query && req.query.login) || '');
+      url += '&login=' + encodeURIComponent(corpo.login || '');
     }
 
     try {
@@ -65,11 +80,15 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'executar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
     var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento'];
     camposPermitidos.forEach(function (campo) {
-      if (req.query && req.query[campo]) {
-        url2 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      if (corpo[campo]) {
+        url2 += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
       }
     });
 
@@ -84,11 +103,17 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'agenda') {
-    var url3 = base + '?action=painel_agenda&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposAgenda = ['op', 'id', 'titulo', 'data', 'hora', 'meet'];
+    var opAgenda = (req.query && req.query.op) || corpo.op || '';
+    if (opAgenda !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var url3 = base + '?action=painel_agenda&op=' + encodeURIComponent(opAgenda) + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposAgenda = ['id', 'titulo', 'data', 'hora', 'meet'];
+    var origemAgenda = opAgenda === 'listar' ? (req.query || {}) : corpo;
     camposAgenda.forEach(function (campo) {
-      if (req.query && req.query[campo]) {
-        url3 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      if (origemAgenda[campo]) {
+        url3 += '&' + campo + '=' + encodeURIComponent(origemAgenda[campo]);
       }
     });
 
@@ -103,11 +128,17 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'processos') {
-    var url4 = base + '?action=painel_processos&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposProcessos = ['op', 'processo', 'cliente', 'proxima_audiencia', 'observacoes'];
+    var opProcessos = (req.query && req.query.op) || corpo.op || '';
+    if (opProcessos !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var url4 = base + '?action=painel_processos&op=' + encodeURIComponent(opProcessos) + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposProcessos = ['processo', 'cliente', 'proxima_audiencia', 'observacoes'];
+    var origemProcessos = opProcessos === 'listar' ? (req.query || {}) : corpo;
     camposProcessos.forEach(function (campo) {
-      if (req.query && req.query[campo] !== undefined) {
-        url4 += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+      if (origemProcessos[campo] !== undefined) {
+        url4 += '&' + campo + '=' + encodeURIComponent(origemProcessos[campo]);
       }
     });
 
