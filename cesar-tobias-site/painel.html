@@ -7,38 +7,82 @@
 <title>Painel do Escritório</title>
 <style>
   :root {
-    --bg: #f6f4ef;
+    --bg: #f5f6f8;
     --surface: #ffffff;
-    --surface-sunken: #efece4;
-    --ink: #1c2438;
-    --ink-soft: #5b6178;
-    --ink-faint: #8b90a3;
-    --line: #e2ded3;
-    --brand: #1c2c4f;
-    --accent: #a9793a;
-    --good: #2f7a4f;
-    --good-soft: #e4f1e8;
-    --warn: #b8842e;
-    --warn-soft: #faf0dc;
-    --crit: #b33a3a;
-    --crit-soft: #fbe9e9;
+    --surface-sunken: #eef0f4;
+    --ink: #0f172a;
+    --ink-soft: #475467;
+    --ink-faint: #94a0b4;
+    --line: #e2e5eb;
+    --brand: #16213e;
+    --accent: #2c5ce0;
+    --accent-soft: #e8edfc;
+    --good: #079455;
+    --good-soft: #e3f6ec;
+    --warn: #ca8a04;
+    --warn-soft: #fbf1da;
+    --crit: #b42318;
+    --crit-soft: #fbe7e5;
+    --sidebar-bg: #16213e;
+    --sidebar-ink: #e7eaf0;
+    --sidebar-ink-soft: #93a0c0;
+    --sidebar-accent: #6c8cf0;
+    --sidebar-line: rgba(255, 255, 255, 0.09);
     --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'SF Mono', 'Cascadia Code', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14182a; --surface: #1c2238; --surface-sunken: #171c2f;
-      --ink: #eef0f6; --ink-soft: #a7acc2; --ink-faint: #6d7290; --line: #2b3250;
-      --brand: #c7d0ec; --accent: #d3a869;
-      --good: #5fbd85; --good-soft: #16261d;
-      --warn: #e0ab5a; --warn-soft: #2c2313;
-      --crit: #e57b7b; --crit-soft: #2c1717;
+      --bg: #0b1220; --surface: #121a2c; --surface-sunken: #0e1626;
+      --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #6b7690; --line: #232d42;
+      --brand: #c7d2e8; --accent: #6c8cf0; --accent-soft: #1b2743;
+      --good: #29a876; --good-soft: #10261d;
+      --warn: #9c7a16; --warn-soft: #2a2312;
+      --crit: #e23a2e; --crit-soft: #2c1614;
+      --sidebar-line: rgba(255, 255, 255, 0.07);
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-  .page { max-width: 920px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  .shell { display: flex; align-items: stretch; min-height: 100vh; }
+  .sidebar {
+    width: 232px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-ink);
+    display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .sidebar-wordmark { padding: 6px 10px 18px; border-bottom: 1px solid var(--sidebar-line); margin-bottom: 12px; }
+  .sidebar-wordmark .nome { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+  .sidebar-wordmark .sub { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sidebar-ink-soft); margin-top: 4px; }
+  .nav-grupo { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
+  .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--sidebar-ink-soft); padding: 8px 10px 5px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 7px;
+    color: var(--sidebar-ink-soft); text-decoration: none; font-size: 13px; font-weight: 500;
+    border-left: 2px solid transparent; background: none; border-top: none; border-right: none; border-bottom: none;
+    width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+  }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.85; }
+  .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--sidebar-ink); }
+  .nav-item.ativo { background: rgba(108, 140, 240, 0.16); color: #fff; border-left-color: var(--sidebar-accent); font-weight: 600; }
+  .sidebar-rodape { margin-top: auto; padding: 10px; border-top: 1px solid var(--sidebar-line); display: flex; align-items: center; gap: 10px; }
+  .sidebar-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--sidebar-accent); color: #101a33; font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .sidebar-rodape .quem { font-size: 12px; font-weight: 600; color: var(--sidebar-ink); }
+  .sidebar-rodape .cargo { font-size: 10.5px; color: var(--sidebar-ink-soft); }
+
+  .conteudo-area { flex: 1; min-width: 0; }
+  .page { max-width: 1080px; padding: 32px 28px 72px; scroll-behavior: smooth; }
+  .page > section { scroll-margin-top: 20px; }
+
+  @media (max-width: 860px) {
+    .shell { flex-direction: column; }
+    .sidebar { position: static; height: auto; width: 100%; flex-direction: row; align-items: center; padding: 12px 16px; overflow-x: auto; }
+    .sidebar-wordmark { border-bottom: none; padding: 0 14px 0 0; margin-bottom: 0; border-right: 1px solid var(--sidebar-line); }
+    .nav-grupo { flex-direction: row; margin-bottom: 0; }
+    .nav-label { display: none; }
+    .sidebar-rodape { display: none; }
+    .page { padding: 20px 16px 48px; }
+  }
 
   /* Password gate */
   .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -51,13 +95,13 @@
   }
   .gate input[type="password"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .gate button {
-    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--brand);
+    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--accent);
     color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
   }
   .gate button:hover { opacity: 0.92; }
   .gate-error { color: var(--crit); font-size: 13px; margin-top: 10px; min-height: 16px; }
 
-  header.masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid var(--brand); margin-bottom: 32px; flex-wrap: wrap; }
+  header.masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 32px; flex-wrap: wrap; }
   .masthead-name { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--brand); text-wrap: balance; }
   .masthead-name small { display: block; font-family: var(--font-body); font-size: 12.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
   .masthead-meta { text-align: right; font-size: 13px; color: var(--ink-faint); line-height: 1.5; }
@@ -137,7 +181,7 @@
   .processo-corpo.aberto { display: block; }
   .processo-edit-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 14px; }
   .processo-edit-form input { padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
-  .processo-edit-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .processo-edit-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
   .processo-edit-form textarea { grid-column: 1 / -1; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; min-height: 50px; resize: vertical; }
   @media (max-width: 640px) { .processo-edit-form { grid-template-columns: 1fr; } }
   .timeline { border-left: 2px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -147,7 +191,7 @@
 
   .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
-  .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--brand); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
   .admin-form button:hover { opacity: 0.92; }
   .admin-msg { padding: 0 20px 12px; font-size: 12.5px; color: var(--ink-faint); }
   .btn-remover { background: none; border: 1px solid var(--crit); color: var(--crit); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
@@ -157,7 +201,7 @@
   .agenda-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .agenda-form { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .agenda-form input { flex: 1; min-width: 110px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
-  .agenda-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--brand); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .agenda-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
   .agenda-form button:hover { opacity: 0.92; }
   .agenda-form .cancelar-edicao { background: none; border: 1px solid var(--line); color: var(--ink-faint); }
   .agenda-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--line); }
@@ -180,7 +224,7 @@
     background: var(--bg); color: var(--ink);
   }
   .automacao-card button {
-    padding: 8px 12px; border: none; border-radius: 6px; background: var(--brand); color: #fff;
+    padding: 8px 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff;
     font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 2px;
   }
   .automacao-card button:hover { opacity: 0.92; }
@@ -210,11 +254,71 @@
     </div>
   </div>
 
-  <div id="conteudo" class="page hidden"></div>
+  <div id="shell" class="shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-wordmark">
+        <div class="nome">César Tobias</div>
+        <small class="sub">Advocacia</small>
+      </div>
+
+      <nav class="nav-grupo">
+        <div class="nav-label">Escritório</div>
+        <button type="button" class="nav-item ativo" data-scroll-to="sec-visao-geral">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+          Visão geral
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-vencidas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h18M7 15h3M3 6h18v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>
+          Financeiro
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-pje">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v5h5"></path></svg>
+          Processual — PJe
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-clientes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg>
+          Clientes
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-processos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>
+          Ficha de processos
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-funil">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16l-6 8v6l-4 2v-8z"></path></svg>
+          Funil de leads
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-agenda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+          Agenda
+        </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-automacoes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path></svg>
+          Automações
+        </button>
+        <button type="button" class="nav-item hidden" id="nav-admin" data-scroll-to="sec-admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg>
+          Administração
+        </button>
+      </nav>
+
+      <div class="sidebar-rodape">
+        <div class="sidebar-avatar" id="sidebar-avatar">--</div>
+        <div>
+          <div class="quem" id="sidebar-nome">—</div>
+          <div class="cargo">Logado</div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="conteudo-area">
+      <div id="conteudo" class="page"></div>
+    </div>
+  </div>
 
 <script>
 (function () {
   var gate = document.getElementById('gate');
+  var shell = document.getElementById('shell');
   var conteudo = document.getElementById('conteudo');
   var usuarioInput = document.getElementById('usuario-input');
   var senhaInput = document.getElementById('senha-input');
@@ -402,18 +506,18 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      '<section><p class="section-label">Visão geral</p><div class="stat-grid">' +
+      '<section id="sec-visao-geral"><p class="section-label">Visão geral</p><div class="stat-grid">' +
         '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
         renderCardValor('a_receber', f.total_a_receber, 'A receber', 'saldo de honorários em aberto') +
         '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
         renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
         renderCardValor('valor_recebido', f.valor_recebido_geral, 'Valor recebido', 'total já pago pelos clientes') +
       '</div></section>' +
-      '<section><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
+      '<section id="sec-vencidas"><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
         '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
         htmlVencidas +
       '</div></section>' +
-      '<section><p class="section-label">Processual — PJe</p>' +
+      '<section id="sec-pje"><p class="section-label">Processual — PJe</p>' +
       '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
       '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
       '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
@@ -423,17 +527,17 @@
       '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
         htmlAvisos +
       '</div></section>' +
-      '<section><p class="section-label">Clientes</p>' +
+      '<section id="sec-clientes"><p class="section-label">Clientes</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
           '<input type="text" id="clientes-busca" placeholder="Buscar cliente pelo nome..." style="width:100%;box-sizing:border-box;padding:10px 14px;border:none;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--bg);color:var(--ink);">' +
           '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>' +
-      '<section><p class="section-label">Ficha de processos</p>' +
+      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>' +
-      '<section><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
-      '<section><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
+      '<section id="sec-funil"><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
+      '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
 
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Eventos</span></div>' +
@@ -463,7 +567,7 @@
         '</div>' +
 
       '</div></section>' +
-      '<section><p class="section-label">Automações</p><div class="automacoes-grid">' +
+      '<section id="sec-automacoes"><p class="section-label">Automações</p><div class="automacoes-grid">' +
 
         '<div class="automacao-card">' +
           '<div class="automacao-titulo">Verificar PJe agora</div>' +
@@ -550,7 +654,7 @@
 
       '</div></section>' +
       (dados.usuario_admin ?
-        '<section><p class="section-label">Administração — usuários</p>' +
+        '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
         '<div class="panel">' +
           '<div class="admin-form">' +
             '<input type="text" id="admin-nome" placeholder="Nome">' +
@@ -573,14 +677,34 @@
       carregarListaUsuarios();
       document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
     }
+    document.getElementById('nav-admin').classList.toggle('hidden', !dados.usuario_admin);
 
     wireAutomacoes();
     wireAgenda();
     wireCobranca();
     wireOlhinhos(dados);
+    wireSidebar(dados);
     carregarAgenda();
     carregarProcessos();
     carregarClientes();
+  }
+
+  function wireSidebar(dados) {
+    var nomeUsuario = dados.usuario_logado || '';
+    var iniciais = nomeUsuario.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase() || '--';
+    document.getElementById('sidebar-avatar').textContent = iniciais;
+    document.getElementById('sidebar-nome').textContent = nomeUsuario || '—';
+
+    var itensNav = document.querySelectorAll('.nav-item[data-scroll-to]');
+    itensNav.forEach(function (item) {
+      item.addEventListener('click', function () {
+        var alvo = document.getElementById(item.getAttribute('data-scroll-to'));
+        if (!alvo) return;
+        itensNav.forEach(function (i) { i.classList.remove('ativo'); });
+        item.classList.add('ativo');
+        alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
   }
 
   var clientesCarregados = [];
@@ -1022,13 +1146,13 @@
       })
       .then(function (dados) {
         gate.classList.add('hidden');
-        conteudo.classList.remove('hidden');
+        shell.classList.remove('hidden');
         renderPainel(dados);
       })
       .catch(function (e) {
         sessionStorage.removeItem('painel_token');
         gate.classList.remove('hidden');
-        conteudo.classList.add('hidden');
+        shell.classList.add('hidden');
         gateError.textContent = e.message === 'sessao'
           ? 'Sua sessão expirou. Entre novamente.'
           : 'Não foi possível carregar os dados agora.';
