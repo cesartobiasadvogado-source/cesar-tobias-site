@@ -167,6 +167,8 @@
   .agenda-item-acoes { display: flex; gap: 6px; flex-shrink: 0; }
   .btn-editar { background: none; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
   .btn-editar:hover { background: var(--surface-sunken); }
+  .btn-concluir { background: none; border: 1px solid var(--good); color: var(--good); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+  .btn-concluir:hover { background: var(--good-soft); }
   @media (max-width: 760px) { .agenda-grid { grid-template-columns: 1fr; } }
 
   .automacoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -855,11 +857,34 @@
         '<div><div class="agenda-item-titulo">' + esc(t.titulo) + '</div>' +
         '<div class="agenda-item-data">' + (t.data_vencimento ? esc(fmtDataCurta(t.data_vencimento)) : 'Sem prazo') + '</div></div>' +
         '<div class="agenda-item-acoes">' +
+          '<button class="btn-concluir" data-concluir-tarefa="' + esc(t.id) + '">Concluir</button>' +
           '<button class="btn-editar" data-editar-tarefa="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) + '" data-venc="' + esc(t.data_vencimento || '') + '">Editar</button>' +
           '<button class="btn-remover" data-excluir-tarefa="' + esc(t.id) + '">Excluir</button>' +
         '</div></div>';
     }).join('');
 
+    container.querySelectorAll('[data-concluir-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.textContent = 'Concluindo...';
+        apiPost('/api/painel?acao=agenda', { op: 'concluir_tarefa', id: btn.getAttribute('data-concluir-tarefa') })
+          .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+          .then(function (resultado) {
+            if (resultado.status !== 200) {
+              btn.disabled = false;
+              btn.textContent = 'Concluir';
+              alert(resultado.corpo.erro || 'Não foi possível concluir a tarefa agora.');
+              return;
+            }
+            carregarAgenda();
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = 'Concluir';
+            alert('Não foi possível concluir a tarefa agora.');
+          });
+      });
+    });
     container.querySelectorAll('[data-editar-tarefa]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         tarefaEditandoId = btn.getAttribute('data-editar-tarefa');
