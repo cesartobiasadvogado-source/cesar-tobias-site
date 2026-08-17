@@ -134,12 +134,33 @@
     return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function esc(valor) {
+    return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
+      return ESC_MAPA[c];
+    });
+  }
+
+  function apiGet(url) {
+    var token = sessionStorage.getItem('portal_token');
+    return fetch(url, { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + token } });
+  }
+
+  function apiPost(url, corpo) {
+    return fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo || {})
+    });
+  }
+
   document.getElementById('btn-solicitar').addEventListener('click', function () {
     gateError.textContent = '';
     gateMsg.textContent = '';
     telefoneAtual = inputTelefone.value.trim();
     if (!telefoneAtual) return;
-    fetch('/api/portal?acao=solicitar_codigo&telefone=' + encodeURIComponent(telefoneAtual))
+    apiPost('/api/portal?acao=solicitar_codigo', { telefone: telefoneAtual })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultado.status !== 200) {
@@ -164,7 +185,7 @@
     var codigo = inputCodigo.value.trim();
     if (!codigo) return;
     gateError.textContent = '';
-    fetch('/api/portal?acao=verificar_codigo&telefone=' + encodeURIComponent(telefoneAtual) + '&codigo=' + encodeURIComponent(codigo))
+    apiPost('/api/portal?acao=verificar_codigo', { telefone: telefoneAtual, codigo: codigo })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultado.status !== 200 || !resultado.corpo.token) {
@@ -172,13 +193,13 @@
           return;
         }
         sessionStorage.setItem('portal_token', resultado.corpo.token);
-        carregarDados(resultado.corpo.token);
+        carregarDados();
       })
       .catch(function () { gateError.textContent = 'Não foi possível verificar agora.'; });
   });
 
-  function carregarDados(token) {
-    fetch('/api/portal?token=' + encodeURIComponent(token), { cache: 'no-store' })
+  function carregarDados() {
+    apiGet('/api/portal')
       .then(function (r) {
         if (!r.ok) throw new Error('sessao');
         return r.json();
@@ -186,7 +207,7 @@
       .then(function (dados) {
         gate.classList.add('hidden');
         conteudo.classList.remove('hidden');
-        renderPortal(dados, token);
+        renderPortal(dados);
       })
       .catch(function () {
         sessionStorage.removeItem('portal_token');
@@ -194,16 +215,16 @@
       });
   }
 
-  function renderPortal(dados, token) {
+  function renderPortal(dados) {
     var htmlContratos = dados.contratos.length === 0
       ? '<div class="empty-state">Nenhum contrato encontrado.</div>'
       : dados.contratos.map(function (c) {
           var saldo = (c.valor_total || 0) - (c.entrada_recebida || 0);
           var classeStatus = String(c.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn';
           return '<div class="item">' +
-            '<div class="item-titulo">' + c.tipo_servico + '</div>' +
+            '<div class="item-titulo">' + esc(c.tipo_servico) + '</div>' +
             '<div class="item-sub">Valor total: R$ ' + fmtMoeda(c.valor_total) + '</div>' +
-            '<span class="chip ' + classeStatus + '">' + c.status + '</span>' +
+            '<span class="chip ' + classeStatus + '">' + esc(c.status) + '</span>' +
           '</div>';
         }).join('');
 
@@ -214,8 +235,8 @@
           var classe = p.situacao === 'Vencida' ? 'crit' : 'warn';
           return '<div class="item">' +
             '<div class="item-titulo">R$ ' + fmtMoeda(p.saldo) + '</div>' +
-            '<div class="item-sub">Vencimento: ' + p.vencimento + '</div>' +
-            '<span class="chip ' + classe + '">' + (p.situacao || 'Pendente') + '</span>' +
+            '<div class="item-sub">Vencimento: ' + esc(p.vencimento) + '</div>' +
+            '<span class="chip ' + classe + '">' + esc(p.situacao || 'Pendente') + '</span>' +
           '</div>';
         }).join('');
 
@@ -223,9 +244,8 @@
       ? '<div class="empty-state">Nenhum documento disponível ainda.</div>'
       : dados.documentos.map(function (d) {
           return '<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
-            '<div class="item-titulo" style="flex:1;">' + d.nome + '</div>' +
-            '<a class="btn-baixar" href="/api/portal?acao=documento&id=' + encodeURIComponent(d.id) +
-            '&token=' + encodeURIComponent(token) + '" target="_blank" rel="noopener">Ver/Baixar</a>' +
+            '<div class="item-titulo" style="flex:1;">' + esc(d.nome) + '</div>' +
+            '<button type="button" class="btn-baixar" data-baixar-doc="' + esc(d.id) + '">Ver/Baixar</button>' +
           '</div>';
         }).join('');
 
@@ -236,23 +256,23 @@
           var timelineHtml = p.timeline.map(function (item, itemIdx) {
             var detalheId = 'detalhe-' + idx + '-' + itemIdx;
             return '<div class="timeline-entrada">' +
-              '<div class="timeline-data">' + item.data + '</div>' +
-              '<div class="timeline-tipo">' + item.tipo + '</div>' +
+              '<div class="timeline-data">' + esc(item.data) + '</div>' +
+              '<div class="timeline-tipo">' + esc(item.tipo) + '</div>' +
               (item.explicacao_simples
-                ? '<div class="timeline-explicacao">' + item.explicacao_simples + '</div>' +
+                ? '<div class="timeline-explicacao">' + esc(item.explicacao_simples) + '</div>' +
                   '<div class="timeline-ver-detalhe" data-toggle-detalhe="' + detalheId + '">Ver texto original ▾</div>' +
-                  '<div class="timeline-resumo hidden" id="' + detalheId + '">' + (item.resumo || '') + '</div>'
-                : (item.resumo ? '<div class="timeline-resumo">' + item.resumo + '</div>' : '')
+                  '<div class="timeline-resumo hidden" id="' + detalheId + '">' + esc(item.resumo || '') + '</div>'
+                : (item.resumo ? '<div class="timeline-resumo">' + esc(item.resumo) + '</div>' : '')
               ) +
-              (item.link ? '<div style="margin-top:4px;"><a href="' + item.link + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
+              (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
             '</div>';
           }).join('');
 
           return '<div class="processo-cabecalho" data-toggle-processo="' + idx + '">' +
-            '<div class="item-titulo">' + p.processo + '</div>' +
-            '<div class="item-sub">' + p.status_atual + ' · última movimentação: ' + p.ultima_movimentacao + '</div>' +
-            (p.proximo_prazo ? '<span class="chip warn">Prazo ' + p.proximo_prazo + '</span>' : '') +
-            (p.proxima_audiencia ? '<span class="chip crit" style="margin-left:6px;">Audiência ' + p.proxima_audiencia + '</span>' : '') +
+            '<div class="item-titulo">' + esc(p.processo) + '</div>' +
+            '<div class="item-sub">' + esc(p.status_atual) + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div>' +
+            (p.proximo_prazo ? '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' : '') +
+            (p.proxima_audiencia ? '<span class="chip crit" style="margin-left:6px;">Audiência ' + esc(p.proxima_audiencia) + '</span>' : '') +
           '</div>' +
           '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
             '<div class="aviso-ia">Os textos em destaque são resumos gerados automaticamente para facilitar a leitura ' +
@@ -264,7 +284,7 @@
 
     conteudo.innerHTML =
       '<header class="masthead"><div class="masthead-name">César Tobias Advocacia<small>Portal do Cliente</small></div></header>' +
-      '<section><p class="section-label">Olá, ' + dados.nome + '</p></section>' +
+      '<section><p class="section-label">Olá, ' + esc(dados.nome) + '</p></section>' +
       '<section><p class="section-label">Seus contratos</p><div class="panel">' + htmlContratos + '</div></section>' +
       '<section><p class="section-label">Parcelas pendentes</p><div class="panel">' + htmlParcelas + '</div></section>' +
       '<section><p class="section-label">Ficha do processo</p><div class="panel">' + htmlProcessos + '</div></section>' +
@@ -292,10 +312,32 @@
       sessionStorage.removeItem('portal_token');
       location.reload();
     });
+
+    document.querySelectorAll('[data-baixar-doc]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idDoc = btn.getAttribute('data-baixar-doc');
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Abrindo...';
+        apiGet('/api/portal?acao=documento&id=' + encodeURIComponent(idDoc))
+          .then(function (r) {
+            if (!r.ok) throw new Error('falha');
+            return r.blob();
+          })
+          .then(function (blob) {
+            var blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank', 'noopener');
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível abrir o documento agora.');
+          });
+      });
+    });
   }
 
   var tokenSalvo = sessionStorage.getItem('portal_token');
-  if (tokenSalvo) carregarDados(tokenSalvo);
+  if (tokenSalvo) carregarDados();
 })();
 </script>
 </body>

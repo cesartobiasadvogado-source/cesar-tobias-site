@@ -1,3 +1,9 @@
+function obterToken(req) {
+  const auth = req.headers['authorization'] || '';
+  if (auth.indexOf('Bearer ') === 0) return auth.slice(7).trim();
+  return (req.query && req.query.token) || '';
+}
+
 module.exports = async (req, res) => {
   const segredoLambda = process.env.DASHBOARD_SECRET;
   if (!segredoLambda) {
@@ -8,9 +14,14 @@ module.exports = async (req, res) => {
   const base = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
   const segredoQS = '&secret=' + encodeURIComponent(segredoLambda);
   const acao = (req.query && req.query.acao) || '';
+  const corpo = (req.body && typeof req.body === 'object') ? req.body : {};
 
   if (acao === 'solicitar_codigo') {
-    const telefone = (req.query && req.query.telefone) || '';
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    const telefone = corpo.telefone || '';
     try {
       const resposta = await fetch(
         base + '?action=portal_solicitar_codigo&telefone=' + encodeURIComponent(telefone) + segredoQS
@@ -24,8 +35,12 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'verificar_codigo') {
-    const telefone = (req.query && req.query.telefone) || '';
-    const codigo = (req.query && req.query.codigo) || '';
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    const telefone = corpo.telefone || '';
+    const codigo = corpo.codigo || '';
     try {
       const resposta = await fetch(
         base + '?action=portal_verificar_codigo&telefone=' + encodeURIComponent(telefone) +
@@ -39,7 +54,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const tokenSessao = (req.query && req.query.token) || '';
+  const tokenSessao = obterToken(req);
   if (!tokenSessao) {
     res.status(401).json({ erro: 'Sessao ausente.' });
     return;
