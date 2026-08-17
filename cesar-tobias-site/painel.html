@@ -66,8 +66,8 @@
   section { margin-bottom: 40px; }
   .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
 
-  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 18px; }
+  .stat-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 18px; flex: 1 1 220px; }
   .stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 600; color: var(--brand); line-height: 1.1; }
   .stat-value.money::before { content: 'R$ '; font-size: 18px; font-weight: 500; color: var(--ink-faint); }
   .stat-label { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
@@ -189,10 +189,9 @@
 
   .hidden { display: none !important; }
   @media (max-width: 640px) {
-    .stat-grid { grid-template-columns: 1fr; }
+    .stat-grid { flex-direction: column; }
     .masthead { flex-direction: column; }
     .masthead-meta { text-align: left; }
-    th:nth-child(3), td:nth-child(3) { display: none; }
   }
 </style>
 </head>
@@ -1027,8 +1026,10 @@
             '<td style="text-align:right"><button class="btn-remover" data-login="' + esc(u.usuario) + '">Remover</button></td></tr>';
         }).join('');
         container.innerHTML =
-          '<table><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
-          '<tbody>' + linhas + '</tbody></table>';
+          '<div style="overflow-x:auto;">' +
+          '<table style="min-width:480px;"><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table>' +
+          '</div>';
         var botoes = container.querySelectorAll('.btn-remover');
         for (var i = 0; i < botoes.length; i++) {
           botoes[i].addEventListener('click', function (e) {
