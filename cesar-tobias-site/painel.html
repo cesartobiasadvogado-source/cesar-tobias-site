@@ -139,17 +139,6 @@
   .chip.warn { background: var(--warn-soft); color: var(--warn); }
   .chip.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
 
-  .funil-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
-  .funil-coluna { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-height: 90px; }
-  .funil-coluna-header { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  .funil-count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; background: var(--surface-sunken); color: var(--ink-faint); padding: 1px 7px; border-radius: 999px; font-size: 11.5px; }
-  .funil-coluna-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-  .lead-card { background: var(--surface-sunken); border-radius: 7px; padding: 8px 10px; }
-  .lead-nome { font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 4px; word-break: break-word; }
-  .funil-vazio { padding: 14px 8px; text-align: center; font-size: 12px; color: var(--ink-faint); }
-  @media (max-width: 860px) { .funil-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .funil-grid { grid-template-columns: 1fr; } }
-
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); padding: 10px 20px; border-bottom: 1px solid var(--line); }
   td { padding: 13px 20px; font-size: 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
@@ -294,10 +283,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>
           Ficha de processos
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-funil">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16l-6 8v6l-4 2v-8z"></path></svg>
-          Funil de leads
-        </button>
         <button type="button" class="nav-item" data-scroll-to="sec-agenda">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
           Agenda
@@ -425,30 +410,6 @@
     return d.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  function renderFunil(crm) {
-    if (!crm || !crm.etapas) {
-      return '<div class="panel"><div class="empty-state"><div class="msg">Sem dados de leads ainda.</div></div></div>';
-    }
-    var colunas = crm.etapas.map(function (etapa) {
-      var cardsHtml;
-      if (etapa.leads.length === 0) {
-        cardsHtml = '<div class="funil-vazio">Vazio</div>';
-      } else {
-        cardsHtml = etapa.leads.map(function (lead) {
-          var badgeClasse = lead.dias_na_etapa > 5 ? 'warn' : 'neutral';
-          return '<div class="lead-card">' +
-            '<div class="lead-nome">' + esc(lead.nome) + '</div>' +
-            '<span class="days-badge ' + badgeClasse + '" style="background:var(--surface-sunken);color:var(--ink-faint)">' +
-            lead.dias_na_etapa + 'd nesta etapa</span></div>';
-        }).join('');
-      }
-      return '<div class="funil-coluna">' +
-        '<div class="funil-coluna-header">' + esc(etapa.nome) + '<span class="funil-count">' + etapa.quantidade + '</span></div>' +
-        '<div class="funil-coluna-body">' + cardsHtml + '</div></div>';
-    }).join('');
-    return '<div class="funil-grid">' + colunas + '</div>';
-  }
-
   function renderPainel(dados) {
     var f = dados.financeiro;
     var p = dados.pje;
@@ -571,7 +532,6 @@
         '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>' +
-      '<section id="sec-funil"><p class="section-label">Funil de leads</p>' + renderFunil(dados.crm) + '</section>' +
       '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
 
         '<div class="panel">' +
@@ -701,7 +661,7 @@
           '<div id="admin-lista-usuarios"></div>' +
         '</div></section>'
         : '') +
-      '<footer><span>Dados de Contratos, Controle de Parcelas, Comunicações PJe e Funil de leads</span>' +
+      '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
     document.getElementById('btn-atualizar').addEventListener('click', function () {
