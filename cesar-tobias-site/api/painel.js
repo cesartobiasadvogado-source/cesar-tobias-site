@@ -166,6 +166,31 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'padrao_operacional') {
+    var opPadrao = (req.query && req.query.op) || corpo.op || '';
+    if (opPadrao !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var url6 = base + '?action=painel_padrao_operacional&op=' + encodeURIComponent(opPadrao) + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposPadrao = ['aba', 'conteudo'];
+    var origemPadrao = opPadrao === 'listar' ? (req.query || {}) : corpo;
+    camposPadrao.forEach(function (campo) {
+      if (origemPadrao[campo] !== undefined) {
+        url6 += '&' + campo + '=' + encodeURIComponent(origemPadrao[campo]);
+      }
+    });
+
+    try {
+      const resposta = await fetch(url6);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao acessar o padrão operacional.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
