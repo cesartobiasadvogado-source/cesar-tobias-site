@@ -189,11 +189,16 @@
   .timeline-item-tipo { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 2px; }
   .timeline-item-resumo { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
 
-  .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 16px 20px 12px; }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
-  .admin-form button { padding: 9px 14px; border: none; border-radius: 7px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .admin-form button:hover { opacity: 0.92; }
+  .admin-permissoes { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0 20px 14px; border-bottom: 1px solid var(--line); }
+  .admin-permissoes label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
+  .admin-permissoes input[type="checkbox"] { width: auto; }
+  .admin-permissoes .admin-permissao-admin { width: 100%; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); font-weight: 600; color: var(--ink); }
+  #admin-btn-criar { padding: 9px 14px; border: none; border-radius: 7px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  #admin-btn-criar:hover { opacity: 0.92; }
   .admin-msg { padding: 0 20px 12px; font-size: 12.5px; color: var(--ink-faint); }
+  .permissoes-usuario { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
   .btn-remover { background: none; border: 1px solid var(--crit); color: var(--crit); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
   .btn-remover:hover { background: var(--crit-soft); }
   @media (max-width: 640px) { .admin-form { grid-template-columns: 1fr; } }
@@ -263,31 +268,31 @@
 
       <nav class="nav-grupo">
         <div class="nav-label">Escritório</div>
-        <button type="button" class="nav-item ativo" data-scroll-to="sec-visao-geral">
+        <button type="button" class="nav-item ativo" data-scroll-to="sec-visao-geral" data-secao="financeiro">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
           Visão geral
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-vencidas">
+        <button type="button" class="nav-item" data-scroll-to="sec-vencidas" data-secao="financeiro">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h18M7 15h3M3 6h18v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>
           Financeiro
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-pje">
+        <button type="button" class="nav-item" data-scroll-to="sec-pje" data-secao="pje">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v5h5"></path></svg>
           Processual — PJe
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-clientes">
+        <button type="button" class="nav-item" data-scroll-to="sec-clientes" data-secao="clientes">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg>
           Clientes
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-processos">
+        <button type="button" class="nav-item" data-scroll-to="sec-processos" data-secao="processos">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>
           Ficha de processos
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-agenda">
+        <button type="button" class="nav-item" data-scroll-to="sec-agenda" data-secao="agenda">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
           Agenda
         </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-automacoes">
+        <button type="button" class="nav-item" data-scroll-to="sec-automacoes" data-secao="automacoes">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path></svg>
           Automações
         </button>
@@ -411,127 +416,137 @@
   }
 
   function renderPainel(dados) {
+    var perms = dados.usuario_permissoes || [];
     var f = dados.financeiro;
     var p = dados.pje;
 
-    var htmlVencidas;
-    if (f.parcelas_vencidas.length === 0) {
-      htmlVencidas =
-        '<div class="empty-state"><div class="glyph">✓</div>' +
-        '<div class="msg">Nenhuma parcela em atraso agora. Tudo em dia.</div></div>';
-    } else {
-      var linhas = f.parcelas_vencidas.map(function (item) {
-        var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
-        return '<tr><td>' + esc(item.nome) + '</td>' +
-          '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
-          '<td>' + esc(item.vencimento) + '</td>' +
-          '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
-          '<td style="text-align:right">' +
-            '<button class="btn-editar" data-cobrar-nome="' + esc(item.nome) + '" ' +
-            'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '">Cobrar</button>' +
-          '</td></tr>';
-      }).join('');
-      htmlVencidas =
-        '<div style="overflow-x:auto;">' +
-        '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
-        '<tbody>' + linhas + '</tbody></table>' +
-        '</div>';
+    var htmlFinanceiro = '';
+    if (f) {
+      var htmlVencidas;
+      if (f.parcelas_vencidas.length === 0) {
+        htmlVencidas =
+          '<div class="empty-state"><div class="glyph">✓</div>' +
+          '<div class="msg">Nenhuma parcela em atraso agora. Tudo em dia.</div></div>';
+      } else {
+        var linhas = f.parcelas_vencidas.map(function (item) {
+          var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
+          return '<tr><td>' + esc(item.nome) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
+            '<td>' + esc(item.vencimento) + '</td>' +
+            '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
+            '<td style="text-align:right">' +
+              '<button class="btn-editar" data-cobrar-nome="' + esc(item.nome) + '" ' +
+              'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '">Cobrar</button>' +
+            '</td></tr>';
+        }).join('');
+        htmlVencidas =
+          '<div style="overflow-x:auto;">' +
+          '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table>' +
+          '</div>';
+      }
+
+      var chipVencidas = f.parcelas_vencidas.length === 0
+        ? '<span class="chip good">Nenhuma vencida</span>'
+        : '<span class="chip crit">' + f.parcelas_vencidas.length + ' vencida(s)</span>';
+
+      htmlFinanceiro =
+        '<section id="sec-visao-geral"><p class="section-label">Visão geral</p><div class="stat-grid">' +
+          '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
+          renderCardValor('a_receber', f.total_a_receber, 'A receber', 'saldo de honorários em aberto') +
+          '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
+          renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
+          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Valor recebido', 'total já pago pelos clientes') +
+        '</div></section>' +
+        '<section id="sec-vencidas"><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
+          htmlVencidas +
+        '</div></section>';
     }
 
-    var chipVencidas = f.parcelas_vencidas.length === 0
-      ? '<span class="chip good">Nenhuma vencida</span>'
-      : '<span class="chip crit">' + f.parcelas_vencidas.length + ' vencida(s)</span>';
+    var htmlPje = '';
+    if (p) {
+      var htmlPrazos;
+      if (p.prazos_semana.length === 0) {
+        htmlPrazos =
+          '<div class="empty-state"><div class="glyph">—</div>' +
+          '<div class="msg">Nenhum prazo com vencimento nos próximos 14 dias.</div></div>';
+      } else {
+        htmlPrazos = p.prazos_semana.map(function (item) {
+          var linkHtml = item.link
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+            : '';
+          return '<div class="prazo-card">' +
+            '<div class="prazo-card-topo">' +
+              '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+              '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+              '<span class="days-badge warn">' + esc(item.data_limite) + '</span>' +
+            '</div>' +
+            (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+            (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
+            (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+      }
 
-    var htmlPrazos;
-    if (p.prazos_semana.length === 0) {
-      htmlPrazos =
-        '<div class="empty-state"><div class="glyph">—</div>' +
-        '<div class="msg">Nenhum prazo com vencimento nos próximos 14 dias.</div></div>';
-    } else {
-      htmlPrazos = p.prazos_semana.map(function (item) {
-        var linkHtml = item.link
-          ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
-          : '';
-        return '<div class="prazo-card">' +
-          '<div class="prazo-card-topo">' +
-            '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
-            '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
-            '<span class="days-badge warn">' + esc(item.data_limite) + '</span>' +
-          '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
-          (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
-          (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
-        '</div>';
-      }).join('');
+      var chipPrazos = p.prazos_semana.length === 0
+        ? '<span class="chip neutral">Sem prazos</span>'
+        : '<span class="chip warn">' + p.prazos_semana.length + ' prazo(s)</span>';
+
+      var avisosSemPrazo = p.avisos_sem_prazo || [];
+      var htmlAvisos;
+      if (avisosSemPrazo.length === 0) {
+        htmlAvisos =
+          '<div class="empty-state"><div class="glyph">—</div>' +
+          '<div class="msg">Nenhum aviso sem prazo nos últimos 7 dias.</div></div>';
+      } else {
+        htmlAvisos = avisosSemPrazo.map(function (item) {
+          var linkHtml = item.link
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+            : '';
+          return '<div class="prazo-card">' +
+            '<div class="prazo-card-topo">' +
+              '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+              '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+              '<span class="days-badge neutral">' + esc(item.data) + '</span>' +
+            '</div>' +
+            (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+            (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
+            (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+      }
+      var chipAvisos = avisosSemPrazo.length === 0
+        ? '<span class="chip neutral">Nenhum</span>'
+        : '<span class="chip neutral">' + avisosSemPrazo.length + ' aviso(s)</span>';
+
+      htmlPje =
+        '<section id="sec-pje"><p class="section-label">Processual — PJe</p>' +
+        '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
+        '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
+          htmlPrazos +
+        '</div></section>' +
+        '<section><p class="section-label">Avisos recentes sem prazo</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
+          htmlAvisos +
+        '</div></section>';
     }
 
-    var chipPrazos = p.prazos_semana.length === 0
-      ? '<span class="chip neutral">Sem prazos</span>'
-      : '<span class="chip warn">' + p.prazos_semana.length + ' prazo(s)</span>';
-
-    var avisosSemPrazo = p.avisos_sem_prazo || [];
-    var htmlAvisos;
-    if (avisosSemPrazo.length === 0) {
-      htmlAvisos =
-        '<div class="empty-state"><div class="glyph">—</div>' +
-        '<div class="msg">Nenhum aviso sem prazo nos últimos 7 dias.</div></div>';
-    } else {
-      htmlAvisos = avisosSemPrazo.map(function (item) {
-        var linkHtml = item.link
-          ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
-          : '';
-        return '<div class="prazo-card">' +
-          '<div class="prazo-card-topo">' +
-            '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
-            '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
-            '<span class="days-badge neutral">' + esc(item.data) + '</span>' +
-          '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
-          (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
-          (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
-        '</div>';
-      }).join('');
-    }
-    var chipAvisos = avisosSemPrazo.length === 0
-      ? '<span class="chip neutral">Nenhum</span>'
-      : '<span class="chip neutral">' + avisosSemPrazo.length + ' aviso(s)</span>';
-
-    conteudo.innerHTML =
-      '<header class="masthead">' +
-        '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
-        '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
-        'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
-      '</header>' +
-      '<section id="sec-visao-geral"><p class="section-label">Visão geral</p><div class="stat-grid">' +
-        '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
-        renderCardValor('a_receber', f.total_a_receber, 'A receber', 'saldo de honorários em aberto') +
-        '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
-        renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
-        renderCardValor('valor_recebido', f.valor_recebido_geral, 'Valor recebido', 'total já pago pelos clientes') +
-      '</div></section>' +
-      '<section id="sec-vencidas"><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
-        '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
-        htmlVencidas +
-      '</div></section>' +
-      '<section id="sec-pje"><p class="section-label">Processual — PJe</p>' +
-      '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
-      '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
-      '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
-        htmlPrazos +
-      '</div></section>' +
-      '<section><p class="section-label">Avisos recentes sem prazo</p>' +
-      '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
-        htmlAvisos +
-      '</div></section>' +
+    var htmlClientes = perms.indexOf('clientes') === -1 ? '' :
       '<section id="sec-clientes"><p class="section-label">Clientes</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
           '<input type="text" id="clientes-busca" placeholder="Buscar cliente pelo nome..." style="width:100%;box-sizing:border-box;padding:10px 14px;border:none;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--bg);color:var(--ink);">' +
           '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div></section>' +
+        '</div></section>';
+
+    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div></section>' +
+        '</div></section>';
+
+    var htmlAgenda = perms.indexOf('agenda') === -1 ? '' :
       '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
 
         '<div class="panel">' +
@@ -561,7 +576,9 @@
           '<div id="agenda-lista-tarefas"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
 
-      '</div></section>' +
+      '</div></section>';
+
+    var htmlAutomacoes = perms.indexOf('automacoes') === -1 ? '' :
       '<section id="sec-automacoes"><p class="section-label">Automações</p><div class="automacoes-grid">' +
 
         '<div class="automacao-card">' +
@@ -647,20 +664,37 @@
           '<div class="automacao-resultado" data-resultado="responder_pendente"></div>' +
         '</div>' +
 
-      '</div></section>' +
-      (dados.usuario_admin ?
-        '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
+      '</div></section>';
+
+    var htmlAdmin = !dados.usuario_admin ? '' :
+      '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
         '<div class="panel">' +
           '<div class="admin-form">' +
             '<input type="text" id="admin-nome" placeholder="Nome">' +
             '<input type="text" id="admin-login" placeholder="Login" autocomplete="off">' +
             '<input type="password" id="admin-senha" placeholder="Senha" autocomplete="new-password">' +
-            '<button id="admin-btn-criar">Adicionar</button>' +
           '</div>' +
+          '<div class="admin-permissoes">' +
+            '<label><input type="checkbox" data-permissao="financeiro"> Financeiro</label>' +
+            '<label><input type="checkbox" data-permissao="pje"> Processual (PJe)</label>' +
+            '<label><input type="checkbox" data-permissao="clientes"> Clientes</label>' +
+            '<label><input type="checkbox" data-permissao="processos"> Ficha de processos</label>' +
+            '<label><input type="checkbox" data-permissao="agenda"> Agenda</label>' +
+            '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
+            '<label class="admin-permissao-admin"><input type="checkbox" id="admin-eh-admin"> Administrador (acesso total + gerencia usuários)</label>' +
+          '</div>' +
+          '<div style="padding:0 20px 16px;"><button id="admin-btn-criar">Adicionar usuário</button></div>' +
           '<div class="admin-msg" id="admin-msg"></div>' +
           '<div id="admin-lista-usuarios"></div>' +
-        '</div></section>'
-        : '') +
+        '</div></section>';
+
+    conteudo.innerHTML =
+      '<header class="masthead">' +
+        '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
+        '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
+        'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
+      '</header>' +
+      htmlFinanceiro + htmlPje + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -674,14 +708,13 @@
     }
     document.getElementById('nav-admin').classList.toggle('hidden', !dados.usuario_admin);
 
-    wireAutomacoes();
-    wireAgenda();
-    wireCobranca();
-    wireOlhinhos(dados);
     wireSidebar(dados);
-    carregarAgenda();
-    carregarProcessos();
-    carregarClientes();
+
+    if (perms.indexOf('automacoes') !== -1) wireAutomacoes();
+    if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); }
+    if (perms.indexOf('processos') !== -1) carregarProcessos();
+    if (perms.indexOf('clientes') !== -1) carregarClientes();
   }
 
   function wireSidebar(dados) {
@@ -690,8 +723,17 @@
     document.getElementById('sidebar-avatar').textContent = iniciais;
     document.getElementById('sidebar-nome').textContent = nomeUsuario || '—';
 
+    var perms = dados.usuario_permissoes || [];
     var itensNav = document.querySelectorAll('.nav-item[data-scroll-to]');
+    var primeiroVisivel = null;
     itensNav.forEach(function (item) {
+      var secao = item.getAttribute('data-secao');
+      if (secao) {
+        item.classList.toggle('hidden', perms.indexOf(secao) === -1);
+      }
+      item.classList.remove('ativo');
+      if (!item.classList.contains('hidden') && !primeiroVisivel) primeiroVisivel = item;
+
       item.addEventListener('click', function () {
         var alvo = document.getElementById(item.getAttribute('data-scroll-to'));
         if (!alvo) return;
@@ -700,6 +742,7 @@
         alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
+    if (primeiroVisivel) primeiroVisivel.classList.add('ativo');
   }
 
   var clientesCarregados = [];
@@ -1164,8 +1207,19 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
           return;
         }
+        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Agenda', automacoes: 'Automações' };
         var linhas = dados.usuarios.map(function (u) {
-          return '<tr><td>' + esc(u.nome) + '</td><td>' + esc(u.usuario) + '</td>' +
+          var descPermissoes;
+          if (u.admin) {
+            descPermissoes = 'acesso total';
+          } else if (!u.permissoes) {
+            descPermissoes = 'acesso total (usuário antigo)';
+          } else if (u.permissoes.length === 0) {
+            descPermissoes = 'nenhuma seção liberada';
+          } else {
+            descPermissoes = u.permissoes.map(function (p) { return rotulos[p] || p; }).join(', ');
+          }
+          return '<tr><td>' + esc(u.nome) + '<div class="permissoes-usuario">' + esc(descPermissoes) + '</div></td><td>' + esc(u.usuario) + '</td>' +
             '<td>' + (u.admin ? '<span class="chip good">Admin</span>' : '<span class="chip neutral">Padrão</span>') + '</td>' +
             '<td style="text-align:right"><button class="btn-remover" data-login="' + esc(u.usuario) + '">Remover</button></td></tr>';
         }).join('');
@@ -1187,10 +1241,17 @@
     var nome = document.getElementById('admin-nome').value;
     var login = document.getElementById('admin-login').value;
     var senha = document.getElementById('admin-senha').value;
+    var ehAdmin = document.getElementById('admin-eh-admin').checked;
+    var permissoes = Array.prototype.slice.call(document.querySelectorAll('[data-permissao]:checked'))
+      .map(function (el) { return el.getAttribute('data-permissao'); });
     var msg = document.getElementById('admin-msg');
     msg.textContent = '';
 
-    apiPost('/api/painel?acao=usuarios_criar', { nome: nome, login: login, senha: senha })
+    apiPost('/api/painel?acao=usuarios_criar', {
+      nome: nome, login: login, senha: senha,
+      admin: ehAdmin ? 'true' : 'false',
+      permissoes: permissoes.join(',')
+    })
       .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
       .then(function (resultado) {
         if (resultado.status !== 200) {
@@ -1200,6 +1261,8 @@
         document.getElementById('admin-nome').value = '';
         document.getElementById('admin-login').value = '';
         document.getElementById('admin-senha').value = '';
+        document.getElementById('admin-eh-admin').checked = false;
+        document.querySelectorAll('[data-permissao]').forEach(function (el) { el.checked = false; });
         msg.textContent = 'Usuário adicionado com sucesso.';
         carregarListaUsuarios();
       });

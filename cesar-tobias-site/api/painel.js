@@ -63,7 +63,9 @@ module.exports = async (req, res) => {
     if (op === 'criar') {
       url += '&nome=' + encodeURIComponent(corpo.nome || '') +
              '&login=' + encodeURIComponent(corpo.login || '') +
-             '&senha=' + encodeURIComponent(corpo.senha || '');
+             '&senha=' + encodeURIComponent(corpo.senha || '') +
+             '&admin=' + encodeURIComponent(corpo.admin || 'false') +
+             '&permissoes=' + encodeURIComponent(corpo.permissoes || '');
     }
     if (op === 'remover') {
       url += '&login=' + encodeURIComponent(corpo.login || '');
