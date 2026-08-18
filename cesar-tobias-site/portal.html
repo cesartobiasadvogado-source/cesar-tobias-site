@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>Portal do Cliente</title>
+<script>
+  (function () {
+    var temaSalvo = localStorage.getItem('portal_tema');
+    if (temaSalvo === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f6f4ef;
@@ -14,27 +23,25 @@
     --ink-soft: #5b6178;
     --ink-faint: #8b90a3;
     --line: #e2ded3;
-    --brand: #1c2c4f;
-    --accent: #a9793a;
-    --good: #2f7a4f;
-    --good-soft: #e4f1e8;
-    --warn: #b8842e;
-    --warn-soft: #faf0dc;
-    --crit: #b33a3a;
-    --crit-soft: #fbe9e9;
+    --brand: #16213e;
+    --accent: #2c5ce0;
+    --good: #079455;
+    --good-soft: #e3f6ec;
+    --warn: #ca8a04;
+    --warn-soft: #fbf1da;
+    --crit: #b42318;
+    --crit-soft: #fbe7e5;
     --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: 'SF Mono', 'Cascadia Code', 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #14182a; --surface: #1c2238; --surface-sunken: #171c2f;
-      --ink: #eef0f6; --ink-soft: #a7acc2; --ink-faint: #6d7290; --line: #2b3250;
-      --brand: #c7d0ec; --accent: #d3a869;
-      --good: #5fbd85; --good-soft: #16261d;
-      --warn: #e0ab5a; --warn-soft: #2c2313;
-      --crit: #e57b7b; --crit-soft: #2c1717;
-    }
+  :root[data-theme="dark"] {
+    --bg: #0b1220; --surface: #121a2c; --surface-sunken: #0e1626;
+    --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #6b7690; --line: #232d42;
+    --brand: #c7d2e8; --accent: #6c8cf0;
+    --good: #29a876; --good-soft: #10261d;
+    --warn: #9c7a16; --warn-soft: #2a2312;
+    --crit: #e23a2e; --crit-soft: #2c1614;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
@@ -50,7 +57,7 @@
   }
   .gate-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .gate-card button {
-    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--brand);
+    width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--accent);
     color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
   }
   .gate-card button:hover { opacity: 0.92; }
@@ -58,9 +65,18 @@
   .gate-error { color: var(--crit); font-size: 13px; margin-top: 10px; min-height: 16px; }
   .gate-msg { color: var(--good); font-size: 13px; margin-top: 10px; min-height: 16px; }
 
-  header.masthead { text-align: center; padding-bottom: 20px; border-bottom: 2px solid var(--brand); margin-bottom: 28px; }
-  .masthead-name { font-family: var(--font-display); font-size: 24px; font-weight: 600; color: var(--brand); }
-  .masthead-name small { display: block; font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 6px; }
+  header.masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 28px; }
+  .masthead-name { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--brand); }
+  .masthead-name small { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
+  .masthead-direita { display: flex; align-items: center; gap: 10px; }
+  .masthead-saudacao { font-size: 12.5px; color: var(--ink-faint); text-align: right; }
+  .masthead-saudacao strong { color: var(--ink-soft); font-weight: 600; }
+  .btn-tema-portal {
+    background: none; border: 1px solid var(--line); color: var(--ink-faint);
+    border-radius: 8px; padding: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn-tema-portal:hover { background: var(--surface-sunken); color: var(--ink); }
+  .btn-tema-portal svg { width: 16px; height: 16px; }
 
   section { margin-bottom: 28px; }
   .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 12px; }
@@ -129,6 +145,19 @@
   var gateError = document.getElementById('gate-error');
   var gateMsg = document.getElementById('gate-msg');
   var telefoneAtual = '';
+
+  function aplicarTemaPortal(tema) {
+    if (tema === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('portal_tema', tema);
+    var iconeClaro = document.getElementById('icone-tema-claro');
+    var iconeEscuro = document.getElementById('icone-tema-escuro');
+    if (iconeClaro) iconeClaro.classList.toggle('hidden', tema === 'dark');
+    if (iconeEscuro) iconeEscuro.classList.toggle('hidden', tema !== 'dark');
+  }
 
   function fmtMoeda(v) {
     return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -287,8 +316,16 @@
         }).join('');
 
     conteudo.innerHTML =
-      '<header class="masthead"><div class="masthead-name">César Tobias Advocacia<small>Portal do Cliente</small></div></header>' +
-      '<section><p class="section-label">Olá, ' + esc(dados.nome) + '</p></section>' +
+      '<header class="masthead">' +
+        '<div class="masthead-name">César Tobias Advocacia<small>Portal do Cliente</small></div>' +
+        '<div class="masthead-direita">' +
+          '<div class="masthead-saudacao">Olá, <strong>' + esc(dados.nome) + '</strong></div>' +
+          '<button type="button" class="btn-tema-portal" id="btn-tema">' +
+            '<svg id="icone-tema-claro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"></path></svg>' +
+            '<svg id="icone-tema-escuro" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>' +
+          '</button>' +
+        '</div>' +
+      '</header>' +
       '<section><p class="section-label">Seus contratos</p><div class="panel">' + htmlContratos + '</div></section>' +
       '<section><p class="section-label">Parcelas pendentes</p><div class="panel">' + htmlParcelas + '</div></section>' +
       '<section><p class="section-label">Ficha do processo</p><div class="panel">' + htmlProcessos + '</div></section>' +
@@ -315,6 +352,11 @@
     document.getElementById('btn-sair').addEventListener('click', function () {
       sessionStorage.removeItem('portal_token');
       location.reload();
+    });
+
+    aplicarTemaPortal(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    document.getElementById('btn-tema').addEventListener('click', function () {
+      aplicarTemaPortal(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
     });
 
     document.querySelectorAll('[data-baixar-doc]').forEach(function (btn) {
