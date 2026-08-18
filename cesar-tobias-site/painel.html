@@ -184,7 +184,7 @@
 
   .processo-card { border-bottom: 1px solid var(--line); }
   .processo-card:last-child { border-bottom: none; }
-  .processo-cabecalho { padding: 14px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; cursor: pointer; }
+  .processo-cabecalho { padding: 14px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; cursor: pointer; border: none; background: none; width: 100%; text-align: left; font: inherit; color: inherit; }
   .processo-cabecalho:hover { background: var(--surface-sunken); }
   .processo-numero { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
   .processo-cliente { font-size: 13px; color: var(--accent); font-weight: 600; margin-top: 2px; }
@@ -269,7 +269,7 @@
       <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username">
       <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
       <button id="btn-entrar">Entrar</button>
-      <div class="gate-error" id="gate-error"></div>
+      <div class="gate-error" id="gate-error" aria-live="polite"></div>
     </div>
   </div>
 
@@ -400,7 +400,7 @@
     return '<div class="stat-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
         '<div class="stat-value money">' + textoValor + '</div>' +
-        '<button class="btn-olho" data-olho="' + chave + '" title="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '">' +
+        '<button class="btn-olho" data-olho="' + chave + '" title="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-label="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' +
           (oculto ? '🙈' : '👁') +
         '</button>' +
       '</div>' +
@@ -606,7 +606,7 @@
             '<button id="evento-btn-salvar">Criar</button>' +
             '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
           '</div>' +
-          '<div class="admin-msg hidden" id="evento-meet-resultado"></div>' +
+          '<div class="admin-msg hidden" id="evento-meet-resultado" aria-live="polite"></div>' +
           '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
 
@@ -630,21 +630,21 @@
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar PJe agora</div>' +
           '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
           '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="verificar_pje"></div>' +
+          '<div class="automacao-resultado" data-resultado="verificar_pje" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Resumo semanal PJe</div>' +
           '<div class="automacao-desc">Envia o resumo dos últimos 7 dias no WhatsApp.</div>' +
           '<button data-tipo="resumo_pje" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="resumo_pje"></div>' +
+          '<div class="automacao-resultado" data-resultado="resumo_pje" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar Autentique</div>' +
           '<div class="automacao-desc">Checa documentos assinados agora.</div>' +
           '<button data-tipo="verificar_autentique" class="btn-automacao">Executar</button>' +
-          '<div class="automacao-resultado" data-resultado="verificar_autentique"></div>' +
+          '<div class="automacao-resultado" data-resultado="verificar_autentique" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -652,7 +652,7 @@
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
           '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
           '<button data-tipo="gerar_contrato" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_contrato"></div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_contrato" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -660,7 +660,7 @@
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
           '<input type="text" placeholder="Endereço (opcional, se ainda não tiver salvo)" data-campo="endereco" data-form="gerar_residencia">' +
           '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_residencia"></div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_residencia" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -668,14 +668,14 @@
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_hipossuficiencia">' +
           '<input type="text" placeholder="Motivo da ação (opcional)" data-campo="descricao" data-form="gerar_hipossuficiencia">' +
           '<button data-tipo="gerar_hipossuficiencia" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_hipossuficiencia"></div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_hipossuficiencia" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Enviar assinatura</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
           '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
-          '<div class="automacao-resultado" data-resultado="enviar_assinatura"></div>' +
+          '<div class="automacao-resultado" data-resultado="enviar_assinatura" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -689,7 +689,7 @@
             '<option value="Perdido">Perdido</option>' +
           '</select>' +
           '<button data-tipo="mover_lead" class="btn-automacao">Mover</button>' +
-          '<div class="automacao-resultado" data-resultado="mover_lead"></div>' +
+          '<div class="automacao-resultado" data-resultado="mover_lead" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -698,7 +698,7 @@
           '<input type="text" placeholder="Mídia (ex: stories)" data-campo="midia" data-form="gerar_utm">' +
           '<input type="text" placeholder="Campanha" data-campo="campanha" data-form="gerar_utm">' +
           '<button data-tipo="gerar_utm" class="btn-automacao">Gerar</button>' +
-          '<div class="automacao-resultado" data-resultado="gerar_utm"></div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_utm" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -706,7 +706,7 @@
           '<div class="automacao-desc">Use quando alguma ação acima pedir uma escolha (ex: qual documento enviar).</div>' +
           '<input type="text" placeholder="Ex: 1,2 ou todos" data-campo="resposta" data-form="responder_pendente">' +
           '<button data-tipo="responder_pendente" class="btn-automacao">Responder</button>' +
-          '<div class="automacao-resultado" data-resultado="responder_pendente"></div>' +
+          '<div class="automacao-resultado" data-resultado="responder_pendente" aria-live="polite"></div>' +
         '</div>' +
 
       '</div></section>';
@@ -729,7 +729,7 @@
             '<label class="admin-permissao-admin"><input type="checkbox" id="admin-eh-admin"> Administrador (acesso total + gerencia usuários)</label>' +
           '</div>' +
           '<div style="padding:0 20px 16px;"><button id="admin-btn-criar">Adicionar usuário</button></div>' +
-          '<div class="admin-msg" id="admin-msg"></div>' +
+          '<div class="admin-msg" id="admin-msg" aria-live="polite"></div>' +
           '<div id="admin-lista-usuarios"></div>' +
         '</div></section>';
 
@@ -865,10 +865,10 @@
       }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo vinculado.</div></div>';
 
       return '<div class="processo-card">' +
-        '<div class="processo-cabecalho" data-toggle-cliente="' + idx + '">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-cliente="' + idx + '" aria-expanded="false" aria-controls="cliente-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(c.nome) + '</div>' +
           '<div class="processo-meta">' + badges + '</div></div>' +
-        '</div>' +
+        '</button>' +
         '<div class="processo-corpo" id="cliente-corpo-' + idx + '">' +
           '<p class="section-label" style="margin-top:8px;">Contratos</p>' + contratosHtml +
           '<p class="section-label" style="margin-top:16px;">Parcelas pendentes</p>' + parcelasHtml +
@@ -880,7 +880,8 @@
     container.querySelectorAll('[data-toggle-cliente]').forEach(function (el) {
       el.addEventListener('click', function () {
         var corpo = document.getElementById('cliente-corpo-' + el.getAttribute('data-toggle-cliente'));
-        corpo.classList.toggle('aberto');
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
       });
     });
   }
@@ -919,12 +920,12 @@
       if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' + badges;
 
       return '<div class="processo-card">' +
-        '<div class="processo-cabecalho" data-toggle-processo="' + idx + '">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-processo="' + idx + '" aria-expanded="false" aria-controls="processo-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(p.processo) + '</div>' +
           (p.cliente ? '<div class="processo-cliente">' + esc(p.cliente) + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
           '<div class="processo-meta">' + esc(p.tribunal) + (p.orgao_atual ? ' · ' + esc(p.orgao_atual) : '') + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
           '<div class="processo-badges">' + badges + '</div>' +
-        '</div>' +
+        '</button>' +
         '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
           '<div class="processo-edit-form">' +
             '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + esc(p.cliente || '') + '">' +
@@ -941,7 +942,8 @@
     container.querySelectorAll('[data-toggle-processo]').forEach(function (el) {
       el.addEventListener('click', function () {
         var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
-        corpo.classList.toggle('aberto');
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
       });
     });
 
