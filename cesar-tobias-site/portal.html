@@ -105,6 +105,8 @@
   .aviso-ia { font-size: 11px; color: var(--ink-faint); line-height: 1.5; padding: 8px 10px; margin-bottom: 12px; border: 1px dashed var(--line); border-radius: 6px; }
   .empty-state { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--ink-faint); }
   .btn-baixar { background: none; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .link-original { color: var(--accent); font-size: 12.5px; text-decoration: none; }
+  .link-original:hover { text-decoration: underline; }
   .hidden { display: none !important; }
   .btn-sair { display: block; margin: 32px auto 0; background: none; border: none; color: var(--ink-faint); font-size: 12.5px; cursor: pointer; text-decoration: underline; }
 </style>
@@ -297,7 +299,7 @@
                   '<div class="timeline-resumo hidden" id="' + detalheId + '">' + esc(item.resumo || '') + '</div>'
                 : (item.resumo ? '<div class="timeline-resumo">' + esc(item.resumo) + '</div>' : '')
               ) +
-              (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
+              (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a></div>' : '') +
             '</div>';
           }).join('');
 

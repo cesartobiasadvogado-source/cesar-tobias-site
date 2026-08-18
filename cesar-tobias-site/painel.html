@@ -104,11 +104,11 @@
   .gate-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 32px; max-width: 340px; width: 100%; }
   .gate-title { font-family: var(--font-display); font-size: 20px; color: var(--brand); margin: 0 0 4px; }
   .gate-sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 20px; }
-  .gate input[type="password"] {
+  .gate input {
     width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
     font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 12px;
   }
-  .gate input[type="password"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .gate input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .gate button {
     width: 100%; padding: 11px; border: none; border-radius: 8px; background: var(--accent);
     color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
@@ -145,6 +145,8 @@
   .chip.warn { background: var(--warn-soft); color: var(--warn); }
   .chip.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
 
+  .table-scroll { overflow-x: auto; }
+  .input-flush { width: 100%; box-sizing: border-box; padding: 10px 14px; border: none; border-bottom: 1px solid var(--line); font-size: 13.5px; background: var(--bg); color: var(--ink); }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); padding: 10px 20px; border-bottom: 1px solid var(--line); }
   td { padding: 13px 20px; font-size: 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
@@ -233,7 +235,8 @@
 
   .automacoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .automacao-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-  .automacao-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .automacao-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 7px; }
+  .automacao-icone { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.75; }
   .automacao-desc { font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
   .automacao-card input, .automacao-card select {
     padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px;
@@ -263,7 +266,7 @@
     <div class="gate-card">
       <p class="gate-title">Painel do Escritório</p>
       <p class="gate-sub">Acesso restrito. Entre com seu usuário.</p>
-      <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:var(--bg);color:var(--ink);margin-bottom:12px;">
+      <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username">
       <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
       <button id="btn-entrar">Entrar</button>
       <div class="gate-error" id="gate-error"></div>
@@ -452,7 +455,7 @@
             '</td></tr>';
         }).join('');
         htmlVencidas =
-          '<div style="overflow-x:auto;">' +
+          '<div class="table-scroll">' +
           '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table>' +
           '</div>';
@@ -490,7 +493,7 @@
       } else {
         htmlPrazos = p.prazos_semana.map(function (item) {
           var linkHtml = item.link
-            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a>'
             : '';
           return '<div class="prazo-card">' +
             '<div class="prazo-card-topo">' +
@@ -518,7 +521,7 @@
       } else {
         htmlAvisos = avisosSemPrazo.map(function (item) {
           var linkHtml = item.link
-            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12.5px;">Ver comunicação original</a>'
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a>'
             : '';
           return '<div class="prazo-card">' +
             '<div class="prazo-card-topo">' +
@@ -578,7 +581,7 @@
     var htmlClientes = perms.indexOf('clientes') === -1 ? '' :
       '<section id="sec-clientes"><p class="section-label">Clientes</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
-          '<input type="text" id="clientes-busca" placeholder="Buscar cliente pelo nome..." style="width:100%;box-sizing:border-box;padding:10px 14px;border:none;border-bottom:1px solid var(--line);font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+          '<input type="text" id="clientes-busca" class="input-flush" placeholder="Buscar cliente pelo nome...">' +
           '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
 
@@ -624,28 +627,28 @@
       '<section id="sec-automacoes"><p class="section-label">Automações</p><div class="automacoes-grid">' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Verificar PJe agora</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar PJe agora</div>' +
           '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
           '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
           '<div class="automacao-resultado" data-resultado="verificar_pje"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Resumo semanal PJe</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Resumo semanal PJe</div>' +
           '<div class="automacao-desc">Envia o resumo dos últimos 7 dias no WhatsApp.</div>' +
           '<button data-tipo="resumo_pje" class="btn-automacao">Executar</button>' +
           '<div class="automacao-resultado" data-resultado="resumo_pje"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Verificar Autentique</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar Autentique</div>' +
           '<div class="automacao-desc">Checa documentos assinados agora.</div>' +
           '<button data-tipo="verificar_autentique" class="btn-automacao">Executar</button>' +
           '<div class="automacao-resultado" data-resultado="verificar_autentique"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Gerar contrato</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Gerar contrato</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
           '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
           '<button data-tipo="gerar_contrato" class="btn-automacao">Gerar</button>' +
@@ -653,7 +656,7 @@
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Declaração de residência</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Declaração de residência</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
           '<input type="text" placeholder="Endereço (opcional, se ainda não tiver salvo)" data-campo="endereco" data-form="gerar_residencia">' +
           '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
@@ -661,7 +664,7 @@
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Declaração de hipossuficiência</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Declaração de hipossuficiência</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_hipossuficiencia">' +
           '<input type="text" placeholder="Motivo da ação (opcional)" data-campo="descricao" data-form="gerar_hipossuficiencia">' +
           '<button data-tipo="gerar_hipossuficiencia" class="btn-automacao">Gerar</button>' +
@@ -669,14 +672,14 @@
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Enviar assinatura</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Enviar assinatura</div>' +
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
           '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
           '<div class="automacao-resultado" data-resultado="enviar_assinatura"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Mover lead de etapa</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="M16 21l4-4-4-4"></path><path d="M20 17H4"></path></svg>Mover lead de etapa</div>' +
           '<input type="text" placeholder="Nome do lead" data-campo="nome" data-form="mover_lead">' +
           '<select data-campo="etapa" data-form="mover_lead">' +
             '<option value="Novo contato">Novo contato</option>' +
@@ -690,7 +693,7 @@
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Gerar link com UTM</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>Gerar link com UTM</div>' +
           '<input type="text" placeholder="Origem (ex: instagram)" data-campo="origem" data-form="gerar_utm">' +
           '<input type="text" placeholder="Mídia (ex: stories)" data-campo="midia" data-form="gerar_utm">' +
           '<input type="text" placeholder="Campanha" data-campo="campanha" data-form="gerar_utm">' +
@@ -699,7 +702,7 @@
         '</div>' +
 
         '<div class="automacao-card">' +
-          '<div class="automacao-titulo">Responder confirmação pendente</div>' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Responder confirmação pendente</div>' +
           '<div class="automacao-desc">Use quando alguma ação acima pedir uma escolha (ex: qual documento enviar).</div>' +
           '<input type="text" placeholder="Ex: 1,2 ou todos" data-campo="resposta" data-form="responder_pendente">' +
           '<button data-tipo="responder_pendente" class="btn-automacao">Responder</button>' +
@@ -908,7 +911,7 @@
           '<div class="timeline-item-tipo">' + esc(item.tipo) + (item.tribunal ? ' — ' + esc(item.tribunal) : '') + '</div>' +
           (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
           (item.resumo ? '<div class="timeline-item-resumo">' + esc(item.resumo) + '</div>' : '') +
-          (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Ver comunicação original</a></div>' : '') +
+          (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a></div>' : '') +
         '</div>';
       }).join('');
 
@@ -1307,7 +1310,7 @@
             '<td style="text-align:right"><button class="btn-remover" data-login="' + esc(u.usuario) + '">Remover</button></td></tr>';
         }).join('');
         container.innerHTML =
-          '<div style="overflow-x:auto;">' +
+          '<div class="table-scroll">' +
           '<table style="min-width:480px;"><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table>' +
           '</div>';
