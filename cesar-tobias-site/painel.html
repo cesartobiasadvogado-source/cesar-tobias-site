@@ -334,6 +334,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
           Padrão Operacional
         </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-audiencias" data-secao="audiencias">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>
+          Audiências
+        </button>
         <button type="button" class="nav-item hidden" id="nav-admin" data-scroll-to="sec-admin">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg>
           Administração
@@ -790,6 +794,12 @@
           '</div>' +
         '</div></section>';
 
+    var htmlAudiencias = perms.indexOf('audiencias') === -1 ? '' :
+      '<section id="sec-audiencias"><p class="section-label">Audiências</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Audiências processadas</span></div>' +
+          '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>';
+
     var htmlAdmin = !dados.usuario_admin ? '' :
       '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
         '<div class="panel">' +
@@ -806,6 +816,7 @@
             '<label><input type="checkbox" data-permissao="agenda"> Agenda</label>' +
             '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
             '<label><input type="checkbox" data-permissao="padrao_operacional"> Padrão Operacional</label>' +
+            '<label><input type="checkbox" data-permissao="audiencias"> Audiências</label>' +
             '<label class="admin-permissao-admin"><input type="checkbox" id="admin-eh-admin"> Administrador (acesso total + gerencia usuários)</label>' +
           '</div>' +
           '<div style="padding:0 20px 16px;"><button id="admin-btn-criar">Adicionar usuário</button></div>' +
@@ -819,7 +830,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -850,6 +861,7 @@
     if (perms.indexOf('processos') !== -1) carregarProcessos();
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
+    if (perms.indexOf('audiencias') !== -1) carregarAudiencias();
   }
 
   function wireSidebar(dados) {
@@ -1425,6 +1437,88 @@
           });
       });
     }
+  }
+
+  function carregarAudiencias() {
+    apiGet('/api/painel?acao=audiencias&op=listar')
+      .then(function (r) { return r.json(); })
+      .then(function (dados) { renderAudiencias(dados.audiencias || []); })
+      .catch(function () {
+        document.getElementById('audiencias-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar as audiências.</div></div>';
+      });
+  }
+
+  function renderAudiencias(audiencias) {
+    var container = document.getElementById('audiencias-lista');
+    if (audiencias.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma audiência processada ainda.</div></div>';
+      return;
+    }
+    container.innerHTML = audiencias.map(function (a, idx) {
+      var avisos = (a.avisos && a.avisos.length)
+        ? '<div class="chip warn" style="margin-bottom:10px;">' + esc(a.avisos.join(' | ')) + '</div>' : '';
+      return '<div class="processo-card">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-audiencia="' + idx + '" aria-expanded="false" aria-controls="audiencia-corpo-' + idx + '">' +
+          '<div><div class="processo-numero">' + esc(a.cliente) + '</div>' +
+          '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + '</div></div>' +
+        '</button>' +
+        '<div class="processo-corpo" id="audiencia-corpo-' + idx + '">' + avisos +
+          '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(a.resumo) + '</div>' +
+          '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
+            '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button></div>' +
+          '<div class="timeline-item-resumo" style="white-space:pre-wrap;margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-audiencia]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('audiencia-corpo-' + el.getAttribute('data-toggle-audiencia'));
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+      });
+    });
+
+    container.querySelectorAll('[data-ver-transcricao]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-ver-transcricao');
+        var id = btn.getAttribute('data-id-audiencia');
+        var alvo = document.getElementById('audiencia-transcricao-' + idx);
+        if (alvo.textContent) { alvo.textContent = ''; return; }
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Carregando...';
+        apiGet('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
+          .then(function (r) { return r.json(); })
+          .then(function (dados) {
+            alvo.textContent = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível carregar a transcrição agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-baixar-audiencia-pdf]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Abrindo...';
+        apiGet('/api/painel?acao=audiencia_documento&id=' + encodeURIComponent(btn.getAttribute('data-baixar-audiencia-pdf')))
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+          .then(function (blob) {
+            window.open(URL.createObjectURL(blob), '_blank', 'noopener');
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível abrir o PDF agora.');
+          });
+      });
+    });
   }
 
   function carregarDados() {

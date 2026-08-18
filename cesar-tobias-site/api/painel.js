@@ -191,6 +191,44 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'audiencias') {
+    var opAud = (req.query && req.query.op) || 'listar';
+    var urlAud = base + '?action=painel_audiencias&op=' + encodeURIComponent(opAud) +
+      '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    if (opAud === 'detalhe' && req.query && req.query.id) urlAud += '&id=' + encodeURIComponent(req.query.id);
+    try {
+      const resposta = await fetch(urlAud);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar audiencias.' });
+    }
+    return;
+  }
+
+  if (acao === 'audiencia_documento') {
+    const idDocAud = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_audiencia_documento&token=' + encodeURIComponent(tokenSessao) +
+        '&id=' + encodeURIComponent(idDocAud) + segredoQS
+      );
+      if (!resposta.ok) {
+        const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter documento.' }; });
+        res.status(resposta.status).json(erroJson);
+        return;
+      }
+      const buffer = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader('Content-Type', resposta.headers.get('content-type') || 'application/pdf');
+      const disposicao = resposta.headers.get('content-disposition');
+      if (disposicao) res.setHeader('Content-Disposition', disposicao);
+      res.status(200).send(buffer);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar documento.' });
+    }
+    return;
+  }
+
   const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
 
   try {
