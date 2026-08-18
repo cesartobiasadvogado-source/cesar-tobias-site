@@ -84,6 +84,7 @@
   .conteudo-area { flex: 1; min-width: 0; }
   .page { max-width: 1080px; padding: 32px 28px 72px; scroll-behavior: smooth; }
   .page > section { scroll-margin-top: 20px; }
+  #sec-vencidas, #sec-pje { scroll-margin-top: 20px; }
 
   @media (max-width: 860px) {
     .shell { flex-direction: column; }
@@ -133,6 +134,8 @@
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .panel-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .link-original { color: var(--accent); font-size: 12.5px; text-decoration: none; }
+  .link-original:hover { text-decoration: underline; }
   .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
   .chip.crit { background: var(--crit-soft); color: var(--crit); }
   .chip.good { background: var(--good-soft); color: var(--good); }
@@ -156,6 +159,11 @@
 
   .overview-line { display: flex; gap: 28px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 10px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 14px; }
   .overview-line b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+
+  .overview-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; align-items: start; }
+  .overview-grid.overview-grid--1col { grid-template-columns: 1fr; }
+  .overview-col-principal, .overview-col-lateral { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  @media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
 
   footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
   .btn-refresh { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
@@ -421,6 +429,7 @@
     var p = dados.pje;
 
     var htmlFinanceiro = '';
+    var painelVencidasHtml = '';
     if (f) {
       var htmlVencidas;
       if (f.parcelas_vencidas.length === 0) {
@@ -457,14 +466,18 @@
           '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
           renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
           renderCardValor('valor_recebido', f.valor_recebido_geral, 'Valor recebido', 'total já pago pelos clientes') +
-        '</div></section>' +
-        '<section id="sec-vencidas"><p class="section-label">Financeiro — parcelas vencidas</p><div class="panel">' +
+        '</div></section>';
+
+      painelVencidasHtml =
+        '<div class="panel" id="sec-vencidas">' +
           '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
           htmlVencidas +
-        '</div></section>';
+        '</div>';
     }
 
-    var htmlPje = '';
+    var overviewLineHtml = '';
+    var painelPrazosHtml = '';
+    var htmlAvisosSection = '';
     if (p) {
       var htmlPrazos;
       if (p.prazos_semana.length === 0) {
@@ -520,17 +533,43 @@
         ? '<span class="chip neutral">Nenhum</span>'
         : '<span class="chip neutral">' + avisosSemPrazo.length + ' aviso(s)</span>';
 
-      htmlPje =
-        '<section id="sec-pje"><p class="section-label">Processual — PJe</p>' +
+      overviewLineHtml =
         '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
-        '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
+        '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>';
+
+      painelPrazosHtml =
+        '<div class="panel" id="sec-pje">' +
+          '<div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
           htmlPrazos +
-        '</div></section>' +
+        '</div>';
+
+      htmlAvisosSection =
         '<section><p class="section-label">Avisos recentes sem prazo</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
           htmlAvisos +
         '</div></section>';
+    }
+
+    var temAgendaOverview = perms.indexOf('agenda') !== -1 && (f || p);
+    var painelProximosHtml = !temAgendaOverview ? '' :
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Próximos compromissos</span>' +
+        '<a class="link-original" href="#sec-agenda" id="link-ver-agenda-completa">Ver agenda completa</a></div>' +
+        '<div id="visao-proximos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>';
+
+    var colEsquerdaOverview = painelVencidasHtml + painelPrazosHtml;
+    var htmlOverviewGrid = '';
+    if (colEsquerdaOverview || painelProximosHtml) {
+      var precisaTituloPje = !f && !!p;
+      htmlOverviewGrid = '<section>' +
+        (precisaTituloPje ? '<p class="section-label">Processual — PJe</p>' : '') +
+        overviewLineHtml +
+        '<div class="overview-grid' + (painelProximosHtml ? '' : ' overview-grid--1col') + '">' +
+          '<div class="overview-col-principal">' + colEsquerdaOverview + '</div>' +
+          (painelProximosHtml ? '<div class="overview-col-lateral">' + painelProximosHtml + '</div>' : '') +
+        '</div>' +
+      '</section>';
     }
 
     var htmlClientes = perms.indexOf('clientes') === -1 ? '' :
@@ -694,7 +733,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlPje + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -709,6 +748,15 @@
     document.getElementById('nav-admin').classList.toggle('hidden', !dados.usuario_admin);
 
     wireSidebar(dados);
+
+    var linkVerAgenda = document.getElementById('link-ver-agenda-completa');
+    if (linkVerAgenda) {
+      linkVerAgenda.addEventListener('click', function (e) {
+        e.preventDefault();
+        var itemAgenda = document.querySelector('.nav-item[data-scroll-to="sec-agenda"]');
+        if (itemAgenda) itemAgenda.click();
+      });
+    }
 
     if (perms.indexOf('automacoes') !== -1) wireAutomacoes();
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
@@ -963,13 +1011,45 @@
       .then(function (dados) {
         renderAgendaEventos(dados.eventos || []);
         renderAgendaTarefas(dados.tarefas || []);
+        renderProximosCompromissos(dados.eventos || [], dados.tarefas || []);
       })
       .catch(function () {
         document.getElementById('agenda-lista-eventos').innerHTML =
           '<div class="empty-state"><div class="msg">Não foi possível carregar os eventos.</div></div>';
         document.getElementById('agenda-lista-tarefas').innerHTML =
           '<div class="empty-state"><div class="msg">Não foi possível carregar as tarefas.</div></div>';
+        var listaProximos = document.getElementById('visao-proximos-lista');
+        if (listaProximos) {
+          listaProximos.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a agenda.</div></div>';
+        }
       });
+  }
+
+  function renderProximosCompromissos(eventos, tarefas) {
+    var container = document.getElementById('visao-proximos-lista');
+    if (!container) return;
+
+    var itens = eventos.map(function (ev) {
+      return { titulo: ev.titulo, dataOrdenacao: ev.inicio, dataExibida: fmtDataCurta(ev.inicio) };
+    }).concat(
+      tarefas.filter(function (t) { return t.data_vencimento; }).map(function (t) {
+        return { titulo: t.titulo, dataOrdenacao: t.data_vencimento, dataExibida: fmtDataCurta(t.data_vencimento) };
+      })
+    );
+    itens.sort(function (a, b) { return a.dataOrdenacao < b.dataOrdenacao ? -1 : 1; });
+    itens = itens.slice(0, 4);
+
+    if (itens.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nada agendado nos próximos dias.</div></div>';
+      return;
+    }
+
+    container.innerHTML = itens.map(function (item) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + esc(item.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + esc(item.dataExibida) + '</div></div>' +
+      '</div>';
+    }).join('');
   }
 
   function renderAgendaEventos(eventos) {
