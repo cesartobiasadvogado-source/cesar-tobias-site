@@ -306,18 +306,21 @@
   #padrao-btn-salvar:disabled { opacity: 0.5; cursor: default; }
   .automacao-card button:disabled { opacity: 0.6; cursor: default; }
   .automacao-resultado { font-size: 12px; color: var(--ink-soft); white-space: pre-wrap; word-break: break-word; }
-  .proposta-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; padding: 16px 20px; align-items: end; }
+  .proposta-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 20px; align-items: end; }
   .proposta-form input {
     padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px;
     background: var(--bg); color: var(--ink);
   }
   .proposta-form .btn-automacao {
     padding: 9px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
-    font-size: 13px; font-weight: 600; cursor: pointer;
+    font-size: 13px; font-weight: 600; cursor: pointer; grid-column: span 3;
   }
   .proposta-form .btn-automacao:hover { opacity: 0.92; }
   .proposta-form .btn-automacao:disabled { opacity: 0.6; cursor: default; }
-  @media (max-width: 700px) { .proposta-form { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .proposta-form { grid-template-columns: 1fr; } .proposta-form .btn-automacao { grid-column: span 1; } }
+  #proposta-preview:empty { display: none; }
+  .proposta-preview-iframe { width: calc(100% - 40px); height: 640px; border: 1px solid var(--line); border-radius: 8px; margin: 0 20px 20px; display: block; box-sizing: border-box; }
+  @media (max-width: 700px) { .proposta-preview-iframe { height: 420px; } }
   @media (max-width: 860px) { .automacoes-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .automacoes-grid { grid-template-columns: 1fr; } }
 
@@ -715,10 +718,13 @@
           '<div class="proposta-form">' +
             '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_proposta">' +
             '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_proposta">' +
-            '<input type="text" placeholder="Valor (opcional, ex: 3000,00)" data-campo="valor" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Entrada (opcional)" data-campo="entrada" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="parcelas" data-form="gerar_proposta">' +
             '<button data-tipo="gerar_proposta" class="btn-automacao">Gerar proposta</button>' +
           '</div>' +
           '<div class="automacao-resultado" data-resultado="gerar_proposta" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+          '<div id="proposta-preview"></div>' +
         '</div>' +
       '</section>';
 
@@ -1544,6 +1550,9 @@
             ? (resultado.corpo.resposta || 'Concluído.')
             : (resultado.corpo.erro || 'Erro ao executar.');
         }
+        if (resultado.status === 200 && resultado.corpo.pdf_id) {
+          mostrarPreviewDocumento(resultado.corpo.pdf_id);
+        }
       })
       .catch(function () {
         if (resultadoEl) resultadoEl.textContent = 'Não foi possível executar agora.';
@@ -1551,6 +1560,21 @@
       .finally(function () {
         botao.disabled = false;
         botao.textContent = textoOriginal;
+      });
+  }
+
+  function mostrarPreviewDocumento(pdfId) {
+    var container = document.getElementById('proposta-preview');
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state"><div class="msg">Carregando pré-visualização…</div></div>';
+    apiGet('/api/painel?acao=documento_gerado&id=' + encodeURIComponent(pdfId))
+      .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        container.innerHTML = '<iframe class="proposta-preview-iframe" src="' + url + '"></iframe>';
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a pré-visualização.</div></div>';
       });
   }
 

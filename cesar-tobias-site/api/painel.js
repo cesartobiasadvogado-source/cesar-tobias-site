@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
       return;
     }
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento'];
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento', 'entrada', 'parcelas'];
     camposPermitidos.forEach(function (campo) {
       if (corpo[campo]) {
         url2 += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
@@ -269,6 +269,29 @@ module.exports = async (req, res) => {
       const resposta = await fetch(
         base + '?action=painel_audiencia_documento&token=' + encodeURIComponent(tokenSessao) +
         '&id=' + encodeURIComponent(idDocAud) + segredoQS
+      );
+      if (!resposta.ok) {
+        const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter documento.' }; });
+        res.status(resposta.status).json(erroJson);
+        return;
+      }
+      const buffer = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader('Content-Type', resposta.headers.get('content-type') || 'application/pdf');
+      const disposicao = resposta.headers.get('content-disposition');
+      if (disposicao) res.setHeader('Content-Disposition', disposicao);
+      res.status(200).send(buffer);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar documento.' });
+    }
+    return;
+  }
+
+  if (acao === 'documento_gerado') {
+    const idDocGerado = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_documento_gerado&token=' + encodeURIComponent(tokenSessao) +
+        '&id=' + encodeURIComponent(idDocGerado) + segredoQS
       );
       if (!resposta.ok) {
         const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter documento.' }; });
