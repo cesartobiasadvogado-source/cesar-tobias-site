@@ -340,6 +340,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>
           Audiências
         </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-pauta-audiencias" data-secao="audiencias">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+          Pauta de Audiências
+        </button>
         <button type="button" class="nav-item hidden" id="nav-admin" data-scroll-to="sec-admin">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg>
           Administração
@@ -788,6 +792,12 @@
           '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
 
+    var htmlPautaAudiencias = perms.indexOf('audiencias') === -1 ? '' :
+      '<section id="sec-pauta-audiencias"><p class="section-label">Pauta de Audiências</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Audiências marcadas (próximas)</span></div>' +
+          '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>';
+
     var htmlAdmin = !dados.usuario_admin ? '' :
       '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
         '<div class="panel">' +
@@ -818,7 +828,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlPautaAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -849,7 +859,7 @@
     if (perms.indexOf('processos') !== -1) carregarProcessos();
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
-    if (perms.indexOf('audiencias') !== -1) carregarAudiencias();
+    if (perms.indexOf('audiencias') !== -1) { carregarAudiencias(); carregarPautaAudiencias(); }
   }
 
   function wireSidebar(dados) {
@@ -1426,6 +1436,39 @@
           });
       });
     }
+  }
+
+  function carregarPautaAudiencias() {
+    apiGet('/api/painel?acao=pauta_audiencias')
+      .then(function (r) { return r.json(); })
+      .then(function (dados) { renderPautaAudiencias(dados.pauta || []); })
+      .catch(function () {
+        document.getElementById('pauta-audiencias-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar a pauta de audiências.</div></div>';
+      });
+  }
+
+  function renderPautaAudiencias(pauta) {
+    var container = document.getElementById('pauta-audiencias-lista');
+    if (pauta.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma audiência marcada no momento.</div></div>';
+      return;
+    }
+    container.innerHTML = pauta.map(function (a) {
+      return '<div class="processo-card">' +
+        '<div class="processo-corpo aberto" style="padding-top:14px;">' +
+          '<div class="processo-numero">' + esc(a.tipo_audiencia) + '</div>' +
+          '<div class="processo-meta">' + esc(a.numero_processo) + (a.tribunal ? ' · ' + esc(a.tribunal) : '') +
+            (a.orgao ? ' · ' + esc(a.orgao) : '') + '</div>' +
+          (a.cliente ? '<div class="processo-meta">Cliente: ' + esc(a.cliente) + '</div>' : '') +
+          '<div class="timeline-item-resumo" style="margin-top:8px;">' +
+            '<strong>' + esc(fmtDataCurta(a.data + (a.hora ? 'T' + a.hora : ''))) + '</strong>' +
+          '</div>' +
+          (a.link_videoconferencia
+            ? '<div style="margin-top:8px;"><a href="' + esc(a.link_videoconferencia) + '" target="_blank" rel="noopener" class="link-original">Entrar na videoconferência</a></div>'
+            : '') +
+        '</div></div>';
+    }).join('');
   }
 
   function carregarAudiencias() {

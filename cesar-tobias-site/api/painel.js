@@ -206,6 +206,18 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'pauta_audiencias') {
+    var urlPauta = base + '?action=painel_pauta_audiencias&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlPauta);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar a pauta de audiencias.' });
+    }
+    return;
+  }
+
   if (acao === 'audiencia_documento') {
     const idDocAud = (req.query && req.query.id) || '';
     try {
