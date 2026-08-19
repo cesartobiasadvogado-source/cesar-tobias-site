@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
       return;
     }
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento', 'entrada', 'parcelas'];
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento', 'entrada', 'parcelas', 'data_entrada', 'dia_vencimento'];
     camposPermitidos.forEach(function (campo) {
       if (corpo[campo]) {
         url2 += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
@@ -162,6 +162,18 @@ module.exports = async (req, res) => {
       res.status(resposta.status).json(dados);
     } catch (e) {
       res.status(502).json({ erro: 'Erro de conexao ao buscar clientes.' });
+    }
+    return;
+  }
+
+  if (acao === 'modelos_contrato') {
+    var url5b = base + '?action=painel_modelos_contrato&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(url5b);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar modelos de contrato.' });
     }
     return;
   }
