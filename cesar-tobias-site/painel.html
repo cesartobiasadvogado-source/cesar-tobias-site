@@ -210,6 +210,24 @@
   .timeline-item-andamento .timeline-item-tipo { font-weight: 400; color: var(--ink-faint); font-size: 12px; }
   .timeline-item-andamento .timeline-item-data { opacity: 0.75; }
 
+  .transcricao-dialogo { display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .fala { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .fala-hora { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px;
+    color: var(--ink-faint); flex-shrink: 0; min-width: 52px; }
+  .fala-locutor { font-size: 12.5px; font-weight: 700; flex-shrink: 0; }
+  .fala-texto { font-size: 13px; color: var(--ink-soft); line-height: 1.5; flex: 1 1 260px; }
+  .fala-locutor-0 { color: var(--accent); }
+  .fala-locutor-1 { color: var(--good); }
+  .fala-locutor-2 { color: var(--warn); }
+  .fala-locutor-3 { color: var(--crit); }
+  .audiencia-chip { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600;
+    color: var(--ink-faint); background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+    padding: 2px 9px; margin-right: 6px; }
+  .audiencias-busca { padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .audiencias-busca input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; }
+
   .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 16px 20px 12px; }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
   .admin-permissoes { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0 20px 14px; border-bottom: 1px solid var(--line); }
@@ -409,6 +427,10 @@
     return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
       return ESC_MAPA[c];
     });
+  }
+
+  function normalizarBusca(valor) {
+    return String(valor || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   }
 
   function apiGet(url) {
@@ -797,7 +819,10 @@
               '<button type="button" class="subtab-btn" data-aba-audiencia="realizadas">Realizadas</button>' +
             '</div></div>' +
           '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-          '<div id="audiencias-lista" class="hidden"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '<div id="bloco-realizadas" class="hidden">' +
+            '<div class="audiencias-busca"><input type="text" id="audiencias-busca-input" placeholder="Buscar por cliente ou conteúdo do resumo…"></div>' +
+            '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
         '</div></section>';
 
     var htmlAdmin = !dados.usuario_admin ? '' :
@@ -867,7 +892,7 @@
   function wireAudienciasSubtabs() {
     var titulo = document.getElementById('audiencias-titulo-aba');
     var listaMarcadas = document.getElementById('pauta-audiencias-lista');
-    var listaRealizadas = document.getElementById('audiencias-lista');
+    var listaRealizadas = document.getElementById('bloco-realizadas');
     document.querySelectorAll('[data-aba-audiencia]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.querySelectorAll('[data-aba-audiencia]').forEach(function (b) { b.classList.remove('ativo'); });
@@ -1523,6 +1548,40 @@
       });
   }
 
+  function fmtDuracao(seg) {
+    if (!seg && seg !== 0) return '';
+    var h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+    if (h > 0) return h + 'h ' + String(m).padStart(2, '0') + 'min';
+    if (m > 0) return m + ' min';
+    return s + ' s';
+  }
+
+  function parseTranscricaoDialogo(texto) {
+    var linhas = texto.split('\n');
+    var regexFala = /^\[(\d{2}:\d{2}:\d{2})\]\s+Locutor\s+(\S+):\s*(.*)$/;
+    var locutorCor = {}, proximaCor = 0;
+    var partes = [], algumaFala = false;
+    linhas.forEach(function (linha) {
+      var m = linha.match(regexFala);
+      if (!m) {
+        if (linha.trim()) partes.push('<div class="timeline-item-resumo">' + esc(linha) + '</div>');
+        return;
+      }
+      algumaFala = true;
+      var locutor = m[2];
+      if (!(locutor in locutorCor)) { locutorCor[locutor] = proximaCor % 4; proximaCor++; }
+      partes.push(
+        '<div class="fala"><span class="fala-hora">' + esc(m[1]) + '</span>' +
+        '<span class="fala-locutor fala-locutor-' + locutorCor[locutor] + '">Locutor ' + esc(locutor) + '</span>' +
+        '<span class="fala-texto">' + esc(m[3]) + '</span></div>'
+      );
+    });
+    if (!algumaFala) {
+      return '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(texto) + '</div>';
+    }
+    return '<div class="transcricao-dialogo">' + partes.join('') + '</div>';
+  }
+
   function renderAudiencias(audiencias) {
     var container = document.getElementById('audiencias-lista');
     if (audiencias.length === 0) {
@@ -1532,17 +1591,22 @@
     container.innerHTML = audiencias.map(function (a, idx) {
       var avisos = (a.avisos && a.avisos.length)
         ? '<div class="chip warn" style="margin-bottom:10px;">' + esc(a.avisos.join(' | ')) + '</div>' : '';
-      return '<div class="processo-card">' +
+      var chips = '';
+      if (a.duracao_segundos || a.duracao_segundos === 0) chips += '<span class="audiencia-chip">' + esc(fmtDuracao(a.duracao_segundos)) + '</span>';
+      if (a.total_falas) chips += '<span class="audiencia-chip">' + a.total_falas + ' fala' + (a.total_falas === 1 ? '' : 's') + '</span>';
+      if (a.total_locutores) chips += '<span class="audiencia-chip">' + a.total_locutores + ' pessoa' + (a.total_locutores === 1 ? '' : 's') + '</span>';
+      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo)) + '">' +
         '<button type="button" class="processo-cabecalho" data-toggle-audiencia="' + idx + '" aria-expanded="false" aria-controls="audiencia-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(a.cliente) + '</div>' +
-          '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + '</div></div>' +
+          '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + (chips ? ' · ' : '') + '</div>' +
+          (chips ? '<div style="margin-top:4px;">' + chips + '</div>' : '') + '</div>' +
         '</button>' +
         '<div class="processo-corpo" id="audiencia-corpo-' + idx + '">' + avisos +
           '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(a.resumo) + '</div>' +
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
             '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button></div>' +
-          '<div class="timeline-item-resumo" style="white-space:pre-wrap;margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
+          '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
         '</div></div>';
     }).join('');
 
@@ -1560,13 +1624,14 @@
         var idx = btn.getAttribute('data-ver-transcricao');
         var id = btn.getAttribute('data-id-audiencia');
         var alvo = document.getElementById('audiencia-transcricao-' + idx);
-        if (alvo.textContent) { alvo.textContent = ''; return; }
+        if (alvo.innerHTML) { alvo.innerHTML = ''; return; }
         var textoOriginal = btn.textContent;
         btn.textContent = 'Carregando...';
         apiGet('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
           .then(function (r) { return r.json(); })
           .then(function (dados) {
-            alvo.textContent = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
+            var texto = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
+            alvo.innerHTML = parseTranscricaoDialogo(texto);
             btn.textContent = textoOriginal;
           })
           .catch(function () {
@@ -1575,6 +1640,17 @@
           });
       });
     });
+
+    var buscaInput = document.getElementById('audiencias-busca-input');
+    if (buscaInput && !buscaInput.dataset.wired) {
+      buscaInput.dataset.wired = '1';
+      buscaInput.addEventListener('input', function () {
+        var termo = normalizarBusca(buscaInput.value);
+        document.querySelectorAll('[data-busca-audiencia]').forEach(function (card) {
+          card.style.display = card.getAttribute('data-busca-audiencia').indexOf(termo) === -1 ? 'none' : '';
+        });
+      });
+    }
 
     container.querySelectorAll('[data-baixar-audiencia-pdf]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
