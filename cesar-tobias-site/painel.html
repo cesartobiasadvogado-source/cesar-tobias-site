@@ -1735,7 +1735,8 @@
           '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(a.resumo) + '</div>' +
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
-            '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button></div>' +
+            '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
+            '<button data-excluir-audiencia="' + esc(a.id) + '" class="btn-remover">Excluir</button></div>' +
           '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
         '</div></div>';
     }).join('');
@@ -1796,6 +1797,25 @@
           .catch(function () {
             btn.textContent = textoOriginal;
             alert('Não foi possível abrir o PDF agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-excluir-audiencia]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute('data-excluir-audiencia');
+        if (!confirm('Excluir essa transcrição de audiência? O PDF também será apagado do Drive. Essa ação não pode ser desfeita.')) return;
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Excluindo...';
+        btn.disabled = true;
+        apiPost('/api/painel?acao=audiencias', { op: 'excluir', id: id })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { carregarAudiencias(); })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            btn.disabled = false;
+            alert('Não foi possível excluir agora.');
           });
       });
     });

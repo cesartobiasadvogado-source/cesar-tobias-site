@@ -193,7 +193,7 @@ module.exports = async (req, res) => {
 
   if (acao === 'audiencias') {
     var opAud = (req.query && req.query.op) || corpo.op || 'listar';
-    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia'];
+    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia', 'excluir'];
     if (opsQueExigemPost.indexOf(opAud) !== -1 && req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
       return;
@@ -209,6 +209,9 @@ module.exports = async (req, res) => {
     }
     if (opAud === 'finalizar_upload_audiencia' && corpo.upload_id) {
       urlAud += '&upload_id=' + encodeURIComponent(corpo.upload_id);
+    }
+    if (opAud === 'excluir' && corpo.id) {
+      urlAud += '&id=' + encodeURIComponent(corpo.id);
     }
     try {
       const resposta = await fetch(urlAud);
