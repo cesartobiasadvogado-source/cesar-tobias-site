@@ -228,6 +228,17 @@
   .audiencias-busca input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px;
     font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; }
 
+  .audiencia-upload-area { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .audiencia-upload-area > input { width: 100%; max-width: 320px; padding: 8px 12px; border: 1px solid var(--line);
+    border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; margin-bottom: 10px; }
+  .audiencia-upload-dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 22px;
+    text-align: center; transition: border-color .15s, background .15s; }
+  .audiencia-upload-dropzone.arrastando { border-color: var(--accent); background: var(--accent-soft, rgba(44,92,224,.06)); }
+  .audiencia-upload-msg { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .audiencia-upload-msg strong { font-size: 14px; color: var(--ink); }
+  .audiencia-upload-msg span { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 6px; }
+  .audiencia-upload-progresso { font-size: 12.5px; color: var(--ink-soft); font-family: var(--font-mono); }
+
   .admin-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 16px 20px 12px; }
   .admin-form input { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px; background: var(--bg); color: var(--ink); }
   .admin-permissoes { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 0 20px 14px; border-bottom: 1px solid var(--line); }
@@ -820,6 +831,18 @@
             '</div></div>' +
           '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '<div id="bloco-realizadas" class="hidden">' +
+            '<div class="audiencia-upload-area">' +
+              '<input type="text" id="audiencia-upload-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
+              '<datalist id="audiencia-upload-clientes-lista"></datalist>' +
+              '<div class="audiencia-upload-dropzone" id="audiencia-upload-dropzone">' +
+                '<div class="audiencia-upload-msg" id="audiencia-upload-msg">' +
+                  '<strong>Arraste a gravação aqui</strong>' +
+                  '<span>Áudio de audiência, reunião ou atendimento.</span>' +
+                  '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>' +
+                '</div>' +
+                '<input type="file" id="audiencia-upload-input" accept="audio/*" class="hidden">' +
+              '</div>' +
+            '</div>' +
             '<div class="audiencias-busca"><input type="text" id="audiencias-busca-input" placeholder="Buscar por cliente ou conteúdo do resumo…"></div>' +
             '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '</div>' +
@@ -886,7 +909,114 @@
     if (perms.indexOf('processos') !== -1) carregarProcessos();
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
-    if (perms.indexOf('audiencias') !== -1) { wireAudienciasSubtabs(); carregarAudiencias(); carregarPautaAudiencias(); }
+    if (perms.indexOf('audiencias') !== -1) { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
+  }
+
+  function wireUploadAudiencia() {
+    var dropzone = document.getElementById('audiencia-upload-dropzone');
+    var input = document.getElementById('audiencia-upload-input');
+    var msg = document.getElementById('audiencia-upload-msg');
+    var campoCliente = document.getElementById('audiencia-upload-cliente');
+    var datalistClientes = document.getElementById('audiencia-upload-clientes-lista');
+
+    apiGet('/api/painel?acao=clientes')
+      .then(function (r) { return r.json(); })
+      .then(function (dados) {
+        datalistClientes.innerHTML = (dados.clientes || []).map(function (c) {
+          return '<option value="' + esc(c.nome) + '">';
+        }).join('');
+      })
+      .catch(function () { /* datalist so ajuda, nao bloqueia o upload se falhar */ });
+
+    document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      if (input.files[0]) processarUploadAudiencia(input.files[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dropzone.classList.add('arrastando');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dropzone.classList.remove('arrastando');
+      });
+    });
+    dropzone.addEventListener('drop', function (e) {
+      var arquivo = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (arquivo) processarUploadAudiencia(arquivo);
+    });
+
+    function arrayBufferParaBase64(buffer) {
+      var binario = '';
+      var bytes = new Uint8Array(buffer);
+      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+      return btoa(binario);
+    }
+
+    function processarUploadAudiencia(arquivo) {
+      var nomeCliente = (campoCliente.value || '').trim();
+      if (!nomeCliente) {
+        alert('Informe o nome do cliente antes de enviar o áudio.');
+        return;
+      }
+      msg.innerHTML = '<strong>Enviando…</strong><span class="audiencia-upload-progresso" id="audiencia-upload-progresso">Iniciando…</span>';
+      var progressoEl = document.getElementById('audiencia-upload-progresso');
+
+      apiPost('/api/painel?acao=audiencias', {
+        op: 'iniciar_upload_audiencia', cliente: nomeCliente,
+        nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream',
+        tamanho_total: arquivo.size
+      })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+        .then(function (dados) {
+          return enviarPedacos(arquivo, dados.upload_id, dados.tamanho_chunk, progressoEl);
+        })
+        .then(function (uploadId) {
+          if (progressoEl) progressoEl.textContent = 'Transcrevendo (pode levar alguns minutos)…';
+          return apiPost('/api/painel?acao=audiencias', { op: 'finalizar_upload_audiencia', upload_id: uploadId })
+            .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+        })
+        .then(function (dados) {
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio de audiência, reunião ou atendimento.</span>' +
+            '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
+          document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+          campoCliente.value = '';
+          input.value = '';
+          carregarAudiencias();
+          alert(dados.resposta || 'Áudio processado.');
+        })
+        .catch(function (e) {
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio de audiência, reunião ou atendimento.</span>' +
+            '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
+          document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+          alert('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
+        });
+    }
+
+    function enviarPedacos(arquivo, uploadId, tamanhoChunk, progressoEl) {
+      var offset = 0;
+      function proximoPedaco() {
+        if (offset >= arquivo.size) return Promise.resolve(uploadId);
+        var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
+        return pedaco.arrayBuffer().then(function (buffer) {
+          return apiPost('/api/painel?acao=audiencia_chunk', {
+            upload_id: uploadId, dados_base64: arrayBufferParaBase64(buffer)
+          }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+        }).then(function () {
+          offset += tamanhoChunk;
+          if (progressoEl) {
+            var pct = Math.min(100, Math.round((offset / arquivo.size) * 100));
+            progressoEl.textContent = pct + '% enviado';
+          }
+          return proximoPedaco();
+        });
+      }
+      return proximoPedaco();
+    }
   }
 
   function wireAudienciasSubtabs() {

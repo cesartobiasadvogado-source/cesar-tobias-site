@@ -192,16 +192,50 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'audiencias') {
-    var opAud = (req.query && req.query.op) || 'listar';
+    var opAud = (req.query && req.query.op) || corpo.op || 'listar';
+    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia'];
+    if (opsQueExigemPost.indexOf(opAud) !== -1 && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
     var urlAud = base + '?action=painel_audiencias&op=' + encodeURIComponent(opAud) +
       '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
     if (opAud === 'detalhe' && req.query && req.query.id) urlAud += '&id=' + encodeURIComponent(req.query.id);
+    if (opAud === 'iniciar_upload_audiencia') {
+      var camposIniciar = ['cliente', 'nome_arquivo', 'mimetype', 'tamanho_total'];
+      camposIniciar.forEach(function (campo) {
+        if (corpo[campo] !== undefined) urlAud += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
+      });
+    }
+    if (opAud === 'finalizar_upload_audiencia' && corpo.upload_id) {
+      urlAud += '&upload_id=' + encodeURIComponent(corpo.upload_id);
+    }
     try {
       const resposta = await fetch(urlAud);
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
     } catch (e) {
       res.status(502).json({ erro: 'Erro de conexao ao buscar audiencias.' });
+    }
+    return;
+  }
+
+  if (acao === 'audiencia_chunk') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlChunk = base + '?action=painel_audiencia_chunk&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlChunk, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upload_id: corpo.upload_id, dados_base64: corpo.dados_base64 })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao enviar o pedaço do áudio.' });
     }
     return;
   }
