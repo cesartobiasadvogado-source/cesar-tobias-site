@@ -207,7 +207,15 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'pauta_audiencias') {
-    var urlPauta = base + '?action=painel_pauta_audiencias&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var opPauta = (req.query && req.query.op) || corpo.op || 'listar';
+    if (opPauta !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlPauta = base + '?action=painel_pauta_audiencias&op=' + encodeURIComponent(opPauta) +
+      '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var idPauta = (opPauta === 'listar' ? (req.query && req.query.id) : corpo.id) || '';
+    if (idPauta) urlPauta += '&id=' + encodeURIComponent(idPauta);
     try {
       const resposta = await fetch(urlPauta);
       const dados = await resposta.json();

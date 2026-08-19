@@ -137,6 +137,12 @@
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .panel-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .subtabs { display: flex; gap: 6px; }
+  .subtab-btn {
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg);
+    color: var(--ink-soft); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .subtab-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
   .link-original { color: var(--accent); font-size: 12.5px; text-decoration: none; }
   .link-original:hover { text-decoration: underline; }
   .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
@@ -339,10 +345,6 @@
         <button type="button" class="nav-item" data-scroll-to="sec-audiencias" data-secao="audiencias">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>
           Audiências
-        </button>
-        <button type="button" class="nav-item" data-scroll-to="sec-pauta-audiencias" data-secao="audiencias">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
-          Pauta de Audiências
         </button>
         <button type="button" class="nav-item hidden" id="nav-admin" data-scroll-to="sec-admin">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg>
@@ -788,14 +790,14 @@
 
     var htmlAudiencias = perms.indexOf('audiencias') === -1 ? '' :
       '<section id="sec-audiencias"><p class="section-label">Audiências</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Audiências processadas</span></div>' +
-          '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div></section>';
-
-    var htmlPautaAudiencias = perms.indexOf('audiencias') === -1 ? '' :
-      '<section id="sec-pauta-audiencias"><p class="section-label">Pauta de Audiências</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Audiências marcadas (próximas)</span></div>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title" id="audiencias-titulo-aba">Marcadas (próximas)</span>' +
+            '<div class="subtabs">' +
+              '<button type="button" class="subtab-btn ativo" data-aba-audiencia="marcadas">Marcadas</button>' +
+              '<button type="button" class="subtab-btn" data-aba-audiencia="realizadas">Realizadas</button>' +
+            '</div></div>' +
           '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '<div id="audiencias-lista" class="hidden"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
 
     var htmlAdmin = !dados.usuario_admin ? '' :
@@ -828,7 +830,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlPautaAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -859,7 +861,29 @@
     if (perms.indexOf('processos') !== -1) carregarProcessos();
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
-    if (perms.indexOf('audiencias') !== -1) { carregarAudiencias(); carregarPautaAudiencias(); }
+    if (perms.indexOf('audiencias') !== -1) { wireAudienciasSubtabs(); carregarAudiencias(); carregarPautaAudiencias(); }
+  }
+
+  function wireAudienciasSubtabs() {
+    var titulo = document.getElementById('audiencias-titulo-aba');
+    var listaMarcadas = document.getElementById('pauta-audiencias-lista');
+    var listaRealizadas = document.getElementById('audiencias-lista');
+    document.querySelectorAll('[data-aba-audiencia]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-aba-audiencia]').forEach(function (b) { b.classList.remove('ativo'); });
+        btn.classList.add('ativo');
+        var aba = btn.getAttribute('data-aba-audiencia');
+        if (aba === 'marcadas') {
+          listaMarcadas.classList.remove('hidden');
+          listaRealizadas.classList.add('hidden');
+          titulo.textContent = 'Marcadas (próximas)';
+        } else {
+          listaMarcadas.classList.add('hidden');
+          listaRealizadas.classList.remove('hidden');
+          titulo.textContent = 'Realizadas';
+        }
+      });
+    });
   }
 
   function wireSidebar(dados) {
@@ -1467,8 +1491,26 @@
           (a.link_videoconferencia
             ? '<div style="margin-top:8px;"><a href="' + esc(a.link_videoconferencia) + '" target="_blank" rel="noopener" class="link-original">Entrar na videoconferência</a></div>'
             : '') +
+          '<div style="margin-top:10px;"><button data-marcar-realizada="' + esc(a.id) + '">Audiência realizada</button></div>' +
         '</div></div>';
     }).join('');
+
+    container.querySelectorAll('[data-marcar-realizada]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-marcar-realizada');
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Salvando...';
+        btn.disabled = true;
+        apiPost('/api/painel?acao=pauta_audiencias', { op: 'marcar_realizada', id: id })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { carregarPautaAudiencias(); })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            btn.disabled = false;
+            alert('Não foi possível marcar a audiência como realizada agora.');
+          });
+      });
+    });
   }
 
   function carregarAudiencias() {
