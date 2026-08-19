@@ -883,10 +883,10 @@
               '<div class="audiencia-upload-dropzone" id="audiencia-upload-dropzone">' +
                 '<div class="audiencia-upload-msg" id="audiencia-upload-msg">' +
                   '<strong>Arraste a gravação aqui</strong>' +
-                  '<span>Áudio de audiência, reunião ou atendimento.</span>' +
+                  '<span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
                   '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>' +
                 '</div>' +
-                '<input type="file" id="audiencia-upload-input" accept="audio/*" class="hidden">' +
+                '<input type="file" id="audiencia-upload-input" accept="audio/*,video/*" class="hidden">' +
               '</div>' +
             '</div>' +
             '<div class="audiencias-busca"><input type="text" id="audiencias-busca-input" placeholder="Buscar por cliente ou conteúdo do resumo…"></div>' +
@@ -1027,7 +1027,7 @@
             .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
         })
         .then(function (dados) {
-          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio de audiência, reunião ou atendimento.</span>' +
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
             '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
           document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
           campoCliente.value = '';
@@ -1036,7 +1036,7 @@
           alert(dados.resposta || 'Áudio processado.');
         })
         .catch(function (e) {
-          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio de audiência, reunião ou atendimento.</span>' +
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
             '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
           document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
           alert('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
