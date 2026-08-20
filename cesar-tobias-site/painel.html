@@ -755,6 +755,7 @@
             '<input type="text" class="contrato-campo-pagamento" placeholder="Dia de vencimento da parcela (1-31)" data-campo="dia_vencimento" data-form="gerar_contrato">' +
             '<input type="text" class="contrato-campo-exito" placeholder="% honorários de êxito (opcional)" data-campo="percentual_honorarios" data-form="gerar_contrato">' +
             '<input type="text" class="contrato-campo-exito" placeholder="% recursal (opcional)" data-campo="percentual_recursal" data-form="gerar_contrato">' +
+            '<div id="contrato-campos-extra-dinamicos" style="display:contents"></div>' +
             '<div id="contrato-modelo-aviso" class="automacao-resultado hidden" style="grid-column: span 3; padding: 0;"></div>' +
             '<button data-tipo="gerar_contrato" data-preview="contrato-preview" class="btn-automacao">Gerar contrato</button>' +
           '</div>' +
@@ -1545,14 +1546,20 @@
     });
   }
 
-  var CONTRATO_PLACEHOLDERS_PAGAMENTO = ['VALOR_TOTAL', 'VALOR_ENTRADA', 'VALOR_PARCELA', 'NUM_PARCELAS', 'DATA_ENTRADA', 'DIA_VENCIMENTO'];
+  var CONTRATO_PLACEHOLDERS_PAGAMENTO = ['VALOR_TOTAL', 'VALOR_TOTAL_EXTENSO', 'VALOR_ENTRADA', 'VALOR_ENTRADA_EXTENSO', 'VALOR_PARCELA', 'VALOR_PARCELA_EXTENSO', 'NUM_PARCELAS', 'DATA_ENTRADA', 'DIA_VENCIMENTO'];
   var CONTRATO_PLACEHOLDERS_EXITO = ['PERCENTUAL_HONORARIOS', 'PERCENTUAL_RECURSAL'];
+
+  function rotularCampoExtraContrato(nomePlaceholder) {
+    var texto = nomePlaceholder.replace(/^VALOR_/, 'Valor ').replace(/^PERCENTUAL_/, '% ').replace(/_/g, ' ');
+    return texto.charAt(0) + texto.slice(1).toLowerCase();
+  }
 
   function wireContrato() {
     var datalistClientes = document.getElementById('contrato-clientes-lista');
     var datalistModelos = document.getElementById('contrato-modelos-lista');
     var campoTipoServico = document.getElementById('contrato-tipo-servico');
     var avisoEl = document.getElementById('contrato-modelo-aviso');
+    var extrasContainer = document.getElementById('contrato-campos-extra-dinamicos');
     if (!datalistClientes || !datalistModelos || !campoTipoServico) return;
 
     var nomesModelosConhecidos = [];
@@ -1580,12 +1587,17 @@
       document.querySelectorAll('.contrato-campo-pagamento, .contrato-campo-exito').forEach(function (el) {
         el.classList.remove('hidden');
       });
+      if (extrasContainer) extrasContainer.innerHTML = '';
       if (avisoEl) { avisoEl.classList.add('hidden'); avisoEl.textContent = ''; }
     }
 
     function ajustarCamposContrato(placeholders) {
       var usaPagamento = CONTRATO_PLACEHOLDERS_PAGAMENTO.some(function (p) { return placeholders.indexOf(p) !== -1; });
       var usaExito = CONTRATO_PLACEHOLDERS_EXITO.some(function (p) { return placeholders.indexOf(p) !== -1; });
+      var placeholdersConhecidos = CONTRATO_PLACEHOLDERS_PAGAMENTO.concat(CONTRATO_PLACEHOLDERS_EXITO);
+      var placeholdersExtras = placeholders.filter(function (p) {
+        return (p.indexOf('VALOR_') === 0 || p.indexOf('PERCENTUAL_') === 0) && placeholdersConhecidos.indexOf(p) === -1;
+      });
 
       document.querySelectorAll('.contrato-campo-pagamento').forEach(function (el) {
         el.classList.toggle('hidden', !usaPagamento);
@@ -1593,9 +1605,14 @@
       document.querySelectorAll('.contrato-campo-exito').forEach(function (el) {
         el.classList.toggle('hidden', !usaExito);
       });
+      if (extrasContainer) {
+        extrasContainer.innerHTML = placeholdersExtras.map(function (nome) {
+          return '<input type="text" placeholder="' + esc(rotularCampoExtraContrato(nome)) + ' (opcional)" data-campo-extra="' + esc(nome) + '" data-form="gerar_contrato">';
+        }).join('');
+      }
 
       if (avisoEl) {
-        if (!usaPagamento && !usaExito) {
+        if (!usaPagamento && !usaExito && !placeholdersExtras.length) {
           avisoEl.textContent = 'Este modelo não usa os campos de valor/entrada nem de percentual desta tela — o pagamento já está definido no próprio texto do contrato.';
           avisoEl.classList.remove('hidden');
         } else {
@@ -1631,11 +1648,18 @@
     var resultadoEl = document.querySelector('[data-resultado="' + tipo + '"]');
     var campos = document.querySelectorAll('[data-form="' + tipo + '"]');
     var corpo = { tipo: tipo };
+    var camposExtra = {};
 
     for (var i = 0; i < campos.length; i++) {
       var nomeCampo = campos[i].getAttribute('data-campo');
-      corpo[nomeCampo] = campos[i].value;
+      if (nomeCampo) {
+        corpo[nomeCampo] = campos[i].value;
+        continue;
+      }
+      var nomeExtra = campos[i].getAttribute('data-campo-extra');
+      if (nomeExtra && campos[i].value) camposExtra[nomeExtra] = campos[i].value;
     }
+    if (Object.keys(camposExtra).length) corpo.campos_extra = JSON.stringify(camposExtra);
 
     botao.disabled = true;
     var textoOriginal = botao.textContent;
