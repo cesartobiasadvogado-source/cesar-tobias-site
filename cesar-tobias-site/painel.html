@@ -549,7 +549,9 @@
             '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
             '<td style="text-align:right">' +
               '<button class="btn-editar" data-cobrar-nome="' + esc(item.nome) + '" ' +
-              'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '">Cobrar</button>' +
+              'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '" ' +
+              'data-cobrar-linha-contrato="' + esc(item.linha_contrato || '') + '" ' +
+              'data-cobrar-numero-parcela="' + esc(item.numero_parcela || '') + '">Cobrar</button>' +
             '</td></tr>';
         }).join('');
         htmlVencidas =
@@ -1313,7 +1315,9 @@
           tipo: 'cobrar_cliente',
           nome: btn.getAttribute('data-cobrar-nome'),
           valor: btn.getAttribute('data-cobrar-valor'),
-          vencimento: btn.getAttribute('data-cobrar-vencimento')
+          vencimento: btn.getAttribute('data-cobrar-vencimento'),
+          linha_contrato: btn.getAttribute('data-cobrar-linha-contrato'),
+          numero_parcela: btn.getAttribute('data-cobrar-numero-parcela')
         }).then(function (r) { return r.json(); }).then(function (dados) {
           alert(dados.resposta || dados.erro || 'Concluído.');
           btn.disabled = false;

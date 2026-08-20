@@ -277,6 +277,19 @@
           '</div>';
         }).join('');
 
+    var pagamentosPix = dados.pagamentos_pix_pendentes || [];
+    var htmlPagamentosPix = pagamentosPix.length === 0
+      ? '<div class="empty-state">Nenhum Pix pendente no momento.</div>'
+      : pagamentosPix.map(function (p) {
+          return '<div class="item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+            '<div>' +
+              '<div class="item-titulo">R$ ' + fmtMoeda(p.valor) + '</div>' +
+              '<div class="item-sub">Vencimento: ' + esc(p.vencimento || '') + (p.descricao ? ' · ' + esc(p.descricao) : '') + '</div>' +
+            '</div>' +
+            '<a href="' + esc(p.link_pagamento) + '" target="_blank" rel="noopener" class="btn-baixar">Pagar agora</a>' +
+          '</div>';
+        }).join('');
+
     var htmlDocumentos = dados.documentos.length === 0
       ? '<div class="empty-state">Nenhum documento disponível ainda.</div>'
       : dados.documentos.map(function (d) {
@@ -333,6 +346,7 @@
       '</header>' +
       '<section><p class="section-label">Seus contratos</p><div class="panel">' + htmlContratos + '</div></section>' +
       '<section><p class="section-label">Parcelas pendentes</p><div class="panel">' + htmlParcelas + '</div></section>' +
+      '<section><p class="section-label">Pagamento via Pix</p><div class="panel">' + htmlPagamentosPix + '</div></section>' +
       '<section><p class="section-label">Ficha do processo</p><div class="panel">' + htmlProcessos + '</div></section>' +
       '<section><p class="section-label">Documentos</p><div class="panel">' + htmlDocumentos + '</div></section>' +
       '<button class="btn-sair" id="btn-sair">Sair</button>';
