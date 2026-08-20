@@ -321,6 +321,12 @@
   #proposta-preview:empty, #contrato-preview:empty { display: none; }
   .proposta-preview-iframe { width: calc(100% - 40px); height: 640px; border: 1px solid var(--line); border-radius: 8px; margin: 0 20px 20px; display: block; box-sizing: border-box; }
   @media (max-width: 700px) { .proposta-preview-iframe { height: 420px; } }
+  .proposta-preview-topo { display: flex; justify-content: flex-end; padding: 12px 20px 0; }
+  .proposta-preview-fechar {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg);
+    color: var(--ink-soft); font-size: 12.5px; cursor: pointer;
+  }
+  .proposta-preview-fechar:hover { color: var(--ink); border-color: var(--accent); }
   @media (max-width: 860px) { .automacoes-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .automacoes-grid { grid-template-columns: 1fr; } }
 
@@ -1665,7 +1671,12 @@
       .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
       .then(function (blob) {
         var url = URL.createObjectURL(blob);
-        container.innerHTML = '<iframe class="proposta-preview-iframe" src="' + url + '"></iframe>';
+        container.innerHTML =
+          '<div class="proposta-preview-topo"><button type="button" class="proposta-preview-fechar">Fechar pré-visualização</button></div>' +
+          '<iframe class="proposta-preview-iframe" src="' + url + '"></iframe>';
+        container.querySelector('.proposta-preview-fechar').addEventListener('click', function () {
+          container.innerHTML = '';
+        });
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a pré-visualização.</div></div>';
