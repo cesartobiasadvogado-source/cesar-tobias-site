@@ -178,6 +178,20 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'modelo_campos') {
+    var nomeModelo = (req.query && req.query.nome) || '';
+    var url5c = base + '?action=painel_modelo_campos&nome=' + encodeURIComponent(nomeModelo) +
+      '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(url5c);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar campos do modelo.' });
+    }
+    return;
+  }
+
   if (acao === 'padrao_operacional') {
     var opPadrao = (req.query && req.query.op) || corpo.op || '';
     if (opPadrao !== 'listar' && req.method !== 'POST') {

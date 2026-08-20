@@ -739,15 +739,16 @@
           '<div class="proposta-form">' +
             '<input type="text" list="contrato-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
             '<datalist id="contrato-clientes-lista"></datalist>' +
-            '<input type="text" list="contrato-modelos-lista" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
+            '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
             '<datalist id="contrato-modelos-lista"></datalist>' +
-            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="Entrada (opcional)" data-campo="entrada" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="parcelas" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="Vencimento da entrada (ex: 20/09/2026)" data-campo="data_entrada" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="Dia de vencimento da parcela (1-31)" data-campo="dia_vencimento" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="% honorários de êxito (opcional)" data-campo="percentual_honorarios" data-form="gerar_contrato">' +
-            '<input type="text" placeholder="% recursal (opcional)" data-campo="percentual_recursal" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Entrada (opcional)" data-campo="entrada" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Nº de parcelas (opcional)" data-campo="parcelas" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Vencimento da entrada (ex: 20/09/2026)" data-campo="data_entrada" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Dia de vencimento da parcela (1-31)" data-campo="dia_vencimento" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-exito" placeholder="% honorários de êxito (opcional)" data-campo="percentual_honorarios" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-exito" placeholder="% recursal (opcional)" data-campo="percentual_recursal" data-form="gerar_contrato">' +
+            '<div id="contrato-modelo-aviso" class="automacao-resultado hidden" style="grid-column: span 3; padding: 0;"></div>' +
             '<button data-tipo="gerar_contrato" data-preview="contrato-preview" class="btn-automacao">Gerar contrato</button>' +
           '</div>' +
           '<div class="automacao-resultado" data-resultado="gerar_contrato" aria-live="polite" style="padding:0 20px 16px;"></div>' +
@@ -1537,10 +1538,17 @@
     });
   }
 
+  var CONTRATO_PLACEHOLDERS_PAGAMENTO = ['VALOR_TOTAL', 'VALOR_ENTRADA', 'VALOR_PARCELA', 'NUM_PARCELAS', 'DATA_ENTRADA', 'DIA_VENCIMENTO'];
+  var CONTRATO_PLACEHOLDERS_EXITO = ['PERCENTUAL_HONORARIOS', 'PERCENTUAL_RECURSAL'];
+
   function wireContrato() {
     var datalistClientes = document.getElementById('contrato-clientes-lista');
     var datalistModelos = document.getElementById('contrato-modelos-lista');
-    if (!datalistClientes || !datalistModelos) return;
+    var campoTipoServico = document.getElementById('contrato-tipo-servico');
+    var avisoEl = document.getElementById('contrato-modelo-aviso');
+    if (!datalistClientes || !datalistModelos || !campoTipoServico) return;
+
+    var nomesModelosConhecidos = [];
 
     apiGet('/api/painel?acao=clientes')
       .then(function (r) { return r.json(); })
@@ -1554,11 +1562,53 @@
     apiGet('/api/painel?acao=modelos_contrato')
       .then(function (r) { return r.json(); })
       .then(function (dados) {
-        datalistModelos.innerHTML = (dados.modelos || []).map(function (nomeArquivo) {
+        nomesModelosConhecidos = dados.modelos || [];
+        datalistModelos.innerHTML = nomesModelosConhecidos.map(function (nomeArquivo) {
           return '<option value="' + esc(nomeArquivo) + '">';
         }).join('');
       })
       .catch(function () { /* idem */ });
+
+    function mostrarTodosCamposContrato() {
+      document.querySelectorAll('.contrato-campo-pagamento, .contrato-campo-exito').forEach(function (el) {
+        el.classList.remove('hidden');
+      });
+      if (avisoEl) { avisoEl.classList.add('hidden'); avisoEl.textContent = ''; }
+    }
+
+    function ajustarCamposContrato(placeholders) {
+      var usaPagamento = CONTRATO_PLACEHOLDERS_PAGAMENTO.some(function (p) { return placeholders.indexOf(p) !== -1; });
+      var usaExito = CONTRATO_PLACEHOLDERS_EXITO.some(function (p) { return placeholders.indexOf(p) !== -1; });
+
+      document.querySelectorAll('.contrato-campo-pagamento').forEach(function (el) {
+        el.classList.toggle('hidden', !usaPagamento);
+      });
+      document.querySelectorAll('.contrato-campo-exito').forEach(function (el) {
+        el.classList.toggle('hidden', !usaExito);
+      });
+
+      if (avisoEl) {
+        if (!usaPagamento && !usaExito) {
+          avisoEl.textContent = 'Este modelo não usa os campos de valor/entrada nem de percentual desta tela — o pagamento já está definido no próprio texto do contrato.';
+          avisoEl.classList.remove('hidden');
+        } else {
+          avisoEl.classList.add('hidden');
+          avisoEl.textContent = '';
+        }
+      }
+    }
+
+    campoTipoServico.addEventListener('input', function () {
+      var valorDigitado = campoTipoServico.value.trim();
+      if (nomesModelosConhecidos.indexOf(valorDigitado) === -1) {
+        mostrarTodosCamposContrato();
+        return;
+      }
+      apiGet('/api/painel?acao=modelo_campos&nome=' + encodeURIComponent(valorDigitado))
+        .then(function (r) { return r.json(); })
+        .then(function (dados) { ajustarCamposContrato(dados.placeholders || []); })
+        .catch(function () { mostrarTodosCamposContrato(); });
+    });
   }
 
   function wireAutomacoes() {
