@@ -723,6 +723,22 @@
 
       '</div></section>';
 
+    var htmlCobrancaAvulsa = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-cobranca-avulsa"><p class="section-label">Cobrança avulsa</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cobrar algo fora de parcela de contrato</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="cobranca-avulsa-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="cobrar_cliente">' +
+            '<datalist id="cobranca-avulsa-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Valor (ex: 500,00)" data-campo="valor" data-form="cobrar_cliente">' +
+            '<input type="text" placeholder="Vencimento (ex: 25/08/2026)" data-campo="vencimento" data-form="cobrar_cliente">' +
+            '<input type="text" placeholder="Descrição (opcional)" data-campo="descricao" data-form="cobrar_cliente">' +
+            '<button data-tipo="cobrar_cliente" class="btn-automacao">Enviar cobrança</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="cobrar_cliente" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlPropostas = perms.indexOf('automacoes') === -1 ? '' :
       '<section id="sec-propostas"><p class="section-label">Propostas</p>' +
         '<div class="panel">' +
@@ -935,7 +951,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -1304,6 +1320,18 @@
   }
 
   function wireCobranca() {
+    var datalistCobrancaAvulsa = document.getElementById('cobranca-avulsa-clientes-lista');
+    if (datalistCobrancaAvulsa) {
+      apiGet('/api/painel?acao=clientes')
+        .then(function (r) { return r.json(); })
+        .then(function (dados) {
+          datalistCobrancaAvulsa.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
     document.querySelectorAll('[data-cobrar-nome]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         if (!confirm('Enviar cobrança de R$ ' + btn.getAttribute('data-cobrar-valor') + ' para ' +
