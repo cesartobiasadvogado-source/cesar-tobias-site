@@ -1596,7 +1596,10 @@
       var usaExito = CONTRATO_PLACEHOLDERS_EXITO.some(function (p) { return placeholders.indexOf(p) !== -1; });
       var placeholdersConhecidos = CONTRATO_PLACEHOLDERS_PAGAMENTO.concat(CONTRATO_PLACEHOLDERS_EXITO);
       var placeholdersExtras = placeholders.filter(function (p) {
-        return (p.indexOf('VALOR_') === 0 || p.indexOf('PERCENTUAL_') === 0) && placeholdersConhecidos.indexOf(p) === -1;
+        // "_EXTENSO" e sempre derivado automaticamente do valor numerico correspondente --
+        // nao precisa (nem deve) virar um campo separado pra digitar por extenso na mao.
+        return (p.indexOf('VALOR_') === 0 || p.indexOf('PERCENTUAL_') === 0) &&
+          p.indexOf('_EXTENSO') === -1 && placeholdersConhecidos.indexOf(p) === -1;
       });
 
       document.querySelectorAll('.contrato-campo-pagamento').forEach(function (el) {
