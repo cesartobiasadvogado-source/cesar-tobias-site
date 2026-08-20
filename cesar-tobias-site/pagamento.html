@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Pagamento — César Tobias Advocacia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0B1929;
+      color: #F0EDE6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo-mark {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 1.5px solid rgba(201,168,76,0.6);
+      margin-bottom: 16px;
+    }
+
+    .name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 500;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .title {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #C9A84C;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: #C9A84C;
+      opacity: 0.5;
+      margin-bottom: 28px;
+    }
+
+    .cobranca-card {
+      width: 100%;
+      background: #132236;
+      border: 0.5px solid rgba(184,197,214,0.12);
+      border-radius: 14px;
+      padding: 28px 24px;
+      text-align: center;
+    }
+
+    .cobranca-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(184,197,214,0.55);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 14px;
+    }
+
+    .cobranca-cliente {
+      font-size: 15px;
+      color: #D8E2EE;
+      margin-bottom: 18px;
+    }
+
+    .cobranca-valor {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 44px;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .cobranca-vencimento {
+      font-size: 13px;
+      color: rgba(184,197,214,0.65);
+      margin-bottom: 4px;
+    }
+
+    .cobranca-descricao {
+      font-size: 13px;
+      color: rgba(184,197,214,0.5);
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 0.5px solid rgba(184,197,214,0.12);
+    }
+
+    .btn-pagar {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      background: #C9A84C;
+      color: #0B1929;
+      font-family: 'Inter', sans-serif;
+      font-size: 14.5px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-pagar:hover { opacity: 0.9; }
+
+    .pagamento-formas {
+      margin-top: 14px;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      color: rgba(184,197,214,0.4);
+    }
+
+    .status-pago {
+      margin-top: 24px;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(46,160,110,0.12);
+      border: 0.5px solid rgba(46,160,110,0.3);
+      color: #6FCF9E;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .estado {
+      width: 100%;
+      background: #132236;
+      border: 0.5px solid rgba(184,197,214,0.12);
+      border-radius: 14px;
+      padding: 40px 24px;
+      text-align: center;
+      color: rgba(184,197,214,0.6);
+      font-size: 13.5px;
+    }
+
+    .footer {
+      margin-top: 32px;
+      font-size: 10px;
+      color: rgba(184,197,214,0.25);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <img src="./logo-mark.png" alt="Logo César Tobias Advocacia" class="logo-mark">
+    <div class="name">César Tobias</div>
+    <div class="title">Advogado &amp; Consultor Jurídico</div>
+    <div class="divider"></div>
+
+    <div id="estado-carregando" class="estado">Carregando cobrança…</div>
+
+    <div id="estado-erro" class="estado hidden">
+      Não conseguimos encontrar essa cobrança. Verifique o link recebido ou entre em contato com o escritório.
+    </div>
+
+    <div id="cobranca-conteudo" class="cobranca-card hidden">
+      <div class="cobranca-label">Honorários advocatícios</div>
+      <div class="cobranca-cliente" id="cobranca-cliente"></div>
+      <div class="cobranca-valor" id="cobranca-valor"></div>
+      <div class="cobranca-vencimento" id="cobranca-vencimento"></div>
+      <div class="cobranca-descricao hidden" id="cobranca-descricao"></div>
+
+      <a href="#" target="_blank" rel="noopener" class="btn-pagar hidden" id="btn-pagar">Pagar agora</a>
+      <div class="pagamento-formas hidden" id="pagamento-formas">PIX · BOLETO · CARTÃO DE CRÉDITO</div>
+
+      <div class="status-pago hidden" id="status-pago">✓ Pagamento já confirmado. Obrigado!</div>
+    </div>
+
+    <div class="footer">CÉSAR TOBIAS ADVOCACIA · OAB/AP 6228</div>
+  </div>
+
+  <script>
+    function fmtMoeda(v) {
+      var n = Number(v || 0);
+      return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtData(iso) {
+      if (!iso) return '';
+      var partes = String(iso).split('-');
+      if (partes.length !== 3) return String(iso);
+      return partes[2].slice(0, 2) + '/' + partes[1] + '/' + partes[0];
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get('id') || '';
+
+    var elCarregando = document.getElementById('estado-carregando');
+    var elErro = document.getElementById('estado-erro');
+    var elConteudo = document.getElementById('cobranca-conteudo');
+
+    if (!id) {
+      elCarregando.classList.add('hidden');
+      elErro.classList.remove('hidden');
+    } else {
+      fetch('/api/pagamento?id=' + encodeURIComponent(id))
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, dados: d }; }); })
+        .then(function (resultado) {
+          elCarregando.classList.add('hidden');
+          if (!resultado.ok) {
+            elErro.classList.remove('hidden');
+            return;
+          }
+          var d = resultado.dados;
+          document.getElementById('cobranca-cliente').textContent = d.nome || 'Cliente';
+          document.getElementById('cobranca-valor').textContent = 'R$ ' + fmtMoeda(d.valor);
+          document.getElementById('cobranca-vencimento').textContent = 'Vencimento em ' + fmtData(d.vencimento);
+
+          if (d.descricao) {
+            var elDescricao = document.getElementById('cobranca-descricao');
+            elDescricao.textContent = d.descricao;
+            elDescricao.classList.remove('hidden');
+          }
+
+          var pago = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].indexOf(d.status) !== -1;
+          if (pago) {
+            document.getElementById('status-pago').classList.remove('hidden');
+          } else if (d.invoice_url) {
+            var btn = document.getElementById('btn-pagar');
+            btn.href = d.invoice_url;
+            btn.classList.remove('hidden');
+            document.getElementById('pagamento-formas').classList.remove('hidden');
+          }
+
+          elConteudo.classList.remove('hidden');
+        })
+        .catch(function () {
+          elCarregando.classList.add('hidden');
+          elErro.classList.remove('hidden');
+        });
+    }
+  </script>
+
+</body>
+</html>
