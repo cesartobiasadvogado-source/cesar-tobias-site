@@ -317,7 +317,16 @@
   }
   .proposta-form .btn-automacao:hover { opacity: 0.92; }
   .proposta-form .btn-automacao:disabled { opacity: 0.6; cursor: default; }
-  @media (max-width: 700px) { .proposta-form { grid-template-columns: 1fr; } .proposta-form .btn-automacao { grid-column: span 1; } }
+  .proposta-form .btn-manual {
+    padding: 9px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
+    font-size: 13px; font-weight: 600; cursor: pointer; grid-column: span 3;
+  }
+  .proposta-form .btn-manual:hover { opacity: 0.92; }
+  .proposta-form .btn-manual:disabled { opacity: 0.6; cursor: default; }
+  @media (max-width: 700px) {
+    .proposta-form { grid-template-columns: 1fr; }
+    .proposta-form .btn-automacao, .proposta-form .btn-manual { grid-column: span 1; }
+  }
   #proposta-preview:empty, #contrato-preview:empty { display: none; }
   .proposta-preview-iframe { width: calc(100% - 40px); height: 640px; border: 1px solid var(--line); border-radius: 8px; margin: 0 20px 20px; display: block; box-sizing: border-box; }
   @media (max-width: 700px) { .proposta-preview-iframe { height: 420px; } }
@@ -774,15 +783,19 @@
             'Cláusula, descrição do débito e prazo são decisão sua a cada notificação.' +
           '</p>' +
           '<div class="proposta-form">' +
-            '<input type="text" list="notificacao-extrajudicial-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="notificacao_extrajudicial">' +
+            '<input type="text" list="notificacao-extrajudicial-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="notificacao_extrajudicial_gerar">' +
             '<datalist id="notificacao-extrajudicial-clientes-lista"></datalist>' +
-            '<input type="text" placeholder="Prazo para pagamento em dias (ex: 10)" data-campo="prazo_dias" data-form="notificacao_extrajudicial">' +
-            '<input type="text" placeholder="Cláusula dos honorários (ex: 3ª)" data-campo="clausula_honorarios" data-form="notificacao_extrajudicial">' +
-            '<input type="text" placeholder="Descrição do débito (ex: parcelas 3 e 4)" data-campo="descricao_debito" data-form="notificacao_extrajudicial" style="grid-column: span 2;">' +
-            '<input type="email" placeholder="E-mail do cliente (opcional)" data-campo="email" data-form="notificacao_extrajudicial">' +
-            '<button data-tipo="notificacao_extrajudicial" class="btn-automacao" style="grid-column: span 3;">Gerar e enviar notificação</button>' +
+            '<input type="text" placeholder="Prazo para pagamento em dias (ex: 10)" data-campo="prazo_dias" data-form="notificacao_extrajudicial_gerar">' +
+            '<input type="text" placeholder="Cláusula dos honorários (ex: 3ª)" data-campo="clausula_honorarios" data-form="notificacao_extrajudicial_gerar">' +
+            '<input type="text" placeholder="Descrição do débito (ex: parcelas 3 e 4)" data-campo="descricao_debito" data-form="notificacao_extrajudicial_gerar" style="grid-column: span 2;">' +
+            '<input type="email" id="notificacao-extrajudicial-email" placeholder="E-mail do cliente (opcional)" style="grid-column: span 1;">' +
+            '<button type="button" id="notificacao-extrajudicial-btn-gerar" class="btn-manual">Gerar notificação (revisar antes de enviar)</button>' +
           '</div>' +
-          '<div class="automacao-resultado" data-resultado="notificacao_extrajudicial" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
+          '<div class="automacao-resultado" id="notificacao-extrajudicial-resultado" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
+          '<div id="notificacao-extrajudicial-preview"></div>' +
+          '<div style="padding:0 20px 20px;" id="notificacao-extrajudicial-confirmar-area" class="hidden">' +
+            '<button type="button" id="notificacao-extrajudicial-btn-confirmar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Confirmar e enviar pro cliente</button>' +
+          '</div>' +
         '</div>' +
       '</section>';
 
@@ -1025,7 +1038,7 @@
 
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
-    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); }
     if (perms.indexOf('processos') !== -1) carregarProcessos();
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
@@ -1410,6 +1423,90 @@
           alert('Não foi possível enviar a cobrança agora.');
         });
       });
+    });
+  }
+
+  function wireNotificacaoExtrajudicial() {
+    var btnGerar = document.getElementById('notificacao-extrajudicial-btn-gerar');
+    var btnConfirmar = document.getElementById('notificacao-extrajudicial-btn-confirmar');
+    var areaConfirmar = document.getElementById('notificacao-extrajudicial-confirmar-area');
+    var resultadoEl = document.getElementById('notificacao-extrajudicial-resultado');
+    if (!btnGerar || !btnConfirmar) return;
+
+    // Guarda o que foi gerado pra usar no envio depois -- o backend nao gera de novo, so reusa
+    // esse pdf_id, entao o que aparece na previa e exatamente o que vai ser mandado.
+    var ultimaGeracao = null;
+
+    btnGerar.addEventListener('click', function () {
+      var campos = document.querySelectorAll('[data-form="notificacao_extrajudicial_gerar"]');
+      var corpo = { tipo: 'notificacao_extrajudicial_gerar' };
+      campos.forEach(function (campo) {
+        var nomeCampo = campo.getAttribute('data-campo');
+        if (nomeCampo) corpo[nomeCampo] = campo.value;
+      });
+      if (!corpo.nome || !corpo.prazo_dias || !corpo.clausula_honorarios || !corpo.descricao_debito) {
+        resultadoEl.textContent = 'Preencha cliente, prazo, cláusula e descrição do débito.';
+        return;
+      }
+
+      areaConfirmar.classList.add('hidden');
+      document.getElementById('notificacao-extrajudicial-preview').innerHTML = '';
+      ultimaGeracao = null;
+
+      var textoOriginal = btnGerar.textContent;
+      btnGerar.disabled = true;
+      btnGerar.textContent = 'Gerando...';
+      resultadoEl.textContent = '';
+
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function (dados) {
+          resultadoEl.textContent = dados.resposta || 'Concluído.';
+          if (dados.pdf_id) {
+            ultimaGeracao = {
+              nome: corpo.nome, prazo_dias: corpo.prazo_dias, pdf_id: dados.pdf_id,
+              email: (document.getElementById('notificacao-extrajudicial-email') || {}).value || ''
+            };
+            mostrarPreviewDocumento(dados.pdf_id, 'notificacao-extrajudicial-preview');
+            areaConfirmar.classList.remove('hidden');
+          }
+        })
+        .catch(function () {
+          resultadoEl.textContent = 'Não foi possível gerar a notificação agora.';
+        })
+        .finally(function () {
+          btnGerar.disabled = false;
+          btnGerar.textContent = textoOriginal;
+        });
+    });
+
+    btnConfirmar.addEventListener('click', function () {
+      if (!ultimaGeracao) return;
+      var aviso = 'Isso vai enviar a notificação de verdade pro cliente' +
+        (ultimaGeracao.email ? ' (WhatsApp + e-mail).' : ' (WhatsApp -- nenhum e-mail foi informado).') +
+        ' Não dá pra desfazer. Confirma?';
+      if (!confirm(aviso)) return;
+
+      var textoOriginal = btnConfirmar.textContent;
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = 'Enviando...';
+
+      apiPostJson('/api/painel?acao=executar', {
+        tipo: 'notificacao_extrajudicial_enviar',
+        nome: ultimaGeracao.nome, pdf_id: ultimaGeracao.pdf_id,
+        prazo_dias: ultimaGeracao.prazo_dias, email: ultimaGeracao.email
+      })
+        .then(function (dados) {
+          resultadoEl.textContent = dados.resposta || 'Concluído.';
+          areaConfirmar.classList.add('hidden');
+          ultimaGeracao = null;
+        })
+        .catch(function () {
+          resultadoEl.textContent = 'Não foi possível enviar agora. Tente de novo.';
+        })
+        .finally(function () {
+          btnConfirmar.disabled = false;
+          btnConfirmar.textContent = textoOriginal;
+        });
     });
   }
 
