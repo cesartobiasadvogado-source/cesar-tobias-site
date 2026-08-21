@@ -765,6 +765,27 @@
         '</div>' +
       '</section>';
 
+    var htmlNotificacaoExtrajudicial = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-notificacao-extrajudicial"><p class="section-label">Notificação extrajudicial</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cobrar cliente inadimplente formalmente</span></div>' +
+          '<p style="padding:0 20px;margin:0 0 4px;font-size:12.5px;color:var(--ink-soft);">' +
+            'O valor devido, dias em atraso e dados do cliente (CPF, endereço) são preenchidos automaticamente. ' +
+            'Cláusula, descrição do débito e prazo são decisão sua a cada notificação.' +
+          '</p>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="notificacao-extrajudicial-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="notificacao_extrajudicial">' +
+            '<datalist id="notificacao-extrajudicial-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Prazo para pagamento em dias (ex: 10)" data-campo="prazo_dias" data-form="notificacao_extrajudicial">' +
+            '<input type="text" placeholder="Cláusula dos honorários (ex: 3ª)" data-campo="clausula_honorarios" data-form="notificacao_extrajudicial">' +
+            '<input type="text" placeholder="Descrição do débito (ex: parcelas 3 e 4)" data-campo="descricao_debito" data-form="notificacao_extrajudicial" style="grid-column: span 2;">' +
+            '<input type="email" placeholder="E-mail do cliente (opcional)" data-campo="email" data-form="notificacao_extrajudicial">' +
+            '<button data-tipo="notificacao_extrajudicial" class="btn-automacao" style="grid-column: span 3;">Gerar e enviar notificação</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="notificacao_extrajudicial" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlPropostas = perms.indexOf('automacoes') === -1 ? '' :
       '<section id="sec-propostas"><p class="section-label">Propostas</p>' +
         '<div class="panel">' +
@@ -977,7 +998,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -1348,6 +1369,17 @@
       apiGetJson('/api/painel?acao=clientes')
         .then(function (dados) {
           datalistCobrancaAvulsa.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
+    var datalistNotificacao = document.getElementById('notificacao-extrajudicial-clientes-lista');
+    if (datalistNotificacao) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistNotificacao.innerHTML = (dados.clientes || []).map(function (c) {
             return '<option value="' + esc(c.nome) + '">';
           }).join('');
         })
