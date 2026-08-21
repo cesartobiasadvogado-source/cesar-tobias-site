@@ -763,7 +763,11 @@
           '<div class="proposta-form">' +
             '<input type="text" list="contrato-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
             '<datalist id="contrato-clientes-lista"></datalist>' +
-            '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
+            '<div style="position:relative;">' +
+              '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato" style="width:100%; padding-right:28px; box-sizing:border-box;">' +
+              '<button type="button" id="contrato-tipo-servico-limpar" title="Limpar e ver todas as opções" ' +
+                'style="position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;">×</button>' +
+            '</div>' +
             '<datalist id="contrato-modelos-lista"></datalist>' +
             '<input type="text" placeholder="Descrição do serviço (opcional)" data-campo="descricao" data-form="gerar_contrato">' +
             '<input type="text" class="contrato-campo-pagamento" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_contrato">' +
@@ -1668,6 +1672,19 @@
         .then(function (dados) { ajustarCamposContrato(dados.placeholders || []); })
         .catch(function () { mostrarTodosCamposContrato(); });
     });
+
+    var btnLimparTipoServico = document.getElementById('contrato-tipo-servico-limpar');
+    if (btnLimparTipoServico) {
+      btnLimparTipoServico.addEventListener('click', function () {
+        // O navegador so mostra no menu as opcoes que "batem" com o texto atual do campo --
+        // depois de escolher um modelo, o texto fica identico a uma opcao, entao ao clicar na
+        // seta de novo ele so mostra aquela mesma opcao. Limpar o campo faz todas aparecerem
+        // de novo. Dispara 'input' manualmente porque limpar via JS nao dispara sozinho.
+        campoTipoServico.value = '';
+        campoTipoServico.dispatchEvent(new Event('input'));
+        campoTipoServico.focus();
+      });
+    }
   }
 
   function wireAutomacoes() {
