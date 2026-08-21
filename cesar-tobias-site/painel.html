@@ -488,6 +488,32 @@
     });
   }
 
+  // fetch() so rejeita a Promise em falha de rede -- uma resposta HTTP de erro (500, 401 etc)
+  // ainda cai no .then() de sucesso normalmente. Isso fazia telas de carregamento tratarem um
+  // erro real do servidor como "lista vazia" (ex: planilha deu erro 500 -> aparecia "nenhum
+  // processo encontrado", como se o cliente simplesmente nao tivesse processo nenhum, quando na
+  // verdade a chamada tinha falhado). Esses dois helpers viram Promise rejeitada de verdade
+  // quando a resposta nao e ok, pra quem ja tem um .catch() passar a mostrar erro de verdade em
+  // vez de "vazio" -- sem precisar mudar cada tela que carrega alguma lista.
+  function respostaJsonOuErro(r) {
+    return r.json().catch(function () { return {}; }).then(function (dados) {
+      if (!r.ok) {
+        var erro = new Error((dados && dados.erro) || ('Erro ' + r.status));
+        erro.status = r.status;
+        throw erro;
+      }
+      return dados;
+    });
+  }
+
+  function apiGetJson(url) {
+    return apiGet(url).then(respostaJsonOuErro);
+  }
+
+  function apiPostJson(url, corpo) {
+    return apiPost(url, corpo).then(respostaJsonOuErro);
+  }
+
   function valorOculto(chave) {
     return localStorage.getItem('painel_oculto_' + chave) === '1';
   }
@@ -992,8 +1018,7 @@
     var campoCliente = document.getElementById('audiencia-upload-cliente');
     var datalistClientes = document.getElementById('audiencia-upload-clientes-lista');
 
-    apiGet('/api/painel?acao=clientes')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
         datalistClientes.innerHTML = (dados.clientes || []).map(function (c) {
           return '<option value="' + esc(c.nome) + '">';
@@ -1145,8 +1170,7 @@
   var clientesCarregados = [];
 
   function carregarClientes() {
-    apiGet('/api/painel?acao=clientes')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
         clientesCarregados = dados.clientes || [];
         renderClientes(clientesCarregados);
@@ -1230,8 +1254,7 @@
   }
 
   function carregarProcessos() {
-    apiGet('/api/painel?acao=processos&op=listar')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=processos&op=listar')
       .then(function (dados) {
         renderProcessos(dados.processos || []);
       })
@@ -1322,8 +1345,7 @@
   function wireCobranca() {
     var datalistCobrancaAvulsa = document.getElementById('cobranca-avulsa-clientes-lista');
     if (datalistCobrancaAvulsa) {
-      apiGet('/api/painel?acao=clientes')
-        .then(function (r) { return r.json(); })
+      apiGetJson('/api/painel?acao=clientes')
         .then(function (dados) {
           datalistCobrancaAvulsa.innerHTML = (dados.clientes || []).map(function (c) {
             return '<option value="' + esc(c.nome) + '">';
@@ -1372,8 +1394,7 @@
   }
 
   function carregarAgenda() {
-    apiGet('/api/painel?acao=agenda&op=listar')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=agenda&op=listar')
       .then(function (dados) {
         renderAgendaEventos(dados.eventos || []);
         renderAgendaTarefas(dados.tarefas || []);
@@ -1596,8 +1617,7 @@
 
     var nomesModelosConhecidos = [];
 
-    apiGet('/api/painel?acao=clientes')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
         datalistClientes.innerHTML = (dados.clientes || []).map(function (c) {
           return '<option value="' + esc(c.nome) + '">';
@@ -1605,8 +1625,7 @@
       })
       .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
 
-    apiGet('/api/painel?acao=modelos_contrato')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=modelos_contrato')
       .then(function (dados) {
         nomesModelosConhecidos = dados.modelos || [];
         datalistModelos.innerHTML = nomesModelosConhecidos.map(function (nomeArquivo) {
@@ -1663,8 +1682,7 @@
         mostrarTodosCamposContrato();
         return;
       }
-      apiGet('/api/painel?acao=modelo_campos&nome=' + encodeURIComponent(valorDigitado))
-        .then(function (r) { return r.json(); })
+      apiGetJson('/api/painel?acao=modelo_campos&nome=' + encodeURIComponent(valorDigitado))
         .then(function (dados) { ajustarCamposContrato(dados.placeholders || []); })
         .catch(function () { mostrarTodosCamposContrato(); });
     });
@@ -1804,8 +1822,7 @@
   var padraoOperacionalAbaAtual = 'atendimentos';
 
   function carregarPadraoOperacional() {
-    apiGet('/api/painel?acao=padrao_operacional&op=listar')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=padrao_operacional&op=listar')
       .then(function (dados) {
         padraoOperacionalDados = dados.abas || {};
         wirePadraoOperacional();
@@ -1885,8 +1902,7 @@
   }
 
   function carregarPautaAudiencias() {
-    apiGet('/api/painel?acao=pauta_audiencias')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=pauta_audiencias')
       .then(function (dados) { renderPautaAudiencias(dados.pauta || []); })
       .catch(function () {
         document.getElementById('pauta-audiencias-lista').innerHTML =
@@ -1936,8 +1952,7 @@
   }
 
   function carregarAudiencias() {
-    apiGet('/api/painel?acao=audiencias&op=listar')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=audiencias&op=listar')
       .then(function (dados) { renderAudiencias(dados.audiencias || []); })
       .catch(function () {
         document.getElementById('audiencias-lista').innerHTML =
@@ -2025,8 +2040,7 @@
         if (alvo.innerHTML) { alvo.innerHTML = ''; return; }
         var textoOriginal = btn.textContent;
         btn.textContent = 'Carregando...';
-        apiGet('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
-          .then(function (r) { return r.json(); })
+        apiGetJson('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
           .then(function (dados) {
             var texto = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
             alvo.innerHTML = parseTranscricaoDialogo(texto);
@@ -2112,8 +2126,7 @@
   }
 
   function carregarListaUsuarios() {
-    apiGet('/api/painel?acao=usuarios_listar')
-      .then(function (r) { return r.json(); })
+    apiGetJson('/api/painel?acao=usuarios_listar')
       .then(function (dados) {
         var container = document.getElementById('admin-lista-usuarios');
         if (!container || !dados.usuarios) return;
