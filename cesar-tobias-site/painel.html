@@ -1470,8 +1470,8 @@
             areaConfirmar.classList.remove('hidden');
           }
         })
-        .catch(function () {
-          resultadoEl.textContent = 'Não foi possível gerar a notificação agora.';
+        .catch(function (erro) {
+          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível gerar a notificação agora.';
         })
         .finally(function () {
           btnGerar.disabled = false;
@@ -1500,8 +1500,8 @@
           areaConfirmar.classList.add('hidden');
           ultimaGeracao = null;
         })
-        .catch(function () {
-          resultadoEl.textContent = 'Não foi possível enviar agora. Tente de novo.';
+        .catch(function (erro) {
+          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
         })
         .finally(function () {
           btnConfirmar.disabled = false;
