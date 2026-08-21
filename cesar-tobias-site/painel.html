@@ -231,8 +231,6 @@
   .audiencia-upload-area { padding: 16px 20px; border-bottom: 1px solid var(--line); }
   .audiencia-upload-area input { width: 100%; max-width: 320px; padding: 8px 12px; border: 1px solid var(--line);
     border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; margin-bottom: 10px; }
-  .audiencia-upload-area .campo-com-limpar { position: relative; width: 100%; max-width: 320px; margin-bottom: 10px; }
-  .audiencia-upload-area .campo-com-limpar input { width: 100%; max-width: none; margin-bottom: 0; padding-right: 28px; box-sizing: border-box; }
   .audiencia-upload-dropzone { border: 2px dashed var(--line); border-radius: 10px; padding: 22px;
     text-align: center; transition: border-color .15s, background .15s; }
   .audiencia-upload-dropzone.arrastando { border-color: var(--accent); background: var(--accent-soft, rgba(44,92,224,.06)); }
@@ -730,11 +728,7 @@
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Cobrar algo fora de parcela de contrato</span></div>' +
           '<div class="proposta-form">' +
-            '<div style="position:relative;">' +
-              '<input type="text" list="cobranca-avulsa-clientes-lista" id="cobranca-avulsa-cliente" placeholder="Nome do cliente" data-campo="nome" data-form="cobrar_cliente" style="width:100%; padding-right:28px; box-sizing:border-box;">' +
-              '<button type="button" class="btn-limpar-datalist" data-alvo="cobranca-avulsa-cliente" title="Limpar e ver todas as opções" ' +
-                'style="position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;">×</button>' +
-            '</div>' +
+            '<input type="text" list="cobranca-avulsa-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="cobrar_cliente">' +
             '<datalist id="cobranca-avulsa-clientes-lista"></datalist>' +
             '<input type="text" placeholder="Valor (ex: 500,00)" data-campo="valor" data-form="cobrar_cliente">' +
             '<input type="text" placeholder="Vencimento (ex: 25/08/2026)" data-campo="vencimento" data-form="cobrar_cliente">' +
@@ -767,17 +761,9 @@
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Gerar contrato de honorários</span></div>' +
           '<div class="proposta-form">' +
-            '<div style="position:relative;">' +
-              '<input type="text" list="contrato-clientes-lista" id="contrato-cliente-nome" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato" style="width:100%; padding-right:28px; box-sizing:border-box;">' +
-              '<button type="button" class="btn-limpar-datalist" data-alvo="contrato-cliente-nome" title="Limpar e ver todas as opções" ' +
-                'style="position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;">×</button>' +
-            '</div>' +
+            '<input type="text" list="contrato-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
             '<datalist id="contrato-clientes-lista"></datalist>' +
-            '<div style="position:relative;">' +
-              '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato" style="width:100%; padding-right:28px; box-sizing:border-box;">' +
-              '<button type="button" class="btn-limpar-datalist" data-alvo="contrato-tipo-servico" title="Limpar e ver todas as opções" ' +
-                'style="position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;">×</button>' +
-            '</div>' +
+            '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
             '<datalist id="contrato-modelos-lista"></datalist>' +
             '<input type="text" placeholder="Descrição do serviço (opcional)" data-campo="descricao" data-form="gerar_contrato">' +
             '<input type="text" class="contrato-campo-pagamento" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_contrato">' +
@@ -919,11 +905,7 @@
           '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '<div id="bloco-realizadas" class="hidden">' +
             '<div class="audiencia-upload-area">' +
-              '<div class="campo-com-limpar">' +
-                '<input type="text" id="audiencia-upload-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
-                '<button type="button" class="btn-limpar-datalist" data-alvo="audiencia-upload-cliente" title="Limpar e ver todas as opções" ' +
-                  'style="position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;">×</button>' +
-              '</div>' +
+              '<input type="text" id="audiencia-upload-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
               '<datalist id="audiencia-upload-clientes-lista"></datalist>' +
               '<div class="audiencia-upload-dropzone" id="audiencia-upload-dropzone">' +
                 '<div class="audiencia-upload-msg" id="audiencia-upload-msg">' +
@@ -1690,20 +1672,61 @@
 
   // O navegador (Chrome) so mostra no menu do <input list> as opcoes que "batem" com o texto
   // atual do campo -- depois de escolher uma opcao, o texto fica identico a ela, entao clicar
-  // na seta de novo so mostra aquela mesma opcao ja escolhida, escondendo as outras. Um botao
-  // "x" ao lado de cada campo com datalist limpa o valor pra lista completa voltar a aparecer.
-  // Delegacao de evento no documento pra cobrir os campos de todas as abas (contrato, cobranca
-  // avulsa, upload de audiencia) com um so listener, mesmo que o HTML de cada aba seja montado
-  // em momentos diferentes.
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest && e.target.closest('.btn-limpar-datalist');
-    if (!btn) return;
-    var campo = document.getElementById(btn.getAttribute('data-alvo'));
-    if (!campo) return;
-    campo.value = '';
-    campo.dispatchEvent(new Event('input'));
-    campo.focus();
-  });
+  // na seta de novo so mostra aquela mesma opcao ja escolhida, escondendo as outras. Isso aqui
+  // detecta AUTOMATICAMENTE todo <input list> da pagina (o que ja existe na carga inicial e
+  // qualquer um criado depois, em innerHTML de qualquer aba) e adiciona um botao "x" que limpa
+  // o campo pra lista completa voltar a aparecer -- nao precisa lembrar de repetir esse padrao
+  // manualmente toda vez que um campo novo desses for criado no futuro.
+  (function () {
+    var contadorId = 0;
+
+    function ativarLimparDatalist(input) {
+      if (input.dataset.datalistAuto) return; // ja processado, evita duplicar
+      input.dataset.datalistAuto = '1';
+      if (!input.id) {
+        contadorId += 1;
+        input.id = 'datalist-auto-' + contadorId;
+      }
+
+      var wrapper = document.createElement('div');
+      wrapper.style.position = 'relative';
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+
+      input.style.paddingRight = '28px';
+      input.style.boxSizing = 'border-box';
+      if (!input.style.width) input.style.width = '100%';
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = 'Limpar e ver todas as opções';
+      btn.textContent = '×';
+      btn.style.cssText = 'position:absolute; right:4px; top:50%; transform:translateY(-50%); ' +
+        'border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;';
+      btn.addEventListener('click', function () {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+      });
+      wrapper.appendChild(btn);
+    }
+
+    function escanear(raiz) {
+      (raiz.querySelectorAll ? raiz : document).querySelectorAll('input[list]').forEach(ativarLimparDatalist);
+    }
+
+    escanear(document);
+
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        m.addedNodes.forEach(function (node) {
+          if (node.nodeType !== 1) return;
+          if (node.matches && node.matches('input[list]')) ativarLimparDatalist(node);
+          else if (node.querySelectorAll) escanear(node);
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  })();
 
   function wireAutomacoes() {
     var botoes = document.querySelectorAll('.btn-automacao');
