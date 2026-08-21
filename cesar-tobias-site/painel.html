@@ -377,6 +377,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10h18M7 15h3M3 6h18v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>
           Financeiro
         </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-notificacao-extrajudicial" data-secao="financeiro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v13H7l-3 3z"></path><path d="M8 9h8M8 13h5"></path></svg>
+          Notificação Extrajudicial
+        </button>
         <button type="button" class="nav-item" data-scroll-to="sec-pje" data-secao="pje">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v5h5"></path></svg>
           Processual — PJe
@@ -775,7 +779,7 @@
       '</section>';
 
     var htmlNotificacaoExtrajudicial = perms.indexOf('financeiro') === -1 ? '' :
-      '<section id="sec-notificacao-extrajudicial"><p class="section-label">Notificação extrajudicial</p>' +
+      '<section id="sec-notificacao-extrajudicial"><p class="section-label">Notificação Extrajudicial</p>' +
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Cobrar cliente inadimplente formalmente</span></div>' +
           '<p style="padding:0 20px;margin:0 0 4px;font-size:12.5px;color:var(--ink-soft);">' +
@@ -789,9 +793,9 @@
             '<input type="text" placeholder="Cláusula dos honorários (ex: 3ª)" data-campo="clausula_honorarios" data-form="notificacao_extrajudicial_gerar">' +
             '<input type="text" placeholder="Descrição do débito (ex: parcelas 3 e 4)" data-campo="descricao_debito" data-form="notificacao_extrajudicial_gerar" style="grid-column: span 2;">' +
             '<input type="email" id="notificacao-extrajudicial-email" placeholder="E-mail do cliente (opcional)" style="grid-column: span 1;">' +
-            '<button type="button" id="notificacao-extrajudicial-btn-gerar" class="btn-manual">Gerar notificação (revisar antes de enviar)</button>' +
+            '<button data-tipo="notificacao_extrajudicial_gerar" data-preview="notificacao-extrajudicial-preview" class="btn-automacao">Gerar notificação (revisar antes de enviar)</button>' +
           '</div>' +
-          '<div class="automacao-resultado" id="notificacao-extrajudicial-resultado" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
+          '<div class="automacao-resultado" data-resultado="notificacao_extrajudicial_gerar" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
           '<div id="notificacao-extrajudicial-preview"></div>' +
           '<div style="padding:0 20px 20px;" id="notificacao-extrajudicial-confirmar-area" class="hidden">' +
             '<button type="button" id="notificacao-extrajudicial-btn-confirmar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Confirmar e enviar pro cliente</button>' +
@@ -1427,62 +1431,23 @@
   }
 
   function wireNotificacaoExtrajudicial() {
-    var btnGerar = document.getElementById('notificacao-extrajudicial-btn-gerar');
+    // A geracao (botao "Gerar notificacao") usa o mecanismo generico de automacao
+    // (executarAutomacao/wireAutomacoes, mesmo caminho ja comprovado em Proposta/Contrato) --
+    // aqui so cuida do botao extra "Confirmar e enviar", que nao existe nas outras automacoes.
     var btnConfirmar = document.getElementById('notificacao-extrajudicial-btn-confirmar');
     var areaConfirmar = document.getElementById('notificacao-extrajudicial-confirmar-area');
-    var resultadoEl = document.getElementById('notificacao-extrajudicial-resultado');
-    if (!btnGerar || !btnConfirmar) return;
-
-    // Guarda o que foi gerado pra usar no envio depois -- o backend nao gera de novo, so reusa
-    // esse pdf_id, entao o que aparece na previa e exatamente o que vai ser mandado.
-    var ultimaGeracao = null;
-
-    btnGerar.addEventListener('click', function () {
-      var campos = document.querySelectorAll('[data-form="notificacao_extrajudicial_gerar"]');
-      var corpo = { tipo: 'notificacao_extrajudicial_gerar' };
-      campos.forEach(function (campo) {
-        var nomeCampo = campo.getAttribute('data-campo');
-        if (nomeCampo) corpo[nomeCampo] = campo.value;
-      });
-      if (!corpo.nome || !corpo.prazo_dias || !corpo.clausula_honorarios || !corpo.descricao_debito) {
-        resultadoEl.textContent = 'Preencha cliente, prazo, cláusula e descrição do débito.';
-        return;
-      }
-
-      areaConfirmar.classList.add('hidden');
-      document.getElementById('notificacao-extrajudicial-preview').innerHTML = '';
-      ultimaGeracao = null;
-
-      var textoOriginal = btnGerar.textContent;
-      btnGerar.disabled = true;
-      btnGerar.textContent = 'Gerando...';
-      resultadoEl.textContent = '';
-
-      apiPostJson('/api/painel?acao=executar', corpo)
-        .then(function (dados) {
-          resultadoEl.textContent = dados.resposta || 'Concluído.';
-          if (dados.pdf_id) {
-            ultimaGeracao = {
-              nome: corpo.nome, prazo_dias: corpo.prazo_dias, pdf_id: dados.pdf_id,
-              email: (document.getElementById('notificacao-extrajudicial-email') || {}).value || ''
-            };
-            mostrarPreviewDocumento(dados.pdf_id, 'notificacao-extrajudicial-preview');
-            areaConfirmar.classList.remove('hidden');
-          }
-        })
-        .catch(function (erro) {
-          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível gerar a notificação agora.';
-        })
-        .finally(function () {
-          btnGerar.disabled = false;
-          btnGerar.textContent = textoOriginal;
-        });
-    });
+    var resultadoEl = document.querySelector('[data-resultado="notificacao_extrajudicial_gerar"]');
+    if (!btnConfirmar || !areaConfirmar) return;
 
     btnConfirmar.addEventListener('click', function () {
-      if (!ultimaGeracao) return;
+      var pdfId = areaConfirmar.dataset.pdfId;
+      var nome = areaConfirmar.dataset.nome;
+      var prazoDias = areaConfirmar.dataset.prazoDias;
+      var email = areaConfirmar.dataset.email;
+      if (!pdfId || !nome) return;
+
       var aviso = 'Isso vai enviar a notificação de verdade pro cliente' +
-        (ultimaGeracao.email ? ' (WhatsApp + e-mail).' : ' (WhatsApp -- nenhum e-mail foi informado).') +
+        (email ? ' (WhatsApp + e-mail).' : ' (WhatsApp -- nenhum e-mail foi informado).') +
         ' Não dá pra desfazer. Confirma?';
       if (!confirm(aviso)) return;
 
@@ -1492,16 +1457,15 @@
 
       apiPostJson('/api/painel?acao=executar', {
         tipo: 'notificacao_extrajudicial_enviar',
-        nome: ultimaGeracao.nome, pdf_id: ultimaGeracao.pdf_id,
-        prazo_dias: ultimaGeracao.prazo_dias, email: ultimaGeracao.email
+        nome: nome, pdf_id: pdfId, prazo_dias: prazoDias, email: email
       })
         .then(function (dados) {
-          resultadoEl.textContent = dados.resposta || 'Concluído.';
+          if (resultadoEl) resultadoEl.textContent = dados.resposta || 'Concluído.';
           areaConfirmar.classList.add('hidden');
-          ultimaGeracao = null;
+          delete areaConfirmar.dataset.pdfId;
         })
         .catch(function (erro) {
-          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
+          if (resultadoEl) resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
         })
         .finally(function () {
           btnConfirmar.disabled = false;
@@ -1916,6 +1880,21 @@
         }
         if (resultado.status === 200 && resultado.corpo.pdf_id) {
           mostrarPreviewDocumento(resultado.corpo.pdf_id, botao.getAttribute('data-preview') || 'proposta-preview');
+        }
+        if (tipo === 'notificacao_extrajudicial_gerar') {
+          var areaConfirmarNotif = document.getElementById('notificacao-extrajudicial-confirmar-area');
+          if (areaConfirmarNotif) {
+            if (resultado.status === 200 && resultado.corpo.pdf_id) {
+              areaConfirmarNotif.dataset.pdfId = resultado.corpo.pdf_id;
+              areaConfirmarNotif.dataset.nome = corpo.nome || '';
+              areaConfirmarNotif.dataset.prazoDias = corpo.prazo_dias || '';
+              areaConfirmarNotif.dataset.email = (document.getElementById('notificacao-extrajudicial-email') || {}).value || '';
+              areaConfirmarNotif.classList.remove('hidden');
+            } else {
+              areaConfirmarNotif.classList.add('hidden');
+              delete areaConfirmarNotif.dataset.pdfId;
+            }
+          }
         }
       })
       .catch(function () {
