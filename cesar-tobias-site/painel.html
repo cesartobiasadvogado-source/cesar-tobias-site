@@ -409,6 +409,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>
           Ficha de processos
         </button>
+        <button type="button" class="nav-item" data-scroll-to="sec-processo-administrativo" data-secao="processos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path><path d="M9 12l2 2 4-4"></path></svg>
+          Processo Administrativo
+        </button>
         <button type="button" class="nav-item" data-scroll-to="sec-agenda" data-secao="agenda">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
           Agenda
@@ -834,6 +838,31 @@
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
 
+    var htmlProcessoAdministrativo = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-processo-administrativo"><p class="section-label">Processo Administrativo</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Novo processo administrativo</span></div>' +
+          '<p style="padding:0 20px;margin:0 0 4px;font-size:12.5px;color:var(--ink-soft);">' +
+            'Protocolos em órgãos públicos (INSS, prefeitura etc.), fora do Judiciário.' +
+          '</p>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="procadm-clientes-lista" placeholder="Cliente" data-campo="cliente" data-form="procadm_criar">' +
+            '<datalist id="procadm-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Órgão (ex: INSS)" data-campo="orgao" data-form="procadm_criar">' +
+            '<input type="text" placeholder="Nº do protocolo" data-campo="numero_protocolo" data-form="procadm_criar">' +
+            '<input type="date" placeholder="Prazo" data-campo="prazo" data-form="procadm_criar">' +
+            '<input type="text" placeholder="Próximo passo" data-campo="proximo_passo" data-form="procadm_criar" style="grid-column: span 2;">' +
+            '<textarea placeholder="Observações (opcional)" data-campo="observacoes" data-form="procadm_criar" style="grid-column: span 3; min-height:56px; font-family:inherit; font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink);"></textarea>' +
+            '<button type="button" id="procadm-btn-criar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Criar processo</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" id="procadm-resultado" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Processos em andamento</span></div>' +
+          '<div id="procadm-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlAgenda = perms.indexOf('agenda') === -1 ? '' :
       '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
 
@@ -1128,7 +1157,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlAvisosSection + htmlClientes + htmlProcessos + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlAvisosSection + htmlClientes + htmlProcessos + htmlProcessoAdministrativo + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -1156,7 +1185,7 @@
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
     if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); }
-    if (perms.indexOf('processos') !== -1) carregarProcessos();
+    if (perms.indexOf('processos') !== -1) { carregarProcessos(); wireProcessosAdministrativos(); }
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
     if (perms.indexOf('audiencias') !== -1) { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
@@ -1489,6 +1518,191 @@
           btn.textContent = textoOriginal;
           alert('Não foi possível salvar agora.');
         });
+      });
+    });
+  }
+
+  function wireProcessosAdministrativos() {
+    var btnCriar = document.getElementById('procadm-btn-criar');
+    var resultadoEl = document.getElementById('procadm-resultado');
+    if (!btnCriar) return;
+
+    var datalistProcAdm = document.getElementById('procadm-clientes-lista');
+    if (datalistProcAdm) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistProcAdm.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
+    btnCriar.addEventListener('click', function () {
+      var campos = document.querySelectorAll('[data-form="procadm_criar"]');
+      var corpo = { op: 'criar' };
+      campos.forEach(function (campo) {
+        var nomeCampo = campo.getAttribute('data-campo');
+        if (nomeCampo) corpo[nomeCampo] = campo.value;
+      });
+
+      var textoOriginal = btnCriar.textContent;
+      btnCriar.disabled = true;
+      btnCriar.textContent = 'Criando...';
+      resultadoEl.textContent = '';
+
+      apiPostJson('/api/painel?acao=processos_administrativos', corpo)
+        .then(function () {
+          resultadoEl.textContent = 'Processo criado.';
+          campos.forEach(function (campo) { campo.value = ''; });
+          carregarProcessosAdministrativos();
+        })
+        .catch(function (erro) {
+          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível criar agora.';
+        })
+        .finally(function () {
+          btnCriar.disabled = false;
+          btnCriar.textContent = textoOriginal;
+        });
+    });
+
+    carregarProcessosAdministrativos();
+  }
+
+  function carregarProcessosAdministrativos() {
+    apiGetJson('/api/painel?acao=processos_administrativos&op=listar')
+      .then(function (dados) {
+        renderProcessosAdministrativos(dados.processos || []);
+      })
+      .catch(function () {
+        document.getElementById('procadm-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os processos administrativos.</div></div>';
+      });
+  }
+
+  var ROTULOS_STATUS_PROCADM = { aberto: 'Aberto', aguardando: 'Aguardando', concluido: 'Concluído' };
+  var CHIP_CLASSE_STATUS_PROCADM = { aberto: 'neutral', aguardando: 'warn', concluido: 'good' };
+
+  function renderProcessosAdministrativos(processos) {
+    var container = document.getElementById('procadm-lista');
+    if (processos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo administrativo cadastrado ainda.</div></div>';
+      return;
+    }
+
+    container.innerHTML = processos.map(function (p) {
+      var docsHtml = (p.documentos || []).map(function (d) {
+        return '<div style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:3px;">' +
+          '<button type="button" data-ver-doc-procadm="' + esc(d.id) + '" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:0;">' + esc(d.nome) + '</button>' +
+          '<button type="button" data-remover-doc-procadm="' + esc(p.id) + '|' + esc(d.id) + '" title="Remover" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:0;">×</button>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="processo-card" style="padding:14px 20px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">' +
+          '<div>' +
+            '<div style="font-weight:600;">' + esc(p.cliente) + '</div>' +
+            '<div style="font-size:12.5px;color:var(--ink-soft);">' + esc(p.orgao || 'Órgão não informado') +
+              (p.numero_protocolo ? ' · Protocolo ' + esc(p.numero_protocolo) : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<span class="chip ' + (CHIP_CLASSE_STATUS_PROCADM[p.status] || 'neutral') + '">' + esc(ROTULOS_STATUS_PROCADM[p.status] || p.status) + '</span>' +
+            '<select data-status-select-procadm="' + esc(p.id) + '" style="font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);">' +
+              '<option value="aberto"' + (p.status === 'aberto' ? ' selected' : '') + '>Aberto</option>' +
+              '<option value="aguardando"' + (p.status === 'aguardando' ? ' selected' : '') + '>Aguardando</option>' +
+              '<option value="concluido"' + (p.status === 'concluido' ? ' selected' : '') + '>Concluído</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        (p.prazo ? '<div class="chip warn" style="margin-top:8px;">Prazo: ' + esc(fmtDataCurta(p.prazo)) + '</div>' : '') +
+        (p.proximo_passo ? '<div style="margin-top:8px;font-size:13px;"><b>Próximo passo:</b> ' + esc(p.proximo_passo) + '</div>' : '') +
+        (p.observacoes ? '<div style="margin-top:6px;font-size:13px;color:var(--ink-soft);">' + esc(p.observacoes) + '</div>' : '') +
+        '<div style="margin-top:10px;">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;">Documentos</div>' +
+          (docsHtml || '<div style="font-size:12.5px;color:var(--ink-faint);">Nenhum documento anexado.</div>') +
+          '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<input type="file" data-upload-input-procadm="' + esc(p.id) + '" style="font-size:12px;max-width:220px;">' +
+            '<button type="button" data-upload-btn-procadm="' + esc(p.id) + '" style="font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Anexar</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px;">' +
+          '<button type="button" data-excluir-procadm="' + esc(p.id) + '" style="font-size:12px;color:var(--crit);background:none;border:none;cursor:pointer;padding:0;">Excluir processo</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-status-select-procadm]').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var id = select.getAttribute('data-status-select-procadm');
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'atualizar', id: id, status: select.value })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível atualizar o status agora.'); });
+      });
+    });
+
+    container.querySelectorAll('[data-ver-doc-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Abrindo...';
+        apiGet('/api/painel?acao=processo_administrativo_documento&id=' + encodeURIComponent(btn.getAttribute('data-ver-doc-procadm')))
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+          .then(function (blob) {
+            window.open(URL.createObjectURL(blob), '_blank', 'noopener');
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível abrir o documento agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-remover-doc-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var partes = btn.getAttribute('data-remover-doc-procadm').split('|');
+        if (!confirm('Remover este documento?')) return;
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'remover_documento', id: partes[0], documento_id: partes[1] })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível remover o documento agora.'); });
+      });
+    });
+
+    container.querySelectorAll('[data-upload-btn-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-upload-btn-procadm');
+        var input = container.querySelector('[data-upload-input-procadm="' + id + '"]');
+        var arquivo = input && input.files && input.files[0];
+        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        arquivo.arrayBuffer().then(function (buffer) {
+          var binario = '';
+          var bytes = new Uint8Array(buffer);
+          for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+          return apiPostJson('/api/painel?acao=processo_administrativo_anexar', {
+            id: id, nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream',
+            dados_base64: btoa(binario)
+          });
+        })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function (erro) {
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+            alert((erro && erro.message) || 'Não foi possível enviar o arquivo agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-excluir-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-excluir-procadm');
+        if (!confirm('Excluir este processo administrativo? Os documentos continuam na pasta do cliente no Drive.')) return;
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'excluir', id: id })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível excluir agora.'); });
       });
     });
   }

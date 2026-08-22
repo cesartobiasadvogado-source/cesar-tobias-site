@@ -154,6 +154,77 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processos_administrativos') {
+    var opProcAdm = (req.query && req.query.op) || corpo.op || '';
+    if (opProcAdm !== 'listar' && req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlProcAdm = base + '?action=painel_processos_administrativos&op=' + encodeURIComponent(opProcAdm) +
+      '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    var camposProcAdm = ['id', 'cliente', 'orgao', 'numero_protocolo', 'status', 'prazo', 'proximo_passo', 'observacoes', 'documento_id'];
+    var origemProcAdm = opProcAdm === 'listar' ? (req.query || {}) : corpo;
+    camposProcAdm.forEach(function (campo) {
+      if (origemProcAdm[campo] !== undefined) {
+        urlProcAdm += '&' + campo + '=' + encodeURIComponent(origemProcAdm[campo]);
+      }
+    });
+
+    try {
+      const resposta = await fetch(urlProcAdm);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar processos administrativos.' });
+    }
+    return;
+  }
+
+  if (acao === 'processo_administrativo_anexar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlAnexar = base + '?action=painel_processo_administrativo_anexar&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlAnexar, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: corpo.id, nome_arquivo: corpo.nome_arquivo, mimetype: corpo.mimetype, dados_base64: corpo.dados_base64
+        })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao enviar o documento.' });
+    }
+    return;
+  }
+
+  if (acao === 'processo_administrativo_documento') {
+    const idDocProcAdm = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_processo_administrativo_documento&token=' + encodeURIComponent(tokenSessao) +
+        '&id=' + encodeURIComponent(idDocProcAdm) + segredoQS
+      );
+      if (!resposta.ok) {
+        const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter documento.' }; });
+        res.status(resposta.status).json(erroJson);
+        return;
+      }
+      const buffer = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader('Content-Type', resposta.headers.get('content-type') || 'application/octet-stream');
+      const disposicao = resposta.headers.get('content-disposition');
+      if (disposicao) res.setHeader('Content-Disposition', disposicao);
+      res.status(200).send(buffer);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar documento.' });
+    }
+    return;
+  }
+
   if (acao === 'clientes') {
     var url5 = base + '?action=painel_clientes&token=' + encodeURIComponent(tokenSessao) + segredoQS;
     try {
