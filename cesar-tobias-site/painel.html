@@ -9,6 +9,16 @@
   (function () {
     var temaSalvo = localStorage.getItem('painel_tema');
     if (temaSalvo === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
+    var corSalva = localStorage.getItem('painel_cor_accent');
+    if (corSalva) {
+      var raiz = document.documentElement.style;
+      raiz.setProperty('--accent', corSalva);
+      raiz.setProperty('--sidebar-accent', corSalva);
+      var r = parseInt(corSalva.slice(1, 3), 16), g = parseInt(corSalva.slice(3, 5), 16), b = parseInt(corSalva.slice(5, 7), 16);
+      var misturar = function (c) { return Math.round(c + (255 - c) * 0.88).toString(16).padStart(2, '0'); };
+      raiz.setProperty('--accent-soft', '#' + misturar(r) + misturar(g) + misturar(b));
+    }
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -429,6 +439,15 @@
         <span id="texto-tema">Modo escuro</span>
       </button>
 
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 0 20c1.4 0 2-1 2-2 0-.6-.3-1-.6-1.4-.3-.4-.5-.7-.5-1.1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-5.5-4.5-10-8-10z"></path><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="11" cy="7" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="15" cy="8" r="1.1" fill="currentColor" stroke="none"></circle></svg>
+          <span>Cor de destaque</span>
+          <input type="color" id="input-cor-accent" title="Escolher cor de destaque" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
       <div class="sidebar-rodape">
         <div class="sidebar-avatar" id="sidebar-avatar">--</div>
         <div>
@@ -469,6 +488,41 @@
 
   document.getElementById('btn-tema').addEventListener('click', function () {
     aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  function misturarComBranco(hex, fator) {
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    var mix = function (c) { return Math.round(c + (255 - c) * fator); };
+    return '#' + [mix(r), mix(g), mix(b)].map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function corComputadaParaHex(nomeVar) {
+    var valor = getComputedStyle(document.documentElement).getPropertyValue(nomeVar).trim();
+    if (valor.charAt(0) === '#') return valor;
+    var numeros = valor.match(/\d+/g);
+    if (!numeros) return '#2c5ce0';
+    return '#' + numeros.slice(0, 3).map(function (n) { return (+n).toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function aplicarCorAccent(hex) {
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-soft', misturarComBranco(hex, 0.88));
+    document.documentElement.style.setProperty('--sidebar-accent', hex);
+  }
+
+  var inputCorAccent = document.getElementById('input-cor-accent');
+  inputCorAccent.value = localStorage.getItem('painel_cor_accent') || corComputadaParaHex('--accent');
+  inputCorAccent.addEventListener('input', function () {
+    aplicarCorAccent(inputCorAccent.value);
+    localStorage.setItem('painel_cor_accent', inputCorAccent.value);
+  });
+
+  document.getElementById('btn-cor-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_accent');
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-soft');
+    document.documentElement.style.removeProperty('--sidebar-accent');
+    inputCorAccent.value = corComputadaParaHex('--accent');
   });
 
   function fmtMoeda(v) {
