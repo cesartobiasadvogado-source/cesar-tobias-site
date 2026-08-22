@@ -1388,7 +1388,8 @@
       var badges = '';
       if (contratosAtivos > 0) badges += '<span class="chip good">' + contratosAtivos + ' contrato(s) ativo(s)</span> ';
       if (parcelasPendentes > 0) badges += '<span class="chip crit">R$ ' + fmtMoeda(valorPendente) + ' pendente</span> ';
-      if (c.processos.length > 0) badges += '<span class="chip neutral">' + c.processos.length + ' processo(s)</span>';
+      if (c.processos.length > 0) badges += '<span class="chip neutral">' + c.processos.length + ' processo(s) PJe</span> ';
+      if ((c.processos_administrativos || []).length > 0) badges += '<span class="chip neutral">' + c.processos_administrativos.length + ' processo(s) administrativo(s)</span>';
 
       var contratosHtml = c.contratos.map(function (ct) {
         return '<div class="prazo-card"><div class="prazo-card-topo">' +
@@ -1414,6 +1415,18 @@
         '</div></div>';
       }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo vinculado.</div></div>';
 
+      var ROTULOS_STATUS_PROCADM_CLIENTE = { aberto: 'Aberto', aguardando: 'Aguardando', concluido: 'Concluído' };
+      var processosAdministrativosHtml = (c.processos_administrativos || []).map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + esc(p.orgao || 'Órgão não informado') +
+            (p.numero_protocolo ? ' · Protocolo ' + esc(p.numero_protocolo) : '') + '</div>' +
+          '<div class="prazo-meta">' + esc(p.proximo_passo || 'Sem próximo passo definido') + '</div></div>' +
+          '<span class="days-badge ' + (p.status === 'concluido' ? 'good' : (p.status === 'aguardando' ? 'warn' : 'neutral')) + '">' +
+            esc(ROTULOS_STATUS_PROCADM_CLIENTE[p.status] || p.status) +
+            (p.prazo ? ' · ' + esc(fmtDataCurta(p.prazo)) : '') + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo administrativo vinculado.</div></div>';
+
       return '<div class="processo-card">' +
         '<button type="button" class="processo-cabecalho" data-toggle-cliente="' + idx + '" aria-expanded="false" aria-controls="cliente-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(c.nome) + '</div>' +
@@ -1422,7 +1435,8 @@
         '<div class="processo-corpo" id="cliente-corpo-' + idx + '">' +
           '<p class="section-label" style="margin-top:8px;">Contratos</p>' + contratosHtml +
           '<p class="section-label" style="margin-top:16px;">Parcelas pendentes</p>' + parcelasHtml +
-          '<p class="section-label" style="margin-top:16px;">Processos</p>' + processosHtml +
+          '<p class="section-label" style="margin-top:16px;">Processos (PJe)</p>' + processosHtml +
+          '<p class="section-label" style="margin-top:16px;">Processos administrativos</p>' + processosAdministrativosHtml +
         '</div>' +
       '</div>';
     }).join('');
