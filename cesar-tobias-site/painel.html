@@ -22,6 +22,9 @@
 
     var corFundoSalva = localStorage.getItem('painel_cor_fundo');
     if (corFundoSalva) document.documentElement.style.setProperty('--sidebar-bg', corFundoSalva);
+
+    var corPaginaSalva = localStorage.getItem('painel_cor_pagina');
+    if (corPaginaSalva) document.documentElement.style.setProperty('--bg', corPaginaSalva);
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -460,6 +463,15 @@
         <button type="button" id="btn-cor-fundo-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
       </div>
 
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor-pagina" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+          <span>Cor de fundo da página</span>
+          <input type="color" id="input-cor-pagina" title="Escolher cor de fundo da página" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-pagina-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
       <div class="sidebar-rodape">
         <div class="sidebar-avatar" id="sidebar-avatar">--</div>
         <div>
@@ -548,6 +560,19 @@
     localStorage.removeItem('painel_cor_fundo');
     document.documentElement.style.removeProperty('--sidebar-bg');
     inputCorFundo.value = corComputadaParaHex('--sidebar-bg');
+  });
+
+  var inputCorPagina = document.getElementById('input-cor-pagina');
+  inputCorPagina.value = localStorage.getItem('painel_cor_pagina') || corComputadaParaHex('--bg');
+  inputCorPagina.addEventListener('input', function () {
+    document.documentElement.style.setProperty('--bg', inputCorPagina.value);
+    localStorage.setItem('painel_cor_pagina', inputCorPagina.value);
+  });
+
+  document.getElementById('btn-cor-pagina-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_pagina');
+    document.documentElement.style.removeProperty('--bg');
+    inputCorPagina.value = corComputadaParaHex('--bg');
   });
 
   function fmtMoeda(v) {
