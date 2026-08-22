@@ -19,6 +19,9 @@
       var misturar = function (c) { return Math.round(c + (255 - c) * 0.88).toString(16).padStart(2, '0'); };
       raiz.setProperty('--accent-soft', '#' + misturar(r) + misturar(g) + misturar(b));
     }
+
+    var corFundoSalva = localStorage.getItem('painel_cor_fundo');
+    if (corFundoSalva) document.documentElement.style.setProperty('--sidebar-bg', corFundoSalva);
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -448,6 +451,15 @@
         <button type="button" id="btn-cor-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
       </div>
 
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor-fundo" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M3 15h18"></path></svg>
+          <span>Cor de fundo do menu</span>
+          <input type="color" id="input-cor-fundo" title="Escolher cor de fundo da barra lateral" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-fundo-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
       <div class="sidebar-rodape">
         <div class="sidebar-avatar" id="sidebar-avatar">--</div>
         <div>
@@ -523,6 +535,19 @@
     document.documentElement.style.removeProperty('--accent-soft');
     document.documentElement.style.removeProperty('--sidebar-accent');
     inputCorAccent.value = corComputadaParaHex('--accent');
+  });
+
+  var inputCorFundo = document.getElementById('input-cor-fundo');
+  inputCorFundo.value = localStorage.getItem('painel_cor_fundo') || corComputadaParaHex('--sidebar-bg');
+  inputCorFundo.addEventListener('input', function () {
+    document.documentElement.style.setProperty('--sidebar-bg', inputCorFundo.value);
+    localStorage.setItem('painel_cor_fundo', inputCorFundo.value);
+  });
+
+  document.getElementById('btn-cor-fundo-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_fundo');
+    document.documentElement.style.removeProperty('--sidebar-bg');
+    inputCorFundo.value = corComputadaParaHex('--sidebar-bg');
   });
 
   function fmtMoeda(v) {
