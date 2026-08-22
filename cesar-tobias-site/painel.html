@@ -858,6 +858,15 @@
         '</div>' +
 
         '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M15 2v5h5"></path><path d="M9 13l2 2 4-4"></path></svg>Verificar dados do cliente</div>' +
+          '<div class="automacao-desc">Confere se já tem contrato e procuração na pasta, e mostra os dados de acesso (CPF, RG, endereço) prontos pra copiar.</div>' +
+          '<input type="text" list="verificar-dados-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="verificar_dados_cliente">' +
+          '<datalist id="verificar-dados-clientes-lista"></datalist>' +
+          '<button data-tipo="verificar_dados_cliente" class="btn-automacao">Verificar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_dados_cliente" aria-live="polite" style="white-space:pre-wrap;user-select:text;"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar PJe agora</div>' +
           '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
           '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
@@ -1845,6 +1854,17 @@
       botoes[i].addEventListener('click', function (e) {
         executarAutomacao(e.target.getAttribute('data-tipo'), e.target);
       });
+    }
+
+    var datalistVerificarDados = document.getElementById('verificar-dados-clientes-lista');
+    if (datalistVerificarDados) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistVerificarDados.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
     }
   }
 
