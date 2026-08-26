@@ -211,7 +211,10 @@
       '<div class="status-linha"><span class="bolinha" id="bolinha-google"></span><span id="texto-google">Ainda não conectado</span></div>' +
       '<div id="erro-p2"></div>' +
       '<button class="principal" id="btn-conectar-google">Conectar com o Google</button>' +
-      '<button class="secundario" id="btn-verificar-google">Já conectei, verificar</button>';
+      '<button class="secundario" id="btn-verificar-google">Já conectei, verificar</button>' +
+      '<button class="secundario" id="btn-p2-pular">Pular por enquanto (conecto depois)</button>';
+
+    document.getElementById('btn-p2-pular').onclick = function () { avancar(); };
 
     document.getElementById('btn-conectar-google').onclick = function () {
       window.open(
@@ -245,7 +248,10 @@
       '<div class="status-linha"><span class="bolinha" id="bolinha-wa"></span><span id="texto-wa">Ainda não conectado</span></div>' +
       '<div id="erro-p3"></div>' +
       '<button class="principal" id="btn-conectar-wa">Mostrar QR code</button>' +
-      '<button class="secundario" id="btn-verificar-wa">Já escaneei, verificar</button>';
+      '<button class="secundario" id="btn-verificar-wa">Já escaneei, verificar</button>' +
+      '<button class="secundario" id="btn-p3-pular">Pular por enquanto (conecto depois)</button>';
+
+    document.getElementById('btn-p3-pular').onclick = function () { avancar(); };
 
     document.getElementById('btn-conectar-wa').onclick = function () {
       window.open(
@@ -279,7 +285,10 @@
       '<div id="erro-p4"></div>' +
       '<label>Chave de API da Asaas</label>' +
       '<input id="in-asaas-key" type="password" placeholder="$aact_...">' +
-      '<button class="principal" id="btn-p4">Conectar Asaas</button>';
+      '<button class="principal" id="btn-p4">Conectar Asaas</button>' +
+      '<button class="secundario" id="btn-p4-pular">Pular por enquanto (conecto depois)</button>';
+
+    document.getElementById('btn-p4-pular').onclick = function () { avancar(); };
 
     document.getElementById('btn-p4').onclick = async function () {
       var btn = this;
