@@ -139,10 +139,24 @@
       7: renderPasso7Final,
     };
     passos[estado.passo](card);
+    if (estado.passo > 2 && estado.passo < TOTAL_PASSOS) {
+      var btnVoltar = document.createElement('button');
+      btnVoltar.className = 'secundario';
+      btnVoltar.textContent = '← Voltar';
+      btnVoltar.style.marginTop = '10px';
+      btnVoltar.onclick = voltar;
+      card.appendChild(btnVoltar);
+    }
   }
 
   function avancar() {
     estado.passo += 1;
+    salvarEstado();
+    render();
+  }
+
+  function voltar() {
+    estado.passo -= 1;
     salvarEstado();
     render();
   }
