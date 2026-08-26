@@ -46,6 +46,115 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'criar_tenant') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(base + '?action=criar_tenant' + segredoQS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome_advogado: corpo.nome_advogado, oab_numero: corpo.oab_numero,
+          oab_uf: corpo.oab_uf, nome_escritorio: corpo.nome_escritorio,
+        })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao criar cadastro.' });
+    }
+    return;
+  }
+
+  if (acao === 'tenant_status') {
+    const tenantIdStatus = (req.query && req.query.tenant_id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=tenant_status&tenant_id=' + encodeURIComponent(tenantIdStatus) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao checar o status do cadastro.' });
+    }
+    return;
+  }
+
+  if (acao === 'whatsapp_status') {
+    const tenantIdWa = (req.query && req.query.tenant_id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=whatsapp_conectar_status&tenant_id=' + encodeURIComponent(tenantIdWa) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao checar o WhatsApp.' });
+    }
+    return;
+  }
+
+  if (acao === 'asaas_conectar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(base + '?action=asaas_conectar' + segredoQS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: corpo.tenant_id, api_key: corpo.api_key })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao conectar a Asaas.' });
+    }
+    return;
+  }
+
+  if (acao === 'criar_usuario_tenant') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(base + '?action=painel_criar_usuario_tenant' + segredoQS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: corpo.tenant_id, nome: corpo.nome, usuario: corpo.usuario, senha: corpo.senha,
+        })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao criar seu login.' });
+    }
+    return;
+  }
+
+  if (acao === 'login_tenant') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(base + '?action=painel_login_tenant' + segredoQS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: corpo.tenant_id, usuario: corpo.usuario, senha: corpo.senha })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao entrar.' });
+    }
+    return;
+  }
+
   const tokenSessao = obterToken(req);
   if (!tokenSessao) {
     res.status(401).json({ erro: 'Sessao ausente.' });

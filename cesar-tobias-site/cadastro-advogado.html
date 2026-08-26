@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Cadastro do Escritório</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef; --surface: #ffffff; --surface-sunken: #efece4;
+    --ink: #0f172a; --ink-soft: #475467; --ink-faint: #94a0b4; --line: #e2ded3;
+    --brand: #16213e; --accent: #2c5ce0; --accent-soft: #e8edfc;
+    --good: #079455; --good-soft: #e3f6ec;
+    --warn: #ca8a04; --warn-soft: #fbf1da;
+    --crit: #b42318; --crit-soft: #fbe7e5;
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+    --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
+  header.topo { text-align: center; margin-bottom: 32px; }
+  header.topo h1 { font-family: var(--font-display); font-size: 26px; color: var(--brand); margin: 0 0 6px; }
+  header.topo p { font-size: 14px; color: var(--ink-soft); margin: 0; }
+
+  .passos { display: flex; gap: 6px; margin-bottom: 28px; }
+  .passo-marca { flex: 1; height: 4px; border-radius: 3px; background: var(--line); }
+  .passo-marca.feito { background: var(--good); }
+  .passo-marca.atual { background: var(--accent); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+  .card h2 { font-family: var(--font-display); font-size: 19px; color: var(--brand); margin: 0 0 6px; }
+  .card .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.5; }
+
+  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0 0 5px; }
+  input, select {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 16px; font-family: inherit;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .linha { display: flex; gap: 12px; }
+  .linha > div { flex: 1; }
+
+  button.principal {
+    width: 100%; padding: 13px; border: none; border-radius: 9px; background: var(--accent);
+    color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  button.principal:hover { opacity: 0.92; }
+  button.principal:disabled { opacity: 0.55; cursor: not-allowed; }
+  button.secundario {
+    width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-sunken);
+    color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 10px;
+  }
+  button.secundario:hover { background: var(--accent-soft); }
+
+  .aviso { font-size: 13px; padding: 11px 13px; border-radius: 8px; margin-bottom: 16px; line-height: 1.5; }
+  .aviso.erro { background: var(--crit-soft); color: var(--crit); }
+  .aviso.ok { background: var(--good-soft); color: var(--good); }
+  .aviso.espera { background: var(--warn-soft); color: var(--warn); }
+
+  .status-linha { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 14px; }
+  .bolinha { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+  .bolinha.ok { background: var(--good); }
+
+  .codigo-escritorio {
+    font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 8px; padding: 12px; text-align: center; margin: 14px 0 20px;
+    letter-spacing: 0.04em;
+  }
+  .resumo-final { font-size: 14px; line-height: 1.9; }
+  .resumo-final b { color: var(--brand); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topo">
+    <h1>Cadastro do Escritório</h1>
+    <p>Configure sua conta na plataforma em poucos passos.</p>
+  </header>
+
+  <div class="passos" id="barra-passos"></div>
+
+  <div class="card" id="card-conteudo"></div>
+</div>
+
+<script>
+(function () {
+  var API = '/api/painel';
+  var TOTAL_PASSOS = 6;
+  var estado = {
+    passo: 1,
+    tenant_id: localStorage.getItem('cadastro_tenant_id') || '',
+    nome_advogado: '',
+  };
+
+  function salvarEstado() {
+    if (estado.tenant_id) localStorage.setItem('cadastro_tenant_id', estado.tenant_id);
+  }
+
+  async function chamar(acao, corpo, metodo) {
+    metodo = metodo || 'POST';
+    var url = API + '?acao=' + acao;
+    if (metodo === 'GET' && corpo) {
+      Object.keys(corpo).forEach(function (k) { url += '&' + k + '=' + encodeURIComponent(corpo[k]); });
+    }
+    var resposta = await fetch(url, metodo === 'POST' ? {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {})
+    } : undefined);
+    var dados = await resposta.json().catch(function () { return {}; });
+    return { ok: resposta.ok, dados: dados };
+  }
+
+  function renderBarraPassos() {
+    var barra = document.getElementById('barra-passos');
+    barra.innerHTML = '';
+    for (var i = 1; i <= TOTAL_PASSOS; i++) {
+      var marca = document.createElement('div');
+      marca.className = 'passo-marca' + (i < estado.passo ? ' feito' : i === estado.passo ? ' atual' : '');
+      barra.appendChild(marca);
+    }
+  }
+
+  function render() {
+    renderBarraPassos();
+    var card = document.getElementById('card-conteudo');
+    card.innerHTML = '';
+    var passos = {
+      1: renderPasso1Dados,
+      2: renderPasso2Google,
+      3: renderPasso3WhatsApp,
+      4: renderPasso4Asaas,
+      5: renderPasso5Login,
+      6: renderPasso6Final,
+    };
+    passos[estado.passo](card);
+  }
+
+  function avancar() {
+    estado.passo += 1;
+    salvarEstado();
+    render();
+  }
+
+  // --- Passo 1: dados do advogado ---
+  function renderPasso1Dados(card) {
+    card.innerHTML =
+      '<h2>Seus dados</h2>' +
+      '<p class="sub">Usamos o número da OAB como identificador único do seu cadastro.</p>' +
+      '<div id="erro-p1"></div>' +
+      '<label>Nome completo</label>' +
+      '<input id="in-nome" placeholder="Seu nome completo">' +
+      '<div class="linha">' +
+      '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345"></div>' +
+      '<div><label>UF</label><input id="in-oab-uf" placeholder="Ex: SP" maxlength="2" style="text-transform:uppercase"></div>' +
+      '</div>' +
+      '<label>Nome do escritório (opcional)</label>' +
+      '<input id="in-escritorio" placeholder="Nome do seu escritório">' +
+      '<button class="principal" id="btn-p1">Criar meu cadastro</button>';
+
+    document.getElementById('btn-p1').onclick = async function () {
+      var btn = this;
+      var nome = document.getElementById('in-nome').value.trim();
+      var oabNum = document.getElementById('in-oab-num').value.trim();
+      var oabUf = document.getElementById('in-oab-uf').value.trim();
+      var escritorio = document.getElementById('in-escritorio').value.trim();
+      var erroDiv = document.getElementById('erro-p1');
+      erroDiv.innerHTML = '';
+      if (!nome || !oabNum || !oabUf) {
+        erroDiv.innerHTML = '<div class="aviso erro">Preencha nome, número e UF da OAB.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Criando...';
+      var r = await chamar('criar_tenant', { nome_advogado: nome, oab_numero: oabNum, oab_uf: oabUf, nome_escritorio: escritorio });
+      btn.disabled = false; btn.textContent = 'Criar meu cadastro';
+      if (!r.ok || !r.dados.ok) {
+        erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível criar o cadastro.') + '</div>';
+        return;
+      }
+      estado.tenant_id = r.dados.tenant_id;
+      estado.nome_advogado = nome;
+      salvarEstado();
+      avancar();
+    };
+  }
+
+  // --- Passo 2: Google ---
+  function renderPasso2Google(card) {
+    card.innerHTML =
+      '<h2>Conectar com o Google</h2>' +
+      '<p class="sub">Sua conta do Google (Drive, Gmail, Agenda) é onde ficam guardados os documentos e clientes. ' +
+      'Vamos abrir a tela oficial do Google numa aba nova.</p>' +
+      '<div class="status-linha"><span class="bolinha" id="bolinha-google"></span><span id="texto-google">Ainda não conectado</span></div>' +
+      '<div id="erro-p2"></div>' +
+      '<button class="principal" id="btn-conectar-google">Conectar com o Google</button>' +
+      '<button class="secundario" id="btn-verificar-google">Já conectei, verificar</button>';
+
+    document.getElementById('btn-conectar-google').onclick = function () {
+      window.open(
+        'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/?action=oauth_google_iniciar&tenant_id=' +
+        encodeURIComponent(estado.tenant_id), '_blank'
+      );
+    };
+    document.getElementById('btn-verificar-google').onclick = async function () {
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'Verificando...';
+      var r = await chamar('tenant_status', { tenant_id: estado.tenant_id }, 'GET');
+      btn.disabled = false; btn.textContent = 'Já conectei, verificar';
+      var erroDiv = document.getElementById('erro-p2');
+      if (r.ok && r.dados.google_conectado) {
+        document.getElementById('bolinha-google').classList.add('ok');
+        document.getElementById('texto-google').textContent = 'Conectado!';
+        erroDiv.innerHTML = '<div class="aviso ok">Google conectado com sucesso.</div>';
+        setTimeout(avancar, 900);
+      } else {
+        erroDiv.innerHTML = '<div class="aviso espera">Ainda não detectei a conexão. Conclua a autorização na aba do Google e tente de novo.</div>';
+      }
+    };
+  }
+
+  // --- Passo 3: WhatsApp ---
+  function renderPasso3WhatsApp(card) {
+    card.innerHTML =
+      '<h2>Conectar o WhatsApp</h2>' +
+      '<p class="sub">Vamos abrir uma página com um QR code numa aba nova. Escaneie com o WhatsApp do celular ' +
+      'que vai atender os clientes (Aparelhos conectados &gt; Conectar um aparelho).</p>' +
+      '<div class="status-linha"><span class="bolinha" id="bolinha-wa"></span><span id="texto-wa">Ainda não conectado</span></div>' +
+      '<div id="erro-p3"></div>' +
+      '<button class="principal" id="btn-conectar-wa">Mostrar QR code</button>' +
+      '<button class="secundario" id="btn-verificar-wa">Já escaneei, verificar</button>';
+
+    document.getElementById('btn-conectar-wa').onclick = function () {
+      window.open(
+        'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/?action=whatsapp_conectar_iniciar&tenant_id=' +
+        encodeURIComponent(estado.tenant_id), '_blank'
+      );
+    };
+    document.getElementById('btn-verificar-wa').onclick = async function () {
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'Verificando...';
+      var r = await chamar('whatsapp_status', { tenant_id: estado.tenant_id }, 'GET');
+      btn.disabled = false; btn.textContent = 'Já escaneei, verificar';
+      var erroDiv = document.getElementById('erro-p3');
+      if (r.ok && r.dados.conectado) {
+        document.getElementById('bolinha-wa').classList.add('ok');
+        document.getElementById('texto-wa').textContent = 'Conectado!';
+        erroDiv.innerHTML = '<div class="aviso ok">WhatsApp conectado com sucesso.</div>';
+        setTimeout(avancar, 900);
+      } else {
+        erroDiv.innerHTML = '<div class="aviso espera">Ainda não detectei a conexão. Escaneie o QR code na aba aberta e tente de novo.</div>';
+      }
+    };
+  }
+
+  // --- Passo 4: Asaas ---
+  function renderPasso4Asaas(card) {
+    card.innerHTML =
+      '<h2>Conectar a Asaas</h2>' +
+      '<p class="sub">Cole abaixo a chave de API da sua conta Asaas (gateway de cobrança Pix/boleto/cartão). ' +
+      'Vamos confirmar que ela é válida antes de guardar.</p>' +
+      '<div id="erro-p4"></div>' +
+      '<label>Chave de API da Asaas</label>' +
+      '<input id="in-asaas-key" type="password" placeholder="$aact_...">' +
+      '<button class="principal" id="btn-p4">Conectar Asaas</button>';
+
+    document.getElementById('btn-p4').onclick = async function () {
+      var btn = this;
+      var chave = document.getElementById('in-asaas-key').value.trim();
+      var erroDiv = document.getElementById('erro-p4');
+      erroDiv.innerHTML = '';
+      if (!chave) {
+        erroDiv.innerHTML = '<div class="aviso erro">Cole a chave de API.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Conectando...';
+      var r = await chamar('asaas_conectar', { tenant_id: estado.tenant_id, api_key: chave });
+      btn.disabled = false; btn.textContent = 'Conectar Asaas';
+      if (!r.ok || !r.dados.conectado) {
+        erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível conectar.') + '</div>';
+        return;
+      }
+      erroDiv.innerHTML = '<div class="aviso ok">Conectado! Conta: ' + (r.dados.nome_conta || '') + '</div>';
+      setTimeout(avancar, 900);
+    };
+  }
+
+  // --- Passo 5: criar login ---
+  function renderPasso5Login(card) {
+    card.innerHTML =
+      '<h2>Criar seu login</h2>' +
+      '<p class="sub">Esse será o usuário e senha pra você entrar no painel.</p>' +
+      '<div id="erro-p5"></div>' +
+      '<label>Nome de usuário</label>' +
+      '<input id="in-usuario" placeholder="Ex: seunome">' +
+      '<label>Senha</label>' +
+      '<input id="in-senha" type="password" placeholder="Escolha uma senha forte">' +
+      '<button class="principal" id="btn-p5">Criar login e finalizar</button>';
+
+    document.getElementById('btn-p5').onclick = async function () {
+      var btn = this;
+      var usuario = document.getElementById('in-usuario').value.trim();
+      var senha = document.getElementById('in-senha').value;
+      var erroDiv = document.getElementById('erro-p5');
+      erroDiv.innerHTML = '';
+      if (!usuario || !senha) {
+        erroDiv.innerHTML = '<div class="aviso erro">Preencha usuário e senha.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Criando...';
+      var r = await chamar('criar_usuario_tenant', {
+        tenant_id: estado.tenant_id, nome: estado.nome_advogado || usuario, usuario: usuario, senha: senha
+      });
+      if (!r.ok || !r.dados.ok) {
+        btn.disabled = false; btn.textContent = 'Criar login e finalizar';
+        erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível criar o login.') + '</div>';
+        return;
+      }
+      // confirma que o login realmente funciona antes de dar como concluido
+      var rLogin = await chamar('login_tenant', { tenant_id: estado.tenant_id, usuario: usuario, senha: senha });
+      btn.disabled = false; btn.textContent = 'Criar login e finalizar';
+      if (!rLogin.ok || !rLogin.dados.ok) {
+        erroDiv.innerHTML = '<div class="aviso erro">Login criado, mas o teste de entrada falhou. Tente novamente.</div>';
+        return;
+      }
+      estado.usuario = usuario;
+      salvarEstado();
+      avancar();
+    };
+  }
+
+  // --- Passo 6: final ---
+  function renderPasso6Final(card) {
+    card.innerHTML =
+      '<h2>Cadastro concluído!</h2>' +
+      '<p class="sub">Guarde essas informações — você vai precisar delas pra entrar.</p>' +
+      '<div class="codigo-escritorio">' + estado.tenant_id + '</div>' +
+      '<div class="resumo-final">' +
+      '<b>Código do escritório:</b> ' + estado.tenant_id + '<br>' +
+      '<b>Usuário:</b> ' + (estado.usuario || '') + '<br>' +
+      '</div>' +
+      '<div class="aviso espera" style="margin-top:18px;">' +
+      'Seu login já funciona de verdade e foi testado agora. Uma observação importante: ' +
+      'as telas do painel (clientes, financeiro, contratos) ainda estão sendo adaptadas pra mostrar ' +
+      'os dados de cada escritório separadamente — essa parte está em construção pela equipe.' +
+      '</div>';
+  }
+
+  // Se ja tinha um cadastro em andamento neste navegador, comeca do passo 2
+  if (estado.tenant_id) estado.passo = 2;
+  render();
+})();
+</script>
+</body>
+</html>
