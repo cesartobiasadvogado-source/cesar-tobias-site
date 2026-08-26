@@ -846,6 +846,11 @@
             'Protocolos em órgãos públicos (INSS, prefeitura etc.), fora do Judiciário. Se preencher a data do lembrete, ' +
             'já cria uma tarefa automática na Agenda nessa data.' +
           '</p>' +
+          '<div style="padding:0 20px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<input type="file" id="procadm-analisar-input" accept="application/pdf,image/jpeg,image/png,image/webp" style="font-size:12.5px;max-width:260px;">' +
+            '<button type="button" id="procadm-analisar-btn" style="font-size:12.5px;padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Preencher com IA a partir do documento</button>' +
+            '<span id="procadm-analisar-status" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+          '</div>' +
           '<div class="proposta-form">' +
             '<input type="text" list="procadm-clientes-lista" placeholder="Cliente" data-campo="cliente" data-form="procadm_criar">' +
             '<datalist id="procadm-clientes-lista"></datalist>' +
@@ -1539,6 +1544,15 @@
     });
   }
 
+  function arquivoParaBase64ProcAdm(arquivo) {
+    return arquivo.arrayBuffer().then(function (buffer) {
+      var binario = '';
+      var bytes = new Uint8Array(buffer);
+      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+      return btoa(binario);
+    });
+  }
+
   function wireProcessosAdministrativos() {
     var btnCriar = document.getElementById('procadm-btn-criar');
     var resultadoEl = document.getElementById('procadm-resultado');
@@ -1555,6 +1569,55 @@
         .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
     }
 
+    var btnAnalisar = document.getElementById('procadm-analisar-btn');
+    var inputAnalisar = document.getElementById('procadm-analisar-input');
+    var statusAnalisar = document.getElementById('procadm-analisar-status');
+    var arquivoAnalisadoBase64 = null;
+    var arquivoAnalisadoInfo = null;
+
+    if (btnAnalisar) {
+      btnAnalisar.addEventListener('click', function () {
+        var arquivo = inputAnalisar.files && inputAnalisar.files[0];
+        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+
+        var textoOriginal = btnAnalisar.textContent;
+        btnAnalisar.disabled = true;
+        btnAnalisar.textContent = 'Analisando...';
+        statusAnalisar.textContent = '';
+
+        arquivoParaBase64ProcAdm(arquivo).then(function (base64) {
+          arquivoAnalisadoBase64 = base64;
+          arquivoAnalisadoInfo = { nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream' };
+          return apiPostJson('/api/painel?acao=processo_administrativo_analisar', {
+            mimetype: arquivo.type || 'application/octet-stream', dados_base64: base64
+          });
+        }).then(function (dados) {
+          var campoCliente = document.querySelector('[data-form="procadm_criar"][data-campo="cliente"]');
+          var campoOrgao = document.querySelector('[data-form="procadm_criar"][data-campo="orgao"]');
+          var campoProtocolo = document.querySelector('[data-form="procadm_criar"][data-campo="numero_protocolo"]');
+          if (dados.cliente_sugerido && campoCliente) campoCliente.value = dados.cliente_sugerido;
+          if (dados.orgao && campoOrgao) campoOrgao.value = dados.orgao;
+          if (dados.numero_protocolo && campoProtocolo) campoProtocolo.value = dados.numero_protocolo;
+
+          if (dados.cliente_sugerido && dados.cliente_encontrado) {
+            statusAnalisar.textContent = 'Preenchido. Cliente encontrado: ' + dados.cliente_sugerido + '. Confira antes de criar.';
+          } else if (dados.cliente_sugerido) {
+            statusAnalisar.textContent = 'Preenchido, mas não achei "' + dados.cliente_sugerido + '" cadastrado -- confira o nome do cliente.';
+          } else {
+            statusAnalisar.textContent = 'Não consegui identificar o cliente no documento -- preencha manualmente.';
+          }
+        }).catch(function (erro) {
+          statusAnalisar.textContent = (erro && erro.message) || 'Não foi possível analisar o documento agora.';
+          arquivoAnalisadoBase64 = null;
+          arquivoAnalisadoInfo = null;
+        }).finally(function () {
+          btnAnalisar.disabled = false;
+          btnAnalisar.textContent = textoOriginal;
+        });
+      });
+    }
+
     btnCriar.addEventListener('click', function () {
       var campos = document.querySelectorAll('[data-form="procadm_criar"]');
       var corpo = { op: 'criar' };
@@ -1569,9 +1632,28 @@
       resultadoEl.textContent = '';
 
       apiPostJson('/api/painel?acao=processos_administrativos', corpo)
-        .then(function () {
+        .then(function (dados) {
           resultadoEl.textContent = 'Processo criado.';
           campos.forEach(function (campo) { campo.value = ''; });
+
+          var novoId = dados.processo && dados.processo.id;
+          if (novoId && arquivoAnalisadoBase64 && arquivoAnalisadoInfo) {
+            var infoParaAnexar = arquivoAnalisadoInfo;
+            var base64ParaAnexar = arquivoAnalisadoBase64;
+            arquivoAnalisadoBase64 = null;
+            arquivoAnalisadoInfo = null;
+            if (inputAnalisar) inputAnalisar.value = '';
+            if (statusAnalisar) statusAnalisar.textContent = '';
+            return apiPostJson('/api/painel?acao=processo_administrativo_anexar', {
+              id: novoId, nome_arquivo: infoParaAnexar.nome_arquivo, mimetype: infoParaAnexar.mimetype, dados_base64: base64ParaAnexar
+            }).then(function () {
+              resultadoEl.textContent = 'Processo criado e documento anexado.';
+            }).catch(function () {
+              resultadoEl.textContent = 'Processo criado, mas não consegui anexar o documento -- anexe manualmente na ficha dele.';
+            });
+          }
+        })
+        .then(function () {
           carregarProcessosAdministrativos();
         })
         .catch(function (erro) {

@@ -202,6 +202,26 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_administrativo_analisar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlAnalisar = base + '?action=painel_processo_administrativo_analisar&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlAnalisar, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mimetype: corpo.mimetype, dados_base64: corpo.dados_base64 })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao analisar o documento.' });
+    }
+    return;
+  }
+
   if (acao === 'processo_administrativo_documento') {
     const idDocProcAdm = (req.query && req.query.id) || '';
     try {
