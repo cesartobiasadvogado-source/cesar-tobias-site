@@ -86,6 +86,7 @@
   <div class="passos" id="barra-passos"></div>
 
   <div class="card" id="card-conteudo"></div>
+  <p id="link-novo-cadastro" style="display:none; text-align:center; margin-top:16px; cursor:pointer; text-decoration:underline; font-size:13.5px; color:var(--ink-soft);">Não é você? Começar um cadastro novo</p>
 </div>
 
 <script>
@@ -487,7 +488,20 @@
   }
 
   // Se ja tinha um cadastro em andamento neste navegador, comeca do passo 2
-  if (estado.tenant_id) estado.passo = 2;
+  if (estado.tenant_id) {
+    estado.passo = 2;
+    document.getElementById('link-novo-cadastro').style.display = 'block';
+  }
+  document.getElementById('link-novo-cadastro').onclick = function () {
+    localStorage.removeItem('cadastro_tenant_id');
+    estado.tenant_id = '';
+    estado.nome_advogado = '';
+    estado.usuario = '';
+    estado.dadosPasso1 = null;
+    estado.passo = 1;
+    this.style.display = 'none';
+    render();
+  };
   render();
 })();
 </script>
