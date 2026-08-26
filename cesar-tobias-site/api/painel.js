@@ -135,6 +135,28 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'atualizar_tenant') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(base + '?action=atualizar_tenant' + segredoQS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: corpo.tenant_id, nome_advogado: corpo.nome_advogado, nome_escritorio: corpo.nome_escritorio,
+          cpf: corpo.cpf, rg: corpo.rg, cidade_escritorio: corpo.cidade_escritorio,
+        })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao atualizar seus dados.' });
+    }
+    return;
+  }
+
   if (acao === 'criar_usuario_tenant') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });

@@ -139,7 +139,7 @@
       7: renderPasso7Final,
     };
     passos[estado.passo](card);
-    if (estado.passo > 2 && estado.passo < TOTAL_PASSOS) {
+    if (estado.passo > 1 && estado.passo < TOTAL_PASSOS) {
       var btnVoltar = document.createElement('button');
       btnVoltar.className = 'secundario';
       btnVoltar.textContent = '← Voltar';
@@ -163,26 +163,29 @@
 
   // --- Passo 1: dados do advogado ---
   function renderPasso1Dados(card) {
+    var editando = !!estado.tenant_id;
+    var d = estado.dadosPasso1 || {};
     card.innerHTML =
       '<h2>Seus dados</h2>' +
       '<p class="sub">Usamos o número da OAB como identificador único do seu cadastro. CPF, RG e cidade ' +
       'são usados pra preencher automaticamente os contratos e procurações gerados pela plataforma.</p>' +
       '<div id="erro-p1"></div>' +
       '<label>Nome completo</label>' +
-      '<input id="in-nome" placeholder="Seu nome completo">' +
+      '<input id="in-nome" placeholder="Seu nome completo" value="' + (d.nome || '') + '">' +
       '<div class="linha">' +
-      '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345"></div>' +
-      '<div><label>UF</label><input id="in-oab-uf" placeholder="Ex: SP" maxlength="2" style="text-transform:uppercase"></div>' +
+      '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345" value="' + (d.oabNum || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
+      '<div><label>UF</label><input id="in-oab-uf" placeholder="Ex: SP" maxlength="2" style="text-transform:uppercase" value="' + (d.oabUf || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
       '</div>' +
       '<div class="linha">' +
-      '<div><label>CPF</label><input id="in-cpf" placeholder="000.000.000-00"></div>' +
-      '<div><label>RG</label><input id="in-rg" placeholder="Número do RG"></div>' +
+      '<div><label>CPF</label><input id="in-cpf" placeholder="000.000.000-00" value="' + (d.cpf || '') + '"></div>' +
+      '<div><label>RG</label><input id="in-rg" placeholder="Número do RG" value="' + (d.rg || '') + '"></div>' +
       '</div>' +
       '<label>Cidade/UF do escritório</label>' +
-      '<input id="in-cidade" placeholder="Ex: São Paulo/SP">' +
+      '<input id="in-cidade" placeholder="Ex: São Paulo/SP" value="' + (d.cidade || '') + '">' +
       '<label>Nome do escritório (opcional)</label>' +
-      '<input id="in-escritorio" placeholder="Nome do seu escritório">' +
-      '<button class="principal" id="btn-p1">Criar meu cadastro</button>';
+      '<input id="in-escritorio" placeholder="Nome do seu escritório" value="' + (d.escritorio || '') + '">' +
+      (editando ? '<p class="sub" style="margin:-4px 0 16px;">O número e a UF da OAB não podem ser alterados aqui, porque são o identificador do seu cadastro.</p>' : '') +
+      '<button class="principal" id="btn-p1">' + (editando ? 'Salvar alterações' : 'Criar meu cadastro') + '</button>';
 
     document.getElementById('btn-p1').onclick = async function () {
       var btn = this;
@@ -199,17 +202,23 @@
         erroDiv.innerHTML = '<div class="aviso erro">Preencha nome, número e UF da OAB.</div>';
         return;
       }
-      btn.disabled = true; btn.textContent = 'Criando...';
-      var r = await chamar('criar_tenant', {
-        nome_advogado: nome, oab_numero: oabNum, oab_uf: oabUf, nome_escritorio: escritorio,
-        cpf: cpf, rg: rg, cidade_escritorio: cidade,
-      });
-      btn.disabled = false; btn.textContent = 'Criar meu cadastro';
+      estado.dadosPasso1 = { nome: nome, oabNum: oabNum, oabUf: oabUf, cpf: cpf, rg: rg, cidade: cidade, escritorio: escritorio };
+      btn.disabled = true; btn.textContent = editando ? 'Salvando...' : 'Criando...';
+      var r = editando
+        ? await chamar('atualizar_tenant', {
+            tenant_id: estado.tenant_id, nome_advogado: nome, nome_escritorio: escritorio,
+            cpf: cpf, rg: rg, cidade_escritorio: cidade,
+          })
+        : await chamar('criar_tenant', {
+            nome_advogado: nome, oab_numero: oabNum, oab_uf: oabUf, nome_escritorio: escritorio,
+            cpf: cpf, rg: rg, cidade_escritorio: cidade,
+          });
+      btn.disabled = false; btn.textContent = editando ? 'Salvar alterações' : 'Criar meu cadastro';
       if (!r.ok || !r.dados.ok) {
-        erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível criar o cadastro.') + '</div>';
+        erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível salvar.') + '</div>';
         return;
       }
-      estado.tenant_id = r.dados.tenant_id;
+      if (!editando) estado.tenant_id = r.dados.tenant_id;
       estado.nome_advogado = nome;
       salvarEstado();
       avancar();
