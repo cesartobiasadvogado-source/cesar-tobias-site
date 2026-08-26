@@ -846,10 +846,20 @@
             'Protocolos em órgãos públicos (INSS, prefeitura etc.), fora do Judiciário. Se preencher a data do lembrete, ' +
             'já cria uma tarefa automática na Agenda nessa data.' +
           '</p>' +
-          '<div style="padding:0 20px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-            '<input type="file" id="procadm-analisar-input" accept="application/pdf,image/jpeg,image/png,image/webp" style="font-size:12.5px;max-width:260px;">' +
-            '<button type="button" id="procadm-analisar-btn" style="font-size:12.5px;padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Preencher com IA a partir do documento</button>' +
-            '<span id="procadm-analisar-status" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+          '<div style="padding:0 20px 16px;">' +
+            '<div class="audiencia-upload-dropzone" id="procadm-analisar-dropzone" style="max-width:420px;padding:16px;">' +
+              '<div class="audiencia-upload-msg">' +
+                '<strong>Arraste o protocolo aqui</strong>' +
+                '<span>PDF, JPG, PNG ou WEBP · até 4 MB</span>' +
+                '<button type="button" id="procadm-analisar-escolher">Escolher arquivo</button>' +
+              '</div>' +
+              '<input type="file" id="procadm-analisar-input" accept="application/pdf,image/jpeg,image/png,image/webp" class="hidden">' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
+              '<span id="procadm-analisar-nome-arquivo" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+              '<button type="button" id="procadm-analisar-btn" style="font-size:12.5px;padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Preencher com IA a partir do documento</button>' +
+              '<span id="procadm-analisar-status" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+            '</div>' +
           '</div>' +
           '<div class="proposta-form">' +
             '<input type="text" list="procadm-clientes-lista" placeholder="Cliente" data-campo="cliente" data-form="procadm_criar">' +
@@ -1572,8 +1582,50 @@
     var btnAnalisar = document.getElementById('procadm-analisar-btn');
     var inputAnalisar = document.getElementById('procadm-analisar-input');
     var statusAnalisar = document.getElementById('procadm-analisar-status');
+    var dropzoneAnalisar = document.getElementById('procadm-analisar-dropzone');
+    var escolherAnalisar = document.getElementById('procadm-analisar-escolher');
+    var nomeArquivoAnalisar = document.getElementById('procadm-analisar-nome-arquivo');
     var arquivoAnalisadoBase64 = null;
     var arquivoAnalisadoInfo = null;
+
+    function selecionarArquivoProcAdm(arquivo) {
+      if (!arquivo) return;
+      var dt = new DataTransfer();
+      dt.items.add(arquivo);
+      inputAnalisar.files = dt.files;
+      if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = arquivo.name;
+      if (statusAnalisar) statusAnalisar.textContent = '';
+      arquivoAnalisadoBase64 = null;
+      arquivoAnalisadoInfo = null;
+    }
+
+    if (dropzoneAnalisar && inputAnalisar) {
+      if (escolherAnalisar) escolherAnalisar.addEventListener('click', function () { inputAnalisar.click(); });
+      inputAnalisar.addEventListener('change', function () {
+        if (inputAnalisar.files[0]) {
+          if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = inputAnalisar.files[0].name;
+          if (statusAnalisar) statusAnalisar.textContent = '';
+          arquivoAnalisadoBase64 = null;
+          arquivoAnalisadoInfo = null;
+        }
+      });
+      ['dragenter', 'dragover'].forEach(function (ev) {
+        dropzoneAnalisar.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropzoneAnalisar.classList.add('arrastando');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function (ev) {
+        dropzoneAnalisar.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropzoneAnalisar.classList.remove('arrastando');
+        });
+      });
+      dropzoneAnalisar.addEventListener('drop', function (e) {
+        var arquivo = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (arquivo) selecionarArquivoProcAdm(arquivo);
+      });
+    }
 
     if (btnAnalisar) {
       btnAnalisar.addEventListener('click', function () {
@@ -1644,6 +1696,7 @@
             arquivoAnalisadoInfo = null;
             if (inputAnalisar) inputAnalisar.value = '';
             if (statusAnalisar) statusAnalisar.textContent = '';
+            if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = '';
             return apiPostJson('/api/painel?acao=processo_administrativo_anexar', {
               id: novoId, nome_arquivo: infoParaAnexar.nome_arquivo, mimetype: infoParaAnexar.mimetype, dados_base64: base64ParaAnexar
             }).then(function () {
