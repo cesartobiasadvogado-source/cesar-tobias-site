@@ -91,7 +91,7 @@
 <script>
 (function () {
   var API = '/api/painel';
-  var TOTAL_PASSOS = 6;
+  var TOTAL_PASSOS = 7;
   var estado = {
     passo: 1,
     tenant_id: localStorage.getItem('cadastro_tenant_id') || '',
@@ -135,7 +135,8 @@
       3: renderPasso3WhatsApp,
       4: renderPasso4Asaas,
       5: renderPasso5Login,
-      6: renderPasso6Final,
+      6: renderPasso6Logo,
+      7: renderPasso7Final,
     };
     passos[estado.passo](card);
   }
@@ -150,7 +151,8 @@
   function renderPasso1Dados(card) {
     card.innerHTML =
       '<h2>Seus dados</h2>' +
-      '<p class="sub">Usamos o número da OAB como identificador único do seu cadastro.</p>' +
+      '<p class="sub">Usamos o número da OAB como identificador único do seu cadastro. CPF, RG e cidade ' +
+      'são usados pra preencher automaticamente os contratos e procurações gerados pela plataforma.</p>' +
       '<div id="erro-p1"></div>' +
       '<label>Nome completo</label>' +
       '<input id="in-nome" placeholder="Seu nome completo">' +
@@ -158,6 +160,12 @@
       '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345"></div>' +
       '<div><label>UF</label><input id="in-oab-uf" placeholder="Ex: SP" maxlength="2" style="text-transform:uppercase"></div>' +
       '</div>' +
+      '<div class="linha">' +
+      '<div><label>CPF</label><input id="in-cpf" placeholder="000.000.000-00"></div>' +
+      '<div><label>RG</label><input id="in-rg" placeholder="Número do RG"></div>' +
+      '</div>' +
+      '<label>Cidade/UF do escritório</label>' +
+      '<input id="in-cidade" placeholder="Ex: São Paulo/SP">' +
       '<label>Nome do escritório (opcional)</label>' +
       '<input id="in-escritorio" placeholder="Nome do seu escritório">' +
       '<button class="principal" id="btn-p1">Criar meu cadastro</button>';
@@ -167,6 +175,9 @@
       var nome = document.getElementById('in-nome').value.trim();
       var oabNum = document.getElementById('in-oab-num').value.trim();
       var oabUf = document.getElementById('in-oab-uf').value.trim();
+      var cpf = document.getElementById('in-cpf').value.trim();
+      var rg = document.getElementById('in-rg').value.trim();
+      var cidade = document.getElementById('in-cidade').value.trim();
       var escritorio = document.getElementById('in-escritorio').value.trim();
       var erroDiv = document.getElementById('erro-p1');
       erroDiv.innerHTML = '';
@@ -175,7 +186,10 @@
         return;
       }
       btn.disabled = true; btn.textContent = 'Criando...';
-      var r = await chamar('criar_tenant', { nome_advogado: nome, oab_numero: oabNum, oab_uf: oabUf, nome_escritorio: escritorio });
+      var r = await chamar('criar_tenant', {
+        nome_advogado: nome, oab_numero: oabNum, oab_uf: oabUf, nome_escritorio: escritorio,
+        cpf: cpf, rg: rg, cidade_escritorio: cidade,
+      });
       btn.disabled = false; btn.textContent = 'Criar meu cadastro';
       if (!r.ok || !r.dados.ok) {
         erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível criar o cadastro.') + '</div>';
@@ -332,8 +346,99 @@
     };
   }
 
-  // --- Passo 6: final ---
-  function renderPasso6Final(card) {
+  // --- Passo 6: papel timbrado ---
+  function renderPasso6Logo(card) {
+    card.innerHTML =
+      '<h2>Seu papel timbrado</h2>' +
+      '<p class="sub">Envie uma imagem da folha do seu papel timbrado em branco (a folha inteira, no formato ' +
+      'vertical, tipo A4) — é isso que vai aparecer de fundo nos contratos e procurações gerados pra você. ' +
+      'Pode ser uma foto ou um print, a plataforma ajusta o tamanho sozinha.</p>' +
+      '<div id="erro-p6"></div>' +
+      '<input type="file" id="in-logo" accept="image/*" style="margin-bottom:16px;">' +
+      '<div id="previa-logo" style="margin-bottom:16px;"></div>' +
+      '<button class="principal" id="btn-p6">Enviar e continuar</button>' +
+      '<button class="secundario" id="btn-p6-pular">Pular por enquanto (uso a padrão)</button>';
+
+    document.getElementById('btn-p6-pular').onclick = function () { avancar(); };
+
+    document.getElementById('in-logo').onchange = function (ev) {
+      var arquivo = ev.target.files[0];
+      var previa = document.getElementById('previa-logo');
+      previa.innerHTML = '';
+      if (!arquivo) return;
+      var img = new Image();
+      var leitor = new FileReader();
+      leitor.onload = function (e) { img.src = e.target.result; };
+      img.onload = function () {
+        var previewImg = document.createElement('img');
+        previewImg.src = img.src;
+        previewImg.style.maxWidth = '160px';
+        previewImg.style.border = '1px solid var(--line)';
+        previewImg.style.borderRadius = '6px';
+        previa.appendChild(previewImg);
+      };
+      leitor.readAsDataURL(arquivo);
+    };
+
+    document.getElementById('btn-p6').onclick = async function () {
+      var btn = this;
+      var arquivo = document.getElementById('in-logo').files[0];
+      var erroDiv = document.getElementById('erro-p6');
+      erroDiv.innerHTML = '';
+      if (!arquivo) {
+        erroDiv.innerHTML = '<div class="aviso erro">Escolha uma imagem primeiro (ou clique em "Pular por enquanto").</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Processando...';
+      try {
+        var logoBase64 = await redimensionarParaTimbrado(arquivo);
+        var r = await chamar('upload_logo_tenant', { tenant_id: estado.tenant_id, logo_base64: logoBase64 });
+        btn.disabled = false; btn.textContent = 'Enviar e continuar';
+        if (!r.ok || !r.dados.ok) {
+          erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível enviar a imagem.') + '</div>';
+          return;
+        }
+        erroDiv.innerHTML = '<div class="aviso ok">Papel timbrado enviado!</div>';
+        setTimeout(avancar, 700);
+      } catch (e) {
+        btn.disabled = false; btn.textContent = 'Enviar e continuar';
+        erroDiv.innerHTML = '<div class="aviso erro">Não foi possível processar essa imagem. Tente outro arquivo.</div>';
+      }
+    };
+  }
+
+  // Redimensiona a imagem no navegador pra caber num A4 vertical (proporcao 1:1.414), pra nao
+  // mandar arquivo gigante pra Lambda -- devolve so o base64, sem o prefixo "data:image/...".
+  function redimensionarParaTimbrado(arquivo) {
+    return new Promise(function (resolve, reject) {
+      var leitor = new FileReader();
+      leitor.onerror = reject;
+      leitor.onload = function (e) {
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function () {
+          var larguraAlvo = 800, alturaAlvo = Math.round(800 * 1.414);
+          var canvas = document.createElement('canvas');
+          canvas.width = larguraAlvo; canvas.height = alturaAlvo;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, larguraAlvo, alturaAlvo);
+          // "contain": encaixa a imagem inteira dentro do A4, sem cortar nem distorcer
+          var escala = Math.min(larguraAlvo / img.width, alturaAlvo / img.height);
+          var w = img.width * escala, h = img.height * escala;
+          var x = (larguraAlvo - w) / 2, y = (alturaAlvo - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl.split(',')[1]);
+        };
+        img.src = e.target.result;
+      };
+      leitor.readAsDataURL(arquivo);
+    });
+  }
+
+  // --- Passo 7: final ---
+  function renderPasso7Final(card) {
     card.innerHTML =
       '<h2>Cadastro concluído!</h2>' +
       '<p class="sub">Guarde essas informações — você vai precisar delas pra entrar.</p>' +
