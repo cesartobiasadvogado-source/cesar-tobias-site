@@ -161,6 +161,7 @@
   .subtab-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
   .link-original { color: var(--accent); font-size: 12.5px; text-decoration: none; }
   .link-original:hover { text-decoration: underline; }
+  .aviso-tenant { font-size: 13px; padding: 11px 13px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); line-height: 1.5; }
   .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
   .chip.crit { background: var(--crit-soft); color: var(--crit); }
   .chip.good { background: var(--good-soft); color: var(--good); }
@@ -369,9 +370,11 @@
     <div class="gate-card">
       <p class="gate-title">Painel do Escritório</p>
       <p class="gate-sub">Acesso restrito. Entre com seu usuário.</p>
+      <input type="text" id="tenant-id-input" placeholder="Código do escritório" style="display:none;">
       <input type="text" id="usuario-input" placeholder="Usuário" autocomplete="username">
       <input type="password" id="senha-input" placeholder="Senha" autocomplete="current-password">
       <button id="btn-entrar">Entrar</button>
+      <p class="gate-sub" id="toggle-escritorio-parceiro" style="cursor:pointer; text-decoration:underline; margin-top:10px;">Sou um escritório parceiro</p>
       <div class="gate-error" id="gate-error" aria-live="polite"></div>
     </div>
   </div>
@@ -379,8 +382,8 @@
   <div id="shell" class="shell hidden">
     <aside class="sidebar">
       <div class="sidebar-wordmark">
-        <div class="nome">César Tobias</div>
-        <small class="sub">Advocacia</small>
+        <div class="nome" id="sidebar-nome">César Tobias</div>
+        <small class="sub" id="sidebar-sub">Advocacia</small>
       </div>
 
       <nav class="nav-grupo">
@@ -499,6 +502,20 @@
   var senhaInput = document.getElementById('senha-input');
   var btnEntrar = document.getElementById('btn-entrar');
   var gateError = document.getElementById('gate-error');
+  var tenantIdInput = document.getElementById('tenant-id-input');
+  var toggleEscritorioParceiro = document.getElementById('toggle-escritorio-parceiro');
+
+  var tenantIdSalvo = localStorage.getItem('cadastro_tenant_id');
+  if (tenantIdSalvo) {
+    tenantIdInput.value = tenantIdSalvo;
+    tenantIdInput.style.display = '';
+    toggleEscritorioParceiro.style.display = 'none';
+  }
+  toggleEscritorioParceiro.addEventListener('click', function () {
+    tenantIdInput.style.display = '';
+    toggleEscritorioParceiro.style.display = 'none';
+    tenantIdInput.focus();
+  });
 
   function aplicarTema(tema) {
     if (tema === 'dark') {
@@ -675,6 +692,19 @@
   }
 
   function renderPainel(dados) {
+    if (dados.nome_escritorio) document.getElementById('sidebar-nome').textContent = dados.nome_escritorio;
+    if (dados.nome_advogado) document.getElementById('sidebar-sub').textContent = dados.nome_advogado;
+    var avisoTenant = document.getElementById('aviso-tenant-incompleto');
+    if (avisoTenant) avisoTenant.remove();
+    if (sessionStorage.getItem('painel_token') && sessionStorage.getItem('painel_token').indexOf(':') !== -1) {
+      var aviso = document.createElement('div');
+      aviso.id = 'aviso-tenant-incompleto';
+      aviso.className = 'aviso-tenant';
+      aviso.style.margin = '0 0 18px';
+      aviso.textContent = 'Agenda e geração de contrato ainda não estão adaptadas pro seu escritório — essa parte está em construção pela equipe.';
+      var conteudoEl = document.getElementById('conteudo');
+      if (conteudoEl) conteudoEl.insertBefore(aviso, conteudoEl.firstChild);
+    }
     var perms = dados.usuario_permissoes || [];
     var f = dados.financeiro;
     var p = dados.pje;
@@ -2809,11 +2839,14 @@
 
   function fazerLogin(usuario, senha) {
     gateError.textContent = '';
-    fetch('/api/painel?acao=login', {
+    var tenantId = tenantIdInput.value.trim();
+    var acaoLogin = tenantId ? 'login_tenant' : 'login';
+    var corpoLogin = tenantId ? { tenant_id: tenantId, usuario: usuario, senha: senha } : { usuario: usuario, senha: senha };
+    fetch('/api/painel?acao=' + acaoLogin, {
       method: 'POST',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario: usuario, senha: senha })
+      body: JSON.stringify(corpoLogin)
     })
       .then(function (r) {
         return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; });
