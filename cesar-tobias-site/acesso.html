@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>Acesso à Plataforma</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0B1929;
+      color: #F0EDE6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .logo-mark {
+      width: 110px;
+      height: 110px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 1.5px solid rgba(201,168,76,0.6);
+      margin-bottom: 16px;
+    }
+
+    .name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 500;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .title {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #C9A84C;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: #C9A84C;
+      opacity: 0.5;
+      margin-bottom: 28px;
+    }
+
+    .links {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .link-btn {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #132236;
+      border: 0.5px solid rgba(184,197,214,0.12);
+      border-radius: 12px;
+      padding: 14px 18px;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.2s, border-color 0.2s;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+    }
+    .link-btn:hover {
+      background: #1C3050;
+      border-color: rgba(201,168,76,0.3);
+    }
+
+    .link-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(201,168,76,0.1);
+      border: 0.5px solid rgba(201,168,76,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .link-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: #C9A84C;
+    }
+
+    .link-text { flex: 1; }
+    .link-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(184,197,214,0.55);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+      font-weight: 400;
+    }
+    .link-value {
+      font-size: 14px;
+      color: #D8E2EE;
+      font-weight: 400;
+    }
+
+    .link-chevron {
+      color: rgba(184,197,214,0.35);
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .footer {
+      margin-top: 36px;
+      font-size: 10px;
+      color: rgba(184,197,214,0.25);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <img src="./logo-mark.png" alt="Logo César Tobias Advocacia" class="logo-mark">
+
+    <div class="name">Acesso à Plataforma</div>
+    <div class="title">César Tobias Advocacia</div>
+    <div class="divider"></div>
+
+    <div class="links">
+
+      <!-- Painel do Advogado -->
+      <a class="link-btn" href="./painel.html">
+        <div class="link-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect>
+          </svg>
+        </div>
+        <div class="link-text">
+          <div class="link-label">Já sou cadastrado</div>
+          <div class="link-value">Painel do Advogado</div>
+        </div>
+        <span class="link-chevron">›</span>
+      </a>
+
+      <!-- Cadastro de advogado novo -->
+      <a class="link-btn" href="./cadastro-advogado.html">
+        <div class="link-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+          </svg>
+        </div>
+        <div class="link-text">
+          <div class="link-label">Sou advogado, quero contratar</div>
+          <div class="link-value">Cadastrar Meu Escritório</div>
+        </div>
+        <span class="link-chevron">›</span>
+      </a>
+
+      <!-- Portal do Cliente -->
+      <a class="link-btn" href="./portal.html">
+        <div class="link-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <div class="link-text">
+          <div class="link-label">Sou cliente</div>
+          <div class="link-value">Portal do Cliente</div>
+        </div>
+        <span class="link-chevron">›</span>
+      </a>
+
+    </div>
+
+    <div class="footer">© 2026 · César Tobias Advocacia</div>
+  </div>
+</body>
+</html>
