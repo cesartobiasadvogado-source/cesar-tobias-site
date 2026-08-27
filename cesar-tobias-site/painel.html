@@ -229,6 +229,32 @@
     .fluxo-no-entrada { animation: none !important; opacity: 1 !important; transform: none !important; }
   }
 
+  .alerta-inadimplencia {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 16px;
+    border-radius: 10px; background: var(--crit-soft); border: 1px solid var(--crit);
+    color: var(--crit); font-size: 13.5px; text-decoration: none; line-height: 1.5;
+  }
+  .alerta-inadimplencia:hover { filter: brightness(0.96); }
+  .alerta-inadimplencia b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .alerta-inadimplencia-icone { font-size: 16px; flex-shrink: 0; }
+
+  /* Status das Parcelas (donut) -- mesmo mundo visual escuro do Fluxo de Caixa Vivo. */
+  .status-card { background: #0a0e17; border-radius: 16px; padding: 26px 26px 22px; margin-top: 14px;
+    border: 1px solid rgba(124,140,240,0.18); display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
+  .status-donut-wrap { position: relative; flex-shrink: 0; width: 168px; height: 168px; }
+  .status-donut-total { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; }
+  .status-donut-total .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 26px; font-weight: 600; color: #e7eaf0; line-height: 1; }
+  .status-donut-total .lbl { font-size: 10px; color: #6b76a0; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+  .status-legenda { display: flex; flex-direction: column; gap: 9px; flex: 1 1 220px; min-width: 200px; }
+  .status-legenda-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #a7b0d6; }
+  .status-legenda-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .status-legenda-item b { margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: #e7eaf0; }
+  .status-legenda-pct { color: #6b76a0; font-size: 11.5px; min-width: 34px; text-align: right; }
+  .status-card-titulo { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    color: #8a95bd; width: 100%; margin-bottom: 4px; }
+
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
   .empty-state .msg { font-size: 13.5px; color: var(--ink-faint); }
@@ -792,6 +818,55 @@
     requestAnimationFrame(passo);
   }
 
+  var STATUS_PARCELA_CONFIG = [
+    { chave: 'Vencida', rotulo: 'Vencidas', cor: '#f0616c' },
+    { chave: 'Vence hoje', rotulo: 'Vencendo hoje', cor: '#f0a94e' },
+    { chave: 'A vencer', rotulo: 'A vencer', cor: '#6c8cf0' },
+    { chave: 'Paga', rotulo: 'Pagas', cor: '#5fd68f' },
+    { chave: 'Sem data de vencimento', rotulo: 'Sem data de vencimento', cor: '#4d5878' },
+  ];
+
+  function renderStatusParcelasDonut(statusObj) {
+    var itens = STATUS_PARCELA_CONFIG.map(function (cfg) {
+      return { rotulo: cfg.rotulo, cor: cfg.cor, qtd: statusObj[cfg.chave] || 0 };
+    });
+    var total = itens.reduce(function (acc, i) { return acc + i.qtd; }, 0);
+
+    if (total === 0) {
+      return '<div class="status-card"><div class="status-card-titulo">Status das Parcelas</div>' +
+        '<div class="fluxo-vazio" style="padding:20px 0;">Nenhuma parcela cadastrada ainda.</div></div>';
+    }
+
+    var raio = 70, centro = 84, circunferencia = 2 * Math.PI * raio;
+    var acumulado = 0;
+    var arcos = itens.filter(function (i) { return i.qtd > 0; }).map(function (i) {
+      var fracao = i.qtd / total;
+      var comprimento = fracao * circunferencia;
+      var offset = circunferencia - acumulado;
+      acumulado += comprimento;
+      return '<circle cx="' + centro + '" cy="' + centro + '" r="' + raio + '" fill="none" stroke="' + i.cor + '" ' +
+        'stroke-width="22" stroke-dasharray="' + comprimento + ' ' + (circunferencia - comprimento) + '" ' +
+        'stroke-dashoffset="' + offset + '" transform="rotate(-90 ' + centro + ' ' + centro + ')" />';
+    }).join('');
+
+    var legenda = itens.filter(function (i) { return i.qtd > 0; }).map(function (i) {
+      var pct = Math.round((i.qtd / total) * 100);
+      return '<div class="status-legenda-item">' +
+        '<span class="status-legenda-swatch" style="background:' + i.cor + ';"></span>' +
+        i.rotulo + '<span class="status-legenda-pct">' + pct + '%</span><b>' + i.qtd + '</b>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="status-card">' +
+      '<div class="status-card-titulo">Status das Parcelas</div>' +
+      '<div class="status-donut-wrap">' +
+        '<svg width="168" height="168" viewBox="0 0 168 168">' + arcos + '</svg>' +
+        '<div class="status-donut-total"><div class="num">' + total + '</div><div class="lbl">parcelas</div></div>' +
+      '</div>' +
+      '<div class="status-legenda">' + legenda + '</div>' +
+    '</div>';
+  }
+
   function desenharFluxoCaixa(evolucaoFiltrada) {
     var wrap = document.getElementById('grafico-financeiro-svg');
     if (!wrap) return;
@@ -1089,11 +1164,30 @@
         ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)'
         : 'saldo de honorários em aberto';
 
+      var exitoResumo = f.exito || { total_previsto: 0, total_recebido: 0, total_a_receber: 0, casos: [] };
+      var subEmAtraso = f.parcelas_vencidas.length
+        ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)'
+        : 'nenhuma parcela vencida';
+      var subExito = exitoResumo.casos.length
+        ? exitoResumo.casos.length + ' caso(s) de êxito cadastrado(s)'
+        : 'nenhum caso de êxito cadastrado';
+
+      var htmlAlertaInadimplencia = f.total_vencido > 0
+        ? '<a href="#sec-vencidas" class="alerta-inadimplencia">' +
+            '<span class="alerta-inadimplencia-icone">⚠</span>' +
+            '<span><b>R$ ' + fmtMoeda(f.total_vencido) + '</b> em atraso — ' + f.parcelas_vencidas.length + ' parcela(s) vencida(s). Ver cobrança pendente →</span>' +
+          '</a>'
+        : '';
+
       htmlFinanceiro =
-        '<section id="sec-visao-geral"><p class="section-label">Visão Financeira</p><div class="stat-grid">' +
+        '<section id="sec-visao-geral"><p class="section-label">Visão Financeira</p>' +
+        htmlAlertaInadimplencia +
+        '<div class="stat-grid">' +
           renderCardValor('a_receber', f.total_a_receber, 'A Receber', subReceber) +
           '<div id="card-recebido-periodo" style="display:contents;">' + renderCardValor('recebido_periodo', somaRecebido(filtradoInicial), 'Recebido no Período', rotuloFiltro(filtroGraficoAtual)) + '</div>' +
           renderCardValor('valor_recebido', f.valor_recebido_geral, 'Total Acumulado', 'tudo que já entrou, desde o início') +
+          renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtraso) +
+          renderCardValor('exito_previsto', exitoResumo.total_previsto, 'Honorários de Êxito', subExito) +
         '</div>' +
         '<div class="fluxo-card">' +
           '<div class="fluxo-cabecalho">' +
@@ -1120,17 +1214,43 @@
               '</div>'
             : '') +
         '</div>' +
+        renderStatusParcelasDonut(f.parcelas_por_status || {}) +
         '<p class="section-label" style="margin-top:22px;">Outros indicadores</p><div class="stat-grid">' +
           '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
+          '<div class="stat-card"><div class="stat-value">' + f.contratos_encerrados + '</div><div class="stat-label">Contratos encerrados</div><div class="stat-sub">concluídos</div></div>' +
           '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
           renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
         '</div></section>';
+
+      var htmlRanking;
+      var rankingLista = f.ranking_maiores_devedores || [];
+      if (rankingLista.length === 0) {
+        htmlRanking = '<div class="empty-state"><div class="glyph">✓</div><div class="msg">Ninguém com saldo em aberto.</div></div>';
+      } else {
+        var maiorSaldoRanking = rankingLista[0].saldo || 1;
+        htmlRanking = '<div class="table-scroll"><table style="min-width:380px;">' +
+          '<thead><tr><th>Cliente</th><th style="text-align:right">A receber</th></tr></thead><tbody>' +
+          rankingLista.map(function (r, idx) {
+            var pctBarra = Math.max(4, Math.round((r.saldo / maiorSaldoRanking) * 100));
+            return '<tr><td>' + (idx + 1) + '. ' + esc(r.nome) +
+              '<div style="height:4px;border-radius:2px;background:var(--surface-sunken);margin-top:5px;overflow:hidden;">' +
+                '<div style="height:100%;width:' + pctBarra + '%;background:var(--accent);"></div>' +
+              '</div></td>' +
+              '<td class="num">R$ ' + fmtMoeda(r.saldo) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>';
+      }
+      var painelRankingHtml =
+        '<div class="panel" id="sec-ranking-devedores">' +
+          '<div class="panel-header"><span class="panel-title">Maiores valores a receber</span></div>' +
+          htmlRanking +
+        '</div>';
 
       painelVencidasHtml =
         '<div class="panel" id="sec-vencidas">' +
           '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
           htmlVencidas +
-        '</div>';
+        '</div>' + painelRankingHtml;
     }
 
     var overviewLineHtml = '';
