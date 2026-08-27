@@ -195,8 +195,10 @@
   .fluxo-cabecalho { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; position: relative; z-index: 1; }
   .fluxo-titulo { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: #8a95bd; }
   .fluxo-filtros { display: flex; gap: 6px; flex-wrap: wrap; }
-  .fluxo-filtro-btn { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(124,140,240,0.25); background: rgba(124,140,240,0.08); color: #a7b0d6; cursor: pointer; font-family: inherit; }
-  .fluxo-filtro-btn.ativo { background: #6c8cf0; color: #0a0e17; border-color: #6c8cf0; }
+  .fluxo-filtro-btn { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+  .fluxo-filtro-btn.ativo { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .periodo-filtro-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .periodo-filtro-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-right: 4px; }
   .fluxo-legenda { display: flex; gap: 18px; flex-wrap: wrap; margin: 18px 0 4px; position: relative; z-index: 1; }
   .fluxo-legenda-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8a95bd; }
   .fluxo-legenda-swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -254,6 +256,26 @@
   .status-legenda-pct { color: #6b76a0; font-size: 11.5px; min-width: 34px; text-align: right; }
   .status-card-titulo { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
     color: #8a95bd; width: 100%; margin-bottom: 4px; }
+
+  .card-drill-link { margin-top: 8px; background: none; border: none; padding: 0; font-size: 12px;
+    color: var(--accent); cursor: pointer; font-family: inherit; text-decoration: underline; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,14,23,0.55); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.hidden { display: none; }
+  .modal-drill-caixa { background: var(--surface); border-radius: 12px; width: 100%; max-width: 560px;
+    max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    border: 1px solid var(--line); }
+  .modal-drill-cabecalho { display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .modal-drill-titulo { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+  .modal-drill-fechar { background: none; border: none; font-size: 15px; color: var(--ink-faint);
+    cursor: pointer; padding: 4px 6px; line-height: 1; }
+  .modal-drill-fechar:hover { color: var(--ink); }
+  .modal-drill-busca { padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .modal-drill-busca input { width: 100%; padding: 8px 12px; border: 1px solid var(--line);
+    border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; }
+  .modal-drill-corpo { overflow-y: auto; padding: 4px 0; }
 
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
@@ -575,6 +597,19 @@
     </div>
   </div>
 
+  <div id="modal-drill" class="modal-overlay hidden">
+    <div class="modal-drill-caixa">
+      <div class="modal-drill-cabecalho">
+        <span id="modal-drill-titulo" class="modal-drill-titulo">—</span>
+        <button type="button" id="modal-drill-fechar" class="modal-drill-fechar" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-drill-busca">
+        <input type="text" id="modal-drill-busca-input" placeholder="Buscar por cliente...">
+      </div>
+      <div id="modal-drill-corpo" class="modal-drill-corpo"></div>
+    </div>
+  </div>
+
 <script>
 (function () {
   var gate = document.getElementById('gate');
@@ -583,6 +618,80 @@
   var evolucaoMensalAtual = [];
   var filtroGraficoAtual = '6';
   var dadosPainelAtual = null;
+  var itensModalDrillAtual = [];
+
+  var ROTULO_STATUS_DRILL = {
+    'EmAberto': 'A Receber — parcelas em aberto',
+    'Paga': 'Parcelas pagas',
+    'Vencida': 'Parcelas vencidas',
+    'Vence hoje': 'Parcelas vencendo hoje',
+    'A vencer': 'Parcelas a vencer',
+    'Sem data de vencimento': 'Parcelas sem data de vencimento',
+  };
+
+  function renderModalDrillCorpo(itens) {
+    var corpo = document.getElementById('modal-drill-corpo');
+    if (!itens.length) {
+      corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum lançamento encontrado.</div></div>';
+      return;
+    }
+    corpo.innerHTML = '<div class="table-scroll"><table style="min-width:420px;">' +
+      '<thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Saldo</th><th></th></tr></thead><tbody>' +
+      itens.map(function (i) {
+        var classeChip = i.situacao === 'Vencida' ? 'crit' : (i.situacao === 'Paga' ? 'good' : (i.situacao === 'Vence hoje' ? 'warn' : 'neutral'));
+        return '<tr><td>' + esc(i.nome) + '</td><td>' + esc(i.vencimento || '—') + '</td>' +
+          '<td class="num">R$ ' + fmtMoeda(i.saldo) + '</td>' +
+          '<td><span class="chip ' + classeChip + '">' + esc(i.situacao) + (i.dias_atraso > 0 ? ' · ' + i.dias_atraso + 'd' : '') + '</span></td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  function abrirModalDrill(status, ancoraSecao) {
+    var overlay = document.getElementById('modal-drill');
+    if (ancoraSecao) {
+      overlay.classList.add('hidden');
+      var alvo = document.getElementById(ancoraSecao);
+      if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    var titulo = document.getElementById('modal-drill-titulo');
+    var busca = document.getElementById('modal-drill-busca-input');
+    titulo.textContent = ROTULO_STATUS_DRILL[status] || status;
+    busca.value = '';
+    document.getElementById('modal-drill-corpo').innerHTML = '<div class="empty-state"><div class="msg">Carregando...</div></div>';
+    overlay.classList.remove('hidden');
+    apiPostJson('/api/painel?acao=executar', { tipo: 'listar_parcelas_status', status: status })
+      .then(function (r) {
+        itensModalDrillAtual = r.itens || [];
+        renderModalDrillCorpo(itensModalDrillAtual);
+      })
+      .catch(function () {
+        document.getElementById('modal-drill-corpo').innerHTML = '<div class="aviso-tenant">Não foi possível carregar agora. Tente de novo.</div>';
+      });
+  }
+
+  function wireModalDrill() {
+    var overlay = document.getElementById('modal-drill');
+    var fechar = document.getElementById('modal-drill-fechar');
+    var busca = document.getElementById('modal-drill-busca-input');
+    fechar.addEventListener('click', function () { overlay.classList.add('hidden'); });
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) overlay.classList.add('hidden'); });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') overlay.classList.add('hidden');
+    });
+    busca.addEventListener('input', function () {
+      var termo = busca.value.trim().toLowerCase();
+      var filtrados = !termo ? itensModalDrillAtual : itensModalDrillAtual.filter(function (i) {
+        return i.nome.toLowerCase().indexOf(termo) !== -1;
+      });
+      renderModalDrillCorpo(filtrados);
+    });
+    document.addEventListener('click', function (ev) {
+      var alvo = ev.target.closest('[data-drill-status]');
+      if (!alvo) return;
+      abrirModalDrill(alvo.getAttribute('data-drill-status'), alvo.getAttribute('data-drill-ancora'));
+    });
+  }
   var usuarioInput = document.getElementById('usuario-input');
   var senhaInput = document.getElementById('senha-input');
   var btnEntrar = document.getElementById('btn-entrar');
@@ -750,9 +859,13 @@
     return localStorage.getItem('painel_oculto_' + chave) === '1';
   }
 
-  function renderCardValor(chave, valor, rotulo, sub) {
+  function renderCardValor(chave, valor, rotulo, sub, drillStatus, drillAncora) {
     var oculto = valorOculto(chave);
     var textoValor = oculto ? '••••••' : fmtMoeda(valor);
+    var linkDrill = (drillStatus || drillAncora)
+      ? '<button type="button" class="card-drill-link" data-drill-status="' + esc(drillStatus || '') + '"' +
+          (drillAncora ? ' data-drill-ancora="' + esc(drillAncora) + '"' : '') + '>Ver lançamentos →</button>'
+      : '';
     return '<div class="stat-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
         '<div class="stat-value money">' + textoValor + '</div>' +
@@ -762,6 +875,7 @@
       '</div>' +
       '<div class="stat-label">' + rotulo + '</div>' +
       '<div class="stat-sub">' + sub + '</div>' +
+      linkDrill +
     '</div>';
   }
 
@@ -788,6 +902,23 @@
 
   function filtrarEvolucao(evolucao, filtro) {
     if (filtro === 'todos') return evolucao;
+    if (filtro === 'mes_atual') {
+      var mesAtual = new Date().toISOString().slice(0, 7);
+      return evolucao.filter(function (m) { return m.mes === mesAtual; });
+    }
+    if (filtro === 'mes_anterior') {
+      var dAnt = new Date(); dAnt.setDate(1); dAnt.setMonth(dAnt.getMonth() - 1);
+      var mesAnterior = dAnt.toISOString().slice(0, 7);
+      return evolucao.filter(function (m) { return m.mes === mesAnterior; });
+    }
+    if (filtro === 'ano_atual') {
+      var anoAtual = String(new Date().getFullYear());
+      return evolucao.filter(function (m) { return m.mes.slice(0, 4) === anoAtual; });
+    }
+    if (filtro === 'ano_anterior') {
+      var anoAnterior = String(new Date().getFullYear() - 1);
+      return evolucao.filter(function (m) { return m.mes.slice(0, 4) === anoAnterior; });
+    }
     return evolucao.slice(-parseInt(filtro, 10));
   }
 
@@ -795,8 +926,13 @@
     return evolucaoFiltrada.reduce(function (acc, m) { return acc + m.recebido; }, 0);
   }
 
+  var ROTULOS_FILTRO_PERIODO = {
+    'todos': 'em todo o período', 'mes_atual': 'este mês', 'mes_anterior': 'no mês anterior',
+    'ano_atual': 'este ano', 'ano_anterior': 'no ano anterior',
+  };
+
   function rotuloFiltro(filtro) {
-    return filtro === 'todos' ? 'em todo o período' : 'nos últimos ' + filtro + ' meses';
+    return ROTULOS_FILTRO_PERIODO[filtro] || ('nos últimos ' + filtro + ' meses');
   }
 
   function reduzMotion() {
@@ -828,7 +964,7 @@
 
   function renderStatusParcelasDonut(statusObj) {
     var itens = STATUS_PARCELA_CONFIG.map(function (cfg) {
-      return { rotulo: cfg.rotulo, cor: cfg.cor, qtd: statusObj[cfg.chave] || 0 };
+      return { chave: cfg.chave, rotulo: cfg.rotulo, cor: cfg.cor, qtd: statusObj[cfg.chave] || 0 };
     });
     var total = itens.reduce(function (acc, i) { return acc + i.qtd; }, 0);
 
@@ -851,7 +987,7 @@
 
     var legenda = itens.filter(function (i) { return i.qtd > 0; }).map(function (i) {
       var pct = Math.round((i.qtd / total) * 100);
-      return '<div class="status-legenda-item">' +
+      return '<div class="status-legenda-item" data-drill-status="' + esc(i.chave) + '" style="cursor:pointer;" title="Clique pra ver os lançamentos">' +
         '<span class="status-legenda-swatch" style="background:' + i.cor + ';"></span>' +
         i.rotulo + '<span class="status-legenda-pct">' + pct + '%</span><b>' + i.qtd + '</b>' +
       '</div>';
@@ -988,8 +1124,27 @@
     var cardRecebidoPeriodo = document.getElementById('card-recebido-periodo');
     if (cardRecebidoPeriodo) {
       cardRecebidoPeriodo.innerHTML = renderCardValor('recebido_periodo', somaRecebido(filtrado), 'Recebido no Período', rotuloFiltro(filtro));
-      wireOlhinhos(dadosPainelAtual);
     }
+    var f = dadosPainelAtual && dadosPainelAtual.financeiro;
+    if (f) {
+      var somaAReceberPeriodo = filtrado.reduce(function (acc, m) { return acc + m.a_receber; }, 0);
+      var somaVencidoPeriodo = filtrado.reduce(function (acc, m) { return acc + (m.vencido || 0); }, 0);
+      var cardAReceber = document.getElementById('card-a-receber');
+      if (cardAReceber) {
+        var subAReceber = filtro === 'todos'
+          ? (f.parcelas_vencidas.length ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)' : 'saldo de honorários em aberto')
+          : 'R$ ' + fmtMoeda(somaAReceberPeriodo) + ' com vencimento ' + rotuloFiltro(filtro);
+        cardAReceber.innerHTML = renderCardValor('a_receber', f.total_a_receber, 'A Receber', subAReceber, 'EmAberto');
+      }
+      var cardEmAtraso = document.getElementById('card-em-atraso');
+      if (cardEmAtraso) {
+        var subEmAtrasoAtual = filtro === 'todos'
+          ? (f.parcelas_vencidas.length ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)' : 'nenhuma parcela vencida')
+          : 'R$ ' + fmtMoeda(somaVencidoPeriodo) + ' vencido, venc. ' + rotuloFiltro(filtro);
+        cardEmAtraso.innerHTML = renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtrasoAtual, null, 'sec-vencidas');
+      }
+    }
+    wireOlhinhos(dadosPainelAtual);
   }
 
   function wireVisaoFinanceira() {
@@ -1221,24 +1376,36 @@
           '</a>'
         : '';
 
+      var PRESETS_PERIODO = [
+        { chave: 'mes_atual', rotulo: 'Este mês' },
+        { chave: 'mes_anterior', rotulo: 'Mês anterior' },
+        { chave: '3', rotulo: '3 meses' },
+        { chave: '6', rotulo: '6 meses' },
+        { chave: '12', rotulo: '12 meses' },
+        { chave: 'ano_atual', rotulo: 'Este ano' },
+        { chave: 'ano_anterior', rotulo: 'Ano anterior' },
+        { chave: 'todos', rotulo: 'Todo o período' },
+      ];
+
       htmlFinanceiro =
         '<section id="sec-visao-geral"><p class="section-label">Visão Financeira</p>' +
         htmlAlertaInadimplencia +
+        '<div class="periodo-filtro-bar">' +
+          '<span class="periodo-filtro-label">Período</span>' +
+          PRESETS_PERIODO.map(function (p) {
+            return '<button type="button" class="fluxo-filtro-btn' + (p.chave === filtroGraficoAtual ? ' ativo' : '') + '" data-filtro="' + p.chave + '">' + p.rotulo + '</button>';
+          }).join('') +
+        '</div>' +
         '<div class="stat-grid">' +
-          renderCardValor('a_receber', f.total_a_receber, 'A Receber', subReceber) +
+          '<div id="card-a-receber" style="display:contents;">' + renderCardValor('a_receber', f.total_a_receber, 'A Receber', subReceber, 'EmAberto') + '</div>' +
           '<div id="card-recebido-periodo" style="display:contents;">' + renderCardValor('recebido_periodo', somaRecebido(filtradoInicial), 'Recebido no Período', rotuloFiltro(filtroGraficoAtual)) + '</div>' +
-          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Total Acumulado', 'tudo que já entrou, desde o início') +
-          renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtraso) +
-          renderCardValor('exito_previsto', exitoResumo.total_previsto, 'Honorários de Êxito', subExito) +
+          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Total Acumulado', 'tudo que já entrou, desde o início', 'Paga') +
+          '<div id="card-em-atraso" style="display:contents;">' + renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtraso, null, 'sec-vencidas') + '</div>' +
+          renderCardValor('exito_previsto', exitoResumo.total_previsto, 'Honorários de Êxito', subExito, null, 'sec-exito') +
         '</div>' +
         '<div class="fluxo-card">' +
           '<div class="fluxo-cabecalho">' +
             '<span class="fluxo-titulo">Fluxo de Caixa Vivo</span>' +
-            '<div class="fluxo-filtros">' +
-              ['3', '6', '12', 'todos'].map(function (f2) {
-                return '<button type="button" class="fluxo-filtro-btn' + (f2 === filtroGraficoAtual ? ' ativo' : '') + '" data-filtro="' + f2 + '">' + (f2 === 'todos' ? 'Todo o período' : f2 + ' meses') + '</button>';
-              }).join('') +
-            '</div>' +
           '</div>' +
           '<div class="fluxo-legenda">' +
             '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#6c8cf0;box-shadow:0 0 5px rgba(108,140,240,.8);"></span>Recebido</span>' +
@@ -3509,6 +3676,8 @@
   senhaInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') fazerLogin(usuarioInput.value, senhaInput.value);
   });
+
+  wireModalDrill();
 
   var tokenSalvo = sessionStorage.getItem('painel_token');
   if (tokenSalvo) carregarDados();
