@@ -2931,7 +2931,9 @@
   function carregarDados() {
     gateError.textContent = '';
     var carregandoInicial = document.getElementById('carregando-inicial');
-    apiGet('/api/painel?acao=dados')
+    // 'secao' diz pro back-end qual pagina esta pedindo, pra pular as leituras de planilha
+    // (financeiro/pje) que essa pagina especifica nem vai usar -- ver handle_dashboard_request.
+    apiGet('/api/painel?acao=dados&secao=' + encodeURIComponent(PAGINA_ATUAL))
       .then(function (r) {
         if (r.status === 401) throw new Error('sessao');
         if (!r.ok) throw new Error('falha');

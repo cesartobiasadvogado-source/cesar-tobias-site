@@ -577,7 +577,9 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+  const secaoPedida = (req.query && req.query.secao) || '';
+  const url = base + '?action=dashboard&token=' + encodeURIComponent(tokenSessao) +
+    (secaoPedida ? '&secao=' + encodeURIComponent(secaoPedida) : '') + segredoQS;
 
   try {
     const resposta = await fetch(url);
