@@ -1019,6 +1019,11 @@
             '<tbody id="grafico-tabela-corpo"></tbody></table>' +
           '</div>' +
           '<button type="button" class="fluxo-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
+          (f.recebido_sem_data > 0
+            ? '<div style="position:relative;z-index:1;margin-top:14px;padding:10px 13px;border-radius:8px;background:rgba(240,169,78,.1);border:1px solid rgba(240,169,78,.25);color:#e0b374;font-size:12.5px;line-height:1.5;">' +
+                '<b>R$ ' + fmtMoeda(f.recebido_sem_data) + '</b> recebidos não aparecem no gráfico acima porque são lançamentos antigos sem data de pagamento registrada na planilha — esse valor já está incluído no "Total Acumulado".' +
+              '</div>'
+            : '') +
         '</div>' +
         '<p class="section-label" style="margin-top:22px;">Outros indicadores</p><div class="stat-grid">' +
           '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
