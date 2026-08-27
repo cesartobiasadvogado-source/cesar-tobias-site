@@ -1027,6 +1027,28 @@
         '</div>' +
       '</section>';
 
+    var htmlCadastroCliente = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-cadastro-cliente"><p class="section-label">Cadastrar cliente</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cadastrar cliente na planilha de honorários</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="WhatsApp do cliente" data-campo="whatsapp" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor_total" data-form="cadastrar_cliente_financeiro">' +
+            '<select data-campo="forma_pagamento" data-form="cadastrar_cliente_financeiro">' +
+              '<option value="Parcelado">Parcelado</option>' +
+              '<option value="À Vista">À Vista</option>' +
+            '</select>' +
+            '<input type="text" placeholder="Valor de entrada (opcional)" data-campo="valor_entrada" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="num_parcelas" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Data de início (ex: 01/09/2026)" data-campo="data_inicio" data-form="cadastrar_cliente_financeiro">' +
+            '<button data-tipo="cadastrar_cliente_financeiro" class="btn-automacao">Cadastrar cliente</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlAutomacoes = perms.indexOf('automacoes') === -1 ? '' :
       '<section id="sec-automacoes"><p class="section-label">Automações</p><div class="automacoes-grid">' +
 
@@ -1205,7 +1227,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlAvisosSection + htmlClientes + htmlProcessos + htmlProcessoAdministrativo + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlAvisosSection + htmlClientes + htmlProcessos + htmlProcessoAdministrativo + htmlAgenda + htmlPropostas + htmlContrato + htmlCadastroCliente + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
