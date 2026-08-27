@@ -1051,6 +1051,14 @@
           '</div>' +
           '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
         '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Remover cliente da planilha</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" placeholder="Nome do cliente (exatamente como está na planilha)" data-campo="nome" data-form="remover_cliente_financeiro">' +
+            '<button data-tipo="remover_cliente_financeiro" class="btn-automacao">Remover cliente</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="remover_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
       '</section>';
 
     var htmlAutomacoes = perms.indexOf('automacoes') === -1 ? '' :
@@ -2378,7 +2386,15 @@
     var botoes = document.querySelectorAll('.btn-automacao');
     for (var i = 0; i < botoes.length; i++) {
       botoes[i].addEventListener('click', function (e) {
-        executarAutomacao(e.target.getAttribute('data-tipo'), e.target);
+        var tipoBotao = e.target.getAttribute('data-tipo');
+        if (tipoBotao === 'remover_cliente_financeiro') {
+          var nomeCampo = document.querySelector('[data-form="remover_cliente_financeiro"][data-campo="nome"]');
+          var nomeDigitado = nomeCampo ? nomeCampo.value.trim() : '';
+          if (!nomeDigitado || !confirm('Remover "' + nomeDigitado + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) {
+            return;
+          }
+        }
+        executarAutomacao(tipoBotao, e.target);
       });
     }
 
