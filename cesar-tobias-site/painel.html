@@ -181,6 +181,27 @@
   .days-badge.good { background: var(--good-soft); color: var(--good); }
   .days-badge.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
 
+  .grafico-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px 22px 18px; margin-top: 14px; }
+  .grafico-cabecalho { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .grafico-titulo { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .grafico-filtros { display: flex; gap: 6px; flex-wrap: wrap; }
+  .grafico-filtro-btn { font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+  .grafico-filtro-btn.ativo { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .grafico-legenda { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
+  .grafico-legenda-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+  .grafico-legenda-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .grafico-svg-wrap { position: relative; width: 100%; overflow-x: auto; }
+  .grafico-svg-wrap svg { width: 100%; height: auto; display: block; min-width: 480px; }
+  .grafico-barra-recebido { fill: var(--accent); }
+  .grafico-barra-a-receber { fill: var(--ink-faint); opacity: 0.4; }
+  .grafico-eixo-linha { stroke: var(--line); stroke-width: 1; }
+  .grafico-eixo-texto { fill: var(--ink-faint); font-size: 10.5px; font-family: var(--font-body); }
+  .grafico-tooltip { position: absolute; pointer-events: none; background: var(--sidebar-bg); color: var(--sidebar-ink); padding: 10px 13px; border-radius: 8px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 10px 28px rgba(0,0,0,0.22); opacity: 0; transform: translate(-50%, -100%); transition: opacity .12s; white-space: nowrap; z-index: 5; top: 0; left: 0; }
+  .grafico-tooltip.visivel { opacity: 1; }
+  .grafico-tooltip b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .grafico-tabela-toggle { background: none; border: none; color: var(--accent); font-size: 12.5px; cursor: pointer; padding: 0; margin-top: 14px; text-decoration: underline; font-family: inherit; }
+  .grafico-vazio { padding: 50px 0; text-align: center; color: var(--ink-faint); font-size: 13.5px; }
+
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
   .empty-state .msg { font-size: 13.5px; color: var(--ink-faint); }
@@ -502,6 +523,9 @@
   var gate = document.getElementById('gate');
   var shell = document.getElementById('shell');
   var conteudo = document.getElementById('conteudo');
+  var evolucaoMensalAtual = [];
+  var filtroGraficoAtual = '6';
+  var dadosPainelAtual = null;
   var usuarioInput = document.getElementById('usuario-input');
   var senhaInput = document.getElementById('senha-input');
   var btnEntrar = document.getElementById('btn-entrar');
@@ -675,6 +699,163 @@
     '</div>';
   }
 
+  var NOMES_MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var NOMES_MES_EXTENSO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  function nomeMesAbrev(mesStr) {
+    var partes = mesStr.split('-');
+    return NOMES_MES_ABREV[parseInt(partes[1], 10) - 1] + '/' + partes[0].slice(2);
+  }
+
+  function nomeMesExtenso(mesStr) {
+    var partes = mesStr.split('-');
+    return NOMES_MES_EXTENSO[parseInt(partes[1], 10) - 1] + '/' + partes[0];
+  }
+
+  function fmtMoedaCompacta(v) {
+    try {
+      return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(v || 0);
+    } catch (e) {
+      return fmtMoeda(v);
+    }
+  }
+
+  function filtrarEvolucao(evolucao, filtro) {
+    if (filtro === 'todos') return evolucao;
+    return evolucao.slice(-parseInt(filtro, 10));
+  }
+
+  function somaRecebido(evolucaoFiltrada) {
+    return evolucaoFiltrada.reduce(function (acc, m) { return acc + m.recebido; }, 0);
+  }
+
+  function rotuloFiltro(filtro) {
+    return filtro === 'todos' ? 'em todo o período' : 'nos últimos ' + filtro + ' meses';
+  }
+
+  function desenharGraficoFinanceiro(evolucaoFiltrada) {
+    var wrap = document.getElementById('grafico-financeiro-svg');
+    if (!wrap) return;
+    var tooltipHtml = '<div class="grafico-tooltip" id="grafico-tooltip"></div>';
+    if (!evolucaoFiltrada.length) {
+      wrap.innerHTML = '<div class="grafico-vazio">Sem movimentação financeira registrada ainda.</div>' + tooltipHtml;
+      return;
+    }
+    var W = 800, H = 300;
+    var margemEsq = 50, margemDir = 12, margemTopo = 10, margemBaixo = 28;
+    var larguraUtil = W - margemEsq - margemDir;
+    var alturaUtil = H - margemTopo - margemBaixo;
+    var maxValor = 0;
+    evolucaoFiltrada.forEach(function (m) { maxValor = Math.max(maxValor, m.recebido, m.a_receber); });
+    if (maxValor <= 0) maxValor = 1;
+    var potencia = Math.pow(10, Math.floor(Math.log(maxValor) / Math.LN10));
+    var teto = Math.ceil(maxValor / potencia) * potencia;
+    if (teto <= 0) teto = 1;
+
+    var n = evolucaoFiltrada.length;
+    var grupoLargura = larguraUtil / n;
+    var barraLargura = Math.min(22, grupoLargura * 0.32);
+    var gapBarras = 3;
+
+    function y(valor) { return margemTopo + alturaUtil - (valor / teto) * alturaUtil; }
+    function alturaBarra(valor) { return (valor / teto) * alturaUtil; }
+
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfico de recebimentos por mês">';
+
+    var passos = 4;
+    for (var i = 0; i <= passos; i++) {
+      var valorGrade = teto * i / passos;
+      var yy = y(valorGrade);
+      svg += '<line class="grafico-eixo-linha" x1="' + margemEsq + '" y1="' + yy + '" x2="' + (W - margemDir) + '" y2="' + yy + '" />';
+      svg += '<text class="grafico-eixo-texto" x="' + (margemEsq - 8) + '" y="' + (yy + 3) + '" text-anchor="end">' + esc(fmtMoedaCompacta(valorGrade)) + '</text>';
+    }
+
+    evolucaoFiltrada.forEach(function (m, idx) {
+      var cx = margemEsq + grupoLargura * idx + grupoLargura / 2;
+      var xRecebido = cx - gapBarras / 2 - barraLargura;
+      var xAReceber = cx + gapBarras / 2;
+      var hRecebido = Math.max(alturaBarra(m.recebido), 0);
+      var hAReceber = Math.max(alturaBarra(m.a_receber), 0);
+
+      svg += '<rect class="grafico-barra-recebido" x="' + xRecebido + '" y="' + y(m.recebido) + '" width="' + barraLargura + '" height="' + hRecebido + '" rx="3" />';
+      svg += '<rect class="grafico-barra-a-receber" x="' + xAReceber + '" y="' + y(m.a_receber) + '" width="' + barraLargura + '" height="' + hAReceber + '" rx="3" />';
+      svg += '<rect x="' + (margemEsq + grupoLargura * idx) + '" y="' + margemTopo + '" width="' + grupoLargura + '" height="' + alturaUtil + '" fill="transparent" ' +
+        'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" style="cursor:pointer;" />';
+      var passoRotulo = Math.ceil(n / 10);
+      if (idx % passoRotulo === 0) {
+        svg += '<text class="grafico-eixo-texto" x="' + cx + '" y="' + (H - margemBaixo + 16) + '" text-anchor="middle">' + esc(nomeMesAbrev(m.mes)) + '</text>';
+      }
+    });
+
+    svg += '</svg>';
+    wrap.innerHTML = svg + tooltipHtml;
+    wireHoverGrafico(wrap);
+  }
+
+  function wireHoverGrafico(wrap) {
+    var tooltip = document.getElementById('grafico-tooltip');
+    var svgEl = wrap.querySelector('svg');
+    if (!tooltip || !svgEl) return;
+    svgEl.addEventListener('mousemove', function (ev) {
+      var alvo = ev.target.closest('[data-mes]');
+      if (!alvo) { tooltip.classList.remove('visivel'); return; }
+      var mes = alvo.getAttribute('data-mes');
+      var recebido = parseFloat(alvo.getAttribute('data-recebido'));
+      var aReceber = parseFloat(alvo.getAttribute('data-a-receber'));
+      tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + esc(nomeMesExtenso(mes)) + '</div>' +
+        'Recebido: <b>R$ ' + fmtMoeda(recebido) + '</b><br>' +
+        'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>';
+      var wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
+      tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
+      tooltip.classList.add('visivel');
+    });
+    svgEl.addEventListener('mouseleave', function () { tooltip.classList.remove('visivel'); });
+  }
+
+  function renderTabelaGrafico(evolucaoFiltrada) {
+    var corpo = document.getElementById('grafico-tabela-corpo');
+    if (!corpo) return;
+    corpo.innerHTML = evolucaoFiltrada.map(function (m) {
+      return '<tr><td>' + esc(nomeMesExtenso(m.mes)) + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(m.recebido) + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(m.a_receber) + '</td></tr>';
+    }).join('');
+  }
+
+  function aplicarFiltroGrafico(filtro) {
+    filtroGraficoAtual = filtro;
+    document.querySelectorAll('.grafico-filtro-btn').forEach(function (btn) {
+      btn.classList.toggle('ativo', btn.getAttribute('data-filtro') === filtro);
+    });
+    var filtrado = filtrarEvolucao(evolucaoMensalAtual, filtro);
+    desenharGraficoFinanceiro(filtrado);
+    renderTabelaGrafico(filtrado);
+    var cardRecebidoPeriodo = document.getElementById('card-recebido-periodo');
+    if (cardRecebidoPeriodo) {
+      cardRecebidoPeriodo.innerHTML = renderCardValor('recebido_periodo', somaRecebido(filtrado), 'Recebido no Período', rotuloFiltro(filtro));
+      wireOlhinhos(dadosPainelAtual);
+    }
+  }
+
+  function wireVisaoFinanceira() {
+    document.querySelectorAll('.grafico-filtro-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { aplicarFiltroGrafico(btn.getAttribute('data-filtro')); });
+    });
+    var btnTabela = document.getElementById('grafico-tabela-toggle');
+    if (btnTabela) {
+      btnTabela.addEventListener('click', function () {
+        var tabelaWrap = document.getElementById('grafico-tabela-wrap');
+        var graficoWrap = document.getElementById('grafico-financeiro-svg');
+        var vaiMostrarTabela = tabelaWrap.classList.contains('hidden');
+        tabelaWrap.classList.toggle('hidden', !vaiMostrarTabela);
+        graficoWrap.classList.toggle('hidden', vaiMostrarTabela);
+        btnTabela.textContent = vaiMostrarTabela ? 'Ver como gráfico' : 'Ver como tabela';
+      });
+    }
+    aplicarFiltroGrafico(filtroGraficoAtual);
+  }
+
   function wireOlhinhos(dados) {
     document.querySelectorAll('[data-olho]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -746,13 +927,43 @@
         ? '<span class="chip good">Nenhuma vencida</span>'
         : '<span class="chip crit">' + f.parcelas_vencidas.length + ' vencida(s)</span>';
 
+      evolucaoMensalAtual = f.evolucao_mensal || [];
+      dadosPainelAtual = dados;
+      var filtradoInicial = filtrarEvolucao(evolucaoMensalAtual, filtroGraficoAtual);
+      var subReceber = f.parcelas_vencidas.length
+        ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)'
+        : 'saldo de honorários em aberto';
+
       htmlFinanceiro =
-        '<section id="sec-visao-geral"><p class="section-label">Visão geral</p><div class="stat-grid">' +
+        '<section id="sec-visao-geral"><p class="section-label">Visão Financeira</p><div class="stat-grid">' +
+          renderCardValor('a_receber', f.total_a_receber, 'A Receber', subReceber) +
+          '<div id="card-recebido-periodo" style="display:contents;">' + renderCardValor('recebido_periodo', somaRecebido(filtradoInicial), 'Recebido no Período', rotuloFiltro(filtroGraficoAtual)) + '</div>' +
+          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Total Acumulado', 'tudo que já entrou, desde o início') +
+        '</div>' +
+        '<div class="grafico-card">' +
+          '<div class="grafico-cabecalho">' +
+            '<span class="grafico-titulo">Evolução dos recebimentos</span>' +
+            '<div class="grafico-filtros">' +
+              ['3', '6', '12', 'todos'].map(function (f2) {
+                return '<button type="button" class="grafico-filtro-btn' + (f2 === filtroGraficoAtual ? ' ativo' : '') + '" data-filtro="' + f2 + '">' + (f2 === 'todos' ? 'Todo o período' : f2 + ' meses') + '</button>';
+              }).join('') +
+            '</div>' +
+          '</div>' +
+          '<div class="grafico-legenda">' +
+            '<span class="grafico-legenda-item"><span class="grafico-legenda-swatch" style="background:var(--accent);"></span>Recebido</span>' +
+            '<span class="grafico-legenda-item"><span class="grafico-legenda-swatch" style="background:var(--ink-faint);opacity:.4;"></span>A receber</span>' +
+          '</div>' +
+          '<div class="grafico-svg-wrap" id="grafico-financeiro-svg" style="position:relative;"><div class="grafico-tooltip" id="grafico-tooltip"></div></div>' +
+          '<div id="grafico-tabela-wrap" class="hidden table-scroll" style="margin-top:14px;">' +
+            '<table style="min-width:420px;"><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th></tr></thead>' +
+            '<tbody id="grafico-tabela-corpo"></tbody></table>' +
+          '</div>' +
+          '<button type="button" class="grafico-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
+        '</div>' +
+        '<p class="section-label" style="margin-top:22px;">Outros indicadores</p><div class="stat-grid">' +
           '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
-          renderCardValor('a_receber', f.total_a_receber, 'A receber', 'saldo de honorários em aberto') +
           '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
           renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
-          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Valor recebido', 'total já pago pelos clientes') +
         '</div></section>';
 
       painelVencidasHtml =
@@ -1266,7 +1477,7 @@
 
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
-    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); }
     if (perms.indexOf('processos') !== -1) { carregarProcessos(); wireProcessosAdministrativos(); }
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
