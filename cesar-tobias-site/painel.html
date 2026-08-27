@@ -926,8 +926,11 @@
       }
       svg += '<circle class="fluxo-no-recebido' + (animado ? ' fluxo-no-entrada' : '') + '" cx="' + cx + '" cy="' + orbeY + '" r="' + raioRecebido + '" ' +
         (animado ? 'style="animation-delay:' + atraso + 'ms;"' : '') + ' />';
+      if (m.vencido > 0) {
+        svg += '<circle cx="' + cx + '" cy="' + orbeY + '" r="' + (raioAReceber + 3.5) + '" fill="none" stroke="#f0616c" stroke-width="1.6" opacity="0.85" />';
+      }
       svg += '<rect x="' + (cx - passoX / 2) + '" y="' + (orbeY - 30) + '" width="' + (passoX || 40) + '" height="60" fill="transparent" ' +
-        'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" style="cursor:pointer;" />';
+        'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" data-vencido="' + (m.vencido || 0) + '" style="cursor:pointer;" />';
       if (idx % passoRotulo === 0) {
         svg += '<text class="fluxo-mes-texto" x="' + cx + '" y="' + (orbeY + 34) + '" text-anchor="middle">' + esc(nomeMesAbrev(m.mes)) + '</text>';
       }
@@ -950,9 +953,11 @@
       var mes = alvo.getAttribute('data-mes');
       var recebido = parseFloat(alvo.getAttribute('data-recebido'));
       var aReceber = parseFloat(alvo.getAttribute('data-a-receber'));
+      var vencido = parseFloat(alvo.getAttribute('data-vencido')) || 0;
       tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + esc(nomeMesExtenso(mes)) + '</div>' +
         'Recebido: <b>R$ ' + fmtMoeda(recebido) + '</b><br>' +
-        'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>';
+        'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>' +
+        (vencido > 0 ? '<br>Em atraso: <b style="color:#f0616c;">R$ ' + fmtMoeda(vencido) + '</b>' : '');
       var wrapRect = wrap.getBoundingClientRect();
       tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
       tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
@@ -967,7 +972,8 @@
     corpo.innerHTML = evolucaoFiltrada.map(function (m) {
       return '<tr><td>' + esc(nomeMesExtenso(m.mes)) + '</td>' +
         '<td class="num">R$ ' + fmtMoeda(m.recebido) + '</td>' +
-        '<td class="num">R$ ' + fmtMoeda(m.a_receber) + '</td></tr>';
+        '<td class="num">R$ ' + fmtMoeda(m.a_receber) + '</td>' +
+        '<td class="num">' + (m.vencido > 0 ? '<span style="color:var(--crit);">R$ ' + fmtMoeda(m.vencido) + '</span>' : '—') + '</td></tr>';
     }).join('');
   }
 
@@ -1086,6 +1092,41 @@
       });
   }
 
+  function wireFormExito() {
+    var form = document.getElementById('form-exito-atualizar');
+    if (!form) return;
+    var msg = document.getElementById('form-exito-msg');
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var corpo = {};
+      form.querySelectorAll('[data-campo-exito]').forEach(function (el) {
+        corpo[el.getAttribute('data-campo-exito')] = el.value.trim();
+      });
+      var botao = form.querySelector('button[type="submit"]');
+      botao.disabled = true; botao.textContent = 'Atualizando...';
+      msg.textContent = '';
+      apiPostJson('/api/painel?acao=executar', {
+        tipo: 'atualizar_exito_financeiro',
+        nome: corpo.nome,
+        tipo_servico: corpo.tipo_servico,
+        valor_recebido_cliente: corpo.valor_recebido_cliente,
+      })
+        .then(function (r) {
+          botao.disabled = false; botao.textContent = 'Atualizar honorário';
+          var deuCerto = (r.resposta || '').indexOf('atualizado') !== -1;
+          msg.style.color = deuCerto ? 'var(--good)' : 'var(--crit)';
+          msg.textContent = (r.resposta || 'Atualizado.') +
+            (deuCerto ? ' Os valores no painel podem levar até 90s pra refletir — ou clique em "Atualizar agora".' : '');
+          if (deuCerto) form.reset();
+        })
+        .catch(function () {
+          botao.disabled = false; botao.textContent = 'Atualizar honorário';
+          msg.style.color = 'var(--crit)';
+          msg.textContent = 'Não foi possível atualizar agora. Confira o nome/serviço e tente de novo.';
+        });
+    });
+  }
+
   function wireOlhinhos(dados) {
     document.querySelectorAll('[data-olho]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1125,6 +1166,7 @@
     var p = dados.pje;
 
     var htmlFinanceiro = '';
+    var htmlExito = '';
     var painelVencidasHtml = '';
     if (f) {
       var htmlVencidas;
@@ -1201,10 +1243,11 @@
           '<div class="fluxo-legenda">' +
             '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#6c8cf0;box-shadow:0 0 5px rgba(108,140,240,.8);"></span>Recebido</span>' +
             '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:rgba(240,169,78,.6);"></span>A receber</span>' +
+            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:transparent;border:1.6px solid #f0616c;"></span>Com valor vencido</span>' +
           '</div>' +
           '<div class="fluxo-svg-wrap" id="grafico-financeiro-svg" style="position:relative;"><div class="fluxo-tooltip" id="grafico-tooltip"></div></div>' +
           '<div id="grafico-tabela-wrap" class="hidden table-scroll" style="margin-top:14px;">' +
-            '<table style="min-width:420px;"><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th></tr></thead>' +
+            '<table style="min-width:420px;"><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th style="text-align:right">Vencido</th></tr></thead>' +
             '<tbody id="grafico-tabela-corpo"></tbody></table>' +
           '</div>' +
           '<button type="button" class="fluxo-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
@@ -1221,6 +1264,54 @@
           '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
           renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
         '</div></section>';
+
+      var casosExito = exitoResumo.casos || [];
+      var CHIP_STATUS_EXITO = { 'Paga': 'good', 'Aguardando recebimento': 'warn' };
+      var htmlListaExito;
+      if (casosExito.length === 0) {
+        htmlListaExito = '<div class="empty-state"><div class="msg">Nenhum caso de honorário de êxito cadastrado ainda.</div></div>';
+      } else {
+        var linhasExito = casosExito.map(function (c) {
+          return '<tr><td>' + esc(c.cliente) + '</td>' +
+            '<td>' + esc(c.servico) + '</td>' +
+            '<td class="num">' + c.percentual + '%</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.honorario) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.recebido) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.a_receber) + '</td>' +
+            '<td><span class="chip ' + (CHIP_STATUS_EXITO[c.status] || 'neutral') + '">' + esc(c.status || '—') + '</span></td></tr>';
+        }).join('');
+        htmlListaExito = '<div class="table-scroll"><table style="min-width:680px;">' +
+          '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">%</th><th style="text-align:right">Honorário</th>' +
+          '<th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th>Status</th></tr></thead>' +
+          '<tbody>' + linhasExito + '</tbody></table></div>';
+      }
+
+      var htmlExito =
+        '<section id="sec-exito"><p class="section-label">Honorários de Êxito</p>' +
+          '<div class="stat-grid">' +
+            renderCardValor('exito_previsto_sub', exitoResumo.total_previsto, 'Previsto', 'soma dos honorários já calculados') +
+            renderCardValor('exito_recebido_sub', exitoResumo.total_recebido, 'Recebido', 'já pago ao escritório') +
+            renderCardValor('exito_falta_sub', exitoResumo.total_a_receber, 'Falta Receber', 'honorário − já recebido') +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Casos cadastrados</span></div>' +
+            htmlListaExito +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Registrar valor recebido pelo cliente</span></div>' +
+            '<div style="padding:16px 20px;font-size:12.5px;color:var(--ink-faint);line-height:1.5;">' +
+              'Quando o processo termina, informe aqui quanto o cliente recebeu na causa (condenação/acordo) — ' +
+              'o honorário de êxito é recalculado automaticamente (% × esse valor).' +
+            '</div>' +
+            '<form id="form-exito-atualizar" class="proposta-form" style="padding:0 20px 18px;display:grid;gap:8px;grid-template-columns:1fr 1fr;">' +
+              '<input type="text" placeholder="Nome do cliente" data-campo-exito="nome" required>' +
+              '<input type="text" placeholder="Serviço (igual ao cadastro)" data-campo-exito="tipo_servico" required>' +
+              '<input type="number" step="0.01" min="0" placeholder="Valor recebido pelo cliente (R$)" data-campo-exito="valor_recebido_cliente" required>' +
+              '<button type="submit" class="btn-relatorio-mes" style="grid-column:span 1;">Atualizar honorário</button>' +
+              '<div id="form-exito-msg" style="grid-column:1 / -1;font-size:12.5px;"></div>' +
+            '</form>' +
+          '</div>' +
+        '</section>';
 
       var htmlRanking;
       var rankingLista = f.ranking_maiores_devedores || [];
@@ -1738,7 +1829,7 @@
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
-      htmlFinanceiro + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente + htmlAvisosSection + htmlClientes + htmlProcessos + htmlProcessoAdministrativo + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
+      htmlFinanceiro + htmlExito + htmlOverviewGrid + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente + htmlAvisosSection + htmlClientes + htmlProcessos + htmlProcessoAdministrativo + htmlAgenda + htmlPropostas + htmlContrato + htmlAutomacoes + htmlPadraoOperacional + htmlAudiencias + htmlAdmin +
       '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
       '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
 
@@ -1765,7 +1856,7 @@
 
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
-    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (perms.indexOf('processos') !== -1) { carregarProcessos(); wireProcessosAdministrativos(); }
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
