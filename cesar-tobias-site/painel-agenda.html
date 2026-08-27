@@ -41,7 +41,17 @@
 </head>
 <body>
 
-  <div id="carregando-inicial" class="carregando-inicial">Carregando…</div>
+  <div id="carregando-inicial" class="carregando-inicial">
+    <div class="esqueleto-carregando">
+      <div class="esqueleto-barra esqueleto-titulo"></div>
+      <div class="esqueleto-linha-cards">
+        <div class="esqueleto-barra esqueleto-card"></div>
+        <div class="esqueleto-barra esqueleto-card"></div>
+        <div class="esqueleto-barra esqueleto-card"></div>
+      </div>
+      <div class="esqueleto-barra esqueleto-bloco"></div>
+    </div>
+  </div>
 
   <div id="gate" class="gate">
     <div class="gate-card">
@@ -57,7 +67,15 @@
   </div>
 
   <div id="shell" class="shell hidden">
-    <aside class="sidebar">
+    <div id="topbar-mobile" class="topbar-mobile">
+      <button type="button" id="btn-menu-mobile" class="btn-menu-mobile" aria-label="Abrir menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+      <span class="topbar-mobile-titulo" id="topbar-mobile-titulo">Painel</span>
+    </div>
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <button type="button" id="btn-fechar-menu-mobile" class="btn-fechar-menu-mobile" aria-label="Fechar menu">✕</button>
       <div class="sidebar-wordmark">
         <div class="nome" id="sidebar-nome">César Tobias</div>
         <small class="sub" id="sidebar-sub">Advocacia</small>

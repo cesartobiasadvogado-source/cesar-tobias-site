@@ -57,6 +57,40 @@
       });
   }
 
+  var TITULO_TOPBAR_POR_PAGINA = {
+    financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
+    agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
+    audiencias: 'Audiências', admin: 'Administração',
+  };
+
+  function wireMenuMobile() {
+    var titulo = document.getElementById('topbar-mobile-titulo');
+    if (titulo) titulo.textContent = TITULO_TOPBAR_POR_PAGINA[PAGINA_ATUAL] || 'Painel';
+
+    var sidebar = document.getElementById('sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    var btnAbrir = document.getElementById('btn-menu-mobile');
+    var btnFechar = document.getElementById('btn-fechar-menu-mobile');
+    if (!sidebar || !backdrop || !btnAbrir || !btnFechar) return;
+
+    function abrirMenu() {
+      sidebar.classList.add('aberta');
+      backdrop.classList.add('visivel');
+      btnAbrir.setAttribute('aria-expanded', 'true');
+    }
+    function fecharMenu() {
+      sidebar.classList.remove('aberta');
+      backdrop.classList.remove('visivel');
+      btnAbrir.setAttribute('aria-expanded', 'false');
+    }
+    btnAbrir.addEventListener('click', abrirMenu);
+    btnFechar.addEventListener('click', fecharMenu);
+    backdrop.addEventListener('click', fecharMenu);
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') fecharMenu();
+    });
+  }
+
   function wireModalDrill() {
     var overlay = document.getElementById('modal-drill');
     var fechar = document.getElementById('modal-drill-fechar');
@@ -196,6 +230,10 @@
     return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
       return ESC_MAPA[c];
     });
+  }
+
+  function linkCliente(nome) {
+    return '<a class="link-original" href="painel-clientes.html?cliente=' + encodeURIComponent(nome) + '">' + esc(nome) + '</a>';
   }
 
   function normalizarBusca(valor) {
@@ -720,7 +758,7 @@
       } else {
         var linhas = f.parcelas_vencidas.map(function (item) {
           var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
-          return '<tr><td>' + esc(item.nome) + '</td>' +
+          return '<tr><td>' + linkCliente(item.nome) + '</td>' +
             '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
             '<td>' + esc(item.vencimento) + '</td>' +
             '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
@@ -878,7 +916,7 @@
           '<thead><tr><th>Cliente</th><th style="text-align:right">A receber</th></tr></thead><tbody>' +
           rankingLista.map(function (r, idx) {
             var pctBarra = Math.max(4, Math.round((r.saldo / maiorSaldoRanking) * 100));
-            return '<tr><td>' + (idx + 1) + '. ' + esc(r.nome) +
+            return '<tr><td>' + (idx + 1) + '. ' + linkCliente(r.nome) +
               '<div style="height:4px;border-radius:2px;background:var(--surface-sunken);margin-top:5px;overflow:hidden;">' +
                 '<div style="height:100%;width:' + pctBarra + '%;background:var(--accent);"></div>' +
               '</div></td>' +
@@ -1580,6 +1618,34 @@
       }
       // pagina diferente: deixa o navegador navegar normalmente pelo href (link de verdade)
     });
+
+    wireScrollSpyMenu(itensNav);
+  }
+
+  function wireScrollSpyMenu(itensNav) {
+    // paginas com mais de uma sub-secao no menu (ex: Financeiro tem 4) -- acende so a que esta
+    // visivel na tela agora, em vez do grupo inteiro junto.
+    var itensDoGrupo = Array.prototype.filter.call(itensNav, function (item) {
+      return item.getAttribute('data-secao') === PAGINA_ATUAL;
+    });
+    if (itensDoGrupo.length < 2 || typeof IntersectionObserver === 'undefined') return;
+
+    var mapa = itensDoGrupo.map(function (item) {
+      var ancora = (item.getAttribute('href') || '').split('#')[1];
+      return { item: item, alvo: ancora ? document.getElementById(ancora) : null };
+    }).filter(function (m) { return m.alvo; });
+    if (mapa.length < 2) return;
+
+    var observer = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (entrada) {
+        if (!entrada.isIntersecting) return;
+        var atual = mapa.filter(function (m) { return m.alvo === entrada.target; })[0];
+        if (!atual) return;
+        mapa.forEach(function (m) { m.item.classList.toggle('ativo', m === atual); });
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+
+    mapa.forEach(function (m) { observer.observe(m.alvo); });
   }
 
   var clientesCarregados = [];
@@ -1588,8 +1654,14 @@
     apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
         clientesCarregados = dados.clientes || [];
-        renderClientes(clientesCarregados);
         var busca = document.getElementById('clientes-busca');
+        // veio de um link de outra pagina (ex: "Cobrança pendente" em Financeiro) apontando pra
+        // um cliente especifico -- ja abre filtrado nele, em vez do usuario ter que buscar de novo.
+        var clienteDaUrl = new URLSearchParams(window.location.search).get('cliente');
+        if (clienteDaUrl && busca) busca.value = clienteDaUrl;
+        renderClientes(clienteDaUrl
+          ? clientesCarregados.filter(function (c) { return c.nome.toLowerCase().indexOf(clienteDaUrl.toLowerCase()) !== -1; })
+          : clientesCarregados);
         if (busca) {
           busca.addEventListener('input', function () {
             var termo = busca.value.toLowerCase();
@@ -3090,6 +3162,7 @@
   });
 
   wireModalDrill();
+  wireMenuMobile();
 
   var tokenSalvo = sessionStorage.getItem('painel_token');
   if (tokenSalvo) carregarDados();
