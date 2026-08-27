@@ -534,10 +534,14 @@
       <div class="sidebar-rodape">
         <div class="sidebar-avatar" id="sidebar-avatar">--</div>
         <div>
-          <div class="quem" id="sidebar-nome">—</div>
+          <div class="quem" id="sidebar-rodape-usuario">—</div>
           <div class="cargo">Logado</div>
         </div>
       </div>
+      <button type="button" class="tema-toggle" id="btn-sair" style="margin-top:2px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+        <span>Sair</span>
+      </button>
     </aside>
 
     <div class="conteudo-area">
@@ -588,6 +592,15 @@
 
   document.getElementById('btn-tema').addEventListener('click', function () {
     aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  document.getElementById('btn-sair').addEventListener('click', function () {
+    sessionStorage.removeItem('painel_token');
+    shell.classList.add('hidden');
+    gate.classList.remove('hidden');
+    usuarioInput.value = '';
+    senhaInput.value = '';
+    gateError.textContent = '';
   });
 
   function misturarComBranco(hex, fator) {
@@ -957,6 +970,45 @@
           resultado.innerHTML = '<div class="aviso-tenant">Não foi possível buscar agora. Tente de novo.</div>';
         });
     });
+  }
+
+  function carregarListaClientesFinanceiro() {
+    var wrap = document.getElementById('lista-clientes-financeiro-wrap');
+    if (!wrap) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'listar_clientes_financeiro' })
+      .then(function (corpo) {
+        var clientes = corpo.clientes || [];
+        if (!clientes.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente cadastrado ainda.</div></div>';
+          return;
+        }
+        var linhas = clientes.map(function (c) {
+          var classeChip = c.status === 'Ativo' ? 'good' : 'neutral';
+          return '<tr><td>' + esc(c.nome) + '</td>' +
+            '<td><span class="chip ' + classeChip + '">' + esc(c.status || '—') + '</span></td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
+            '<td style="text-align:right"><button class="btn-editar" data-remover-cliente="' + esc(c.nome) + '">Remover</button></td></tr>';
+        }).join('');
+        wrap.innerHTML =
+          '<div class="table-scroll"><table style="min-width:480px;"><thead><tr><th>Cliente</th><th>Status</th><th style="text-align:right">Valor total</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table></div>';
+        wrap.querySelectorAll('[data-remover-cliente]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var nome = btn.getAttribute('data-remover-cliente');
+            if (!confirm('Remover "' + nome + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) return;
+            btn.disabled = true; btn.textContent = 'Removendo...';
+            apiPostJson('/api/painel?acao=executar', { tipo: 'remover_cliente_financeiro', nome: nome })
+              .then(function () { carregarListaClientesFinanceiro(); })
+              .catch(function () {
+                btn.disabled = false; btn.textContent = 'Remover';
+                alert('Não foi possível remover agora. Tente de novo.');
+              });
+          });
+        });
+      })
+      .catch(function () {
+        wrap.innerHTML = '<div class="aviso-tenant">Não foi possível carregar a lista de clientes.</div>';
+      });
   }
 
   function wireOlhinhos(dados) {
@@ -1373,12 +1425,8 @@
           '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
         '</div>' +
         '<div class="panel" style="margin-top:16px;">' +
-          '<div class="panel-header"><span class="panel-title">Remover cliente da planilha</span></div>' +
-          '<div class="proposta-form">' +
-            '<input type="text" placeholder="Nome do cliente (exatamente como está na planilha)" data-campo="nome" data-form="remover_cliente_financeiro">' +
-            '<button data-tipo="remover_cliente_financeiro" class="btn-automacao">Remover cliente</button>' +
-          '</div>' +
-          '<div class="automacao-resultado" data-resultado="remover_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+          '<div class="panel-header"><span class="panel-title">Clientes cadastrados na planilha</span></div>' +
+          '<div id="lista-clientes-financeiro-wrap" style="padding:16px 20px;"><div class="empty-state"><div class="msg">Carregando...</div></div></div>' +
         '</div>' +
         '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Quem deve em cada mês</span></div>' +
@@ -1564,7 +1612,7 @@
 
     conteudo.innerHTML =
       '<header class="masthead">' +
-        '<div class="masthead-name">César Tobias Advocacia<small>Painel do escritório</small></div>' +
+        '<div class="masthead-name">' + esc(dados.nome_escritorio || 'César Tobias Advocacia') + '<small>Painel do escritório</small></div>' +
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +
@@ -1595,7 +1643,7 @@
 
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
-    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); }
     if (perms.indexOf('processos') !== -1) { carregarProcessos(); wireProcessosAdministrativos(); }
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
@@ -1734,7 +1782,7 @@
     var nomeUsuario = dados.usuario_logado || '';
     var iniciais = nomeUsuario.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase() || '--';
     document.getElementById('sidebar-avatar').textContent = iniciais;
-    document.getElementById('sidebar-nome').textContent = nomeUsuario || '—';
+    document.getElementById('sidebar-rodape-usuario').textContent = nomeUsuario || '—';
 
     var perms = dados.usuario_permissoes || [];
     var itensNav = document.querySelectorAll('.nav-item[data-scroll-to]');
@@ -2771,6 +2819,9 @@
         }
         if (resultado.status === 200 && resultado.corpo.pdf_id) {
           mostrarPreviewDocumento(resultado.corpo.pdf_id, botao.getAttribute('data-preview') || 'proposta-preview');
+        }
+        if (tipo === 'cadastrar_cliente_financeiro' && resultado.status === 200) {
+          carregarListaClientesFinanceiro();
         }
         if (tipo === 'notificacao_extrajudicial_gerar') {
           var areaConfirmarNotif = document.getElementById('notificacao-extrajudicial-confirmar-area');
