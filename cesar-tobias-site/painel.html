@@ -376,7 +376,7 @@
     padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font-size: 13.5px;
     background: var(--bg); color: var(--ink);
   }
-  .proposta-form .btn-automacao {
+  .proposta-form .btn-automacao, .proposta-form .btn-relatorio-mes {
     padding: 9px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer; grid-column: span 3;
   }
@@ -916,6 +916,49 @@
     aplicarFiltroGrafico(filtroGraficoAtual);
   }
 
+  function wireDevedoresMes() {
+    var input = document.getElementById('devedores-mes-input');
+    var btn = document.getElementById('devedores-mes-buscar');
+    var resultado = document.getElementById('devedores-mes-resultado');
+    if (!input || !btn || !resultado) return;
+    if (!input.value) {
+      var hoje = new Date();
+      input.value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    }
+    btn.addEventListener('click', function () {
+      var mes = input.value;
+      if (!mes) {
+        resultado.innerHTML = '<div class="aviso-tenant">Escolha um mês.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Buscando...';
+      resultado.innerHTML = '';
+      apiPostJson('/api/painel?acao=executar', { tipo: 'relatorio_devedores_mes', mes: mes })
+        .then(function (corpo) {
+          btn.disabled = false; btn.textContent = 'Ver quem deve';
+          var devedores = corpo.devedores || [];
+          if (!devedores.length) {
+            resultado.innerHTML = '<div class="empty-state"><div class="glyph">✓</div>' +
+              '<div class="msg">Ninguém deve parcela nesse mês.</div></div>';
+            return;
+          }
+          var linhas = devedores.map(function (d) {
+            var parcelaTxt = d.numero_parcela ? (d.numero_parcela + '/' + (d.total_parcelas || '?')) : '—';
+            return '<tr><td>' + esc(d.nome) + '</td><td>' + esc(parcelaTxt) + '</td>' +
+              '<td>' + esc(d.vencimento) + '</td><td class="num">R$ ' + fmtMoeda(d.saldo) + '</td></tr>';
+          }).join('');
+          resultado.innerHTML =
+            '<div class="chip warn" style="margin-bottom:12px;">Total do mês: R$ ' + fmtMoeda(corpo.total_devedores) + '</div>' +
+            '<div class="table-scroll"><table style="min-width:460px;"><thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>' +
+            '<tbody>' + linhas + '</tbody></table></div>';
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Ver quem deve';
+          resultado.innerHTML = '<div class="aviso-tenant">Não foi possível buscar agora. Tente de novo.</div>';
+        });
+    });
+  }
+
   function wireOlhinhos(dados) {
     document.querySelectorAll('[data-olho]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1314,6 +1357,7 @@
           '<div class="proposta-form">' +
             '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="cadastrar_cliente_financeiro">' +
             '<input type="text" placeholder="WhatsApp do cliente" data-campo="whatsapp" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="email" placeholder="E-mail do cliente (opcional)" data-campo="email" data-form="cadastrar_cliente_financeiro">' +
             '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="cadastrar_cliente_financeiro">' +
             '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor_total" data-form="cadastrar_cliente_financeiro">' +
             '<select data-campo="forma_pagamento" data-form="cadastrar_cliente_financeiro">' +
@@ -1323,6 +1367,7 @@
             '<input type="text" placeholder="Valor de entrada (opcional)" data-campo="valor_entrada" data-form="cadastrar_cliente_financeiro">' +
             '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="num_parcelas" data-form="cadastrar_cliente_financeiro">' +
             '<input type="text" placeholder="Data de início (ex: 01/09/2026)" data-campo="data_inicio" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Vencimento da 1ª parcela (ex: 10/09/2026)" data-campo="data_primeira_parcela" data-form="cadastrar_cliente_financeiro">' +
             '<button data-tipo="cadastrar_cliente_financeiro" class="btn-automacao">Cadastrar cliente</button>' +
           '</div>' +
           '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
@@ -1334,6 +1379,14 @@
             '<button data-tipo="remover_cliente_financeiro" class="btn-automacao">Remover cliente</button>' +
           '</div>' +
           '<div class="automacao-resultado" data-resultado="remover_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Quem deve em cada mês</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="month" id="devedores-mes-input">' +
+            '<button type="button" class="btn-relatorio-mes" id="devedores-mes-buscar">Ver quem deve</button>' +
+          '</div>' +
+          '<div id="devedores-mes-resultado" style="padding:0 20px 20px;"></div>' +
         '</div>' +
       '</section>';
 
@@ -1542,7 +1595,7 @@
 
     if (perms.indexOf('automacoes') !== -1) { wireAutomacoes(); wireContrato(); }
     if (perms.indexOf('agenda') !== -1) { wireAgenda(); carregarAgenda(); }
-    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); }
+    if (perms.indexOf('financeiro') !== -1) { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); }
     if (perms.indexOf('processos') !== -1) { carregarProcessos(); wireProcessosAdministrativos(); }
     if (perms.indexOf('clientes') !== -1) carregarClientes();
     if (perms.indexOf('padrao_operacional') !== -1) carregarPadraoOperacional();
