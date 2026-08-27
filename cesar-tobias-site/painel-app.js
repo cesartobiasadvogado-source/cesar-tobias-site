@@ -118,6 +118,7 @@
 
   document.getElementById('btn-sair').addEventListener('click', function () {
     sessionStorage.removeItem('painel_token');
+    document.documentElement.removeAttribute('data-tem-sessao');
     shell.classList.add('hidden');
     gate.classList.remove('hidden');
     usuarioInput.value = '';
@@ -2929,6 +2930,7 @@
 
   function carregarDados() {
     gateError.textContent = '';
+    var carregandoInicial = document.getElementById('carregando-inicial');
     apiGet('/api/painel?acao=dados')
       .then(function (r) {
         if (r.status === 401) throw new Error('sessao');
@@ -2936,12 +2938,25 @@
         return r.json();
       })
       .then(function (dados) {
+        if (carregandoInicial) carregandoInicial.classList.add('hidden');
         gate.classList.add('hidden');
         shell.classList.remove('hidden');
-        renderPainel(dados);
+        try {
+          renderPainel(dados);
+        } catch (erroRender) {
+          // erro ao montar a pagina (bug de renderizacao) nao e a mesma coisa que sessao
+          // expirada -- nao pode derrubar o login por causa disso, so avisar e deixar
+          // registrado pra investigar.
+          console.error('Erro ao montar o painel:', erroRender);
+          conteudo.innerHTML = '<div class="empty-state"><div class="msg">' +
+            'Ocorreu um erro ao carregar esta página (' + esc(erroRender.message || String(erroRender)) + '). ' +
+            'Atualize a página e tente de novo; se persistir, avise o suporte.</div></div>';
+        }
       })
       .catch(function (e) {
         sessionStorage.removeItem('painel_token');
+        document.documentElement.removeAttribute('data-tem-sessao');
+        if (carregandoInicial) carregandoInicial.classList.add('hidden');
         gate.classList.remove('hidden');
         shell.classList.add('hidden');
         gateError.textContent = e.message === 'sessao'

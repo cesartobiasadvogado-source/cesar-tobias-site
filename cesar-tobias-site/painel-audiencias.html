@@ -25,6 +25,13 @@
 
     var corPaginaSalva = localStorage.getItem('painel_cor_pagina');
     if (corPaginaSalva) document.documentElement.style.setProperty('--bg', corPaginaSalva);
+
+    // ja tem sessao guardada -- evita mostrar a tela de login por um instante a cada troca de
+    // pagina (antes so acontecia uma vez, agora cada "aba" e uma pagina de verdade que recarrega
+    // e refaz essa checagem). Roda antes do body existir, pra nao ter nem um flash.
+    if (sessionStorage.getItem('painel_token')) {
+      document.documentElement.setAttribute('data-tem-sessao', '1');
+    }
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,6 +40,8 @@
 <link rel="stylesheet" href="painel.css">
 </head>
 <body>
+
+  <div id="carregando-inicial" class="carregando-inicial">Carregando…</div>
 
   <div id="gate" class="gate">
     <div class="gate-card">

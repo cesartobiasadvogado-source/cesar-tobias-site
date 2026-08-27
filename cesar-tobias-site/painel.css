@@ -84,6 +84,11 @@
 
   /* Password gate */
   .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .carregando-inicial { display: none; }
+  html[data-tem-sessao] #gate { display: none; }
+  html[data-tem-sessao] .carregando-inicial { display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; font-size: 13.5px; color: var(--ink-faint); background: var(--bg); }
+  html[data-tem-sessao] .carregando-inicial.hidden { display: none; }
   .gate-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 32px; max-width: 340px; width: 100%; }
   .gate-title { font-family: var(--font-display); font-size: 20px; color: var(--brand); margin: 0 0 4px; }
   .gate-sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 20px; }
