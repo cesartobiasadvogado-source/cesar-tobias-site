@@ -1,0 +1,3079 @@
+(function () {
+  var gate = document.getElementById('gate');
+  var shell = document.getElementById('shell');
+  var conteudo = document.getElementById('conteudo');
+  var evolucaoMensalAtual = [];
+  var filtroGraficoAtual = '6';
+  var dadosPainelAtual = null;
+  var itensModalDrillAtual = [];
+
+  var ROTULO_STATUS_DRILL = {
+    'EmAberto': 'A Receber — parcelas em aberto',
+    'Paga': 'Parcelas pagas',
+    'Vencida': 'Parcelas vencidas',
+    'Vence hoje': 'Parcelas vencendo hoje',
+    'A vencer': 'Parcelas a vencer',
+    'Sem data de vencimento': 'Parcelas sem data de vencimento',
+  };
+
+  function renderModalDrillCorpo(itens) {
+    var corpo = document.getElementById('modal-drill-corpo');
+    if (!itens.length) {
+      corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum lançamento encontrado.</div></div>';
+      return;
+    }
+    corpo.innerHTML = '<div class="table-scroll"><table style="min-width:420px;">' +
+      '<thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Saldo</th><th></th></tr></thead><tbody>' +
+      itens.map(function (i) {
+        var classeChip = i.situacao === 'Vencida' ? 'crit' : (i.situacao === 'Paga' ? 'good' : (i.situacao === 'Vence hoje' ? 'warn' : 'neutral'));
+        return '<tr><td>' + esc(i.nome) + '</td><td>' + esc(i.vencimento || '—') + '</td>' +
+          '<td class="num">R$ ' + fmtMoeda(i.saldo) + '</td>' +
+          '<td><span class="chip ' + classeChip + '">' + esc(i.situacao) + (i.dias_atraso > 0 ? ' · ' + i.dias_atraso + 'd' : '') + '</span></td></tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  function abrirModalDrill(status, ancoraSecao) {
+    var overlay = document.getElementById('modal-drill');
+    if (ancoraSecao) {
+      overlay.classList.add('hidden');
+      var alvo = document.getElementById(ancoraSecao);
+      if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    var titulo = document.getElementById('modal-drill-titulo');
+    var busca = document.getElementById('modal-drill-busca-input');
+    titulo.textContent = ROTULO_STATUS_DRILL[status] || status;
+    busca.value = '';
+    document.getElementById('modal-drill-corpo').innerHTML = '<div class="empty-state"><div class="msg">Carregando...</div></div>';
+    overlay.classList.remove('hidden');
+    apiPostJson('/api/painel?acao=executar', { tipo: 'listar_parcelas_status', status: status })
+      .then(function (r) {
+        itensModalDrillAtual = r.itens || [];
+        renderModalDrillCorpo(itensModalDrillAtual);
+      })
+      .catch(function () {
+        document.getElementById('modal-drill-corpo').innerHTML = '<div class="aviso-tenant">Não foi possível carregar agora. Tente de novo.</div>';
+      });
+  }
+
+  function wireModalDrill() {
+    var overlay = document.getElementById('modal-drill');
+    var fechar = document.getElementById('modal-drill-fechar');
+    var busca = document.getElementById('modal-drill-busca-input');
+    fechar.addEventListener('click', function () { overlay.classList.add('hidden'); });
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) overlay.classList.add('hidden'); });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') overlay.classList.add('hidden');
+    });
+    busca.addEventListener('input', function () {
+      var termo = busca.value.trim().toLowerCase();
+      var filtrados = !termo ? itensModalDrillAtual : itensModalDrillAtual.filter(function (i) {
+        return i.nome.toLowerCase().indexOf(termo) !== -1;
+      });
+      renderModalDrillCorpo(filtrados);
+    });
+    document.addEventListener('click', function (ev) {
+      var alvo = ev.target.closest('[data-drill-status]');
+      if (!alvo) return;
+      abrirModalDrill(alvo.getAttribute('data-drill-status'), alvo.getAttribute('data-drill-ancora'));
+    });
+  }
+  var usuarioInput = document.getElementById('usuario-input');
+  var senhaInput = document.getElementById('senha-input');
+  var btnEntrar = document.getElementById('btn-entrar');
+  var gateError = document.getElementById('gate-error');
+  var tenantIdInput = document.getElementById('tenant-id-input');
+  var toggleEscritorioParceiro = document.getElementById('toggle-escritorio-parceiro');
+
+  var tenantIdSalvo = localStorage.getItem('cadastro_tenant_id');
+  if (tenantIdSalvo) {
+    tenantIdInput.value = tenantIdSalvo;
+    tenantIdInput.style.display = '';
+    toggleEscritorioParceiro.style.display = 'none';
+  }
+  toggleEscritorioParceiro.addEventListener('click', function () {
+    tenantIdInput.style.display = '';
+    toggleEscritorioParceiro.style.display = 'none';
+    tenantIdInput.focus();
+  });
+
+  function aplicarTema(tema) {
+    if (tema === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    localStorage.setItem('painel_tema', tema);
+    document.getElementById('icone-tema-claro').classList.toggle('hidden', tema === 'dark');
+    document.getElementById('icone-tema-escuro').classList.toggle('hidden', tema !== 'dark');
+    document.getElementById('texto-tema').textContent = tema === 'dark' ? 'Modo claro' : 'Modo escuro';
+  }
+
+  aplicarTema(localStorage.getItem('painel_tema') === 'dark' ? 'dark' : 'light');
+
+  document.getElementById('btn-tema').addEventListener('click', function () {
+    aplicarTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  document.getElementById('btn-sair').addEventListener('click', function () {
+    sessionStorage.removeItem('painel_token');
+    shell.classList.add('hidden');
+    gate.classList.remove('hidden');
+    usuarioInput.value = '';
+    senhaInput.value = '';
+    gateError.textContent = '';
+  });
+
+  function misturarComBranco(hex, fator) {
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    var mix = function (c) { return Math.round(c + (255 - c) * fator); };
+    return '#' + [mix(r), mix(g), mix(b)].map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function corComputadaParaHex(nomeVar) {
+    var valor = getComputedStyle(document.documentElement).getPropertyValue(nomeVar).trim();
+    if (valor.charAt(0) === '#') return valor;
+    var numeros = valor.match(/\d+/g);
+    if (!numeros) return '#2c5ce0';
+    return '#' + numeros.slice(0, 3).map(function (n) { return (+n).toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function aplicarCorAccent(hex) {
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-soft', misturarComBranco(hex, 0.88));
+    document.documentElement.style.setProperty('--sidebar-accent', hex);
+  }
+
+  var inputCorAccent = document.getElementById('input-cor-accent');
+  inputCorAccent.value = localStorage.getItem('painel_cor_accent') || corComputadaParaHex('--accent');
+  inputCorAccent.addEventListener('input', function () {
+    aplicarCorAccent(inputCorAccent.value);
+    localStorage.setItem('painel_cor_accent', inputCorAccent.value);
+  });
+
+  document.getElementById('btn-cor-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_accent');
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-soft');
+    document.documentElement.style.removeProperty('--sidebar-accent');
+    inputCorAccent.value = corComputadaParaHex('--accent');
+  });
+
+  var inputCorFundo = document.getElementById('input-cor-fundo');
+  inputCorFundo.value = localStorage.getItem('painel_cor_fundo') || corComputadaParaHex('--sidebar-bg');
+  inputCorFundo.addEventListener('input', function () {
+    document.documentElement.style.setProperty('--sidebar-bg', inputCorFundo.value);
+    localStorage.setItem('painel_cor_fundo', inputCorFundo.value);
+  });
+
+  document.getElementById('btn-cor-fundo-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_fundo');
+    document.documentElement.style.removeProperty('--sidebar-bg');
+    inputCorFundo.value = corComputadaParaHex('--sidebar-bg');
+  });
+
+  var inputCorPagina = document.getElementById('input-cor-pagina');
+  inputCorPagina.value = localStorage.getItem('painel_cor_pagina') || corComputadaParaHex('--bg');
+  inputCorPagina.addEventListener('input', function () {
+    document.documentElement.style.setProperty('--bg', inputCorPagina.value);
+    localStorage.setItem('painel_cor_pagina', inputCorPagina.value);
+  });
+
+  document.getElementById('btn-cor-pagina-reset').addEventListener('click', function () {
+    localStorage.removeItem('painel_cor_pagina');
+    document.documentElement.style.removeProperty('--bg');
+    inputCorPagina.value = corComputadaParaHex('--bg');
+  });
+
+  function fmtMoeda(v) {
+    return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function esc(valor) {
+    return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
+      return ESC_MAPA[c];
+    });
+  }
+
+  function normalizarBusca(valor) {
+    return String(valor || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
+  function apiGet(url) {
+    var token = sessionStorage.getItem('painel_token');
+    return fetch(url, { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + token } });
+  }
+
+  function apiPost(url, corpo) {
+    var token = sessionStorage.getItem('painel_token');
+    return fetch(url, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo || {})
+    });
+  }
+
+  // fetch() so rejeita a Promise em falha de rede -- uma resposta HTTP de erro (500, 401 etc)
+  // ainda cai no .then() de sucesso normalmente. Isso fazia telas de carregamento tratarem um
+  // erro real do servidor como "lista vazia" (ex: planilha deu erro 500 -> aparecia "nenhum
+  // processo encontrado", como se o cliente simplesmente nao tivesse processo nenhum, quando na
+  // verdade a chamada tinha falhado). Esses dois helpers viram Promise rejeitada de verdade
+  // quando a resposta nao e ok, pra quem ja tem um .catch() passar a mostrar erro de verdade em
+  // vez de "vazio" -- sem precisar mudar cada tela que carrega alguma lista.
+  function respostaJsonOuErro(r) {
+    return r.json().catch(function () { return {}; }).then(function (dados) {
+      if (!r.ok) {
+        var erro = new Error((dados && dados.erro) || ('Erro ' + r.status));
+        erro.status = r.status;
+        throw erro;
+      }
+      return dados;
+    });
+  }
+
+  function apiGetJson(url) {
+    return apiGet(url).then(respostaJsonOuErro);
+  }
+
+  function apiPostJson(url, corpo) {
+    return apiPost(url, corpo).then(respostaJsonOuErro);
+  }
+
+  function valorOculto(chave) {
+    return localStorage.getItem('painel_oculto_' + chave) === '1';
+  }
+
+  function renderCardValor(chave, valor, rotulo, sub, drillStatus, drillAncora) {
+    var oculto = valorOculto(chave);
+    var textoValor = oculto ? '••••••' : fmtMoeda(valor);
+    var linkDrill = (drillStatus || drillAncora)
+      ? '<button type="button" class="card-drill-link" data-drill-status="' + esc(drillStatus || '') + '"' +
+          (drillAncora ? ' data-drill-ancora="' + esc(drillAncora) + '"' : '') + '>Ver lançamentos →</button>'
+      : '';
+    return '<div class="stat-card">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+        '<div class="stat-value money">' + textoValor + '</div>' +
+        '<button class="btn-olho" data-olho="' + chave + '" title="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-label="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' +
+          (oculto ? '🙈' : '👁') +
+        '</button>' +
+      '</div>' +
+      '<div class="stat-label">' + rotulo + '</div>' +
+      '<div class="stat-sub">' + sub + '</div>' +
+      linkDrill +
+    '</div>';
+  }
+
+  var NOMES_MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  var NOMES_MES_EXTENSO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+  function nomeMesAbrev(mesStr) {
+    var partes = mesStr.split('-');
+    return NOMES_MES_ABREV[parseInt(partes[1], 10) - 1] + '/' + partes[0].slice(2);
+  }
+
+  function nomeMesExtenso(mesStr) {
+    var partes = mesStr.split('-');
+    return NOMES_MES_EXTENSO[parseInt(partes[1], 10) - 1] + '/' + partes[0];
+  }
+
+  function fmtMoedaCompacta(v) {
+    try {
+      return new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }).format(v || 0);
+    } catch (e) {
+      return fmtMoeda(v);
+    }
+  }
+
+  function filtrarEvolucao(evolucao, filtro) {
+    if (filtro === 'todos') return evolucao;
+    if (filtro === 'mes_atual') {
+      var mesAtual = new Date().toISOString().slice(0, 7);
+      return evolucao.filter(function (m) { return m.mes === mesAtual; });
+    }
+    if (filtro === 'mes_anterior') {
+      var dAnt = new Date(); dAnt.setDate(1); dAnt.setMonth(dAnt.getMonth() - 1);
+      var mesAnterior = dAnt.toISOString().slice(0, 7);
+      return evolucao.filter(function (m) { return m.mes === mesAnterior; });
+    }
+    if (filtro === 'ano_atual') {
+      var anoAtual = String(new Date().getFullYear());
+      return evolucao.filter(function (m) { return m.mes.slice(0, 4) === anoAtual; });
+    }
+    if (filtro === 'ano_anterior') {
+      var anoAnterior = String(new Date().getFullYear() - 1);
+      return evolucao.filter(function (m) { return m.mes.slice(0, 4) === anoAnterior; });
+    }
+    return evolucao.slice(-parseInt(filtro, 10));
+  }
+
+  function somaRecebido(evolucaoFiltrada) {
+    return evolucaoFiltrada.reduce(function (acc, m) { return acc + m.recebido; }, 0);
+  }
+
+  var ROTULOS_FILTRO_PERIODO = {
+    'todos': 'em todo o período', 'mes_atual': 'este mês', 'mes_anterior': 'no mês anterior',
+    'ano_atual': 'este ano', 'ano_anterior': 'no ano anterior',
+  };
+
+  function rotuloFiltro(filtro) {
+    return ROTULOS_FILTRO_PERIODO[filtro] || ('nos últimos ' + filtro + ' meses');
+  }
+
+  function reduzMotion() {
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  function animarContagem(el, valorFinal) {
+    if (!el) return;
+    if (reduzMotion()) { el.textContent = 'R$ ' + fmtMoeda(valorFinal); return; }
+    var duracao = 900;
+    var inicio = null;
+    function passo(ts) {
+      if (inicio === null) inicio = ts;
+      var progresso = Math.min((ts - inicio) / duracao, 1);
+      var facilitado = 1 - Math.pow(1 - progresso, 3); // ease-out cubic
+      el.textContent = 'R$ ' + fmtMoeda(valorFinal * facilitado);
+      if (progresso < 1) requestAnimationFrame(passo);
+    }
+    requestAnimationFrame(passo);
+  }
+
+  var STATUS_PARCELA_CONFIG = [
+    { chave: 'Vencida', rotulo: 'Vencidas', cor: '#f0616c' },
+    { chave: 'Vence hoje', rotulo: 'Vencendo hoje', cor: '#f0a94e' },
+    { chave: 'A vencer', rotulo: 'A vencer', cor: '#6c8cf0' },
+    { chave: 'Paga', rotulo: 'Pagas', cor: '#5fd68f' },
+    { chave: 'Sem data de vencimento', rotulo: 'Sem data de vencimento', cor: '#4d5878' },
+  ];
+
+  function renderStatusParcelasDonut(statusObj) {
+    var itens = STATUS_PARCELA_CONFIG.map(function (cfg) {
+      return { chave: cfg.chave, rotulo: cfg.rotulo, cor: cfg.cor, qtd: statusObj[cfg.chave] || 0 };
+    });
+    var total = itens.reduce(function (acc, i) { return acc + i.qtd; }, 0);
+
+    if (total === 0) {
+      return '<div class="status-card"><div class="status-card-titulo">Status das Parcelas</div>' +
+        '<div class="fluxo-vazio" style="padding:20px 0;">Nenhuma parcela cadastrada ainda.</div></div>';
+    }
+
+    var raio = 70, centro = 84, circunferencia = 2 * Math.PI * raio;
+    var acumulado = 0;
+    var arcos = itens.filter(function (i) { return i.qtd > 0; }).map(function (i) {
+      var fracao = i.qtd / total;
+      var comprimento = fracao * circunferencia;
+      var offset = circunferencia - acumulado;
+      acumulado += comprimento;
+      return '<circle cx="' + centro + '" cy="' + centro + '" r="' + raio + '" fill="none" stroke="' + i.cor + '" ' +
+        'stroke-width="22" stroke-dasharray="' + comprimento + ' ' + (circunferencia - comprimento) + '" ' +
+        'stroke-dashoffset="' + offset + '" transform="rotate(-90 ' + centro + ' ' + centro + ')" />';
+    }).join('');
+
+    var legenda = itens.filter(function (i) { return i.qtd > 0; }).map(function (i) {
+      var pct = Math.round((i.qtd / total) * 100);
+      return '<div class="status-legenda-item" data-drill-status="' + esc(i.chave) + '" style="cursor:pointer;" title="Clique pra ver os lançamentos">' +
+        '<span class="status-legenda-swatch" style="background:' + i.cor + ';"></span>' +
+        i.rotulo + '<span class="status-legenda-pct">' + pct + '%</span><b>' + i.qtd + '</b>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="status-card">' +
+      '<div class="status-card-titulo">Status das Parcelas</div>' +
+      '<div class="status-donut-wrap">' +
+        '<svg width="168" height="168" viewBox="0 0 168 168">' + arcos + '</svg>' +
+        '<div class="status-donut-total"><div class="num">' + total + '</div><div class="lbl">parcelas</div></div>' +
+      '</div>' +
+      '<div class="status-legenda">' + legenda + '</div>' +
+    '</div>';
+  }
+
+  function desenharFluxoCaixa(evolucaoFiltrada) {
+    var wrap = document.getElementById('grafico-financeiro-svg');
+    if (!wrap) return;
+    var tooltipHtml = '<div class="fluxo-tooltip" id="grafico-tooltip"></div>';
+    var totalRecebido = somaRecebido(evolucaoFiltrada);
+    var totalAReceber = evolucaoFiltrada.reduce(function (acc, m) { return acc + m.a_receber; }, 0);
+    if (!evolucaoFiltrada.length) {
+      wrap.innerHTML = '<div class="fluxo-vazio">Sem movimentação financeira registrada ainda.</div>' + tooltipHtml;
+      return;
+    }
+    var W = 900, H = 220;
+    var orbeRaio = 38, orbeEsqX = 70, orbeDirX = W - 70, orbeY = 88;
+    var linhaEsqX = orbeEsqX + orbeRaio + 22, linhaDirX = orbeDirX - orbeRaio - 22;
+    var larguraUtil = linhaDirX - linhaEsqX;
+    var n = evolucaoFiltrada.length;
+    var passoX = n > 1 ? larguraUtil / (n - 1) : 0;
+
+    var maxRecebido = Math.max.apply(null, evolucaoFiltrada.map(function (m) { return m.recebido; }).concat([0.01]));
+    var maxAReceber = Math.max.apply(null, evolucaoFiltrada.map(function (m) { return m.a_receber; }).concat([0.01]));
+
+    var animado = !reduzMotion();
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fluxo de recebimentos por mês">';
+    svg += '<defs>' +
+      '<radialGradient id="fluxoOrbeAReceber" cx="35%" cy="30%" r="75%">' +
+        '<stop offset="0%" stop-color="#f0a94e" stop-opacity="0.95" />' +
+        '<stop offset="100%" stop-color="#c9822f" stop-opacity="0.35" />' +
+      '</radialGradient>' +
+      '<radialGradient id="fluxoOrbeRecebido" cx="35%" cy="30%" r="75%">' +
+        '<stop offset="0%" stop-color="#8fa6f7" stop-opacity="0.98" />' +
+        '<stop offset="100%" stop-color="#3b56c4" stop-opacity="0.4" />' +
+      '</radialGradient>' +
+    '</defs>';
+
+    // linha do tempo, se desenhando da esquerda pra direita
+    svg += '<line class="fluxo-linha' + (animado ? ' fluxo-linha-anim' : '') + '" x1="' + linhaEsqX + '" y1="' + orbeY + '" x2="' + linhaDirX + '" y2="' + orbeY + '" />';
+
+    // orbe "A Receber" (esquerda)
+    svg += '<circle cx="' + orbeEsqX + '" cy="' + orbeY + '" r="' + orbeRaio + '" fill="url(#fluxoOrbeAReceber)" style="filter:drop-shadow(0 0 10px rgba(240,169,78,.45));" />';
+    svg += '<text class="fluxo-orbe-label" x="' + orbeEsqX + '" y="' + (orbeY - orbeRaio - 14) + '" text-anchor="middle">A Receber</text>';
+    svg += '<text class="fluxo-orbe-valor" id="fluxo-valor-a-receber" fill="#f0a94e" x="' + orbeEsqX + '" y="' + (orbeY + orbeRaio + 26) + '" text-anchor="middle">R$ 0,00</text>';
+
+    // orbe "Recebido" (direita)
+    svg += '<circle cx="' + orbeDirX + '" cy="' + orbeY + '" r="' + orbeRaio + '" fill="url(#fluxoOrbeRecebido)" style="filter:drop-shadow(0 0 10px rgba(108,140,240,.55));" />';
+    svg += '<text class="fluxo-orbe-label" x="' + orbeDirX + '" y="' + (orbeY - orbeRaio - 14) + '" text-anchor="middle">Recebido</text>';
+    svg += '<text class="fluxo-orbe-valor" id="fluxo-valor-recebido" fill="#8fa6f7" x="' + orbeDirX + '" y="' + (orbeY + orbeRaio + 26) + '" text-anchor="middle">R$ 0,00</text>';
+
+    var passoRotulo = Math.ceil(n / 10);
+    evolucaoFiltrada.forEach(function (m, idx) {
+      var cx = linhaEsqX + passoX * idx;
+      var raioRecebido = 3 + (m.recebido / maxRecebido) * 6.5;
+      var raioAReceber = 5 + (m.a_receber / maxAReceber) * 8;
+      var atraso = animado ? (idx * (900 / Math.max(n, 1))) : 0;
+
+      if (m.a_receber > 0) {
+        svg += '<circle class="fluxo-no-a-receber' + (animado ? ' fluxo-no-entrada' : '') + '" cx="' + cx + '" cy="' + orbeY + '" r="' + raioAReceber + '" ' +
+          (animado ? 'style="animation-delay:' + atraso + 'ms;"' : '') + ' />';
+      }
+      svg += '<circle class="fluxo-no-recebido' + (animado ? ' fluxo-no-entrada' : '') + '" cx="' + cx + '" cy="' + orbeY + '" r="' + raioRecebido + '" ' +
+        (animado ? 'style="animation-delay:' + atraso + 'ms;"' : '') + ' />';
+      if (m.vencido > 0) {
+        svg += '<circle cx="' + cx + '" cy="' + orbeY + '" r="' + (raioAReceber + 3.5) + '" fill="none" stroke="#f0616c" stroke-width="1.6" opacity="0.85" />';
+      }
+      svg += '<rect x="' + (cx - passoX / 2) + '" y="' + (orbeY - 30) + '" width="' + (passoX || 40) + '" height="60" fill="transparent" ' +
+        'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" data-vencido="' + (m.vencido || 0) + '" style="cursor:pointer;" />';
+      if (idx % passoRotulo === 0) {
+        svg += '<text class="fluxo-mes-texto" x="' + cx + '" y="' + (orbeY + 34) + '" text-anchor="middle">' + esc(nomeMesAbrev(m.mes)) + '</text>';
+      }
+    });
+
+    svg += '</svg>';
+    wrap.innerHTML = svg + tooltipHtml;
+    wireHoverGrafico(wrap);
+    animarContagem(document.getElementById('fluxo-valor-a-receber'), totalAReceber);
+    animarContagem(document.getElementById('fluxo-valor-recebido'), totalRecebido);
+  }
+
+  function wireHoverGrafico(wrap) {
+    var tooltip = document.getElementById('grafico-tooltip');
+    var svgEl = wrap.querySelector('svg');
+    if (!tooltip || !svgEl) return;
+    svgEl.addEventListener('mousemove', function (ev) {
+      var alvo = ev.target.closest('[data-mes]');
+      if (!alvo) { tooltip.classList.remove('visivel'); return; }
+      var mes = alvo.getAttribute('data-mes');
+      var recebido = parseFloat(alvo.getAttribute('data-recebido'));
+      var aReceber = parseFloat(alvo.getAttribute('data-a-receber'));
+      var vencido = parseFloat(alvo.getAttribute('data-vencido')) || 0;
+      tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + esc(nomeMesExtenso(mes)) + '</div>' +
+        'Recebido: <b>R$ ' + fmtMoeda(recebido) + '</b><br>' +
+        'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>' +
+        (vencido > 0 ? '<br>Em atraso: <b style="color:#f0616c;">R$ ' + fmtMoeda(vencido) + '</b>' : '');
+      var wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
+      tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
+      tooltip.classList.add('visivel');
+    });
+    svgEl.addEventListener('mouseleave', function () { tooltip.classList.remove('visivel'); });
+  }
+
+  function renderTabelaGrafico(evolucaoFiltrada) {
+    var corpo = document.getElementById('grafico-tabela-corpo');
+    if (!corpo) return;
+    corpo.innerHTML = evolucaoFiltrada.map(function (m) {
+      return '<tr><td>' + esc(nomeMesExtenso(m.mes)) + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(m.recebido) + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(m.a_receber) + '</td>' +
+        '<td class="num">' + (m.vencido > 0 ? '<span style="color:var(--crit);">R$ ' + fmtMoeda(m.vencido) + '</span>' : '—') + '</td></tr>';
+    }).join('');
+  }
+
+  function aplicarFiltroGrafico(filtro) {
+    filtroGraficoAtual = filtro;
+    document.querySelectorAll('.fluxo-filtro-btn').forEach(function (btn) {
+      btn.classList.toggle('ativo', btn.getAttribute('data-filtro') === filtro);
+    });
+    var filtrado = filtrarEvolucao(evolucaoMensalAtual, filtro);
+    desenharFluxoCaixa(filtrado);
+    renderTabelaGrafico(filtrado);
+    var cardRecebidoPeriodo = document.getElementById('card-recebido-periodo');
+    if (cardRecebidoPeriodo) {
+      cardRecebidoPeriodo.innerHTML = renderCardValor('recebido_periodo', somaRecebido(filtrado), 'Recebido no Período', rotuloFiltro(filtro));
+    }
+    var f = dadosPainelAtual && dadosPainelAtual.financeiro;
+    if (f) {
+      var somaAReceberPeriodo = filtrado.reduce(function (acc, m) { return acc + m.a_receber; }, 0);
+      var somaVencidoPeriodo = filtrado.reduce(function (acc, m) { return acc + (m.vencido || 0); }, 0);
+      var cardAReceber = document.getElementById('card-a-receber');
+      if (cardAReceber) {
+        var subAReceber = filtro === 'todos'
+          ? (f.parcelas_vencidas.length ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)' : 'saldo de honorários em aberto')
+          : 'R$ ' + fmtMoeda(somaAReceberPeriodo) + ' com vencimento ' + rotuloFiltro(filtro);
+        cardAReceber.innerHTML = renderCardValor('a_receber', f.total_a_receber, 'A Receber', subAReceber, 'EmAberto');
+      }
+      var cardEmAtraso = document.getElementById('card-em-atraso');
+      if (cardEmAtraso) {
+        var subEmAtrasoAtual = filtro === 'todos'
+          ? (f.parcelas_vencidas.length ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)' : 'nenhuma parcela vencida')
+          : 'R$ ' + fmtMoeda(somaVencidoPeriodo) + ' vencido, venc. ' + rotuloFiltro(filtro);
+        cardEmAtraso.innerHTML = renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtrasoAtual, null, 'sec-vencidas');
+      }
+    }
+    wireOlhinhos(dadosPainelAtual);
+  }
+
+  function wireVisaoFinanceira() {
+    document.querySelectorAll('.fluxo-filtro-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () { aplicarFiltroGrafico(btn.getAttribute('data-filtro')); });
+    });
+    var btnTabela = document.getElementById('grafico-tabela-toggle');
+    if (btnTabela) {
+      btnTabela.addEventListener('click', function () {
+        var tabelaWrap = document.getElementById('grafico-tabela-wrap');
+        var graficoWrap = document.getElementById('grafico-financeiro-svg');
+        var vaiMostrarTabela = tabelaWrap.classList.contains('hidden');
+        tabelaWrap.classList.toggle('hidden', !vaiMostrarTabela);
+        graficoWrap.classList.toggle('hidden', vaiMostrarTabela);
+        btnTabela.textContent = vaiMostrarTabela ? 'Ver como gráfico' : 'Ver como tabela';
+      });
+    }
+    aplicarFiltroGrafico(filtroGraficoAtual);
+  }
+
+  function wireDevedoresMes() {
+    var input = document.getElementById('devedores-mes-input');
+    var btn = document.getElementById('devedores-mes-buscar');
+    var resultado = document.getElementById('devedores-mes-resultado');
+    if (!input || !btn || !resultado) return;
+    if (!input.value) {
+      var hoje = new Date();
+      input.value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0');
+    }
+    btn.addEventListener('click', function () {
+      var mes = input.value;
+      if (!mes) {
+        resultado.innerHTML = '<div class="aviso-tenant">Escolha um mês.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Buscando...';
+      resultado.innerHTML = '';
+      apiPostJson('/api/painel?acao=executar', { tipo: 'relatorio_devedores_mes', mes: mes })
+        .then(function (corpo) {
+          btn.disabled = false; btn.textContent = 'Ver quem deve';
+          var devedores = corpo.devedores || [];
+          if (!devedores.length) {
+            resultado.innerHTML = '<div class="empty-state"><div class="glyph">✓</div>' +
+              '<div class="msg">Ninguém deve parcela nesse mês.</div></div>';
+            return;
+          }
+          var linhas = devedores.map(function (d) {
+            var parcelaTxt = d.numero_parcela ? (d.numero_parcela + '/' + (d.total_parcelas || '?')) : '—';
+            return '<tr><td>' + esc(d.nome) + '</td><td>' + esc(parcelaTxt) + '</td>' +
+              '<td>' + esc(d.vencimento) + '</td><td class="num">R$ ' + fmtMoeda(d.saldo) + '</td></tr>';
+          }).join('');
+          resultado.innerHTML =
+            '<div class="chip warn" style="margin-bottom:12px;">Total do mês: R$ ' + fmtMoeda(corpo.total_devedores) + '</div>' +
+            '<div class="table-scroll"><table style="min-width:460px;"><thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>' +
+            '<tbody>' + linhas + '</tbody></table></div>';
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Ver quem deve';
+          resultado.innerHTML = '<div class="aviso-tenant">Não foi possível buscar agora. Tente de novo.</div>';
+        });
+    });
+  }
+
+  function carregarListaClientesFinanceiro() {
+    var wrap = document.getElementById('lista-clientes-financeiro-wrap');
+    if (!wrap) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'listar_clientes_financeiro' })
+      .then(function (corpo) {
+        var clientes = corpo.clientes || [];
+        if (!clientes.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente cadastrado ainda.</div></div>';
+          return;
+        }
+        var linhas = clientes.map(function (c) {
+          var classeChip = c.status === 'Ativo' ? 'good' : 'neutral';
+          return '<tr><td>' + esc(c.nome) + '</td>' +
+            '<td><span class="chip ' + classeChip + '">' + esc(c.status || '—') + '</span></td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
+            '<td style="text-align:right"><button class="btn-editar" data-remover-cliente="' + esc(c.nome) + '">Remover</button></td></tr>';
+        }).join('');
+        wrap.innerHTML =
+          '<div class="table-scroll"><table style="min-width:480px;"><thead><tr><th>Cliente</th><th>Status</th><th style="text-align:right">Valor total</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table></div>';
+        wrap.querySelectorAll('[data-remover-cliente]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var nome = btn.getAttribute('data-remover-cliente');
+            if (!confirm('Remover "' + nome + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) return;
+            btn.disabled = true; btn.textContent = 'Removendo...';
+            apiPostJson('/api/painel?acao=executar', { tipo: 'remover_cliente_financeiro', nome: nome })
+              .then(function () { carregarListaClientesFinanceiro(); })
+              .catch(function () {
+                btn.disabled = false; btn.textContent = 'Remover';
+                alert('Não foi possível remover agora. Tente de novo.');
+              });
+          });
+        });
+      })
+      .catch(function () {
+        wrap.innerHTML = '<div class="aviso-tenant">Não foi possível carregar a lista de clientes.</div>';
+      });
+  }
+
+  function wireFormExito() {
+    var form = document.getElementById('form-exito-atualizar');
+    if (!form) return;
+    var msg = document.getElementById('form-exito-msg');
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var corpo = {};
+      form.querySelectorAll('[data-campo-exito]').forEach(function (el) {
+        corpo[el.getAttribute('data-campo-exito')] = el.value.trim();
+      });
+      var botao = form.querySelector('button[type="submit"]');
+      botao.disabled = true; botao.textContent = 'Atualizando...';
+      msg.textContent = '';
+      apiPostJson('/api/painel?acao=executar', {
+        tipo: 'atualizar_exito_financeiro',
+        nome: corpo.nome,
+        tipo_servico: corpo.tipo_servico,
+        valor_recebido_cliente: corpo.valor_recebido_cliente,
+      })
+        .then(function (r) {
+          botao.disabled = false; botao.textContent = 'Atualizar honorário';
+          var deuCerto = (r.resposta || '').indexOf('atualizado') !== -1;
+          msg.style.color = deuCerto ? 'var(--good)' : 'var(--crit)';
+          msg.textContent = (r.resposta || 'Atualizado.') +
+            (deuCerto ? ' Os valores no painel podem levar até 90s pra refletir — ou clique em "Atualizar agora".' : '');
+          if (deuCerto) form.reset();
+        })
+        .catch(function () {
+          botao.disabled = false; botao.textContent = 'Atualizar honorário';
+          msg.style.color = 'var(--crit)';
+          msg.textContent = 'Não foi possível atualizar agora. Confira o nome/serviço e tente de novo.';
+        });
+    });
+  }
+
+  function wireOlhinhos(dados) {
+    document.querySelectorAll('[data-olho]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var chave = btn.getAttribute('data-olho');
+        var ocultoAtual = valorOculto(chave);
+        if (ocultoAtual) {
+          localStorage.removeItem('painel_oculto_' + chave);
+        } else {
+          localStorage.setItem('painel_oculto_' + chave, '1');
+        }
+        renderPainel(dados);
+      });
+    });
+  }
+
+  function fmtDataHora(iso) {
+    var d = new Date(iso);
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderPainel(dados) {
+    if (dados.nome_escritorio) document.getElementById('sidebar-nome').textContent = dados.nome_escritorio;
+    if (dados.nome_advogado) document.getElementById('sidebar-sub').textContent = dados.nome_advogado;
+    var avisoTenant = document.getElementById('aviso-tenant-incompleto');
+    if (avisoTenant) avisoTenant.remove();
+    if (sessionStorage.getItem('painel_token') && sessionStorage.getItem('painel_token').indexOf(':') !== -1) {
+      var aviso = document.createElement('div');
+      aviso.id = 'aviso-tenant-incompleto';
+      aviso.className = 'aviso-tenant';
+      aviso.style.margin = '0 0 18px';
+      aviso.textContent = 'A geração de contrato ainda não está adaptada pro seu escritório — essa parte está em construção pela equipe.';
+      var conteudoEl = document.getElementById('conteudo');
+      if (conteudoEl) conteudoEl.insertBefore(aviso, conteudoEl.firstChild);
+    }
+    var perms = dados.usuario_permissoes || [];
+    var f = dados.financeiro;
+    var p = dados.pje;
+
+    var htmlFinanceiro = '';
+    var htmlExito = '';
+    var painelVencidasHtml = '';
+    if (f) {
+      var htmlVencidas;
+      if (f.parcelas_vencidas.length === 0) {
+        htmlVencidas =
+          '<div class="empty-state"><div class="glyph">✓</div>' +
+          '<div class="msg">Nenhuma parcela em atraso agora. Tudo em dia.</div></div>';
+      } else {
+        var linhas = f.parcelas_vencidas.map(function (item) {
+          var classe = item.dias_atraso > 15 ? 'crit' : 'warn';
+          return '<tr><td>' + esc(item.nome) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(item.saldo) + '</td>' +
+            '<td>' + esc(item.vencimento) + '</td>' +
+            '<td class="num"><span class="days-badge ' + classe + '">' + item.dias_atraso + ' dias</span></td>' +
+            '<td style="text-align:right">' +
+              '<button class="btn-editar" data-cobrar-nome="' + esc(item.nome) + '" ' +
+              'data-cobrar-valor="' + esc(item.saldo) + '" data-cobrar-vencimento="' + esc(item.vencimento) + '" ' +
+              'data-cobrar-linha-contrato="' + esc(item.linha_contrato || '') + '" ' +
+              'data-cobrar-numero-parcela="' + esc(item.numero_parcela || '') + '">Cobrar</button>' +
+            '</td></tr>';
+        }).join('');
+        htmlVencidas =
+          '<div class="table-scroll">' +
+          '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table>' +
+          '</div>';
+      }
+
+      var chipVencidas = f.parcelas_vencidas.length === 0
+        ? '<span class="chip good">Nenhuma vencida</span>'
+        : '<span class="chip crit">' + f.parcelas_vencidas.length + ' vencida(s)</span>';
+
+      evolucaoMensalAtual = f.evolucao_mensal || [];
+      dadosPainelAtual = dados;
+      var filtradoInicial = filtrarEvolucao(evolucaoMensalAtual, filtroGraficoAtual);
+      var subReceber = f.parcelas_vencidas.length
+        ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)'
+        : 'saldo de honorários em aberto';
+
+      var exitoResumo = f.exito || { total_previsto: 0, total_recebido: 0, total_a_receber: 0, casos: [] };
+      var subEmAtraso = f.parcelas_vencidas.length
+        ? f.parcelas_vencidas.length + ' parcela(s) vencida(s)'
+        : 'nenhuma parcela vencida';
+      var subExito = exitoResumo.casos.length
+        ? exitoResumo.casos.length + ' caso(s) de êxito cadastrado(s)'
+        : 'nenhum caso de êxito cadastrado';
+
+      var htmlAlertaInadimplencia = f.total_vencido > 0
+        ? '<a href="#sec-vencidas" class="alerta-inadimplencia">' +
+            '<span class="alerta-inadimplencia-icone">⚠</span>' +
+            '<span><b>R$ ' + fmtMoeda(f.total_vencido) + '</b> em atraso — ' + f.parcelas_vencidas.length + ' parcela(s) vencida(s). Ver cobrança pendente →</span>' +
+          '</a>'
+        : '';
+
+      var PRESETS_PERIODO = [
+        { chave: 'mes_atual', rotulo: 'Este mês' },
+        { chave: 'mes_anterior', rotulo: 'Mês anterior' },
+        { chave: '3', rotulo: '3 meses' },
+        { chave: '6', rotulo: '6 meses' },
+        { chave: '12', rotulo: '12 meses' },
+        { chave: 'ano_atual', rotulo: 'Este ano' },
+        { chave: 'ano_anterior', rotulo: 'Ano anterior' },
+        { chave: 'todos', rotulo: 'Todo o período' },
+      ];
+
+      htmlFinanceiro =
+        '<section id="sec-visao-geral"><p class="section-label">Visão Financeira</p>' +
+        htmlAlertaInadimplencia +
+        '<div class="periodo-filtro-bar">' +
+          '<span class="periodo-filtro-label">Período</span>' +
+          PRESETS_PERIODO.map(function (p) {
+            return '<button type="button" class="fluxo-filtro-btn' + (p.chave === filtroGraficoAtual ? ' ativo' : '') + '" data-filtro="' + p.chave + '">' + p.rotulo + '</button>';
+          }).join('') +
+        '</div>' +
+        '<div class="stat-grid">' +
+          '<div id="card-a-receber" style="display:contents;">' + renderCardValor('a_receber', f.total_a_receber, 'A Receber', subReceber, 'EmAberto') + '</div>' +
+          '<div id="card-recebido-periodo" style="display:contents;">' + renderCardValor('recebido_periodo', somaRecebido(filtradoInicial), 'Recebido no Período', rotuloFiltro(filtroGraficoAtual)) + '</div>' +
+          renderCardValor('valor_recebido', f.valor_recebido_geral, 'Total Acumulado', 'tudo que já entrou, desde o início', 'Paga') +
+          '<div id="card-em-atraso" style="display:contents;">' + renderCardValor('em_atraso', f.total_vencido, 'Em Atraso', subEmAtraso, null, 'sec-vencidas') + '</div>' +
+          renderCardValor('exito_previsto', exitoResumo.total_previsto, 'Honorários de Êxito', subExito, null, 'sec-exito') +
+        '</div>' +
+        '<div class="fluxo-card">' +
+          '<div class="fluxo-cabecalho">' +
+            '<span class="fluxo-titulo">Fluxo de Caixa Vivo</span>' +
+          '</div>' +
+          '<div class="fluxo-legenda">' +
+            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#6c8cf0;box-shadow:0 0 5px rgba(108,140,240,.8);"></span>Recebido</span>' +
+            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:rgba(240,169,78,.6);"></span>A receber</span>' +
+            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:transparent;border:1.6px solid #f0616c;"></span>Com valor vencido</span>' +
+          '</div>' +
+          '<div class="fluxo-svg-wrap" id="grafico-financeiro-svg" style="position:relative;"><div class="fluxo-tooltip" id="grafico-tooltip"></div></div>' +
+          '<div id="grafico-tabela-wrap" class="hidden table-scroll" style="margin-top:14px;">' +
+            '<table style="min-width:420px;"><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th style="text-align:right">Vencido</th></tr></thead>' +
+            '<tbody id="grafico-tabela-corpo"></tbody></table>' +
+          '</div>' +
+          '<button type="button" class="fluxo-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
+          (f.recebido_sem_data > 0
+            ? '<div style="position:relative;z-index:1;margin-top:14px;padding:10px 13px;border-radius:8px;background:rgba(240,169,78,.1);border:1px solid rgba(240,169,78,.25);color:#e0b374;font-size:12.5px;line-height:1.5;">' +
+                '<b>R$ ' + fmtMoeda(f.recebido_sem_data) + '</b> recebidos não aparecem no gráfico acima porque são lançamentos antigos sem data de pagamento registrada na planilha — esse valor já está incluído no "Total Acumulado".' +
+              '</div>'
+            : '') +
+        '</div>' +
+        renderStatusParcelasDonut(f.parcelas_por_status || {}) +
+        '<p class="section-label" style="margin-top:22px;">Outros indicadores</p><div class="stat-grid">' +
+          '<div class="stat-card"><div class="stat-value">' + f.contratos_ativos + '</div><div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento neste momento</div></div>' +
+          '<div class="stat-card"><div class="stat-value">' + f.contratos_encerrados + '</div><div class="stat-label">Contratos encerrados</div><div class="stat-sub">concluídos</div></div>' +
+          '<div class="stat-card"><div class="stat-value">' + f.clientes_novos_mes + '</div><div class="stat-label">Cliente(s) novo(s)</div><div class="stat-sub">contrato iniciado este mês</div></div>' +
+          renderCardValor('valor_total', f.valor_total_geral, 'Valor total', 'contratos + honorários de êxito') +
+        '</div></section>';
+
+      var casosExito = exitoResumo.casos || [];
+      var CHIP_STATUS_EXITO = { 'Paga': 'good', 'Aguardando recebimento': 'warn' };
+      var htmlListaExito;
+      if (casosExito.length === 0) {
+        htmlListaExito = '<div class="empty-state"><div class="msg">Nenhum caso de honorário de êxito cadastrado ainda.</div></div>';
+      } else {
+        var linhasExito = casosExito.map(function (c) {
+          return '<tr><td>' + esc(c.cliente) + '</td>' +
+            '<td>' + esc(c.servico) + '</td>' +
+            '<td class="num">' + c.percentual + '%</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.honorario) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.recebido) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.a_receber) + '</td>' +
+            '<td><span class="chip ' + (CHIP_STATUS_EXITO[c.status] || 'neutral') + '">' + esc(c.status || '—') + '</span></td></tr>';
+        }).join('');
+        htmlListaExito = '<div class="table-scroll"><table style="min-width:680px;">' +
+          '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">%</th><th style="text-align:right">Honorário</th>' +
+          '<th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th>Status</th></tr></thead>' +
+          '<tbody>' + linhasExito + '</tbody></table></div>';
+      }
+
+      var htmlExito =
+        '<section id="sec-exito"><p class="section-label">Honorários de Êxito</p>' +
+          '<div class="stat-grid">' +
+            renderCardValor('exito_previsto_sub', exitoResumo.total_previsto, 'Previsto', 'soma dos honorários já calculados') +
+            renderCardValor('exito_recebido_sub', exitoResumo.total_recebido, 'Recebido', 'já pago ao escritório') +
+            renderCardValor('exito_falta_sub', exitoResumo.total_a_receber, 'Falta Receber', 'honorário − já recebido') +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Casos cadastrados</span></div>' +
+            htmlListaExito +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Registrar valor recebido pelo cliente</span></div>' +
+            '<div style="padding:16px 20px;font-size:12.5px;color:var(--ink-faint);line-height:1.5;">' +
+              'Quando o processo termina, informe aqui quanto o cliente recebeu na causa (condenação/acordo) — ' +
+              'o honorário de êxito é recalculado automaticamente (% × esse valor).' +
+            '</div>' +
+            '<form id="form-exito-atualizar" class="proposta-form" style="padding:0 20px 18px;display:grid;gap:8px;grid-template-columns:1fr 1fr;">' +
+              '<input type="text" placeholder="Nome do cliente" data-campo-exito="nome" required>' +
+              '<input type="text" placeholder="Serviço (igual ao cadastro)" data-campo-exito="tipo_servico" required>' +
+              '<input type="number" step="0.01" min="0" placeholder="Valor recebido pelo cliente (R$)" data-campo-exito="valor_recebido_cliente" required>' +
+              '<button type="submit" class="btn-relatorio-mes" style="grid-column:span 1;">Atualizar honorário</button>' +
+              '<div id="form-exito-msg" style="grid-column:1 / -1;font-size:12.5px;"></div>' +
+            '</form>' +
+          '</div>' +
+        '</section>';
+
+      var htmlRanking;
+      var rankingLista = f.ranking_maiores_devedores || [];
+      if (rankingLista.length === 0) {
+        htmlRanking = '<div class="empty-state"><div class="glyph">✓</div><div class="msg">Ninguém com saldo em aberto.</div></div>';
+      } else {
+        var maiorSaldoRanking = rankingLista[0].saldo || 1;
+        htmlRanking = '<div class="table-scroll"><table style="min-width:380px;">' +
+          '<thead><tr><th>Cliente</th><th style="text-align:right">A receber</th></tr></thead><tbody>' +
+          rankingLista.map(function (r, idx) {
+            var pctBarra = Math.max(4, Math.round((r.saldo / maiorSaldoRanking) * 100));
+            return '<tr><td>' + (idx + 1) + '. ' + esc(r.nome) +
+              '<div style="height:4px;border-radius:2px;background:var(--surface-sunken);margin-top:5px;overflow:hidden;">' +
+                '<div style="height:100%;width:' + pctBarra + '%;background:var(--accent);"></div>' +
+              '</div></td>' +
+              '<td class="num">R$ ' + fmtMoeda(r.saldo) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>';
+      }
+      var painelRankingHtml =
+        '<div class="panel" id="sec-ranking-devedores">' +
+          '<div class="panel-header"><span class="panel-title">Maiores valores a receber</span></div>' +
+          htmlRanking +
+        '</div>';
+
+      painelVencidasHtml =
+        '<div class="panel" id="sec-vencidas">' +
+          '<div class="panel-header"><span class="panel-title">Cobrança pendente</span>' + chipVencidas + '</div>' +
+          htmlVencidas +
+        '</div>' + painelRankingHtml;
+    }
+
+    var overviewLineHtml = '';
+    var painelPrazosHtml = '';
+    var htmlAvisosSection = '';
+    if (p) {
+      var htmlPrazos;
+      if (p.prazos_semana.length === 0) {
+        htmlPrazos =
+          '<div class="empty-state"><div class="glyph">—</div>' +
+          '<div class="msg">Nenhum prazo com vencimento nos próximos 14 dias.</div></div>';
+      } else {
+        htmlPrazos = p.prazos_semana.map(function (item) {
+          var linkHtml = item.link
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a>'
+            : '';
+          return '<div class="prazo-card">' +
+            '<div class="prazo-card-topo">' +
+              '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+              '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+              '<span class="days-badge warn">' + esc(item.data_limite) + '</span>' +
+            '</div>' +
+            (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+            (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
+            (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+      }
+
+      var chipPrazos = p.prazos_semana.length === 0
+        ? '<span class="chip neutral">Sem prazos</span>'
+        : '<span class="chip warn">' + p.prazos_semana.length + ' prazo(s)</span>';
+
+      var avisosSemPrazo = p.avisos_sem_prazo || [];
+      var htmlAvisos;
+      if (avisosSemPrazo.length === 0) {
+        htmlAvisos =
+          '<div class="empty-state"><div class="glyph">—</div>' +
+          '<div class="msg">Nenhum aviso sem prazo nos últimos 7 dias.</div></div>';
+      } else {
+        htmlAvisos = avisosSemPrazo.map(function (item) {
+          var linkHtml = item.link
+            ? '<a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a>'
+            : '';
+          return '<div class="prazo-card">' +
+            '<div class="prazo-card-topo">' +
+              '<div><div class="prazo-processo">' + esc(item.processo) + '</div>' +
+              '<div class="prazo-meta">' + esc(item.tribunal) + (item.tipo ? ' · ' + esc(item.tipo) : '') + '</div></div>' +
+              '<span class="days-badge neutral">' + esc(item.data) + '</span>' +
+            '</div>' +
+            (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+            (item.resumo ? '<div class="prazo-resumo">' + esc(item.resumo) + '</div>' : '') +
+            (linkHtml ? '<div style="margin-top:6px;">' + linkHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+      }
+      var chipAvisos = avisosSemPrazo.length === 0
+        ? '<span class="chip neutral">Nenhum</span>'
+        : '<span class="chip neutral">' + avisosSemPrazo.length + ' aviso(s)</span>';
+
+      overviewLineHtml =
+        '<div class="overview-line"><span><b>' + p.comunicacoes_semana + '</b> comunicações novas nos últimos 7 dias</span>' +
+        '<span><b>' + p.prazos_semana.length + '</b> prazo(s) nos próximos 14 dias</span></div>';
+
+      painelPrazosHtml =
+        '<div class="panel" id="sec-pje">' +
+          '<div class="panel-header"><span class="panel-title">Prazos da semana</span>' + chipPrazos + '</div>' +
+          htmlPrazos +
+        '</div>';
+
+      htmlAvisosSection =
+        '<section><p class="section-label">Avisos recentes sem prazo</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Despachos e decisões dos últimos 7 dias</span>' + chipAvisos + '</div>' +
+          htmlAvisos +
+        '</div></section>';
+    }
+
+    var htmlPje = !p ? '' :
+      '<section><p class="section-label">Processual — PJe</p>' +
+        overviewLineHtml + painelPrazosHtml +
+      '</section>' + htmlAvisosSection;
+
+    var htmlClientes = perms.indexOf('clientes') === -1 ? '' :
+      '<section id="sec-clientes"><p class="section-label">Clientes</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
+          '<input type="text" id="clientes-busca" class="input-flush" placeholder="Buscar cliente pelo nome...">' +
+          '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>';
+
+    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
+          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div></section>';
+
+    var htmlProcessoAdministrativo = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-processo-administrativo"><p class="section-label">Processo Administrativo</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Novo processo administrativo</span></div>' +
+          '<p style="padding:0 20px;margin:0 0 4px;font-size:12.5px;color:var(--ink-soft);">' +
+            'Protocolos em órgãos públicos (INSS, prefeitura etc.), fora do Judiciário. Se preencher a data do lembrete, ' +
+            'já cria uma tarefa automática na Agenda nessa data.' +
+          '</p>' +
+          '<div style="padding:0 20px 16px;">' +
+            '<div class="audiencia-upload-dropzone" id="procadm-analisar-dropzone" style="max-width:420px;padding:16px;">' +
+              '<div class="audiencia-upload-msg">' +
+                '<strong>Arraste o protocolo aqui</strong>' +
+                '<span>PDF, JPG, PNG ou WEBP · até 4 MB</span>' +
+                '<button type="button" id="procadm-analisar-escolher">Escolher arquivo</button>' +
+              '</div>' +
+              '<input type="file" id="procadm-analisar-input" accept="application/pdf,image/jpeg,image/png,image/webp" class="hidden">' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
+              '<span id="procadm-analisar-nome-arquivo" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+              '<button type="button" id="procadm-analisar-btn" style="font-size:12.5px;padding:8px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Preencher com IA a partir do documento</button>' +
+              '<span id="procadm-analisar-status" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="procadm-clientes-lista" placeholder="Cliente" data-campo="cliente" data-form="procadm_criar">' +
+            '<datalist id="procadm-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Órgão (ex: INSS)" data-campo="orgao" data-form="procadm_criar">' +
+            '<input type="text" placeholder="Nº do protocolo" data-campo="numero_protocolo" data-form="procadm_criar">' +
+            '<input type="text" placeholder="Próximo passo (ex: buscar resultado no órgão)" data-campo="proximo_passo" data-form="procadm_criar" style="grid-column: span 2;">' +
+            '<label style="display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-soft);">Data do lembrete (ex: quando ir buscar o resultado)' +
+              '<input type="date" data-campo="prazo" data-form="procadm_criar" style="font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink);">' +
+            '</label>' +
+            '<textarea placeholder="Observações (opcional)" data-campo="observacoes" data-form="procadm_criar" style="grid-column: span 3; min-height:56px; font-family:inherit; font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink);"></textarea>' +
+            '<button type="button" id="procadm-btn-criar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Criar processo</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" id="procadm-resultado" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Processos em andamento</span></div>' +
+          '<div id="procadm-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlAgenda = perms.indexOf('agenda') === -1 ? '' :
+      '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
+
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Eventos</span></div>' +
+          '<div class="agenda-form">' +
+            '<input type="text" id="evento-titulo" placeholder="Título">' +
+            '<input type="date" id="evento-data">' +
+            '<input type="time" id="evento-hora">' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;">' +
+              '<input type="checkbox" id="evento-meet" style="width:auto;"> Gerar link do Meet' +
+            '</label>' +
+            '<button id="evento-btn-salvar">Criar</button>' +
+            '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
+          '</div>' +
+          '<div class="admin-msg hidden" id="evento-meet-resultado" aria-live="polite"></div>' +
+          '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Tarefas</span></div>' +
+          '<div class="agenda-form">' +
+            '<input type="text" id="tarefa-titulo" placeholder="Título">' +
+            '<input type="date" id="tarefa-data">' +
+            '<button id="tarefa-btn-salvar">Criar</button>' +
+            '<button class="cancelar-edicao hidden" id="tarefa-btn-cancelar">Cancelar</button>' +
+          '</div>' +
+          '<div id="agenda-lista-tarefas"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+
+      '</div></section>';
+
+    var htmlCobrancaAvulsa = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-cobranca-avulsa"><p class="section-label">Cobrança avulsa</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cobrar algo fora de parcela de contrato</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="cobranca-avulsa-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="cobrar_cliente">' +
+            '<datalist id="cobranca-avulsa-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Valor (ex: 500,00)" data-campo="valor" data-form="cobrar_cliente">' +
+            '<input type="text" placeholder="Vencimento (ex: 25/08/2026)" data-campo="vencimento" data-form="cobrar_cliente">' +
+            '<input type="text" placeholder="Descrição (opcional)" data-campo="descricao" data-form="cobrar_cliente">' +
+            '<button data-tipo="cobrar_cliente" class="btn-automacao">Enviar cobrança</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="cobrar_cliente" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlNotificacaoExtrajudicial = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-notificacao-extrajudicial"><p class="section-label">Notificação Extrajudicial</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cobrar cliente inadimplente formalmente</span></div>' +
+          '<p style="padding:0 20px;margin:0 0 4px;font-size:12.5px;color:var(--ink-soft);">' +
+            'O valor devido, dias em atraso e dados do cliente (CPF, endereço) são preenchidos automaticamente. ' +
+            'Cláusula, descrição do débito e prazo são decisão sua a cada notificação.' +
+          '</p>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="notificacao-extrajudicial-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="notificacao_extrajudicial_gerar">' +
+            '<datalist id="notificacao-extrajudicial-clientes-lista"></datalist>' +
+            '<input type="text" placeholder="Prazo para pagamento em dias (ex: 10)" data-campo="prazo_dias" data-form="notificacao_extrajudicial_gerar">' +
+            '<input type="text" placeholder="Cláusula dos honorários (ex: 3ª)" data-campo="clausula_honorarios" data-form="notificacao_extrajudicial_gerar">' +
+            '<input type="text" placeholder="Descrição do débito (ex: parcelas 3 e 4)" data-campo="descricao_debito" data-form="notificacao_extrajudicial_gerar" style="grid-column: span 2;">' +
+            '<input type="email" id="notificacao-extrajudicial-email" placeholder="E-mail do cliente (opcional)" style="grid-column: span 1;">' +
+            '<button data-tipo="notificacao_extrajudicial_gerar" data-preview="notificacao-extrajudicial-preview" class="btn-automacao">Gerar notificação (revisar antes de enviar)</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="notificacao_extrajudicial_gerar" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
+          '<div id="notificacao-extrajudicial-preview"></div>' +
+          '<div style="padding:0 20px 20px;" id="notificacao-extrajudicial-confirmar-area" class="hidden">' +
+            '<button type="button" id="notificacao-extrajudicial-btn-confirmar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Confirmar e enviar pro cliente</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlPropostas = perms.indexOf('automacoes') === -1 ? '' :
+      '<section id="sec-propostas"><p class="section-label">Propostas</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Gerar proposta de honorários</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Entrada (opcional)" data-campo="entrada" data-form="gerar_proposta">' +
+            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="parcelas" data-form="gerar_proposta">' +
+            '<button data-tipo="gerar_proposta" class="btn-automacao">Gerar proposta</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_proposta" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+          '<div id="proposta-preview"></div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlContrato = perms.indexOf('automacoes') === -1 ? '' :
+      '<section id="sec-contrato"><p class="section-label">Contrato</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Gerar contrato de honorários</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="contrato-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
+            '<datalist id="contrato-clientes-lista"></datalist>' +
+            '<input type="text" list="contrato-modelos-lista" id="contrato-tipo-servico" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="gerar_contrato">' +
+            '<datalist id="contrato-modelos-lista"></datalist>' +
+            '<input type="text" placeholder="Descrição do serviço (opcional)" data-campo="descricao" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Valor total (ex: 3000,00)" data-campo="valor" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Entrada (opcional)" data-campo="entrada" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Nº de parcelas (opcional)" data-campo="parcelas" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Vencimento da entrada (ex: 20/09/2026)" data-campo="data_entrada" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-pagamento" placeholder="Dia de vencimento da parcela (1-31)" data-campo="dia_vencimento" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-exito" placeholder="% honorários de êxito (opcional)" data-campo="percentual_honorarios" data-form="gerar_contrato">' +
+            '<input type="text" class="contrato-campo-exito" placeholder="% recursal (opcional)" data-campo="percentual_recursal" data-form="gerar_contrato">' +
+            '<div id="contrato-campos-extra-dinamicos" style="display:contents"></div>' +
+            '<div id="contrato-modelo-aviso" class="automacao-resultado hidden" style="grid-column: span 3; padding: 0;"></div>' +
+            '<button data-tipo="gerar_contrato" data-preview="contrato-preview" class="btn-automacao">Gerar contrato</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="gerar_contrato" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+          '<div id="contrato-preview"></div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlCadastroCliente = perms.indexOf('financeiro') === -1 ? '' :
+      '<section id="sec-cadastro-cliente"><p class="section-label">Cadastrar cliente</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Cadastrar cliente na planilha de honorários</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="WhatsApp do cliente" data-campo="whatsapp" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="email" placeholder="E-mail do cliente (opcional)" data-campo="email" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor_total" data-form="cadastrar_cliente_financeiro">' +
+            '<select data-campo="forma_pagamento" data-form="cadastrar_cliente_financeiro">' +
+              '<option value="Parcelado">Parcelado</option>' +
+              '<option value="À Vista">À Vista</option>' +
+            '</select>' +
+            '<input type="text" placeholder="Valor de entrada (opcional)" data-campo="valor_entrada" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="num_parcelas" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Data de início (ex: 01/09/2026)" data-campo="data_inicio" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" placeholder="Vencimento da 1ª parcela (ex: 10/09/2026)" data-campo="data_primeira_parcela" data-form="cadastrar_cliente_financeiro">' +
+            '<input type="text" list="lista-percentuais-exito" placeholder="% de honorários de êxito (opcional)" data-campo="percentual_exito" data-form="cadastrar_cliente_financeiro">' +
+            '<datalist id="lista-percentuais-exito"><option value="20"><option value="25"><option value="30"><option value="40"></datalist>' +
+            '<button data-tipo="cadastrar_cliente_financeiro" class="btn-automacao">Cadastrar cliente</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Clientes cadastrados na planilha</span></div>' +
+          '<div id="lista-clientes-financeiro-wrap" style="padding:16px 20px;"><div class="empty-state"><div class="msg">Carregando...</div></div></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Quem deve em cada mês</span></div>' +
+          '<div class="proposta-form">' +
+            '<input type="month" id="devedores-mes-input">' +
+            '<button type="button" class="btn-relatorio-mes" id="devedores-mes-buscar">Ver quem deve</button>' +
+          '</div>' +
+          '<div id="devedores-mes-resultado" style="padding:0 20px 20px;"></div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlAutomacoes = perms.indexOf('automacoes') === -1 ? '' :
+      '<section id="sec-automacoes"><p class="section-label">Automações</p><div class="automacoes-grid">' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 11v6M9 14h6"></path></svg>Cadastrar novo cliente</div>' +
+          '<div class="automacao-desc">Cria a pasta do cliente no Drive com as subpastas padrão.</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="novo_cliente">' +
+          '<button data-tipo="novo_cliente" class="btn-automacao">Cadastrar</button>' +
+          '<div class="automacao-resultado" data-resultado="novo_cliente" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M15 2v5h5"></path><path d="M9 13l2 2 4-4"></path></svg>Verificar dados do cliente</div>' +
+          '<div class="automacao-desc">Confere se já tem contrato e procuração na pasta, e mostra os dados de acesso (CPF, RG, endereço) prontos pra copiar.</div>' +
+          '<input type="text" list="verificar-dados-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="verificar_dados_cliente">' +
+          '<datalist id="verificar-dados-clientes-lista"></datalist>' +
+          '<button data-tipo="verificar_dados_cliente" class="btn-automacao">Verificar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_dados_cliente" aria-live="polite" style="white-space:pre-wrap;user-select:text;"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar PJe agora</div>' +
+          '<div class="automacao-desc">Checa novas comunicações na hora.</div>' +
+          '<button data-tipo="verificar_pje" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_pje" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Resumo semanal PJe</div>' +
+          '<div class="automacao-desc">Envia o resumo dos últimos 7 dias no WhatsApp.</div>' +
+          '<button data-tipo="resumo_pje" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="resumo_pje" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>Verificar Autentique</div>' +
+          '<div class="automacao-desc">Checa documentos assinados agora.</div>' +
+          '<button data-tipo="verificar_autentique" class="btn-automacao">Executar</button>' +
+          '<div class="automacao-resultado" data-resultado="verificar_autentique" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Declaração de residência</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_residencia">' +
+          '<input type="text" placeholder="Endereço (opcional, se ainda não tiver salvo)" data-campo="endereco" data-form="gerar_residencia">' +
+          '<button data-tipo="gerar_residencia" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_residencia" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Declaração de hipossuficiência</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_hipossuficiencia">' +
+          '<input type="text" placeholder="Motivo da ação (opcional)" data-campo="descricao" data-form="gerar_hipossuficiencia">' +
+          '<button data-tipo="gerar_hipossuficiencia" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_hipossuficiencia" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>Gerar recibo</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_recibo">' +
+          '<input type="text" placeholder="Valor (ex: 1500,00)" data-campo="valor" data-form="gerar_recibo">' +
+          '<input type="text" placeholder="Descrição (opcional)" data-campo="descricao" data-form="gerar_recibo">' +
+          '<button data-tipo="gerar_recibo" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_recibo" aria-live="polite"></div>' +
+        '</div>' +
+
+        (perms.indexOf('financeiro') === -1 ? '' :
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M4 20h16"></path></svg>Relatório de fechamento</div>' +
+          '<div class="automacao-desc">Mostra o valor total, total pago e saldo de um cliente.</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="relatorio_fechamento">' +
+          '<button data-tipo="relatorio_fechamento" class="btn-automacao">Ver relatório</button>' +
+          '<div class="automacao-resultado" data-resultado="relatorio_fechamento" aria-live="polite"></div>' +
+        '</div>') +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Enviar assinatura</div>' +
+          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
+          '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
+          '<div class="automacao-resultado" data-resultado="enviar_assinatura" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>Gerar link com UTM</div>' +
+          '<input type="text" placeholder="Origem (ex: instagram)" data-campo="origem" data-form="gerar_utm">' +
+          '<input type="text" placeholder="Mídia (ex: stories)" data-campo="midia" data-form="gerar_utm">' +
+          '<input type="text" placeholder="Campanha" data-campo="campanha" data-form="gerar_utm">' +
+          '<button data-tipo="gerar_utm" class="btn-automacao">Gerar</button>' +
+          '<div class="automacao-resultado" data-resultado="gerar_utm" aria-live="polite"></div>' +
+        '</div>' +
+
+        '<div class="automacao-card">' +
+          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Responder confirmação pendente</div>' +
+          '<div class="automacao-desc">Use quando alguma ação acima pedir uma escolha (ex: qual documento enviar).</div>' +
+          '<input type="text" placeholder="Ex: 1,2 ou todos" data-campo="resposta" data-form="responder_pendente">' +
+          '<button data-tipo="responder_pendente" class="btn-automacao">Responder</button>' +
+          '<div class="automacao-resultado" data-resultado="responder_pendente" aria-live="polite"></div>' +
+        '</div>' +
+
+      '</div></section>';
+
+    var htmlPadraoOperacional = perms.indexOf('padrao_operacional') === -1 ? '' :
+      '<section id="sec-padrao-operacional"><p class="section-label">Padrão Operacional</p>' +
+        '<div class="panel">' +
+          '<div class="padrao-abas">' +
+            '<button type="button" class="padrao-aba-btn ativo" data-aba="atendimentos" aria-pressed="true">Atendimentos</button>' +
+            '<button type="button" class="padrao-aba-btn" data-aba="fechamentos" aria-pressed="false">Fechamentos</button>' +
+            '<button type="button" class="padrao-aba-btn" data-aba="financeiro" aria-pressed="false">Financeiro</button>' +
+            '<button type="button" class="padrao-aba-btn" data-aba="processos" aria-pressed="false">Processos</button>' +
+            '<button type="button" class="padrao-aba-btn" data-aba="sistemas_acessos" aria-pressed="false">Sistemas e Acessos</button>' +
+          '</div>' +
+          '<div class="padrao-corpo">' +
+            '<textarea id="padrao-texto" maxlength="4000" placeholder="Escreva aqui o procedimento padrão desta área…">Carregando…</textarea>' +
+            '<div class="padrao-corpo-rodape">' +
+              '<button id="padrao-btn-salvar" disabled>Salvar</button>' +
+              '<span class="padrao-contador" id="padrao-contador"></span>' +
+              '<span class="admin-msg" id="padrao-msg" aria-live="polite" style="padding:0;"></span>' +
+            '</div>' +
+          '</div>' +
+        '</div></section>';
+
+    var htmlAudiencias = perms.indexOf('audiencias') === -1 ? '' :
+      '<section id="sec-audiencias"><p class="section-label">Audiências</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title" id="audiencias-titulo-aba">Marcadas (próximas)</span>' +
+            '<div class="subtabs">' +
+              '<button type="button" class="subtab-btn ativo" data-aba-audiencia="marcadas">Marcadas</button>' +
+              '<button type="button" class="subtab-btn" data-aba-audiencia="realizadas">Realizadas</button>' +
+            '</div></div>' +
+          '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '<div id="bloco-realizadas" class="hidden">' +
+            '<div class="audiencia-upload-area">' +
+              '<input type="text" id="audiencia-upload-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
+              '<datalist id="audiencia-upload-clientes-lista"></datalist>' +
+              '<div class="audiencia-upload-dropzone" id="audiencia-upload-dropzone">' +
+                '<div class="audiencia-upload-msg" id="audiencia-upload-msg">' +
+                  '<strong>Arraste a gravação aqui</strong>' +
+                  '<span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
+                  '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>' +
+                '</div>' +
+                '<input type="file" id="audiencia-upload-input" accept="audio/*,video/*" class="hidden">' +
+              '</div>' +
+            '</div>' +
+            '<div class="audiencias-busca"><input type="text" id="audiencias-busca-input" placeholder="Buscar por cliente ou conteúdo do resumo…"></div>' +
+            '<div id="audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div></section>';
+
+    var htmlAdmin = !dados.usuario_admin ? '' :
+      '<section id="sec-admin"><p class="section-label">Administração — usuários</p>' +
+        '<div class="panel">' +
+          '<div class="admin-form">' +
+            '<input type="text" id="admin-nome" placeholder="Nome">' +
+            '<input type="text" id="admin-login" placeholder="Login" autocomplete="off">' +
+            '<input type="password" id="admin-senha" placeholder="Senha" autocomplete="new-password">' +
+          '</div>' +
+          '<div class="admin-permissoes">' +
+            '<label><input type="checkbox" data-permissao="financeiro"> Financeiro</label>' +
+            '<label><input type="checkbox" data-permissao="pje"> Processual (PJe)</label>' +
+            '<label><input type="checkbox" data-permissao="clientes"> Clientes</label>' +
+            '<label><input type="checkbox" data-permissao="processos"> Ficha de processos</label>' +
+            '<label><input type="checkbox" data-permissao="agenda"> Agenda</label>' +
+            '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
+            '<label><input type="checkbox" data-permissao="padrao_operacional"> Padrão Operacional</label>' +
+            '<label><input type="checkbox" data-permissao="audiencias"> Audiências</label>' +
+            '<label class="admin-permissao-admin"><input type="checkbox" id="admin-eh-admin"> Administrador (acesso total + gerencia usuários)</label>' +
+          '</div>' +
+          '<div style="padding:0 20px 16px;"><button id="admin-btn-criar">Adicionar usuário</button></div>' +
+          '<div class="admin-msg" id="admin-msg" aria-live="polite"></div>' +
+          '<div id="admin-lista-usuarios"></div>' +
+        '</div></section>';
+
+    // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
+    // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
+    // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
+    // o que realmente entra na pagina.
+    var MAPA_CONTEUDO_POR_PAGINA = {
+      financeiro: htmlFinanceiro + htmlExito + painelVencidasHtml + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente,
+      pje: htmlPje,
+      clientes: htmlClientes,
+      processos: htmlProcessos + htmlProcessoAdministrativo,
+      agenda: htmlAgenda,
+      automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
+      padrao_operacional: htmlPadraoOperacional,
+      audiencias: htmlAudiencias,
+      admin: htmlAdmin,
+    };
+    var MAPA_PERMISSAO_POR_PAGINA = {
+      financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
+      agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
+      audiencias: 'audiencias', admin: null,
+    };
+    var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
+    var temAcessoPagina = PAGINA_ATUAL === 'admin'
+      ? !!dados.usuario_admin
+      : (permissaoNecessaria ? perms.indexOf(permissaoNecessaria) !== -1 : true);
+    var htmlConteudoPagina = temAcessoPagina
+      ? (MAPA_CONTEUDO_POR_PAGINA[PAGINA_ATUAL] || '')
+      : '<div class="empty-state"><div class="msg">Você não tem permissão para acessar esta área.</div></div>';
+
+    conteudo.innerHTML =
+      '<header class="masthead">' +
+        '<div class="masthead-name">' + esc(dados.nome_escritorio || 'César Tobias Advocacia') + '<small>Painel do escritório</small></div>' +
+        '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
+        'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
+      '</header>' +
+      htmlConteudoPagina +
+      '<footer><span>Dados de Contratos, Controle de Parcelas e Comunicações PJe</span>' +
+      '<button class="btn-refresh" id="btn-atualizar">Atualizar agora</button></footer>';
+
+    document.getElementById('btn-atualizar').addEventListener('click', function () {
+      carregarDados();
+    });
+
+    document.getElementById('nav-admin').classList.toggle('hidden', !dados.usuario_admin);
+
+    wireSidebar(dados);
+
+    if (!temAcessoPagina) return;
+
+    if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
+    if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
+    if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); }
+    if (PAGINA_ATUAL === 'clientes') carregarClientes();
+    if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
+    if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
+    if (PAGINA_ATUAL === 'admin' && dados.usuario_admin) {
+      carregarListaUsuarios();
+      document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
+    }
+  }
+
+  function wireUploadAudiencia() {
+    var dropzone = document.getElementById('audiencia-upload-dropzone');
+    var input = document.getElementById('audiencia-upload-input');
+    var msg = document.getElementById('audiencia-upload-msg');
+    var campoCliente = document.getElementById('audiencia-upload-cliente');
+    var datalistClientes = document.getElementById('audiencia-upload-clientes-lista');
+
+    apiGetJson('/api/painel?acao=clientes')
+      .then(function (dados) {
+        datalistClientes.innerHTML = (dados.clientes || []).map(function (c) {
+          return '<option value="' + esc(c.nome) + '">';
+        }).join('');
+      })
+      .catch(function () { /* datalist so ajuda, nao bloqueia o upload se falhar */ });
+
+    document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      if (input.files[0]) processarUploadAudiencia(input.files[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dropzone.classList.add('arrastando');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) {
+        e.preventDefault();
+        dropzone.classList.remove('arrastando');
+      });
+    });
+    dropzone.addEventListener('drop', function (e) {
+      var arquivo = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (arquivo) processarUploadAudiencia(arquivo);
+    });
+
+    function arrayBufferParaBase64(buffer) {
+      var binario = '';
+      var bytes = new Uint8Array(buffer);
+      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+      return btoa(binario);
+    }
+
+    function processarUploadAudiencia(arquivo) {
+      var nomeCliente = (campoCliente.value || '').trim();
+      if (!nomeCliente) {
+        alert('Informe o nome do cliente antes de enviar o áudio.');
+        return;
+      }
+      msg.innerHTML = '<strong>Enviando…</strong><span class="audiencia-upload-progresso" id="audiencia-upload-progresso">Iniciando…</span>';
+      var progressoEl = document.getElementById('audiencia-upload-progresso');
+
+      apiPost('/api/painel?acao=audiencias', {
+        op: 'iniciar_upload_audiencia', cliente: nomeCliente,
+        nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream',
+        tamanho_total: arquivo.size
+      })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+        .then(function (dados) {
+          return enviarPedacos(arquivo, dados.upload_id, dados.tamanho_chunk, progressoEl);
+        })
+        .then(function (uploadId) {
+          if (progressoEl) progressoEl.textContent = 'Transcrevendo (pode levar alguns minutos)…';
+          return apiPost('/api/painel?acao=audiencias', { op: 'finalizar_upload_audiencia', upload_id: uploadId })
+            .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+        })
+        .then(function (dados) {
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
+            '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
+          document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+          campoCliente.value = '';
+          input.value = '';
+          carregarAudiencias();
+          alert(dados.resposta || 'Áudio processado.');
+        })
+        .catch(function (e) {
+          msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
+            '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
+          document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
+          alert('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
+        });
+    }
+
+    function enviarPedacos(arquivo, uploadId, tamanhoChunk, progressoEl) {
+      var offset = 0;
+      function proximoPedaco() {
+        if (offset >= arquivo.size) return Promise.resolve(uploadId);
+        var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
+        return pedaco.arrayBuffer().then(function (buffer) {
+          return apiPost('/api/painel?acao=audiencia_chunk', {
+            upload_id: uploadId, dados_base64: arrayBufferParaBase64(buffer)
+          }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+        }).then(function () {
+          offset += tamanhoChunk;
+          if (progressoEl) {
+            var pct = Math.min(100, Math.round((offset / arquivo.size) * 100));
+            progressoEl.textContent = pct + '% enviado';
+          }
+          return proximoPedaco();
+        });
+      }
+      return proximoPedaco();
+    }
+  }
+
+  function wireAudienciasSubtabs() {
+    var titulo = document.getElementById('audiencias-titulo-aba');
+    var listaMarcadas = document.getElementById('pauta-audiencias-lista');
+    var listaRealizadas = document.getElementById('bloco-realizadas');
+    document.querySelectorAll('[data-aba-audiencia]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-aba-audiencia]').forEach(function (b) { b.classList.remove('ativo'); });
+        btn.classList.add('ativo');
+        var aba = btn.getAttribute('data-aba-audiencia');
+        if (aba === 'marcadas') {
+          listaMarcadas.classList.remove('hidden');
+          listaRealizadas.classList.add('hidden');
+          titulo.textContent = 'Marcadas (próximas)';
+        } else {
+          listaMarcadas.classList.add('hidden');
+          listaRealizadas.classList.remove('hidden');
+          titulo.textContent = 'Realizadas';
+        }
+      });
+    });
+  }
+
+  function wireSidebar(dados) {
+    var nomeUsuario = dados.usuario_logado || '';
+    var iniciais = nomeUsuario.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase() || '--';
+    document.getElementById('sidebar-avatar').textContent = iniciais;
+    document.getElementById('sidebar-rodape-usuario').textContent = nomeUsuario || '—';
+
+    var perms = dados.usuario_permissoes || [];
+    var itensNav = document.querySelectorAll('.nav-item[href]');
+    var arquivoAtual = (window.location.pathname.split('/').pop() || 'painel.html');
+    itensNav.forEach(function (item) {
+      var secao = item.getAttribute('data-secao');
+      if (secao) {
+        item.classList.toggle('hidden', perms.indexOf(secao) === -1);
+      }
+      item.classList.toggle('ativo', (secao || 'admin') === PAGINA_ATUAL);
+
+      var partesHref = item.getAttribute('href').split('#');
+      var arquivoAlvo = partesHref[0];
+      var ancora = partesHref[1];
+      if (ancora && arquivoAlvo === arquivoAtual) {
+        // mesma pagina -- so rola suavemente ate a secao, em vez de recarregar
+        item.addEventListener('click', function (e) {
+          var alvo = document.getElementById(ancora);
+          if (!alvo) return;
+          e.preventDefault();
+          alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+      // pagina diferente: deixa o navegador navegar normalmente pelo href (link de verdade)
+    });
+  }
+
+  var clientesCarregados = [];
+
+  function carregarClientes() {
+    apiGetJson('/api/painel?acao=clientes')
+      .then(function (dados) {
+        clientesCarregados = dados.clientes || [];
+        renderClientes(clientesCarregados);
+        var busca = document.getElementById('clientes-busca');
+        if (busca) {
+          busca.addEventListener('input', function () {
+            var termo = busca.value.toLowerCase();
+            renderClientes(clientesCarregados.filter(function (c) {
+              return c.nome.toLowerCase().indexOf(termo) !== -1;
+            }));
+          });
+        }
+      })
+      .catch(function () {
+        document.getElementById('clientes-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes.</div></div>';
+      });
+  }
+
+  function renderClientes(clientes) {
+    var container = document.getElementById('clientes-lista');
+    if (clientes.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente encontrado.</div></div>';
+      return;
+    }
+
+    container.innerHTML = clientes.map(function (c, idx) {
+      var parcelasPendentes = c.parcelas.length;
+      var valorPendente = c.parcelas.reduce(function (soma, p) { return soma + (p.saldo || 0); }, 0);
+      var contratosAtivos = c.contratos.filter(function (ct) { return String(ct.status).toUpperCase() === 'ATIVO'; }).length;
+
+      var badges = '';
+      if (contratosAtivos > 0) badges += '<span class="chip good">' + contratosAtivos + ' contrato(s) ativo(s)</span> ';
+      if (parcelasPendentes > 0) badges += '<span class="chip crit">R$ ' + fmtMoeda(valorPendente) + ' pendente</span> ';
+      if (c.processos.length > 0) badges += '<span class="chip neutral">' + c.processos.length + ' processo(s) PJe</span> ';
+      if ((c.processos_administrativos || []).length > 0) badges += '<span class="chip neutral">' + c.processos_administrativos.length + ' processo(s) administrativo(s)</span>';
+
+      var contratosHtml = c.contratos.map(function (ct) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + esc(ct.tipo_servico) + '</div>' +
+          '<div class="prazo-meta">Valor total: R$ ' + fmtMoeda(ct.valor_total) + '</div></div>' +
+          '<span class="days-badge ' + (String(ct.status).toUpperCase() === 'ATIVO' ? 'good' : 'warn') + '">' + esc(ct.status) + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Sem contratos.</div></div>';
+
+      var parcelasHtml = c.parcelas.map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">R$ ' + fmtMoeda(p.saldo) + '</div>' +
+          '<div class="prazo-meta">Vencimento: ' + esc(p.vencimento) + '</div></div>' +
+          '<span class="days-badge ' + (p.situacao === 'Vencida' ? 'crit' : 'warn') + '">' + esc(p.situacao || 'Pendente') + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhuma parcela pendente.</div></div>';
+
+      var processosHtml = c.processos.map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + esc(p.processo) + '</div>' +
+          '<div class="prazo-meta">' + esc(p.status_atual) + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
+          (p.proximo_prazo ? '<span class="days-badge warn">Prazo ' + esc(p.proximo_prazo) + '</span>' : '') +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo vinculado.</div></div>';
+
+      var ROTULOS_STATUS_PROCADM_CLIENTE = { aberto: 'Aberto', aguardando: 'Aguardando', concluido: 'Concluído' };
+      var processosAdministrativosHtml = (c.processos_administrativos || []).map(function (p) {
+        return '<div class="prazo-card"><div class="prazo-card-topo">' +
+          '<div><div class="prazo-processo">' + esc(p.orgao || 'Órgão não informado') +
+            (p.numero_protocolo ? ' · Protocolo ' + esc(p.numero_protocolo) : '') + '</div>' +
+          '<div class="prazo-meta">' + esc(p.proximo_passo || 'Sem próximo passo definido') + '</div></div>' +
+          '<span class="days-badge ' + (p.status === 'concluido' ? 'good' : (p.status === 'aguardando' ? 'warn' : 'neutral')) + '">' +
+            esc(ROTULOS_STATUS_PROCADM_CLIENTE[p.status] || p.status) +
+            (p.prazo ? ' · ' + esc(fmtDataCurta(p.prazo)) : '') + '</span>' +
+        '</div></div>';
+      }).join('') || '<div class="empty-state"><div class="msg">Nenhum processo administrativo vinculado.</div></div>';
+
+      return '<div class="processo-card">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-cliente="' + idx + '" aria-expanded="false" aria-controls="cliente-corpo-' + idx + '">' +
+          '<div><div class="processo-numero">' + esc(c.nome) + '</div>' +
+          '<div class="processo-meta">' + badges + '</div></div>' +
+        '</button>' +
+        '<div class="processo-corpo" id="cliente-corpo-' + idx + '">' +
+          '<p class="section-label" style="margin-top:8px;">Contratos</p>' + contratosHtml +
+          '<p class="section-label" style="margin-top:16px;">Parcelas pendentes</p>' + parcelasHtml +
+          '<p class="section-label" style="margin-top:16px;">Processos (PJe)</p>' + processosHtml +
+          '<p class="section-label" style="margin-top:16px;">Processos administrativos</p>' + processosAdministrativosHtml +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-cliente]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('cliente-corpo-' + el.getAttribute('data-toggle-cliente'));
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+      });
+    });
+  }
+
+  function carregarProcessos() {
+    apiGetJson('/api/painel?acao=processos&op=listar')
+      .then(function (dados) {
+        renderProcessos(dados.processos || []);
+      })
+      .catch(function () {
+        document.getElementById('processos-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os processos.</div></div>';
+      });
+  }
+
+  function renderProcessos(processos) {
+    var container = document.getElementById('processos-lista');
+    if (processos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo com comunicações registradas ainda.</div></div>';
+      return;
+    }
+
+    container.innerHTML = processos.map(function (p, idx) {
+      var timelineHtml = p.timeline.map(function (item) {
+        var classeAndamento = item.tipo_registro === 'andamento' ? ' timeline-item-andamento' : '';
+        return '<div class="timeline-item' + classeAndamento + '">' +
+          '<div class="timeline-item-data">' + esc(item.data) + (item.prazo ? ' · prazo ' + esc(item.prazo) : '') + '</div>' +
+          '<div class="timeline-item-tipo">' + esc(item.tipo) + (item.tribunal ? ' — ' + esc(item.tribunal) : '') + '</div>' +
+          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+          (item.resumo ? '<div class="timeline-item-resumo">' + esc(item.resumo) + '</div>' : '') +
+          (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a></div>' : '') +
+        '</div>';
+      }).join('');
+
+      var badges = '<span class="chip neutral">' + p.total_movimentacoes + ' movimentação(ões)</span>';
+      if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' + badges;
+
+      return '<div class="processo-card">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-processo="' + idx + '" aria-expanded="false" aria-controls="processo-corpo-' + idx + '">' +
+          '<div><div class="processo-numero">' + esc(p.processo) + '</div>' +
+          (p.cliente ? '<div class="processo-cliente">' + esc(p.cliente) + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
+          '<div class="processo-meta">' + esc(p.tribunal) + (p.orgao_atual ? ' · ' + esc(p.orgao_atual) : '') + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
+          '<div class="processo-badges">' + badges + '</div>' +
+        '</button>' +
+        '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
+          '<div class="processo-edit-form">' +
+            '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + esc(p.cliente || '') + '">' +
+            '<input type="date" placeholder="Próxima audiência" id="processo-audiencia-' + idx + '" value="' + esc(p.proxima_audiencia || '') + '">' +
+            '<button data-salvar-processo="' + idx + '">Salvar</button>' +
+            '<textarea placeholder="Observações internas" id="processo-obs-' + idx + '">' + esc(p.observacoes || '') + '</textarea>' +
+          '</div>' +
+          (p.proxima_audiencia ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + esc(fmtDataCurta(p.proxima_audiencia)) + '</div>' : '') +
+          '<div class="timeline">' + timelineHtml + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-processo]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+      });
+    });
+
+    container.querySelectorAll('[data-salvar-processo]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-salvar-processo');
+        var processo = processos[idx].processo;
+        var cliente = document.getElementById('processo-cliente-' + idx).value;
+        var audiencia = document.getElementById('processo-audiencia-' + idx).value;
+        var observacoes = document.getElementById('processo-obs-' + idx).value;
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+        apiPost('/api/painel?acao=processos', {
+          op: 'salvar_meta',
+          processo: processo,
+          cliente: cliente,
+          proxima_audiencia: audiencia,
+          observacoes: observacoes
+        }).then(function (r) { return r.json(); }).then(function () {
+          carregarProcessos();
+        }).catch(function () {
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+          alert('Não foi possível salvar agora.');
+        });
+      });
+    });
+  }
+
+  function arquivoParaBase64ProcAdm(arquivo) {
+    return arquivo.arrayBuffer().then(function (buffer) {
+      var binario = '';
+      var bytes = new Uint8Array(buffer);
+      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+      return btoa(binario);
+    });
+  }
+
+  function wireProcessosAdministrativos() {
+    var btnCriar = document.getElementById('procadm-btn-criar');
+    var resultadoEl = document.getElementById('procadm-resultado');
+    if (!btnCriar) return;
+
+    var datalistProcAdm = document.getElementById('procadm-clientes-lista');
+    if (datalistProcAdm) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistProcAdm.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
+    var btnAnalisar = document.getElementById('procadm-analisar-btn');
+    var inputAnalisar = document.getElementById('procadm-analisar-input');
+    var statusAnalisar = document.getElementById('procadm-analisar-status');
+    var dropzoneAnalisar = document.getElementById('procadm-analisar-dropzone');
+    var escolherAnalisar = document.getElementById('procadm-analisar-escolher');
+    var nomeArquivoAnalisar = document.getElementById('procadm-analisar-nome-arquivo');
+    var arquivoAnalisadoBase64 = null;
+    var arquivoAnalisadoInfo = null;
+
+    function selecionarArquivoProcAdm(arquivo) {
+      if (!arquivo) return;
+      var dt = new DataTransfer();
+      dt.items.add(arquivo);
+      inputAnalisar.files = dt.files;
+      if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = arquivo.name;
+      if (statusAnalisar) statusAnalisar.textContent = '';
+      arquivoAnalisadoBase64 = null;
+      arquivoAnalisadoInfo = null;
+    }
+
+    if (dropzoneAnalisar && inputAnalisar) {
+      if (escolherAnalisar) escolherAnalisar.addEventListener('click', function () { inputAnalisar.click(); });
+      inputAnalisar.addEventListener('change', function () {
+        if (inputAnalisar.files[0]) {
+          if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = inputAnalisar.files[0].name;
+          if (statusAnalisar) statusAnalisar.textContent = '';
+          arquivoAnalisadoBase64 = null;
+          arquivoAnalisadoInfo = null;
+        }
+      });
+      ['dragenter', 'dragover'].forEach(function (ev) {
+        dropzoneAnalisar.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropzoneAnalisar.classList.add('arrastando');
+        });
+      });
+      ['dragleave', 'drop'].forEach(function (ev) {
+        dropzoneAnalisar.addEventListener(ev, function (e) {
+          e.preventDefault();
+          dropzoneAnalisar.classList.remove('arrastando');
+        });
+      });
+      dropzoneAnalisar.addEventListener('drop', function (e) {
+        var arquivo = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (arquivo) selecionarArquivoProcAdm(arquivo);
+      });
+    }
+
+    if (btnAnalisar) {
+      btnAnalisar.addEventListener('click', function () {
+        var arquivo = inputAnalisar.files && inputAnalisar.files[0];
+        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+
+        var textoOriginal = btnAnalisar.textContent;
+        btnAnalisar.disabled = true;
+        btnAnalisar.textContent = 'Analisando...';
+        statusAnalisar.textContent = '';
+
+        arquivoParaBase64ProcAdm(arquivo).then(function (base64) {
+          arquivoAnalisadoBase64 = base64;
+          arquivoAnalisadoInfo = { nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream' };
+          return apiPostJson('/api/painel?acao=processo_administrativo_analisar', {
+            mimetype: arquivo.type || 'application/octet-stream', dados_base64: base64
+          });
+        }).then(function (dados) {
+          var campoCliente = document.querySelector('[data-form="procadm_criar"][data-campo="cliente"]');
+          var campoOrgao = document.querySelector('[data-form="procadm_criar"][data-campo="orgao"]');
+          var campoProtocolo = document.querySelector('[data-form="procadm_criar"][data-campo="numero_protocolo"]');
+          if (dados.cliente_sugerido && campoCliente) campoCliente.value = dados.cliente_sugerido;
+          if (dados.orgao && campoOrgao) campoOrgao.value = dados.orgao;
+          if (dados.numero_protocolo && campoProtocolo) campoProtocolo.value = dados.numero_protocolo;
+
+          if (dados.cliente_sugerido && dados.cliente_encontrado) {
+            statusAnalisar.textContent = 'Preenchido. Cliente encontrado: ' + dados.cliente_sugerido + '. Confira antes de criar.';
+          } else if (dados.cliente_sugerido) {
+            statusAnalisar.textContent = 'Preenchido, mas não achei "' + dados.cliente_sugerido + '" cadastrado -- confira o nome do cliente.';
+          } else {
+            statusAnalisar.textContent = 'Não consegui identificar o cliente no documento -- preencha manualmente.';
+          }
+        }).catch(function (erro) {
+          statusAnalisar.textContent = (erro && erro.message) || 'Não foi possível analisar o documento agora.';
+          arquivoAnalisadoBase64 = null;
+          arquivoAnalisadoInfo = null;
+        }).finally(function () {
+          btnAnalisar.disabled = false;
+          btnAnalisar.textContent = textoOriginal;
+        });
+      });
+    }
+
+    btnCriar.addEventListener('click', function () {
+      var campos = document.querySelectorAll('[data-form="procadm_criar"]');
+      var corpo = { op: 'criar' };
+      campos.forEach(function (campo) {
+        var nomeCampo = campo.getAttribute('data-campo');
+        if (nomeCampo) corpo[nomeCampo] = campo.value;
+      });
+
+      var textoOriginal = btnCriar.textContent;
+      btnCriar.disabled = true;
+      btnCriar.textContent = 'Criando...';
+      resultadoEl.textContent = '';
+
+      apiPostJson('/api/painel?acao=processos_administrativos', corpo)
+        .then(function (dados) {
+          resultadoEl.textContent = 'Processo criado.';
+          campos.forEach(function (campo) { campo.value = ''; });
+
+          var novoId = dados.processo && dados.processo.id;
+          if (novoId && arquivoAnalisadoBase64 && arquivoAnalisadoInfo) {
+            var infoParaAnexar = arquivoAnalisadoInfo;
+            var base64ParaAnexar = arquivoAnalisadoBase64;
+            arquivoAnalisadoBase64 = null;
+            arquivoAnalisadoInfo = null;
+            if (inputAnalisar) inputAnalisar.value = '';
+            if (statusAnalisar) statusAnalisar.textContent = '';
+            if (nomeArquivoAnalisar) nomeArquivoAnalisar.textContent = '';
+            return apiPostJson('/api/painel?acao=processo_administrativo_anexar', {
+              id: novoId, nome_arquivo: infoParaAnexar.nome_arquivo, mimetype: infoParaAnexar.mimetype, dados_base64: base64ParaAnexar
+            }).then(function () {
+              resultadoEl.textContent = 'Processo criado e documento anexado.';
+            }).catch(function () {
+              resultadoEl.textContent = 'Processo criado, mas não consegui anexar o documento -- anexe manualmente na ficha dele.';
+            });
+          }
+        })
+        .then(function () {
+          carregarProcessosAdministrativos();
+        })
+        .catch(function (erro) {
+          resultadoEl.textContent = (erro && erro.message) || 'Não foi possível criar agora.';
+        })
+        .finally(function () {
+          btnCriar.disabled = false;
+          btnCriar.textContent = textoOriginal;
+        });
+    });
+
+    carregarProcessosAdministrativos();
+  }
+
+  function carregarProcessosAdministrativos() {
+    apiGetJson('/api/painel?acao=processos_administrativos&op=listar')
+      .then(function (dados) {
+        renderProcessosAdministrativos(dados.processos || []);
+      })
+      .catch(function () {
+        document.getElementById('procadm-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os processos administrativos.</div></div>';
+      });
+  }
+
+  var ROTULOS_STATUS_PROCADM = { aberto: 'Aberto', aguardando: 'Aguardando', concluido: 'Concluído' };
+  var CHIP_CLASSE_STATUS_PROCADM = { aberto: 'neutral', aguardando: 'warn', concluido: 'good' };
+
+  function renderProcessosAdministrativos(processos) {
+    var container = document.getElementById('procadm-lista');
+    if (processos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo administrativo cadastrado ainda.</div></div>';
+      return;
+    }
+
+    container.innerHTML = processos.map(function (p) {
+      var docsHtml = (p.documentos || []).map(function (d) {
+        return '<div style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin-bottom:3px;">' +
+          '<button type="button" data-ver-doc-procadm="' + esc(d.id) + '" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12.5px;text-decoration:underline;padding:0;">' + esc(d.nome) + '</button>' +
+          '<button type="button" data-remover-doc-procadm="' + esc(p.id) + '|' + esc(d.id) + '" title="Remover" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:13px;padding:0;">×</button>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="processo-card" style="padding:14px 20px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">' +
+          '<div>' +
+            '<div style="font-weight:600;">' + esc(p.cliente) + '</div>' +
+            '<div style="font-size:12.5px;color:var(--ink-soft);">' + esc(p.orgao || 'Órgão não informado') +
+              (p.numero_protocolo ? ' · Protocolo ' + esc(p.numero_protocolo) : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<span class="chip ' + (CHIP_CLASSE_STATUS_PROCADM[p.status] || 'neutral') + '">' + esc(ROTULOS_STATUS_PROCADM[p.status] || p.status) + '</span>' +
+            '<select data-status-select-procadm="' + esc(p.id) + '" style="font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);">' +
+              '<option value="aberto"' + (p.status === 'aberto' ? ' selected' : '') + '>Aberto</option>' +
+              '<option value="aguardando"' + (p.status === 'aguardando' ? ' selected' : '') + '>Aguardando</option>' +
+              '<option value="concluido"' + (p.status === 'concluido' ? ' selected' : '') + '>Concluído</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        (p.prazo ? '<div class="chip warn" style="margin-top:8px;">Lembrete: ' + esc(fmtDataCurta(p.prazo)) + '</div>' : '') +
+        (p.proximo_passo ? '<div style="margin-top:8px;font-size:13px;"><b>Próximo passo:</b> ' + esc(p.proximo_passo) + '</div>' : '') +
+        (p.observacoes ? '<div style="margin-top:6px;font-size:13px;color:var(--ink-soft);">' + esc(p.observacoes) + '</div>' : '') +
+        '<div style="margin-top:10px;">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;">Documentos</div>' +
+          (docsHtml || '<div style="font-size:12.5px;color:var(--ink-faint);">Nenhum documento anexado.</div>') +
+          '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<input type="file" data-upload-input-procadm="' + esc(p.id) + '" style="font-size:12px;max-width:220px;">' +
+            '<button type="button" data-upload-btn-procadm="' + esc(p.id) + '" style="font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;">Anexar</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:10px;">' +
+          '<button type="button" data-excluir-procadm="' + esc(p.id) + '" style="font-size:12px;color:var(--crit);background:none;border:none;cursor:pointer;padding:0;">Excluir processo</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('[data-status-select-procadm]').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var id = select.getAttribute('data-status-select-procadm');
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'atualizar', id: id, status: select.value })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível atualizar o status agora.'); });
+      });
+    });
+
+    container.querySelectorAll('[data-ver-doc-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Abrindo...';
+        apiGet('/api/painel?acao=processo_administrativo_documento&id=' + encodeURIComponent(btn.getAttribute('data-ver-doc-procadm')))
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+          .then(function (blob) {
+            window.open(URL.createObjectURL(blob), '_blank', 'noopener');
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível abrir o documento agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-remover-doc-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var partes = btn.getAttribute('data-remover-doc-procadm').split('|');
+        if (!confirm('Remover este documento?')) return;
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'remover_documento', id: partes[0], documento_id: partes[1] })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível remover o documento agora.'); });
+      });
+    });
+
+    container.querySelectorAll('[data-upload-btn-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-upload-btn-procadm');
+        var input = container.querySelector('[data-upload-input-procadm="' + id + '"]');
+        var arquivo = input && input.files && input.files[0];
+        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        arquivo.arrayBuffer().then(function (buffer) {
+          var binario = '';
+          var bytes = new Uint8Array(buffer);
+          for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+          return apiPostJson('/api/painel?acao=processo_administrativo_anexar', {
+            id: id, nome_arquivo: arquivo.name, mimetype: arquivo.type || 'application/octet-stream',
+            dados_base64: btoa(binario)
+          });
+        })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function (erro) {
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+            alert((erro && erro.message) || 'Não foi possível enviar o arquivo agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-excluir-procadm]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-excluir-procadm');
+        if (!confirm('Excluir este processo administrativo? Os documentos continuam na pasta do cliente no Drive.')) return;
+        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'excluir', id: id })
+          .then(function () { carregarProcessosAdministrativos(); })
+          .catch(function () { alert('Não foi possível excluir agora.'); });
+      });
+    });
+  }
+
+  function wireCobranca() {
+    var datalistCobrancaAvulsa = document.getElementById('cobranca-avulsa-clientes-lista');
+    if (datalistCobrancaAvulsa) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistCobrancaAvulsa.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
+    var datalistNotificacao = document.getElementById('notificacao-extrajudicial-clientes-lista');
+    if (datalistNotificacao) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistNotificacao.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+
+    document.querySelectorAll('[data-cobrar-nome]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Enviar cobrança de R$ ' + btn.getAttribute('data-cobrar-valor') + ' para ' +
+          btn.getAttribute('data-cobrar-nome') + '?')) return;
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        apiPost('/api/painel?acao=executar', {
+          tipo: 'cobrar_cliente',
+          nome: btn.getAttribute('data-cobrar-nome'),
+          valor: btn.getAttribute('data-cobrar-valor'),
+          vencimento: btn.getAttribute('data-cobrar-vencimento'),
+          linha_contrato: btn.getAttribute('data-cobrar-linha-contrato'),
+          numero_parcela: btn.getAttribute('data-cobrar-numero-parcela')
+        }).then(function (r) { return r.json(); }).then(function (dados) {
+          alert(dados.resposta || dados.erro || 'Concluído.');
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+        }).catch(function () {
+          btn.disabled = false;
+          btn.textContent = textoOriginal;
+          alert('Não foi possível enviar a cobrança agora.');
+        });
+      });
+    });
+  }
+
+  function wireNotificacaoExtrajudicial() {
+    // A geracao (botao "Gerar notificacao") usa o mecanismo generico de automacao
+    // (executarAutomacao/wireAutomacoes, mesmo caminho ja comprovado em Proposta/Contrato) --
+    // aqui so cuida do botao extra "Confirmar e enviar", que nao existe nas outras automacoes.
+    var btnConfirmar = document.getElementById('notificacao-extrajudicial-btn-confirmar');
+    var areaConfirmar = document.getElementById('notificacao-extrajudicial-confirmar-area');
+    var resultadoEl = document.querySelector('[data-resultado="notificacao_extrajudicial_gerar"]');
+    if (!btnConfirmar || !areaConfirmar) return;
+
+    btnConfirmar.addEventListener('click', function () {
+      var pdfId = areaConfirmar.dataset.pdfId;
+      var nome = areaConfirmar.dataset.nome;
+      var prazoDias = areaConfirmar.dataset.prazoDias;
+      var email = areaConfirmar.dataset.email;
+      if (!pdfId || !nome) return;
+
+      var aviso = 'Isso vai enviar a notificação de verdade pro cliente' +
+        (email ? ' (WhatsApp + e-mail).' : ' (WhatsApp -- nenhum e-mail foi informado).') +
+        ' Não dá pra desfazer. Confirma?';
+      if (!confirm(aviso)) return;
+
+      var textoOriginal = btnConfirmar.textContent;
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = 'Enviando...';
+
+      apiPostJson('/api/painel?acao=executar', {
+        tipo: 'notificacao_extrajudicial_enviar',
+        nome: nome, pdf_id: pdfId, prazo_dias: prazoDias, email: email
+      })
+        .then(function (dados) {
+          if (resultadoEl) resultadoEl.textContent = dados.resposta || 'Concluído.';
+          areaConfirmar.classList.add('hidden');
+          delete areaConfirmar.dataset.pdfId;
+        })
+        .catch(function (erro) {
+          if (resultadoEl) resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
+        })
+        .finally(function () {
+          btnConfirmar.disabled = false;
+          btnConfirmar.textContent = textoOriginal;
+        });
+    });
+  }
+
+  var eventoEditandoId = null;
+  var tarefaEditandoId = null;
+
+  function fmtDataCurta(iso) {
+    if (!iso) return '';
+    var dataParte = iso.split('T')[0];
+    var horaParte = iso.includes('T') ? iso.split('T')[1].substring(0, 5) : '';
+    var partes = dataParte.split('-');
+    var dataFmt = partes[2] + '/' + partes[1] + '/' + partes[0];
+    return horaParte ? dataFmt + ' às ' + horaParte : dataFmt;
+  }
+
+  function carregarAgenda() {
+    apiGetJson('/api/painel?acao=agenda&op=listar')
+      .then(function (dados) {
+        renderAgendaEventos(dados.eventos || []);
+        renderAgendaTarefas(dados.tarefas || []);
+        renderProximosCompromissos(dados.eventos || [], dados.tarefas || []);
+      })
+      .catch(function () {
+        document.getElementById('agenda-lista-eventos').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar os eventos.</div></div>';
+        document.getElementById('agenda-lista-tarefas').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar as tarefas.</div></div>';
+        var listaProximos = document.getElementById('visao-proximos-lista');
+        if (listaProximos) {
+          listaProximos.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a agenda.</div></div>';
+        }
+      });
+  }
+
+  function renderProximosCompromissos(eventos, tarefas) {
+    var container = document.getElementById('visao-proximos-lista');
+    if (!container) return;
+
+    var itens = eventos.map(function (ev) {
+      return { titulo: ev.titulo, dataOrdenacao: ev.inicio, dataExibida: fmtDataCurta(ev.inicio) };
+    }).concat(
+      tarefas.filter(function (t) { return t.data_vencimento; }).map(function (t) {
+        return { titulo: t.titulo, dataOrdenacao: t.data_vencimento, dataExibida: fmtDataCurta(t.data_vencimento) };
+      })
+    );
+    itens.sort(function (a, b) { return a.dataOrdenacao < b.dataOrdenacao ? -1 : 1; });
+    itens = itens.slice(0, 4);
+
+    if (itens.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nada agendado nos próximos dias.</div></div>';
+      return;
+    }
+
+    container.innerHTML = itens.map(function (item) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + esc(item.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + esc(item.dataExibida) + '</div></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderAgendaEventos(eventos) {
+    var container = document.getElementById('agenda-lista-eventos');
+    if (eventos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum evento nos próximos 30 dias.</div></div>';
+      return;
+    }
+    container.innerHTML = eventos.map(function (ev) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + esc(ev.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + esc(fmtDataCurta(ev.inicio)) + '</div></div>' +
+        '<div class="agenda-item-acoes">' +
+          '<button class="btn-editar" data-editar-evento="' + esc(ev.id) + '" data-titulo="' + esc(ev.titulo) + '" data-inicio="' + esc(ev.inicio) + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-evento="' + esc(ev.id) + '">Excluir</button>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-editar-evento]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        eventoEditandoId = btn.getAttribute('data-editar-evento');
+        document.getElementById('evento-titulo').value = btn.getAttribute('data-titulo');
+        var inicio = btn.getAttribute('data-inicio');
+        document.getElementById('evento-data').value = inicio.split('T')[0];
+        document.getElementById('evento-hora').value = inicio.includes('T') ? inicio.split('T')[1].substring(0, 5) : '';
+        document.getElementById('evento-btn-salvar').textContent = 'Salvar edição';
+        document.getElementById('evento-btn-cancelar').classList.remove('hidden');
+      });
+    });
+    container.querySelectorAll('[data-excluir-evento]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Excluir esse evento?')) return;
+        apiPost('/api/painel?acao=agenda', { op: 'excluir_evento', id: btn.getAttribute('data-excluir-evento') })
+          .then(function () { carregarAgenda(); });
+      });
+    });
+  }
+
+  function renderAgendaTarefas(tarefas) {
+    var container = document.getElementById('agenda-lista-tarefas');
+    if (tarefas.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma tarefa pendente.</div></div>';
+      return;
+    }
+    container.innerHTML = tarefas.map(function (t) {
+      return '<div class="agenda-item">' +
+        '<div><div class="agenda-item-titulo">' + esc(t.titulo) + '</div>' +
+        '<div class="agenda-item-data">' + (t.data_vencimento ? esc(fmtDataCurta(t.data_vencimento)) : 'Sem prazo') + '</div></div>' +
+        '<div class="agenda-item-acoes">' +
+          '<button class="btn-concluir" data-concluir-tarefa="' + esc(t.id) + '">Concluir</button>' +
+          '<button class="btn-editar" data-editar-tarefa="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) + '" data-venc="' + esc(t.data_vencimento || '') + '">Editar</button>' +
+          '<button class="btn-remover" data-excluir-tarefa="' + esc(t.id) + '">Excluir</button>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-concluir-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.textContent = 'Concluindo...';
+        apiPost('/api/painel?acao=agenda', { op: 'concluir_tarefa', id: btn.getAttribute('data-concluir-tarefa') })
+          .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+          .then(function (resultado) {
+            if (resultado.status !== 200) {
+              btn.disabled = false;
+              btn.textContent = 'Concluir';
+              alert(resultado.corpo.erro || 'Não foi possível concluir a tarefa agora.');
+              return;
+            }
+            carregarAgenda();
+          })
+          .catch(function () {
+            btn.disabled = false;
+            btn.textContent = 'Concluir';
+            alert('Não foi possível concluir a tarefa agora.');
+          });
+      });
+    });
+    container.querySelectorAll('[data-editar-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        tarefaEditandoId = btn.getAttribute('data-editar-tarefa');
+        document.getElementById('tarefa-titulo').value = btn.getAttribute('data-titulo');
+        document.getElementById('tarefa-data').value = btn.getAttribute('data-venc');
+        document.getElementById('tarefa-btn-salvar').textContent = 'Salvar edição';
+        document.getElementById('tarefa-btn-cancelar').classList.remove('hidden');
+      });
+    });
+    container.querySelectorAll('[data-excluir-tarefa]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm('Excluir essa tarefa?')) return;
+        apiPost('/api/painel?acao=agenda', { op: 'excluir_tarefa', id: btn.getAttribute('data-excluir-tarefa') })
+          .then(function () { carregarAgenda(); });
+      });
+    });
+  }
+
+  function wireAgenda() {
+    document.getElementById('evento-btn-salvar').addEventListener('click', function () {
+      var titulo = document.getElementById('evento-titulo').value.trim();
+      var data = document.getElementById('evento-data').value;
+      var hora = document.getElementById('evento-hora').value;
+      var comMeet = document.getElementById('evento-meet').checked;
+      if (!titulo || !data) return;
+      var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
+      var corpoEvento = { op: op, titulo: titulo, data: data };
+      if (hora) corpoEvento.hora = hora;
+      if (comMeet && !eventoEditandoId) corpoEvento.meet = 'true';
+      if (eventoEditandoId) corpoEvento.id = eventoEditandoId;
+      var resultadoEl = document.getElementById('evento-meet-resultado');
+      apiPost('/api/painel?acao=agenda', corpoEvento).then(function (r) { return r.json(); }).then(function (dados) {
+        eventoEditandoId = null;
+        document.getElementById('evento-titulo').value = '';
+        document.getElementById('evento-data').value = '';
+        document.getElementById('evento-hora').value = '';
+        document.getElementById('evento-meet').checked = false;
+        document.getElementById('evento-btn-salvar').textContent = 'Criar';
+        document.getElementById('evento-btn-cancelar').classList.add('hidden');
+        if (dados.link_meet) {
+          resultadoEl.classList.remove('hidden');
+          resultadoEl.innerHTML = 'Link do Meet: <a href="' + esc(dados.link_meet) + '" target="_blank" rel="noopener" style="color:var(--accent);">' + esc(dados.link_meet) + '</a>';
+        } else {
+          resultadoEl.classList.add('hidden');
+        }
+        carregarAgenda();
+      });
+    });
+
+    document.getElementById('evento-btn-cancelar').addEventListener('click', function () {
+      eventoEditandoId = null;
+      document.getElementById('evento-titulo').value = '';
+      document.getElementById('evento-data').value = '';
+      document.getElementById('evento-hora').value = '';
+      document.getElementById('evento-btn-salvar').textContent = 'Criar';
+      this.classList.add('hidden');
+    });
+
+    document.getElementById('tarefa-btn-salvar').addEventListener('click', function () {
+      var titulo = document.getElementById('tarefa-titulo').value.trim();
+      var data = document.getElementById('tarefa-data').value;
+      if (!titulo) return;
+      var op = tarefaEditandoId ? 'editar_tarefa' : 'criar_tarefa';
+      var corpoTarefa = { op: op, titulo: titulo };
+      if (data) corpoTarefa.data = data;
+      if (tarefaEditandoId) corpoTarefa.id = tarefaEditandoId;
+      apiPost('/api/painel?acao=agenda', corpoTarefa).then(function () {
+        tarefaEditandoId = null;
+        document.getElementById('tarefa-titulo').value = '';
+        document.getElementById('tarefa-data').value = '';
+        document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
+        document.getElementById('tarefa-btn-cancelar').classList.add('hidden');
+        carregarAgenda();
+      });
+    });
+
+    document.getElementById('tarefa-btn-cancelar').addEventListener('click', function () {
+      tarefaEditandoId = null;
+      document.getElementById('tarefa-titulo').value = '';
+      document.getElementById('tarefa-data').value = '';
+      document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
+      this.classList.add('hidden');
+    });
+  }
+
+  var CONTRATO_PLACEHOLDERS_PAGAMENTO = ['VALOR_TOTAL', 'VALOR_TOTAL_EXTENSO', 'VALOR_ENTRADA', 'VALOR_ENTRADA_EXTENSO', 'VALOR_PARCELA', 'VALOR_PARCELA_EXTENSO', 'NUM_PARCELAS', 'DATA_ENTRADA', 'DIA_VENCIMENTO'];
+  var CONTRATO_PLACEHOLDERS_EXITO = ['PERCENTUAL_HONORARIOS', 'PERCENTUAL_RECURSAL'];
+
+  function rotularCampoExtraContrato(nomePlaceholder) {
+    var texto = nomePlaceholder.replace(/^VALOR_/, 'Valor ').replace(/^PERCENTUAL_/, '% ').replace(/_/g, ' ');
+    return texto.charAt(0) + texto.slice(1).toLowerCase();
+  }
+
+  function wireContrato() {
+    var datalistClientes = document.getElementById('contrato-clientes-lista');
+    var datalistModelos = document.getElementById('contrato-modelos-lista');
+    var campoTipoServico = document.getElementById('contrato-tipo-servico');
+    var avisoEl = document.getElementById('contrato-modelo-aviso');
+    var extrasContainer = document.getElementById('contrato-campos-extra-dinamicos');
+    if (!datalistClientes || !datalistModelos || !campoTipoServico) return;
+
+    var nomesModelosConhecidos = [];
+
+    apiGetJson('/api/painel?acao=clientes')
+      .then(function (dados) {
+        datalistClientes.innerHTML = (dados.clientes || []).map(function (c) {
+          return '<option value="' + esc(c.nome) + '">';
+        }).join('');
+      })
+      .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+
+    apiGetJson('/api/painel?acao=modelos_contrato')
+      .then(function (dados) {
+        nomesModelosConhecidos = dados.modelos || [];
+        datalistModelos.innerHTML = nomesModelosConhecidos.map(function (nomeArquivo) {
+          return '<option value="' + esc(nomeArquivo) + '">';
+        }).join('');
+      })
+      .catch(function () { /* idem */ });
+
+    function mostrarTodosCamposContrato() {
+      document.querySelectorAll('.contrato-campo-pagamento, .contrato-campo-exito').forEach(function (el) {
+        el.classList.remove('hidden');
+      });
+      if (extrasContainer) extrasContainer.innerHTML = '';
+      if (avisoEl) { avisoEl.classList.add('hidden'); avisoEl.textContent = ''; }
+    }
+
+    function ajustarCamposContrato(placeholders) {
+      var usaPagamento = CONTRATO_PLACEHOLDERS_PAGAMENTO.some(function (p) { return placeholders.indexOf(p) !== -1; });
+      var usaExito = CONTRATO_PLACEHOLDERS_EXITO.some(function (p) { return placeholders.indexOf(p) !== -1; });
+      var placeholdersConhecidos = CONTRATO_PLACEHOLDERS_PAGAMENTO.concat(CONTRATO_PLACEHOLDERS_EXITO);
+      var placeholdersExtras = placeholders.filter(function (p) {
+        // "_EXTENSO" e sempre derivado automaticamente do valor numerico correspondente --
+        // nao precisa (nem deve) virar um campo separado pra digitar por extenso na mao.
+        return (p.indexOf('VALOR_') === 0 || p.indexOf('PERCENTUAL_') === 0) &&
+          p.indexOf('_EXTENSO') === -1 && placeholdersConhecidos.indexOf(p) === -1;
+      });
+
+      document.querySelectorAll('.contrato-campo-pagamento').forEach(function (el) {
+        el.classList.toggle('hidden', !usaPagamento);
+      });
+      document.querySelectorAll('.contrato-campo-exito').forEach(function (el) {
+        el.classList.toggle('hidden', !usaExito);
+      });
+      if (extrasContainer) {
+        extrasContainer.innerHTML = placeholdersExtras.map(function (nome) {
+          return '<input type="text" placeholder="' + esc(rotularCampoExtraContrato(nome)) + ' (opcional)" data-campo-extra="' + esc(nome) + '" data-form="gerar_contrato">';
+        }).join('');
+      }
+
+      if (avisoEl) {
+        if (!usaPagamento && !usaExito && !placeholdersExtras.length) {
+          avisoEl.textContent = 'Este modelo não usa os campos de valor/entrada nem de percentual desta tela — o pagamento já está definido no próprio texto do contrato.';
+          avisoEl.classList.remove('hidden');
+        } else {
+          avisoEl.classList.add('hidden');
+          avisoEl.textContent = '';
+        }
+      }
+    }
+
+    campoTipoServico.addEventListener('input', function () {
+      var valorDigitado = campoTipoServico.value.trim();
+      if (nomesModelosConhecidos.indexOf(valorDigitado) === -1) {
+        mostrarTodosCamposContrato();
+        return;
+      }
+      apiGetJson('/api/painel?acao=modelo_campos&nome=' + encodeURIComponent(valorDigitado))
+        .then(function (dados) { ajustarCamposContrato(dados.placeholders || []); })
+        .catch(function () { mostrarTodosCamposContrato(); });
+    });
+  }
+
+  // O navegador (Chrome) so mostra no menu do <input list> as opcoes que "batem" com o texto
+  // atual do campo -- depois de escolher uma opcao, o texto fica identico a ela, entao clicar
+  // na seta de novo so mostra aquela mesma opcao ja escolhida, escondendo as outras. Isso aqui
+  // detecta AUTOMATICAMENTE todo <input list> da pagina (o que ja existe na carga inicial e
+  // qualquer um criado depois, em innerHTML de qualquer aba) e adiciona um botao "x" que limpa
+  // o campo pra lista completa voltar a aparecer -- nao precisa lembrar de repetir esse padrao
+  // manualmente toda vez que um campo novo desses for criado no futuro.
+  (function () {
+    var contadorId = 0;
+
+    function ativarLimparDatalist(input) {
+      if (input.dataset.datalistAuto) return; // ja processado, evita duplicar
+      input.dataset.datalistAuto = '1';
+      if (!input.id) {
+        contadorId += 1;
+        input.id = 'datalist-auto-' + contadorId;
+      }
+
+      var wrapper = document.createElement('div');
+      wrapper.style.position = 'relative';
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+
+      input.style.paddingRight = '28px';
+      input.style.boxSizing = 'border-box';
+      if (!input.style.width) input.style.width = '100%';
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = 'Limpar e ver todas as opções';
+      btn.textContent = '×';
+      btn.style.cssText = 'position:absolute; right:4px; top:50%; transform:translateY(-50%); ' +
+        'border:none; background:none; color:var(--ink-faint); cursor:pointer; font-size:15px; line-height:1; padding:4px 6px;';
+      btn.addEventListener('click', function () {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+      });
+      wrapper.appendChild(btn);
+    }
+
+    function escanear(raiz) {
+      (raiz.querySelectorAll ? raiz : document).querySelectorAll('input[list]').forEach(ativarLimparDatalist);
+    }
+
+    escanear(document);
+
+    new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        m.addedNodes.forEach(function (node) {
+          if (node.nodeType !== 1) return;
+          if (node.matches && node.matches('input[list]')) ativarLimparDatalist(node);
+          else if (node.querySelectorAll) escanear(node);
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  })();
+
+  function wireAutomacoes() {
+    var botoes = document.querySelectorAll('.btn-automacao');
+    for (var i = 0; i < botoes.length; i++) {
+      botoes[i].addEventListener('click', function (e) {
+        var tipoBotao = e.target.getAttribute('data-tipo');
+        if (tipoBotao === 'remover_cliente_financeiro') {
+          var nomeCampo = document.querySelector('[data-form="remover_cliente_financeiro"][data-campo="nome"]');
+          var nomeDigitado = nomeCampo ? nomeCampo.value.trim() : '';
+          if (!nomeDigitado || !confirm('Remover "' + nomeDigitado + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) {
+            return;
+          }
+        }
+        executarAutomacao(tipoBotao, e.target);
+      });
+    }
+
+    var datalistVerificarDados = document.getElementById('verificar-dados-clientes-lista');
+    if (datalistVerificarDados) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistVerificarDados.innerHTML = (dados.clientes || []).map(function (c) {
+            return '<option value="' + esc(c.nome) + '">';
+          }).join('');
+        })
+        .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+    }
+  }
+
+  function executarAutomacao(tipo, botao) {
+    var resultadoEl = document.querySelector('[data-resultado="' + tipo + '"]');
+    var campos = document.querySelectorAll('[data-form="' + tipo + '"]');
+    var corpo = { tipo: tipo };
+    var camposExtra = {};
+
+    for (var i = 0; i < campos.length; i++) {
+      var nomeCampo = campos[i].getAttribute('data-campo');
+      if (nomeCampo) {
+        corpo[nomeCampo] = campos[i].value;
+        continue;
+      }
+      var nomeExtra = campos[i].getAttribute('data-campo-extra');
+      if (nomeExtra && campos[i].value) camposExtra[nomeExtra] = campos[i].value;
+    }
+    if (Object.keys(camposExtra).length) corpo.campos_extra = JSON.stringify(camposExtra);
+
+    botao.disabled = true;
+    var textoOriginal = botao.textContent;
+    botao.textContent = 'Executando...';
+    if (resultadoEl) resultadoEl.textContent = '';
+
+    apiPost('/api/painel?acao=executar', corpo)
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultadoEl) {
+          resultadoEl.textContent = resultado.status === 200
+            ? (resultado.corpo.resposta || 'Concluído.')
+            : (resultado.corpo.erro || 'Erro ao executar.');
+        }
+        if (resultado.status === 200 && resultado.corpo.pdf_id) {
+          mostrarPreviewDocumento(resultado.corpo.pdf_id, botao.getAttribute('data-preview') || 'proposta-preview');
+        }
+        if (tipo === 'cadastrar_cliente_financeiro' && resultado.status === 200) {
+          carregarListaClientesFinanceiro();
+        }
+        if (tipo === 'notificacao_extrajudicial_gerar') {
+          var areaConfirmarNotif = document.getElementById('notificacao-extrajudicial-confirmar-area');
+          if (areaConfirmarNotif) {
+            if (resultado.status === 200 && resultado.corpo.pdf_id) {
+              areaConfirmarNotif.dataset.pdfId = resultado.corpo.pdf_id;
+              areaConfirmarNotif.dataset.nome = corpo.nome || '';
+              areaConfirmarNotif.dataset.prazoDias = corpo.prazo_dias || '';
+              areaConfirmarNotif.dataset.email = (document.getElementById('notificacao-extrajudicial-email') || {}).value || '';
+              areaConfirmarNotif.classList.remove('hidden');
+            } else {
+              areaConfirmarNotif.classList.add('hidden');
+              delete areaConfirmarNotif.dataset.pdfId;
+            }
+          }
+        }
+      })
+      .catch(function () {
+        if (resultadoEl) resultadoEl.textContent = 'Não foi possível executar agora.';
+      })
+      .finally(function () {
+        botao.disabled = false;
+        botao.textContent = textoOriginal;
+      });
+  }
+
+  function mostrarPreviewDocumento(pdfId, containerId) {
+    var container = document.getElementById(containerId || 'proposta-preview');
+    if (!container) return;
+    container.innerHTML = '<div class="empty-state"><div class="msg">Carregando pré-visualização…</div></div>';
+    apiGet('/api/painel?acao=documento_gerado&id=' + encodeURIComponent(pdfId))
+      .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        container.innerHTML =
+          '<div class="proposta-preview-topo"><button type="button" class="proposta-preview-fechar">Fechar pré-visualização</button></div>' +
+          '<iframe class="proposta-preview-iframe" src="' + url + '"></iframe>';
+        container.querySelector('.proposta-preview-fechar').addEventListener('click', function () {
+          container.innerHTML = '';
+        });
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a pré-visualização.</div></div>';
+      });
+  }
+
+  var padraoOperacionalDados = {};
+  var padraoOperacionalAbaAtual = 'atendimentos';
+
+  function carregarPadraoOperacional() {
+    apiGetJson('/api/painel?acao=padrao_operacional&op=listar')
+      .then(function (dados) {
+        padraoOperacionalDados = dados.abas || {};
+        wirePadraoOperacional();
+        mostrarAbaPadrao('atendimentos');
+      })
+      .catch(function () {
+        var textarea = document.getElementById('padrao-texto');
+        if (textarea) textarea.value = 'Não foi possível carregar o conteúdo agora.';
+      });
+  }
+
+  function mostrarAbaPadrao(aba) {
+    padraoOperacionalAbaAtual = aba;
+    var textarea = document.getElementById('padrao-texto');
+    var botaoSalvar = document.getElementById('padrao-btn-salvar');
+    if (!textarea) return;
+    textarea.value = padraoOperacionalDados[aba] || '';
+    textarea.disabled = false;
+    if (botaoSalvar) botaoSalvar.disabled = false;
+    atualizarContadorPadrao();
+    document.querySelectorAll('.padrao-aba-btn').forEach(function (btn) {
+      var ativo = btn.getAttribute('data-aba') === aba;
+      btn.classList.toggle('ativo', ativo);
+      btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+    });
+  }
+
+  function atualizarContadorPadrao() {
+    var textarea = document.getElementById('padrao-texto');
+    var contador = document.getElementById('padrao-contador');
+    if (textarea && contador) {
+      contador.textContent = textarea.value.length + '/4000';
+    }
+  }
+
+  function wirePadraoOperacional() {
+    document.querySelectorAll('.padrao-aba-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mostrarAbaPadrao(btn.getAttribute('data-aba'));
+      });
+    });
+
+    var textarea = document.getElementById('padrao-texto');
+    if (textarea) textarea.addEventListener('input', atualizarContadorPadrao);
+
+    var botaoSalvar = document.getElementById('padrao-btn-salvar');
+    var msg = document.getElementById('padrao-msg');
+    if (botaoSalvar) {
+      botaoSalvar.addEventListener('click', function () {
+        var texto = textarea.value;
+        var abaSalva = padraoOperacionalAbaAtual;
+        botaoSalvar.disabled = true;
+        botaoSalvar.textContent = 'Salvando...';
+        if (msg) msg.textContent = '';
+        apiPost('/api/painel?acao=padrao_operacional', { op: 'salvar', aba: abaSalva, conteudo: texto })
+          .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+          .then(function (resultado) {
+            if (resultado.status === 200) {
+              padraoOperacionalDados[abaSalva] = texto;
+              if (msg) {
+                msg.textContent = 'Salvo.';
+                setTimeout(function () { msg.textContent = ''; }, 3000);
+              }
+            } else if (msg) {
+              msg.textContent = resultado.corpo.erro || 'Não foi possível salvar agora.';
+            }
+          })
+          .catch(function () {
+            if (msg) msg.textContent = 'Não foi possível salvar agora.';
+          })
+          .finally(function () {
+            botaoSalvar.disabled = false;
+            botaoSalvar.textContent = 'Salvar';
+          });
+      });
+    }
+  }
+
+  function carregarPautaAudiencias() {
+    apiGetJson('/api/painel?acao=pauta_audiencias')
+      .then(function (dados) { renderPautaAudiencias(dados.pauta || []); })
+      .catch(function () {
+        document.getElementById('pauta-audiencias-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar a pauta de audiências.</div></div>';
+      });
+  }
+
+  function renderPautaAudiencias(pauta) {
+    var container = document.getElementById('pauta-audiencias-lista');
+    if (pauta.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma audiência marcada no momento.</div></div>';
+      return;
+    }
+    container.innerHTML = pauta.map(function (a) {
+      return '<div class="processo-card">' +
+        '<div class="processo-corpo aberto" style="padding-top:14px;">' +
+          '<div class="processo-numero">' + esc(a.tipo_audiencia) + '</div>' +
+          '<div class="processo-meta">' + esc(a.numero_processo) + (a.tribunal ? ' · ' + esc(a.tribunal) : '') +
+            (a.orgao ? ' · ' + esc(a.orgao) : '') + '</div>' +
+          (a.cliente ? '<div class="processo-meta">Cliente: ' + esc(a.cliente) + '</div>' : '') +
+          '<div class="timeline-item-resumo" style="margin-top:8px;">' +
+            '<strong>' + esc(fmtDataCurta(a.data + (a.hora ? 'T' + a.hora : ''))) + '</strong>' +
+          '</div>' +
+          (a.link_videoconferencia
+            ? '<div style="margin-top:8px;"><a href="' + esc(a.link_videoconferencia) + '" target="_blank" rel="noopener" class="link-original">Entrar na videoconferência</a></div>'
+            : '') +
+          '<div style="margin-top:10px;"><button data-marcar-realizada="' + esc(a.id) + '">Audiência realizada</button></div>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-marcar-realizada]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-marcar-realizada');
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Salvando...';
+        btn.disabled = true;
+        apiPost('/api/painel?acao=pauta_audiencias', { op: 'marcar_realizada', id: id })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { carregarPautaAudiencias(); })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            btn.disabled = false;
+            alert('Não foi possível marcar a audiência como realizada agora.');
+          });
+      });
+    });
+  }
+
+  function carregarAudiencias() {
+    apiGetJson('/api/painel?acao=audiencias&op=listar')
+      .then(function (dados) { renderAudiencias(dados.audiencias || []); })
+      .catch(function () {
+        document.getElementById('audiencias-lista').innerHTML =
+          '<div class="empty-state"><div class="msg">Não foi possível carregar as audiências.</div></div>';
+      });
+  }
+
+  function fmtDuracao(seg) {
+    if (!seg && seg !== 0) return '';
+    var h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+    if (h > 0) return h + 'h ' + String(m).padStart(2, '0') + 'min';
+    if (m > 0) return m + ' min';
+    return s + ' s';
+  }
+
+  function parseTranscricaoDialogo(texto) {
+    var linhas = texto.split('\n');
+    var regexFala = /^\[(\d{2}:\d{2}:\d{2})\]\s+Locutor\s+(\S+):\s*(.*)$/;
+    var locutorCor = {}, proximaCor = 0;
+    var partes = [], algumaFala = false;
+    linhas.forEach(function (linha) {
+      var m = linha.match(regexFala);
+      if (!m) {
+        if (linha.trim()) partes.push('<div class="timeline-item-resumo">' + esc(linha) + '</div>');
+        return;
+      }
+      algumaFala = true;
+      var locutor = m[2];
+      if (!(locutor in locutorCor)) { locutorCor[locutor] = proximaCor % 4; proximaCor++; }
+      partes.push(
+        '<div class="fala"><span class="fala-hora">' + esc(m[1]) + '</span>' +
+        '<span class="fala-locutor fala-locutor-' + locutorCor[locutor] + '">Locutor ' + esc(locutor) + '</span>' +
+        '<span class="fala-texto">' + esc(m[3]) + '</span></div>'
+      );
+    });
+    if (!algumaFala) {
+      return '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(texto) + '</div>';
+    }
+    return '<div class="transcricao-dialogo">' + partes.join('') + '</div>';
+  }
+
+  function renderAudiencias(audiencias) {
+    var container = document.getElementById('audiencias-lista');
+    if (audiencias.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma audiência processada ainda.</div></div>';
+      return;
+    }
+    container.innerHTML = audiencias.map(function (a, idx) {
+      var avisos = (a.avisos && a.avisos.length)
+        ? '<div class="chip warn" style="margin-bottom:10px;">' + esc(a.avisos.join(' | ')) + '</div>' : '';
+      var chips = '';
+      if (a.duracao_segundos || a.duracao_segundos === 0) chips += '<span class="audiencia-chip">' + esc(fmtDuracao(a.duracao_segundos)) + '</span>';
+      if (a.total_falas) chips += '<span class="audiencia-chip">' + a.total_falas + ' fala' + (a.total_falas === 1 ? '' : 's') + '</span>';
+      if (a.total_locutores) chips += '<span class="audiencia-chip">' + a.total_locutores + ' pessoa' + (a.total_locutores === 1 ? '' : 's') + '</span>';
+      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo)) + '">' +
+        '<button type="button" class="processo-cabecalho" data-toggle-audiencia="' + idx + '" aria-expanded="false" aria-controls="audiencia-corpo-' + idx + '">' +
+          '<div><div class="processo-numero">' + esc(a.cliente) + '</div>' +
+          '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + (chips ? ' · ' : '') + '</div>' +
+          (chips ? '<div style="margin-top:4px;">' + chips + '</div>' : '') + '</div>' +
+        '</button>' +
+        '<div class="processo-corpo" id="audiencia-corpo-' + idx + '">' + avisos +
+          '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(a.resumo) + '</div>' +
+          '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
+            '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
+            '<button data-excluir-audiencia="' + esc(a.id) + '" class="btn-remover">Excluir</button></div>' +
+          '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
+        '</div></div>';
+    }).join('');
+
+    container.querySelectorAll('[data-toggle-audiencia]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var corpo = document.getElementById('audiencia-corpo-' + el.getAttribute('data-toggle-audiencia'));
+        var aberto = corpo.classList.toggle('aberto');
+        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+      });
+    });
+
+    container.querySelectorAll('[data-ver-transcricao]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-ver-transcricao');
+        var id = btn.getAttribute('data-id-audiencia');
+        var alvo = document.getElementById('audiencia-transcricao-' + idx);
+        if (alvo.innerHTML) { alvo.innerHTML = ''; return; }
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Carregando...';
+        apiGetJson('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
+          .then(function (dados) {
+            var texto = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
+            alvo.innerHTML = parseTranscricaoDialogo(texto);
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível carregar a transcrição agora.');
+          });
+      });
+    });
+
+    var buscaInput = document.getElementById('audiencias-busca-input');
+    if (buscaInput && !buscaInput.dataset.wired) {
+      buscaInput.dataset.wired = '1';
+      buscaInput.addEventListener('input', function () {
+        var termo = normalizarBusca(buscaInput.value);
+        document.querySelectorAll('[data-busca-audiencia]').forEach(function (card) {
+          card.style.display = card.getAttribute('data-busca-audiencia').indexOf(termo) === -1 ? 'none' : '';
+        });
+      });
+    }
+
+    container.querySelectorAll('[data-baixar-audiencia-pdf]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Abrindo...';
+        apiGet('/api/painel?acao=audiencia_documento&id=' + encodeURIComponent(btn.getAttribute('data-baixar-audiencia-pdf')))
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.blob(); })
+          .then(function (blob) {
+            window.open(URL.createObjectURL(blob), '_blank', 'noopener');
+            btn.textContent = textoOriginal;
+          })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            alert('Não foi possível abrir o PDF agora.');
+          });
+      });
+    });
+
+    container.querySelectorAll('[data-excluir-audiencia]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute('data-excluir-audiencia');
+        if (!confirm('Excluir essa transcrição de audiência? O PDF também será apagado do Drive. Essa ação não pode ser desfeita.')) return;
+        var textoOriginal = btn.textContent;
+        btn.textContent = 'Excluindo...';
+        btn.disabled = true;
+        apiPost('/api/painel?acao=audiencias', { op: 'excluir', id: id })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { carregarAudiencias(); })
+          .catch(function () {
+            btn.textContent = textoOriginal;
+            btn.disabled = false;
+            alert('Não foi possível excluir agora.');
+          });
+      });
+    });
+  }
+
+  function carregarDados() {
+    gateError.textContent = '';
+    apiGet('/api/painel?acao=dados')
+      .then(function (r) {
+        if (r.status === 401) throw new Error('sessao');
+        if (!r.ok) throw new Error('falha');
+        return r.json();
+      })
+      .then(function (dados) {
+        gate.classList.add('hidden');
+        shell.classList.remove('hidden');
+        renderPainel(dados);
+      })
+      .catch(function (e) {
+        sessionStorage.removeItem('painel_token');
+        gate.classList.remove('hidden');
+        shell.classList.add('hidden');
+        gateError.textContent = e.message === 'sessao'
+          ? 'Sua sessão expirou. Entre novamente.'
+          : 'Não foi possível carregar os dados agora.';
+      });
+  }
+
+  function carregarListaUsuarios() {
+    apiGetJson('/api/painel?acao=usuarios_listar')
+      .then(function (dados) {
+        var container = document.getElementById('admin-lista-usuarios');
+        if (!container || !dados.usuarios) return;
+        if (dados.usuarios.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
+          return;
+        }
+        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Agenda', automacoes: 'Automações' };
+        var linhas = dados.usuarios.map(function (u) {
+          var descPermissoes;
+          if (u.admin) {
+            descPermissoes = 'acesso total';
+          } else if (!u.permissoes) {
+            descPermissoes = 'acesso total (usuário antigo)';
+          } else if (u.permissoes.length === 0) {
+            descPermissoes = 'nenhuma seção liberada';
+          } else {
+            descPermissoes = u.permissoes.map(function (p) { return rotulos[p] || p; }).join(', ');
+          }
+          return '<tr><td>' + esc(u.nome) + '<div class="permissoes-usuario">' + esc(descPermissoes) + '</div></td><td>' + esc(u.usuario) + '</td>' +
+            '<td>' + (u.admin ? '<span class="chip good">Admin</span>' : '<span class="chip neutral">Padrão</span>') + '</td>' +
+            '<td style="text-align:right"><button class="btn-remover" data-login="' + esc(u.usuario) + '">Remover</button></td></tr>';
+        }).join('');
+        container.innerHTML =
+          '<div class="table-scroll">' +
+          '<table style="min-width:480px;"><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table>' +
+          '</div>';
+        var botoes = container.querySelectorAll('.btn-remover');
+        for (var i = 0; i < botoes.length; i++) {
+          botoes[i].addEventListener('click', function (e) {
+            removerUsuarioAdmin(e.target.getAttribute('data-login'));
+          });
+        }
+      });
+  }
+
+  function criarUsuarioAdmin() {
+    var nome = document.getElementById('admin-nome').value;
+    var login = document.getElementById('admin-login').value;
+    var senha = document.getElementById('admin-senha').value;
+    var ehAdmin = document.getElementById('admin-eh-admin').checked;
+    var permissoes = Array.prototype.slice.call(document.querySelectorAll('[data-permissao]:checked'))
+      .map(function (el) { return el.getAttribute('data-permissao'); });
+    var msg = document.getElementById('admin-msg');
+    msg.textContent = '';
+
+    apiPost('/api/painel?acao=usuarios_criar', {
+      nome: nome, login: login, senha: senha,
+      admin: ehAdmin ? 'true' : 'false',
+      permissoes: permissoes.join(',')
+    })
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200) {
+          msg.textContent = resultado.corpo.erro || 'Erro ao criar usuario.';
+          return;
+        }
+        document.getElementById('admin-nome').value = '';
+        document.getElementById('admin-login').value = '';
+        document.getElementById('admin-senha').value = '';
+        document.getElementById('admin-eh-admin').checked = false;
+        document.querySelectorAll('[data-permissao]').forEach(function (el) { el.checked = false; });
+        msg.textContent = 'Usuário adicionado com sucesso.';
+        carregarListaUsuarios();
+      });
+  }
+
+  function removerUsuarioAdmin(login) {
+    var msg = document.getElementById('admin-msg');
+    apiPost('/api/painel?acao=usuarios_remover', { login: login })
+      .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+      .then(function (resultado) {
+        if (resultado.status !== 200) {
+          msg.textContent = resultado.corpo.erro || 'Erro ao remover usuario.';
+          return;
+        }
+        msg.textContent = 'Usuário removido.';
+        carregarListaUsuarios();
+      });
+  }
+
+  function fazerLogin(usuario, senha) {
+    gateError.textContent = '';
+    var tenantId = tenantIdInput.value.trim();
+    var acaoLogin = tenantId ? 'login_tenant' : 'login';
+    var corpoLogin = tenantId ? { tenant_id: tenantId, usuario: usuario, senha: senha } : { usuario: usuario, senha: senha };
+    fetch('/api/painel?acao=' + acaoLogin, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpoLogin)
+    })
+      .then(function (r) {
+        return r.json().then(function (corpo) { return { status: r.status, corpo: corpo }; });
+      })
+      .then(function (resultado) {
+        if (resultado.status === 429) {
+          gateError.textContent = 'Muitas tentativas erradas. Tente novamente mais tarde.';
+          return;
+        }
+        if (resultado.status !== 200 || !resultado.corpo.token) {
+          gateError.textContent = 'Usuário ou senha incorretos.';
+          return;
+        }
+        sessionStorage.setItem('painel_token', resultado.corpo.token);
+        carregarDados();
+      })
+      .catch(function () {
+        gateError.textContent = 'Não foi possível entrar agora. Tente novamente.';
+      });
+  }
+
+  btnEntrar.addEventListener('click', function () {
+    fazerLogin(usuarioInput.value, senhaInput.value);
+  });
+  senhaInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') fazerLogin(usuarioInput.value, senhaInput.value);
+  });
+
+  wireModalDrill();
+
+  var tokenSalvo = sessionStorage.getItem('painel_token');
+  if (tokenSalvo) carregarDados();
+})();
