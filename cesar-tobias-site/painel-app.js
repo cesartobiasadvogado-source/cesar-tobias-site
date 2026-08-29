@@ -132,6 +132,13 @@
     tenantIdInput.focus();
   });
 
+  var usuarioLembrado = localStorage.getItem('painel_usuario_lembrado');
+  if (usuarioLembrado && document.getElementById('gate-lembrar')) {
+    usuarioInput.value = usuarioLembrado;
+    document.getElementById('gate-lembrar').checked = true;
+    senhaInput.focus();
+  }
+
   function aplicarTema(tema) {
     if (tema === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
@@ -1399,6 +1406,44 @@
           '<div id="admin-lista-usuarios"></div>' +
         '</div></section>';
 
+    // Conexoes do escritorio (WhatsApp/Asaas/papel timbrado) -- movidas do cadastro pra ca:
+    // so aparecem pra quem ja tem login de verdade (usuario_admin) e sessao de tenant (token
+    // no formato "tenant_id:sessao" -- a conta classica do Cesar Tobias nao tem esse formato
+    // e nao usa esse fluxo). Ver correcao de seguranca: essas acoes agora exigem sessao
+    // valida no backend, nao aceitam mais so um tenant_id (que e a OAB do advogado, publica).
+    var sessaoEhTenant = (sessionStorage.getItem('painel_token') || '').indexOf(':') !== -1;
+    var htmlConexoes = (!dados.usuario_admin || !sessaoEhTenant) ? '' :
+      '<section id="sec-conexoes"><p class="section-label">Conexões do escritório</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">WhatsApp</span>' +
+            '<span class="chip neutral" id="conexao-status-wa">Verificando...</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<p style="margin:0 0 12px; font-size:13px; color:var(--ink-soft);">Conecte o número que vai atender seus clientes.</p>' +
+            '<div id="conexao-erro-wa" style="margin-bottom:10px;"></div>' +
+            '<button class="btn-conexao" id="btn-conexao-wa-qr">Mostrar QR code</button>' +
+            '<button class="btn-conexao-secundario" id="btn-conexao-wa-verificar">Verificar conexão</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:14px;">' +
+          '<div class="panel-header"><span class="panel-title">Asaas (cobrança Pix/boleto/cartão)</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<div id="conexao-erro-asaas" style="margin-bottom:10px;"></div>' +
+            '<input type="password" id="conexao-asaas-key" class="conexao-input" placeholder="Chave de API da Asaas ($aact_...)">' +
+            '<br><button class="btn-conexao" id="btn-conexao-asaas">Conectar Asaas</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:14px;">' +
+          '<div class="panel-header"><span class="panel-title">Papel timbrado</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<p style="margin:0 0 12px; font-size:13px; color:var(--ink-soft);">Usado de fundo nos contratos e procurações gerados pra você.</p>' +
+            '<div id="conexao-erro-logo" style="margin-bottom:10px;"></div>' +
+            '<input type="file" id="conexao-logo-input" accept="image/*" style="margin-bottom:10px; display:block;">' +
+            '<div id="conexao-logo-previa" style="margin-bottom:10px;"></div>' +
+            '<button class="btn-conexao" id="btn-conexao-logo">Enviar</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
     // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
@@ -1412,7 +1457,7 @@
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
-      admin: htmlAdmin,
+      admin: htmlAdmin + htmlConexoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
@@ -1457,7 +1502,155 @@
     if (PAGINA_ATUAL === 'admin' && dados.usuario_admin) {
       carregarListaUsuarios();
       document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
+      if (document.getElementById('sec-conexoes')) wireConexoes();
     }
+  }
+
+  // Redimensiona a imagem no navegador pra caber num A4 vertical (proporcao 1:1.414), pra nao
+  // mandar arquivo gigante pra Lambda -- devolve so o base64, sem o prefixo "data:image/...".
+  function redimensionarParaTimbrado(arquivo) {
+    return new Promise(function (resolve, reject) {
+      var leitor = new FileReader();
+      leitor.onerror = reject;
+      leitor.onload = function (e) {
+        var img = new Image();
+        img.onerror = reject;
+        img.onload = function () {
+          var larguraAlvo = 800, alturaAlvo = Math.round(800 * 1.414);
+          var canvas = document.createElement('canvas');
+          canvas.width = larguraAlvo; canvas.height = alturaAlvo;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, larguraAlvo, alturaAlvo);
+          var escala = Math.min(larguraAlvo / img.width, alturaAlvo / img.height);
+          var w = img.width * escala, h = img.height * escala;
+          var x = (larguraAlvo - w) / 2, y = (alturaAlvo - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl.split(',')[1]);
+        };
+        img.src = e.target.result;
+      };
+      leitor.readAsDataURL(arquivo);
+    });
+  }
+
+  function wireConexoes() {
+    var LAMBDA_BASE = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
+
+    function verificarWhatsApp() {
+      var chipWa = document.getElementById('conexao-status-wa');
+      apiGetJson('/api/painel?acao=whatsapp_status')
+        .then(function (dados) {
+          if (dados.conectado) {
+            chipWa.textContent = 'Conectado';
+            chipWa.className = 'chip good';
+          } else {
+            chipWa.textContent = 'Não conectado';
+            chipWa.className = 'chip neutral';
+          }
+        })
+        .catch(function () {
+          chipWa.textContent = 'Não foi possível checar';
+          chipWa.className = 'chip warn';
+        });
+    }
+    verificarWhatsApp();
+
+    document.getElementById('btn-conexao-wa-qr').addEventListener('click', function () {
+      var token = sessionStorage.getItem('painel_token');
+      window.open(LAMBDA_BASE + '?action=whatsapp_conectar_iniciar&token=' + encodeURIComponent(token), '_blank');
+    });
+    document.getElementById('btn-conexao-wa-verificar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('conexao-erro-wa');
+      erroDiv.innerHTML = '';
+      btn.disabled = true; btn.textContent = 'Verificando...';
+      apiGetJson('/api/painel?acao=whatsapp_status')
+        .then(function (dados) {
+          btn.disabled = false; btn.textContent = 'Verificar conexão';
+          if (dados.conectado) {
+            erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">WhatsApp conectado com sucesso.</div>';
+          } else {
+            erroDiv.innerHTML = '<div class="aviso-tenant">Ainda não detectei a conexão. Escaneie o QR code na aba aberta e tente de novo.</div>';
+          }
+          verificarWhatsApp();
+        })
+        .catch(function () {
+          btn.disabled = false; btn.textContent = 'Verificar conexão';
+          erroDiv.innerHTML = '<div class="aviso-tenant">Não foi possível checar agora. Tente de novo.</div>';
+        });
+    });
+
+    document.getElementById('btn-conexao-asaas').addEventListener('click', function () {
+      var btn = this;
+      var chave = document.getElementById('conexao-asaas-key').value.trim();
+      var erroDiv = document.getElementById('conexao-erro-asaas');
+      erroDiv.innerHTML = '';
+      if (!chave) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Cole a chave de API primeiro.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Conectando...';
+      apiPostJson('/api/painel?acao=asaas_conectar', { api_key: chave })
+        .then(function (dados) {
+          btn.disabled = false; btn.textContent = 'Conectar Asaas';
+          // asaas_conectar devolve status 200 mesmo em falha de validacao (chave invalida) --
+          // o erro vem dentro do corpo, nao via status HTTP, entao precisa checar aqui.
+          if (!dados.conectado) {
+            erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(dados.erro || 'Não foi possível conectar.') + '</div>';
+            return;
+          }
+          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">Conectado! Conta: ' + esc(dados.nome_conta || '') + '</div>';
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Conectar Asaas';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível conectar.') + '</div>';
+        });
+    });
+
+    document.getElementById('conexao-logo-input').addEventListener('change', function (ev) {
+      var arquivo = ev.target.files[0];
+      var previa = document.getElementById('conexao-logo-previa');
+      previa.innerHTML = '';
+      if (!arquivo) return;
+      var img = new Image();
+      var leitor = new FileReader();
+      leitor.onload = function (e) { img.src = e.target.result; };
+      img.onload = function () {
+        var previewImg = document.createElement('img');
+        previewImg.src = img.src;
+        previewImg.style.maxWidth = '160px';
+        previewImg.style.border = '1px solid var(--line)';
+        previewImg.style.borderRadius = '6px';
+        previa.appendChild(previewImg);
+      };
+      leitor.readAsDataURL(arquivo);
+    });
+
+    document.getElementById('btn-conexao-logo').addEventListener('click', function () {
+      var btn = this;
+      var arquivo = document.getElementById('conexao-logo-input').files[0];
+      var erroDiv = document.getElementById('conexao-erro-logo');
+      erroDiv.innerHTML = '';
+      if (!arquivo) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Escolha uma imagem primeiro.</div>';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Processando...';
+      redimensionarParaTimbrado(arquivo)
+        .then(function (logoBase64) {
+          return apiPostJson('/api/painel?acao=upload_logo_tenant', { logo_base64: logoBase64 });
+        })
+        .then(function () {
+          btn.disabled = false; btn.textContent = 'Enviar';
+          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">Papel timbrado enviado!</div>';
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Enviar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível enviar a imagem.') + '</div>';
+        });
+    });
   }
 
   function wireUploadAudiencia() {
@@ -3147,6 +3340,11 @@
           return;
         }
         sessionStorage.setItem('painel_token', resultado.corpo.token);
+        if (document.getElementById('gate-lembrar') && document.getElementById('gate-lembrar').checked) {
+          localStorage.setItem('painel_usuario_lembrado', usuario);
+        } else {
+          localStorage.removeItem('painel_usuario_lembrado');
+        }
         carregarDados();
       })
       .catch(function () {

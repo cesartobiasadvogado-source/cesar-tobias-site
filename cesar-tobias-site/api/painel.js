@@ -84,10 +84,17 @@ module.exports = async (req, res) => {
   }
 
   if (acao === 'whatsapp_status') {
-    const tenantIdWa = (req.query && req.query.tenant_id) || '';
+    // Exige sessao autenticada (painel ja logado) -- usa o token da sessao (Authorization:
+    // Bearer), nunca tenant_id cru (a OAB do advogado e informacao publica, ver correcao de
+    // seguranca no handle_whatsapp_conectar_status da Lambda).
+    const tokenSessaoWa = obterToken(req);
+    if (!tokenSessaoWa) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
     try {
       const resposta = await fetch(
-        base + '?action=whatsapp_conectar_status&tenant_id=' + encodeURIComponent(tenantIdWa) + segredoQS
+        base + '?action=whatsapp_conectar_status&token=' + encodeURIComponent(tokenSessaoWa) + segredoQS
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -102,11 +109,19 @@ module.exports = async (req, res) => {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
       return;
     }
+    // Exige sessao autenticada -- ver correcao de seguranca no handle_asaas_conectar da Lambda:
+    // antes, tenant_id sozinho bastava, e como e a OAB do advogado (informacao publica),
+    // qualquer pessoa conseguiria trocar a chave Asaas de qualquer escritorio.
+    const tokenSessaoAsaas = obterToken(req);
+    if (!tokenSessaoAsaas) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
     try {
       const resposta = await fetch(base + '?action=asaas_conectar' + segredoQS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: corpo.tenant_id, api_key: corpo.api_key })
+        body: JSON.stringify({ token: tokenSessaoAsaas, api_key: corpo.api_key })
       });
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -121,11 +136,17 @@ module.exports = async (req, res) => {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
       return;
     }
+    // Mesma correcao de seguranca: exige sessao autenticada, nao aceita mais tenant_id cru.
+    const tokenSessaoLogo = obterToken(req);
+    if (!tokenSessaoLogo) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
     try {
       const resposta = await fetch(base + '?action=upload_logo_tenant' + segredoQS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant_id: corpo.tenant_id, logo_base64: corpo.logo_base64 })
+        body: JSON.stringify({ token: tokenSessaoLogo, logo_base64: corpo.logo_base64 })
       });
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
