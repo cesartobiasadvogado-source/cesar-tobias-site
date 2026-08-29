@@ -145,7 +145,9 @@
   .section-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
 
   .stat-grid { display: flex; flex-wrap: wrap; gap: 14px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 18px; flex: 1 1 220px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 20px 18px; flex: 1 1 220px; transition: box-shadow .15s ease, transform .15s ease; }
+  .stat-card:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
+  @media (prefers-reduced-motion: reduce) { .stat-card { transition: none; } .stat-card:hover { transform: none; } }
   .stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 600; color: var(--brand); line-height: 1.1; }
   .stat-value.money::before { content: 'R$ '; font-size: 18px; font-weight: 500; color: var(--ink-faint); }
   .stat-label { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
