@@ -23,32 +23,54 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
-  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
-  header.topo { text-align: center; margin-bottom: 32px; }
-  header.topo h1 { font-family: var(--font-display); font-size: 26px; color: var(--brand); margin: 0 0 6px; }
-  header.topo p { font-size: 14px; color: var(--ink-soft); margin: 0; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 56px 20px 80px; }
+  header.topo { text-align: center; margin-bottom: 28px; }
+  header.topo .wordmark { font-family: var(--font-display); font-size: 32px; font-weight: 600; color: var(--brand); }
 
-  .passos { display: flex; gap: 6px; margin-bottom: 28px; }
+  .passos {
+    display: flex; gap: 6px; margin: -8px -32px 20px; padding: 18px 32px 0;
+    border-radius: 18px 18px 0 0;
+  }
   .passo-marca { flex: 1; height: 4px; border-radius: 3px; background: var(--line); }
   .passo-marca.feito { background: var(--good); }
-  .passo-marca.atual { background: var(--accent); }
+  .passo-marca.atual { background: var(--brand); }
 
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
-  .card h2 { font-family: var(--font-display); font-size: 19px; color: var(--brand); margin: 0 0 6px; }
-  .card .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.5; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 8px 32px 32px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08); overflow: hidden;
+  }
+  .card-icone {
+    width: 52px; height: 52px; border-radius: 12px; background: var(--surface-sunken);
+    display: flex; align-items: center; justify-content: center; margin: 22px auto 4px; color: var(--brand);
+  }
+  .card-icone svg { width: 26px; height: 26px; }
+  .card h2 { font-family: var(--font-display); font-size: 22px; color: var(--brand); margin: 0 0 8px; text-align: center; }
+  .card .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.55; text-align: center; }
 
-  label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0 0 5px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 0 0 5px; }
   input, select {
-    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
-    font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 16px; font-family: inherit;
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 15px; background: var(--bg); color: var(--ink); margin-bottom: 16px; font-family: inherit; box-sizing: border-box;
   }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .linha { display: flex; gap: 12px; }
   .linha > div { flex: 1; }
 
+  .campo-icone { position: relative; }
+  .campo-icone svg {
+    position: absolute; left: 12px; top: 13px; width: 16px; height: 16px; color: var(--ink-faint); pointer-events: none;
+  }
+  .campo-icone input { padding-left: 36px; }
+  .campo-icone .btn-olho-senha {
+    position: absolute; right: 10px; top: 9px; background: none; border: none; cursor: pointer;
+    color: var(--ink-faint); padding: 4px; display: flex;
+  }
+  .campo-icone .btn-olho-senha svg { position: static; }
+
   button.principal {
-    width: 100%; padding: 13px; border: none; border-radius: 9px; background: var(--accent);
+    width: 100%; padding: 13px; border: none; border-radius: 9px; background: var(--brand);
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
   button.principal:hover { opacity: 0.92; }
   button.principal:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -63,30 +85,43 @@
   .aviso.ok { background: var(--good-soft); color: var(--good); }
   .aviso.espera { background: var(--warn-soft); color: var(--warn); }
 
-  .status-linha { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 14px; }
-  .bolinha { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+  .status-linha { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 18px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+    background: var(--surface-sunken); color: var(--ink-faint);
+  }
+  .status-pill.ok { background: var(--good-soft); color: var(--good); }
+  .bolinha { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex-shrink: 0; }
   .bolinha.ok { background: var(--good); }
 
-  .codigo-escritorio {
-    font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--accent);
-    background: var(--accent-soft); border-radius: 8px; padding: 12px; text-align: center; margin: 14px 0 20px;
-    letter-spacing: 0.04em;
+  .sucesso-check {
+    width: 56px; height: 56px; border-radius: 50%; background: var(--good-soft); color: var(--good);
+    display: flex; align-items: center; justify-content: center; margin: 26px auto 14px;
   }
-  .resumo-final { font-size: 14px; line-height: 1.9; }
+  .sucesso-check svg { width: 30px; height: 30px; }
+
+  .codigo-escritorio {
+    font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--brand);
+    background: var(--accent-soft); border-radius: 10px; padding: 16px; text-align: center; margin: 0 0 18px;
+    letter-spacing: 0.04em; word-break: break-all;
+  }
+  .resumo-final {
+    font-size: 13.5px; line-height: 1.9; background: var(--surface-sunken); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+  }
   .resumo-final b { color: var(--brand); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="topo">
-    <div style="font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px;">Vero Jurídico</div>
-    <h1>Cadastro do Escritório</h1>
-    <p>Configure sua conta na plataforma em poucos passos.</p>
+    <div class="wordmark">Vero Jurídico</div>
   </header>
 
-  <div class="passos" id="barra-passos"></div>
-
-  <div class="card" id="card-conteudo"></div>
+  <div class="card">
+    <div class="passos" id="barra-passos"></div>
+    <div id="card-conteudo"></div>
+  </div>
   <p id="link-novo-cadastro" style="display:none; text-align:center; margin-top:16px; cursor:pointer; text-decoration:underline; font-size:13.5px; color:var(--ink-soft);">Não é você? Começar um cadastro novo</p>
 </div>
 
@@ -184,7 +219,8 @@
       '<label>Nome do escritório (opcional)</label>' +
       '<input id="in-escritorio" placeholder="Nome do seu escritório" value="' + (d.escritorio || '') + '">' +
       (editando ? '<p class="sub" style="margin:-4px 0 16px;">O número e a UF da OAB não podem ser alterados aqui, porque são o identificador do seu cadastro.</p>' : '') +
-      '<button class="principal" id="btn-p1">' + (editando ? 'Salvar alterações' : 'Criar meu cadastro') + '</button>';
+      '<button class="principal" id="btn-p1"><span>' + (editando ? 'Salvar alterações' : 'Criar meu cadastro') + '</span>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>';
 
     document.getElementById('btn-p1').onclick = async function () {
       var btn = this;
@@ -227,12 +263,15 @@
   // --- Passo 2: Google ---
   function renderPasso2Google(card) {
     card.innerHTML =
+      '<div class="card-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 0 9Z"></path></svg></div>' +
       '<h2>Conectar com o Google</h2>' +
       '<p class="sub">Sua conta do Google (Drive, Gmail, Agenda) é onde ficam guardados os documentos e clientes. ' +
       'Vamos abrir a tela oficial do Google numa aba nova.</p>' +
-      '<div class="status-linha"><span class="bolinha" id="bolinha-google"></span><span id="texto-google">Ainda não conectado</span></div>' +
+      '<div class="status-linha"><span class="status-pill" id="pill-google"><span class="bolinha" id="bolinha-google"></span><span id="texto-google">Ainda não conectado</span></span></div>' +
       '<div id="erro-p2"></div>' +
-      '<button class="principal" id="btn-conectar-google">Conectar com o Google</button>' +
+      '<button class="principal" id="btn-conectar-google">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.5.4l2-2a5 5 0 0 0-7-7l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.5-.4l-2 2a5 5 0 0 0 7 7l1.1-1.1"></path></svg>' +
+      '<span>Conectar com o Google</span></button>' +
       '<button class="secundario" id="btn-verificar-google">Já conectei, verificar</button>' +
       '<button class="secundario" id="btn-p2-pular">Pular por enquanto (conecto depois)</button>';
 
@@ -252,6 +291,7 @@
       var erroDiv = document.getElementById('erro-p2');
       if (r.ok && r.dados.google_conectado) {
         document.getElementById('bolinha-google').classList.add('ok');
+        document.getElementById('pill-google').classList.add('ok');
         document.getElementById('texto-google').textContent = 'Conectado!';
         erroDiv.innerHTML = '<div class="aviso ok">Google conectado com sucesso.</div>';
         setTimeout(avancar, 900);
@@ -264,14 +304,30 @@
   // --- Passo 5: criar login ---
   function renderPasso5Login(card) {
     card.innerHTML =
+      '<div class="card-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3 5 12l3 3 9-9-3-3Z"></path><path d="M12 5l7 7"></path><path d="M2 22l4-1 9-9-3-3-9 9-1 4Z"></path></svg></div>' +
       '<h2>Criar seu login</h2>' +
       '<p class="sub">Esse será o usuário e senha pra você entrar no painel.</p>' +
       '<div id="erro-p5"></div>' +
       '<label>Nome de usuário</label>' +
-      '<input id="in-usuario" placeholder="Ex: seunome">' +
+      '<div class="campo-icone">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>' +
+        '<input id="in-usuario" placeholder="ex: seunome">' +
+      '</div>' +
       '<label>Senha</label>' +
-      '<input id="in-senha" type="password" placeholder="Escolha uma senha forte">' +
-      '<button class="principal" id="btn-p5">Criar login e finalizar</button>';
+      '<div class="campo-icone">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' +
+        '<input id="in-senha" type="password" placeholder="Escolha uma senha forte" style="padding-right:38px;">' +
+        '<button type="button" class="btn-olho-senha" id="btn-olho-senha" aria-label="Mostrar senha">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>' +
+        '</button>' +
+      '</div>' +
+      '<button class="principal" id="btn-p5"><span>Criar login e finalizar</span>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>';
+
+    document.getElementById('btn-olho-senha').onclick = function () {
+      var campo = document.getElementById('in-senha');
+      campo.type = campo.type === 'password' ? 'text' : 'password';
+    };
 
     document.getElementById('btn-p5').onclick = async function () {
       var btn = this;
@@ -308,6 +364,7 @@
   // --- Passo 7: final ---
   function renderPasso7Final(card) {
     card.innerHTML =
+      '<div class="sucesso-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg></div>' +
       '<h2>Cadastro concluído!</h2>' +
       '<p class="sub">Guarde essas informações — você vai precisar delas pra entrar.</p>' +
       '<div class="codigo-escritorio">' + estado.tenant_id + '</div>' +
