@@ -58,7 +58,7 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
+    inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Administração',
   };
@@ -752,6 +752,71 @@
     var perms = dados.usuario_permissoes || [];
     var f = dados.financeiro;
     var p = dados.pje;
+
+    var primeiroNome = ((dados.nome_advogado || '').trim().split(' ')[0]) || 'Bem-vindo(a)';
+    var htmlInicio =
+      '<section id="sec-inicio">' +
+        '<div class="inicio-suporte" id="inicio-suporte">' +
+          '<span>💬 Alguma dúvida ou precisa de ajuda pra configurar seu escritório? Fale diretamente com a gente.</span>' +
+          '<a class="inicio-suporte-btn" href="https://wa.me/5596991745909?text=' +
+            encodeURIComponent('Olá! Preciso de ajuda com a plataforma Vero Jurídico.') +
+            '" target="_blank" rel="noopener">Falar conosco</a>' +
+          '<button type="button" class="inicio-suporte-fechar" id="btn-fechar-suporte-inicio" aria-label="Fechar aviso">✕</button>' +
+        '</div>' +
+
+        '<div class="inicio-banner">' +
+          '<p class="inicio-banner-eyebrow">Primeiro passo na Vero Jurídico</p>' +
+          '<h2 class="inicio-banner-titulo">' + esc(primeiroNome) + ', comece organizando seu escritório</h2>' +
+          '<p class="inicio-banner-sub">Cadastre seus clientes e processos — a partir daí a plataforma passa a acompanhar prazos, audiências e pendências financeiras automaticamente.</p>' +
+
+          '<div class="inicio-tiles">' +
+            '<a class="inicio-tile inicio-tile--recomendado" href="painel-clientes.html#sec-clientes">' +
+              '<div class="inicio-tile-topo">' +
+                '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg></span>' +
+                '<span class="inicio-tile-badge">Recomendado</span>' +
+              '</div>' +
+              '<div class="inicio-tile-titulo">Cadastrar cliente</div>' +
+              '<div class="inicio-tile-desc">Registre os dados do cliente uma vez — contratos, parcelas e processos ficam vinculados a ele automaticamente.</div>' +
+              '<span class="inicio-tile-link">Cadastrar cliente →</span>' +
+            '</a>' +
+            '<a class="inicio-tile" href="painel-processos.html#sec-processos">' +
+              '<div class="inicio-tile-topo">' +
+                '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg></span>' +
+              '</div>' +
+              '<div class="inicio-tile-titulo">Criar ou acompanhar processo</div>' +
+              '<div class="inicio-tile-desc">Cadastre um processo manualmente ou acompanhe pelo PJe — ideal pra centralizar tudo num só lugar.</div>' +
+              '<span class="inicio-tile-link">Novo processo →</span>' +
+            '</a>' +
+          '</div>' +
+
+          '<ul class="inicio-lista-check">' +
+            '<li>Prazos e audiências sempre visíveis na Agenda</li>' +
+            '<li>Financeiro com parcelas vencidas destacadas automaticamente</li>' +
+            '<li>Painel organizado por área: Financeiro, Processual, Clientes, Agenda</li>' +
+          '</ul>' +
+        '</div>' +
+
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Primeiros passos na plataforma</span></div>' +
+          '<div class="inicio-checklist">' +
+            '<div class="inicio-checklist-item">' +
+              '<span class="inicio-checklist-num">1</span>' +
+              '<span class="inicio-checklist-texto">Cadastre um cliente</span>' +
+              '<a class="inicio-checklist-btn" href="painel-clientes.html#sec-clientes">Cadastrar cliente</a>' +
+            '</div>' +
+            '<div class="inicio-checklist-item">' +
+              '<span class="inicio-checklist-num">2</span>' +
+              '<span class="inicio-checklist-texto">Cadastre ou acompanhe um processo</span>' +
+              '<a class="inicio-checklist-btn" href="painel-processos.html#sec-processos">Novo processo</a>' +
+            '</div>' +
+            '<div class="inicio-checklist-item">' +
+              '<span class="inicio-checklist-num">3</span>' +
+              '<span class="inicio-checklist-texto">Adicione um compromisso na Agenda</span>' +
+              '<a class="inicio-checklist-btn" href="painel-agenda.html#sec-agenda">Criar compromisso</a>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
 
     var htmlFinanceiro = '';
     var htmlExito = '';
@@ -1449,6 +1514,7 @@
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
     // o que realmente entra na pagina.
     var MAPA_CONTEUDO_POR_PAGINA = {
+      inicio: htmlInicio,
       financeiro: htmlFinanceiro + htmlExito + painelVencidasHtml + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente,
       pje: htmlPje,
       clientes: htmlClientes,
@@ -1499,6 +1565,19 @@
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
+    if (PAGINA_ATUAL === 'inicio') {
+      var suporteInicio = document.getElementById('inicio-suporte');
+      if (suporteInicio) {
+        if (localStorage.getItem('inicio_suporte_fechado') === '1') {
+          suporteInicio.style.display = 'none';
+        } else {
+          document.getElementById('btn-fechar-suporte-inicio').addEventListener('click', function () {
+            suporteInicio.style.display = 'none';
+            localStorage.setItem('inicio_suporte_fechado', '1');
+          });
+        }
+      }
+    }
     if (PAGINA_ATUAL === 'admin' && dados.usuario_admin) {
       carregarListaUsuarios();
       document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
