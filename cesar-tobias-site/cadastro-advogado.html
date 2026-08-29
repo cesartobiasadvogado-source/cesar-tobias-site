@@ -195,6 +195,24 @@
     render();
   }
 
+  // Mesma lista de UFs que o backend usa (ver UF_PARA_NOME_ESTADO em tenants.py), pra manter
+  // as duas pontas consistentes.
+  var UFS = [
+    ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'],
+    ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'], ['GO', 'Goiás'],
+    ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'],
+    ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'], ['PE', 'Pernambuco'], ['PI', 'Piauí'],
+    ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'], ['RS', 'Rio Grande do Sul'],
+    ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'],
+    ['SE', 'Sergipe'], ['TO', 'Tocantins'],
+  ];
+
+  function opcoesUf(selecionada) {
+    return '<option value="">Selecione...</option>' + UFS.map(function (uf) {
+      return '<option value="' + uf[0] + '"' + (uf[0] === selecionada ? ' selected' : '') + '>' + uf[0] + ' — ' + uf[1] + '</option>';
+    }).join('');
+  }
+
   // --- Passo 1: dados do advogado ---
   function renderPasso1Dados(card) {
     var editando = !!estado.tenant_id;
@@ -208,7 +226,7 @@
       '<input id="in-nome" placeholder="Seu nome completo" value="' + (d.nome || '') + '">' +
       '<div class="linha">' +
       '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345" value="' + (d.oabNum || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
-      '<div><label>UF</label><input id="in-oab-uf" placeholder="Ex: SP" maxlength="2" style="text-transform:uppercase" value="' + (d.oabUf || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
+      '<div><label>UF</label><select id="in-oab-uf"' + (editando ? ' disabled' : '') + '>' + opcoesUf(d.oabUf || '') + '</select></div>' +
       '</div>' +
       '<div class="linha">' +
       '<div><label>CPF</label><input id="in-cpf" placeholder="000.000.000-00" value="' + (d.cpf || '') + '"></div>' +
