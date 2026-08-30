@@ -2249,6 +2249,165 @@
 
   var _processosManuaisCarregados = [];
 
+  var TIPOS_ATO_PROCESSUAL = [
+    'Decisão', 'Despacho', 'Sentença', 'Intimação', 'Publicação', 'Distribuição', 'Juntada', 'Movimentação', 'Protocolo',
+  ];
+
+  function _garantirModalAtosProcessuais() {
+    if (document.getElementById('modal-atos-processuais')) return;
+    var div = document.createElement('div');
+    div.innerHTML =
+      '<div id="modal-atos-processuais" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:600px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="atos-modal-titulo">Atos Processuais</span>' +
+            '<button type="button" class="modal-drill-fechar" id="atos-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div id="atos-modal-corpo-lista">' +
+            '<div style="display:flex; align-items:center; gap:8px; padding:12px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap;">' +
+              '<button type="button" class="subtab-btn ativo" data-atos-filtro="Todos">Todos</button>' +
+              '<button type="button" class="subtab-btn" data-atos-filtro="Tribunal">Tribunal</button>' +
+              '<button type="button" class="subtab-btn" data-atos-filtro="Escritorio">Escritório</button>' +
+              '<button type="button" id="atos-btn-novo" style="margin-left:auto; padding:7px 14px; border:none; border-radius:999px; background:var(--accent); color:#fff; font-size:12.5px; font-weight:600; cursor:pointer;">+ Novo Ato</button>' +
+            '</div>' +
+            '<div id="atos-modal-lista" class="modal-drill-corpo"></div>' +
+          '</div>' +
+          '<div id="atos-modal-corpo-form" class="hidden" style="padding:18px 20px;">' +
+            '<div id="atos-form-erro"></div>' +
+            '<label>Origem</label>' +
+            '<select id="atos-form-origem" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="Tribunal">Tribunal</option>' +
+              '<option value="Escritorio">Escritório</option>' +
+            '</select>' +
+            '<label>Tipo</label>' +
+            '<select id="atos-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              TIPOS_ATO_PROCESSUAL.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('') +
+            '</select>' +
+            '<label>Descrição</label>' +
+            '<textarea id="atos-form-descricao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:14px;"></textarea>' +
+            '<label>Data</label>' +
+            '<div style="display:flex; gap:8px; margin-bottom:18px;">' +
+              '<input type="date" id="atos-form-data" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+              '<button type="button" id="atos-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
+            '</div>' +
+            '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+              '<button type="button" id="atos-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+              '<button type="button" id="atos-btn-registrar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Registrar</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-atos-processuais');
+    var processoAtual = null;
+    var atosCarregados = [];
+    var filtroAtual = 'Todos';
+
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('atos-modal-fechar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+
+    function mostrarLista() {
+      document.getElementById('atos-modal-corpo-form').classList.add('hidden');
+      document.getElementById('atos-modal-corpo-lista').classList.remove('hidden');
+    }
+    function mostrarForm() {
+      document.getElementById('atos-modal-corpo-lista').classList.add('hidden');
+      document.getElementById('atos-modal-corpo-form').classList.remove('hidden');
+      document.getElementById('atos-form-erro').innerHTML = '';
+      document.getElementById('atos-form-origem').value = 'Escritorio';
+      document.getElementById('atos-form-tipo').value = TIPOS_ATO_PROCESSUAL[0];
+      document.getElementById('atos-form-descricao').value = '';
+      document.getElementById('atos-form-data').value = new Date().toISOString().slice(0, 10);
+    }
+
+    function renderLista() {
+      var corpo = document.getElementById('atos-modal-lista');
+      var filtrados = filtroAtual === 'Todos' ? atosCarregados : atosCarregados.filter(function (a) { return a.origem === filtroAtual; });
+      if (filtrados.length === 0) {
+        corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum ato processual registrado.</div></div>';
+        return;
+      }
+      corpo.innerHTML = filtrados.map(function (a) {
+        return '<div class="prazo-card">' +
+          '<div class="prazo-card-topo">' +
+            '<div><span class="chip ' + (a.origem === 'Tribunal' ? 'neutral' : 'good') + '">' + esc(a.origem === 'Tribunal' ? 'Tribunal' : 'Escritório') + '</span> ' +
+              '<strong style="font-size:13.5px;">' + esc(a.tipo || 'Ato') + '</strong></div>' +
+            '<span class="prazo-meta">' + fmtDataProcesso(a.data) + '</span>' +
+          '</div>' +
+          (a.descricao ? '<div class="prazo-resumo">' + esc(a.descricao) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    function carregarAtos() {
+      document.getElementById('atos-modal-lista').innerHTML = '<div class="empty-state"><div class="msg">Carregando…</div></div>';
+      apiGetJson('/api/painel?acao=ato_processual_listar&processo_id=' + processoAtual.id)
+        .then(function (dados) {
+          atosCarregados = dados.atos || [];
+          renderLista();
+        })
+        .catch(function () {
+          document.getElementById('atos-modal-lista').innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os atos agora.</div></div>';
+        });
+    }
+
+    document.querySelectorAll('[data-atos-filtro]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-atos-filtro]').forEach(function (b) { b.classList.remove('ativo'); });
+        btn.classList.add('ativo');
+        filtroAtual = btn.getAttribute('data-atos-filtro');
+        renderLista();
+      });
+    });
+
+    document.getElementById('atos-btn-novo').addEventListener('click', mostrarForm);
+    document.getElementById('atos-btn-cancelar').addEventListener('click', mostrarLista);
+    document.getElementById('atos-btn-hoje').addEventListener('click', function () {
+      document.getElementById('atos-form-data').value = new Date().toISOString().slice(0, 10);
+    });
+
+    document.getElementById('atos-btn-registrar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('atos-form-erro');
+      erroDiv.innerHTML = '';
+      var corpo = {
+        processo_id: processoAtual.id,
+        origem: document.getElementById('atos-form-origem').value,
+        tipo: document.getElementById('atos-form-tipo').value,
+        descricao: document.getElementById('atos-form-descricao').value.trim(),
+        data: document.getElementById('atos-form-data').value,
+      };
+      btn.disabled = true; btn.textContent = 'Registrando...';
+      apiPostJson('/api/painel?acao=ato_processual_criar', corpo)
+        .then(function () {
+          btn.disabled = false; btn.textContent = 'Registrar';
+          mostrarLista();
+          carregarAtos();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Registrar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível registrar o ato agora.') + '</div>';
+        });
+    });
+
+    overlay._abrirParaProcesso = function (processo) {
+      processoAtual = processo;
+      filtroAtual = 'Todos';
+      document.querySelectorAll('[data-atos-filtro]').forEach(function (b) { b.classList.toggle('ativo', b.getAttribute('data-atos-filtro') === 'Todos'); });
+      document.getElementById('atos-modal-titulo').textContent = 'Atos Processuais — ' + (processo.numero_cnj || processo.cliente_nome);
+      mostrarLista();
+      overlay.classList.remove('hidden');
+      carregarAtos();
+    };
+  }
+
+  function abrirModalAtosProcessuais(processo) {
+    _garantirModalAtosProcessuais();
+    document.getElementById('modal-atos-processuais')._abrirParaProcesso(processo);
+  }
+
   function _chipStatusProcesso(status) {
     if (status === 'Finalizado') return 'good';
     if (status === 'Suspenso') return 'warn';
@@ -2277,6 +2436,7 @@
               '<td>' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
               '<td style="text-align:right; white-space:nowrap;">' +
                 '<button type="button" class="btn-editar" data-procman-editar="' + indice + '">Editar</button> ' +
+                '<button type="button" class="btn-editar" data-procman-atos="' + indice + '">Atos processuais</button> ' +
                 '<span class="procman-acoes-wrap">' +
                   '<button type="button" class="btn-editar" data-procman-mais="' + indice + '" aria-label="Mais opções">⋮</button>' +
                   '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
@@ -2535,6 +2695,14 @@
         var indice = parseInt(btnEditar.getAttribute('data-procman-editar'), 10);
         var processo = _processosManuaisCarregados[indice];
         if (processo) preencherFormularioParaEdicao(processo);
+        return;
+      }
+
+      var btnAtos = ev.target.closest('[data-procman-atos]');
+      if (btnAtos) {
+        var indiceAtos = parseInt(btnAtos.getAttribute('data-procman-atos'), 10);
+        var processoAtos = _processosManuaisCarregados[indiceAtos];
+        if (processoAtos) abrirModalAtosProcessuais(processoAtos);
         return;
       }
 

@@ -365,6 +365,72 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'ato_processual_listar') {
+    var tokenSessaoAtosListar = obterToken(req);
+    if (!tokenSessaoAtosListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var processoIdAtos = (req.query && req.query.processo_id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=ato_processual_listar&processo_id=' + encodeURIComponent(processoIdAtos) +
+        '&token=' + encodeURIComponent(tokenSessaoAtosListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar os atos processuais.' });
+    }
+    return;
+  }
+
+  if (acao === 'ato_processual_criar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoAtosCriar = obterToken(req);
+    if (!tokenSessaoAtosCriar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=ato_processual_criar&token=' + encodeURIComponent(tokenSessaoAtosCriar) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao registrar o ato processual.' });
+    }
+    return;
+  }
+
+  if (acao === 'ato_processual_excluir') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoAtosExcluir = obterToken(req);
+    if (!tokenSessaoAtosExcluir) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=ato_processual_excluir&token=' + encodeURIComponent(tokenSessaoAtosExcluir) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao excluir o ato processual.' });
+    }
+    return;
+  }
+
   if (acao === 'processo_manual_criar') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
