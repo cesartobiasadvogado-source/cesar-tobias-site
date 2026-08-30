@@ -2721,14 +2721,19 @@
     var svgMais = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="6" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18" r="1.8"></circle></svg>';
 
     lista.innerHTML = '<table><thead><tr>' +
-      '<th>Processo</th><th>Status</th><th>Cadastrado em</th><th></th>' +
+      '<th>Processo</th><th>Monitoramento</th><th>Status</th><th>Cadastrado em</th><th></th>' +
       '</tr></thead><tbody>' +
       processos.map(function (p, indice) {
+        var monitorado = p.origem === 'oab';
         return '<tr>' +
           '<td>' +
             '<button type="button" class="procpage-numero-link" data-procpage-abrir="' + indice + '">' + esc(p.numero_cnj || 'Sem número') + '</button>' +
-            '<div class="procpage-sub">' + esc(p.cliente_nome) + (p.tribunal ? ' · ' + esc(p.tribunal) : '') + '<span class="procpage-tag">Manual</span></div>' +
+            '<div class="procpage-sub">' + esc(p.cliente_nome) + (p.tribunal ? ' · ' + esc(p.tribunal) : '') +
+              '<span class="procpage-tag">' + (monitorado ? 'Importado (OAB)' : 'Manual') + '</span></div>' +
           '</td>' +
+          '<td><span class="chip ' + (monitorado ? 'good' : 'neutral') + '" title="' +
+            (monitorado ? 'Este processo apareceu na busca automática por OAB — entra na verificação diária de novas movimentações.' : 'Cadastrado manualmente, sem vínculo confirmado com a OAB monitorada — a API do CNJ só permite monitorar por OAB, não por número de processo.') +
+            '">' + (monitorado ? 'Monitorado automaticamente' : 'Sem monitoramento automático') + '</span></td>' +
           '<td><span class="chip ' + _chipStatusProcesso(p.status) + '">' + esc(p.status || '—') + '</span></td>' +
           '<td style="color:#8293b5;">' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
           '<td>' +
@@ -2814,6 +2819,11 @@
               _campoFicha('Número do processo', p.numero_cnj) +
               _campoFicha('Status', p.status) +
             '</div>' +
+            '<p class="procficha-painel-titulo" style="margin-top:18px;">Monitoramento</p>' +
+            '<p class="procficha-painel-sub">' + (p.origem === 'oab'
+              ? 'Este processo apareceu na busca automática por OAB — entra na verificação diária de novas comunicações do PJe (intimações, citações).'
+              : 'Cadastrado manualmente, sem monitoramento automático — a API do CNJ só permite monitorar por número de OAB, não por número de processo. Se este processo for seu, ele passa a ser monitorado ao aparecer numa busca por OAB.') +
+            '</p>' +
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Últimas movimentações</p>' +
             '<p class="procficha-painel-sub">Sincronização automática de tribunal ainda não disponível — registre atos processuais pra manter o histórico do escritório.</p>' +
             '<div id="procficha-geral-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
@@ -3369,6 +3379,7 @@
               apiPostJson('/api/painel?acao=processo_manual_criar', {
                 cliente_nome: clienteEscolhido, numero_cnj: p.numero_cnj, tribunal: p.tribunal,
                 classe_processual: p.classe_processual, orgao_julgador: p.orgao_julgador,
+                origem: 'oab',
               })
                 .then(function () { concluidos += 1; importarProximo(pos + 1); })
                 .catch(function () { falhas += 1; importarProximo(pos + 1); });
