@@ -517,16 +517,16 @@
      (exceto avatar), sem sombra pesada -- tonal layering + micro-borda em vez disso. */
   .inicio-suporte {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 16px;
-    background: var(--surface-sunken); border: 1px solid var(--line); border-radius: 4px; margin-bottom: 18px;
-    font-size: 13px; color: var(--ink-soft);
+    background: #efeeeb; border: 1px solid #e5e7eb; border-radius: 4px; margin-bottom: 18px;
+    font-size: 13px; color: #44474d;
   }
   .inicio-suporte-btn {
-    background: var(--good); color: #fff; font-size: 12.5px; font-weight: 600; padding: 6px 14px;
+    background: #079455; color: #fff; font-size: 12.5px; font-weight: 600; padding: 6px 14px;
     border-radius: 4px; text-decoration: none; white-space: nowrap;
   }
   .inicio-suporte-btn:hover { opacity: 0.9; }
   .inicio-suporte-fechar {
-    margin-left: auto; background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    margin-left: auto; background: none; border: none; color: #75777e; cursor: pointer;
     font-size: 13px; padding: 4px;
   }
 
@@ -571,19 +571,19 @@
 
   .inicio-checklist { padding: 6px 0; }
   .inicio-checklist-item {
-    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #e5e7eb;
   }
   .inicio-checklist-item:last-child { border-bottom: none; }
   .inicio-checklist-num {
-    width: 22px; height: 22px; border-radius: 50%; background: var(--surface-sunken); color: var(--ink-soft);
+    width: 22px; height: 22px; border-radius: 50%; background: #efeeeb; color: #44474d;
     font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .inicio-checklist-texto { font-size: 13.5px; color: var(--ink); flex: 1; }
+  .inicio-checklist-texto { font-size: 13.5px; color: #1a1c1a; flex: 1; }
   .inicio-checklist-btn {
-    font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; border: 1px solid var(--line);
+    font-size: 12px; font-weight: 600; color: #0051d5; text-decoration: none; border: 1px solid #e5e7eb;
     padding: 5px 12px; border-radius: 4px; white-space: nowrap;
   }
-  .inicio-checklist-btn:hover { background: var(--accent-soft); }
+  .inicio-checklist-btn:hover { background: #dbe1ff; }
 
   @media (max-width: 640px) {
     .inicio-tiles { grid-template-columns: 1fr; }
