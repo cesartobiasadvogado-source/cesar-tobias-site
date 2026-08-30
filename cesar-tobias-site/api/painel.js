@@ -326,6 +326,47 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_manual_listar') {
+    var tokenSessaoProcManual = obterToken(req);
+    if (!tokenSessaoProcManual) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_listar&token=' + encodeURIComponent(tokenSessaoProcManual) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar processos.' });
+    }
+    return;
+  }
+
+  if (acao === 'processo_manual_criar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoProcCriar = obterToken(req);
+    if (!tokenSessaoProcCriar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_criar&token=' + encodeURIComponent(tokenSessaoProcCriar) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao salvar o processo.' });
+    }
+    return;
+  }
+
   if (acao === 'processos_administrativos') {
     var opProcAdm = (req.query && req.query.op) || corpo.op || '';
     if (opProcAdm !== 'listar' && req.method !== 'POST') {

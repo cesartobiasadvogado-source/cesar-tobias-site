@@ -1101,7 +1101,72 @@
       '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
         '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
           '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div></section>';
+        '</div>' +
+
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Criar processo manualmente</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
+              'Pra processos que não vêm pelo PJe — cadastre os dados aqui, do jeito que fizer sentido pro seu controle.</p>' +
+            '<div id="procman-erro"></div>' +
+
+            '<p class="section-label" style="margin:0 0 8px;">Dados do processo</p>' +
+            '<div class="procman-linha">' +
+              '<div><label>Número do processo (CNJ)</label><input id="procman-numero-cnj" placeholder="0000000-00.0000.0.00.0000"></div>' +
+              '<div><label>Classe processual</label><input id="procman-classe" placeholder="Ex: Ação de Cobrança"></div>' +
+            '</div>' +
+            '<div class="procman-linha">' +
+              '<div><label>Área do direito</label><input id="procman-area" placeholder="Ex: Cível, Trabalhista"></div>' +
+              '<div><label>Órgão julgador / Vara</label><input id="procman-orgao" placeholder="Ex: 1ª Vara Cível"></div>' +
+            '</div>' +
+            '<div class="procman-linha">' +
+              '<div><label>Tribunal</label><input id="procman-tribunal" placeholder="Ex: TJSP, TRT-2"></div>' +
+              '<div><label>Comarca / Foro</label><input id="procman-comarca" placeholder="Ex: São Paulo"></div>' +
+            '</div>' +
+            '<div class="procman-linha">' +
+              '<div><label>Grau</label><select id="procman-grau"><option value="">Selecione...</option><option>1º Grau</option><option>2º Grau</option><option>Tribunal Superior</option></select></div>' +
+              '<div><label>Status</label><select id="procman-status"><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option></select></div>' +
+            '</div>' +
+
+            '<p class="section-label" style="margin:18px 0 8px;">Cliente vinculado</p>' +
+            '<label>Cliente *</label>' +
+            '<input type="text" list="procman-clientes-lista" id="procman-cliente" placeholder="Selecione ou digite o nome do cliente" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:4px;">' +
+            '<datalist id="procman-clientes-lista"></datalist>' +
+
+            '<p class="section-label" style="margin:18px 0 8px;">Situação do processo</p>' +
+            '<div class="procman-linha">' +
+              '<div><label>Fase processual</label><input id="procman-fase" placeholder="Ex: Conhecimento, Execução, Recurso"></div>' +
+              '<div><label>Valor da causa (R$)</label><input id="procman-valor-causa" placeholder="0,00"></div>' +
+            '</div>' +
+            '<div class="procman-linha">' +
+              '<div><label>Data de distribuição</label><input type="date" id="procman-data-distribuicao"></div>' +
+              '<div><label>Data de encerramento</label><input type="date" id="procman-data-encerramento"></div>' +
+            '</div>' +
+            '<div class="procman-linha">' +
+              '<div><label>Advogado responsável</label><input id="procman-advogado" placeholder="Nome do responsável"></div>' +
+              '<div><label>Prioridade legal</label><input id="procman-prioridade" placeholder="Ex: idoso, saúde"></div>' +
+            '</div>' +
+
+            '<p class="section-label" style="margin:18px 0 8px;">Classificações e organização</p>' +
+            '<div class="procman-linha">' +
+              '<div><label>Risco do processo</label><select id="procman-risco"><option value="">—</option><option>Baixo</option><option>Médio</option><option>Alto</option></select></div>' +
+              '<div><label>Nível de sigilo</label><select id="procman-sigilo"><option value="">—</option><option>Público</option><option>Restrito</option><option>Segredo de justiça</option></select></div>' +
+            '</div>' +
+            '<label>Observações internas</label>' +
+            '<textarea id="procman-obs" rows="3" placeholder="Anotações internas sobre o processo..." ' +
+              'style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;' +
+              'font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;"></textarea>' +
+
+            '<div style="margin-top:14px;"><button id="procman-btn-salvar" style="padding:9px 16px;border:none;' +
+              'border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar processo</button></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Processos cadastrados manualmente</span></div>' +
+          '<div id="procman-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
 
     var htmlProcessoAdministrativo = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-processo-administrativo"><p class="section-label">Processo Administrativo</p>' +
@@ -1562,7 +1627,7 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
@@ -2126,6 +2191,110 @@
       var bytes = new Uint8Array(buffer);
       for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
       return btoa(binario);
+    });
+  }
+
+  var MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  function fmtDataProcesso(iso) {
+    if (!iso) return '—';
+    var partes = String(iso).split('-');
+    if (partes.length !== 3) return iso;
+    return partes[2].slice(0, 2) + '/' + MESES_ABREV[parseInt(partes[1], 10) - 1] + '/' + partes[0];
+  }
+
+  function carregarProcessosManuais() {
+    var lista = document.getElementById('procman-lista');
+    if (!lista) return;
+    apiGetJson('/api/painel?acao=processo_manual_listar')
+      .then(function (dados) {
+        var processos = dados.processos || [];
+        if (processos.length === 0) {
+          lista.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo cadastrado manualmente ainda.</div></div>';
+          return;
+        }
+        lista.innerHTML = '<div class="table-scroll"><table><thead><tr>' +
+          '<th>Cliente</th><th>Número CNJ</th><th>Tribunal</th><th>Status</th><th>Cadastrado em</th>' +
+          '</tr></thead><tbody>' +
+          processos.map(function (p) {
+            return '<tr><td>' + esc(p.cliente_nome) + '</td><td>' + esc(p.numero_cnj || '—') + '</td>' +
+              '<td>' + esc(p.tribunal || '—') + '</td>' +
+              '<td><span class="chip ' + (p.status === 'Finalizado' ? 'good' : p.status === 'Suspenso' ? 'warn' : 'neutral') + '">' + esc(p.status || '—') + '</span></td>' +
+              '<td>' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>';
+      })
+      .catch(function () {
+        lista.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os processos cadastrados manualmente agora.</div></div>';
+      });
+  }
+
+  function wireProcessoManual() {
+    var btnSalvar = document.getElementById('procman-btn-salvar');
+    if (!btnSalvar) return;
+
+    var datalistProcMan = document.getElementById('procman-clientes-lista');
+    apiGetJson('/api/painel?acao=clientes')
+      .then(function (dados) {
+        datalistProcMan.innerHTML = (dados.clientes || []).map(function (c) {
+          return '<option value="' + esc(c.nome) + '">';
+        }).join('');
+      })
+      .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
+
+    carregarProcessosManuais();
+
+    btnSalvar.addEventListener('click', function () {
+      var erroDiv = document.getElementById('procman-erro');
+      erroDiv.innerHTML = '';
+      var clienteNome = document.getElementById('procman-cliente').value.trim();
+      if (!clienteNome) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Selecione ou digite o nome do cliente.</div>';
+        return;
+      }
+
+      var corpo = {
+        cliente_nome: clienteNome,
+        numero_cnj: document.getElementById('procman-numero-cnj').value.trim(),
+        classe_processual: document.getElementById('procman-classe').value.trim(),
+        area_direito: document.getElementById('procman-area').value.trim(),
+        orgao_julgador: document.getElementById('procman-orgao').value.trim(),
+        tribunal: document.getElementById('procman-tribunal').value.trim(),
+        comarca: document.getElementById('procman-comarca').value.trim(),
+        grau: document.getElementById('procman-grau').value,
+        status: document.getElementById('procman-status').value,
+        fase_processual: document.getElementById('procman-fase').value.trim(),
+        valor_causa: document.getElementById('procman-valor-causa').value.trim(),
+        data_distribuicao: document.getElementById('procman-data-distribuicao').value,
+        data_encerramento: document.getElementById('procman-data-encerramento').value,
+        advogado_responsavel: document.getElementById('procman-advogado').value.trim(),
+        prioridade_legal: document.getElementById('procman-prioridade').value.trim(),
+        risco_processo: document.getElementById('procman-risco').value,
+        nivel_sigilo: document.getElementById('procman-sigilo').value,
+        observacoes_internas: document.getElementById('procman-obs').value.trim(),
+      };
+
+      btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=processo_manual_criar', corpo)
+        .then(function () {
+          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar processo';
+          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">Processo salvo com sucesso.</div>';
+          ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao', 'procman-tribunal',
+            'procman-comarca', 'procman-cliente', 'procman-fase', 'procman-valor-causa',
+            'procman-data-distribuicao', 'procman-data-encerramento', 'procman-advogado',
+            'procman-prioridade', 'procman-obs'].forEach(function (id) {
+            document.getElementById(id).value = '';
+          });
+          document.getElementById('procman-grau').value = '';
+          document.getElementById('procman-status').value = 'Em andamento';
+          document.getElementById('procman-risco').value = '';
+          document.getElementById('procman-sigilo').value = '';
+          carregarProcessosManuais();
+        })
+        .catch(function (e) {
+          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar processo';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o processo agora.') + '</div>';
+        });
     });
   }
 

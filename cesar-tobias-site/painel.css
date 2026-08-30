@@ -591,6 +591,14 @@
     .inicio-banner { padding: 24px 20px; }
   }
 
+  .procman-linha { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .procman-linha > div { flex: 1; min-width: 180px; }
+  .procman-linha label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 0 0 5px; }
+  .procman-linha input, .procman-linha select {
+    width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13.5px; background: var(--bg); color: var(--ink); font-family: inherit;
+  }
+
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .stat-grid { flex-direction: column; }
