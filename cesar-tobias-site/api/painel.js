@@ -569,6 +569,29 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_datajud_sincronizar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoDatajudSync = obterToken(req);
+    if (!tokenSessaoDatajudSync) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_datajud_sincronizar&token=' + encodeURIComponent(tokenSessaoDatajudSync) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao sincronizar o processo.' });
+    }
+    return;
+  }
+
   if (acao === 'processo_manual_excluir') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });

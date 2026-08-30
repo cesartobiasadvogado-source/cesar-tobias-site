@@ -2922,8 +2922,12 @@
 
           '<div class="procficha-painel hidden" data-procficha-painel="andamentos">' +
             '<p class="procficha-painel-titulo">Andamentos</p>' +
-            '<p class="procficha-painel-sub">Atos registrados pelo escritório e movimentações sincronizadas automaticamente do tribunal via DataJud/CNJ.</p>' +
-            '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-ato">+ Novo ato</button></div>' +
+            '<p class="procficha-painel-sub">Atos registrados pelo escritório e movimentações sincronizadas automaticamente do tribunal via DataJud/CNJ. A sincronização automática roda 1x por dia — use "Sincronizar agora" pra não esperar (ex: processo recém-importado).</p>' +
+            '<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
+              '<button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-ato">+ Novo ato</button>' +
+              '<button type="button" class="procpage-btn" id="procficha-btn-sincronizar-agora">Sincronizar agora</button>' +
+              '<span id="procficha-sincronizar-status" style="font-size:12.5px; color:#8293b5; align-self:center;"></span>' +
+            '</div>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
 
@@ -3119,6 +3123,28 @@
       });
 
     document.getElementById('procficha-btn-novo-ato').addEventListener('click', function () { abrirModalAtosProcessuais(processo); });
+
+    var btnSincronizarAgora = document.getElementById('procficha-btn-sincronizar-agora');
+    if (btnSincronizarAgora) {
+      btnSincronizarAgora.addEventListener('click', function () {
+        var statusEl = document.getElementById('procficha-sincronizar-status');
+        btnSincronizarAgora.disabled = true;
+        statusEl.textContent = 'Sincronizando (pode levar alguns segundos)...';
+        apiPostJson('/api/painel?acao=processo_datajud_sincronizar', { id: processo.id })
+          .then(function (resultado) {
+            var mensagem = resultado.novos > 0
+              ? resultado.novos + ' andamento(s) novo(s) encontrado(s).'
+              : 'Sincronizado — nenhum andamento novo encontrado.';
+            abrirFichaProcesso(processo);
+            mostrarAba('andamentos');
+            document.getElementById('procficha-sincronizar-status').textContent = mensagem;
+          })
+          .catch(function (e) {
+            btnSincronizarAgora.disabled = false;
+            statusEl.textContent = e.message || 'Não foi possível sincronizar agora.';
+          });
+      });
+    }
     document.getElementById('procficha-btn-novo-doc').addEventListener('click', function () { abrirModalDocumentosProcesso(processo); });
 
     var datalistClienteFicha = document.getElementById('procficha-edit-clientes-lista');
