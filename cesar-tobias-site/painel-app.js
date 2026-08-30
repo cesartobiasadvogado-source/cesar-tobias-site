@@ -1872,7 +1872,11 @@
     var arquivoAtual = (window.location.pathname.split('/').pop() || 'painel.html');
     itensNav.forEach(function (item) {
       var secao = item.getAttribute('data-secao');
-      if (secao) {
+      // 'inicio' nao e uma area com permissao propria (nao existe isso no backend) -- e a
+      // pagina de boas-vindas, sempre visivel pra qualquer usuario logado, por isso fica de
+      // fora dessa checagem (mesma logica que ja excluia o item de Administracao, que nem tem
+      // data-secao e usa a checagem separada dados.usuario_admin).
+      if (secao && secao !== 'inicio') {
         item.classList.toggle('hidden', perms.indexOf(secao) === -1);
       }
       item.classList.toggle('ativo', (secao || 'admin') === PAGINA_ATUAL);
