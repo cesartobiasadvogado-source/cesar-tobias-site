@@ -3298,8 +3298,16 @@
       if (btnMais) {
         var menuAlvo = document.querySelector('[data-procman-menu="' + btnMais.getAttribute('data-procman-mais') + '"]');
         var jaAberto = !menuAlvo.classList.contains('hidden');
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-        if (!jaAberto) menuAlvo.classList.remove('hidden');
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); m.classList.remove('abre-para-cima'); });
+        if (!jaAberto) {
+          menuAlvo.classList.remove('hidden');
+          // a tabela corta o que passar da borda (overflow:hidden, pra arredondar os cantos) --
+          // se abrir pra baixo estourar essa borda (ex: ultima linha), ou a propria tela, abre pra cima
+          var retangulo = menuAlvo.getBoundingClientRect();
+          var wrapTabela = menuAlvo.closest('.procpage-tabela-wrap');
+          var limiteInferior = wrapTabela ? wrapTabela.getBoundingClientRect().bottom : window.innerHeight;
+          if (retangulo.bottom > Math.min(limiteInferior, window.innerHeight)) menuAlvo.classList.add('abre-para-cima');
+        }
         return;
       }
 
