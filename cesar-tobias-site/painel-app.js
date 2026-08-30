@@ -1261,7 +1261,11 @@
                 '<div><label>Cliente</label><input type="text" id="procpage-filtro-cliente" list="procpage-clientes-lista"><datalist id="procpage-clientes-lista"></datalist></div>' +
                 '<div><label>Tribunal</label><input type="text" id="procpage-filtro-tribunal"></div>' +
                 '<div><label>Status</label><select id="procpage-filtro-status">' +
-                  '<option value="">Todos</option><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option><option>Arquivado</option>' +
+                  '<option value="ativos_encerrados" selected>Ativos e encerrados</option>' +
+                  '<option value="ativos">Ativos</option>' +
+                  '<option value="encerrados">Encerrados</option>' +
+                  '<option value="arquivados">Arquivados</option>' +
+                  '<option value="todos">Todos</option>' +
                 '</select></div>' +
                 '<div><label>Palavra-chave</label><input type="text" id="procpage-filtro-palavra" placeholder="Busca em número, classe, órgão..."></div>' +
                 '<div class="procpage-filtros-botoes">' +
@@ -2699,11 +2703,23 @@
 
   var _processosManuaisTodos = [];
 
+  function _passaNoFiltroStatusProcesso(status, grupo) {
+    // agrupa os 4 status reais (Em andamento/Suspenso/Finalizado/Arquivado) em categorias mais
+    // amplas, do jeito que a busca avançada oferece -- "Suspenso" conta como ativo porque o
+    // processo ainda não foi concluído, só está parado.
+    if (grupo === 'todos' || !grupo) return true;
+    if (grupo === 'arquivados') return status === 'Arquivado';
+    if (grupo === 'encerrados') return status === 'Finalizado';
+    if (grupo === 'ativos') return status === 'Em andamento' || status === 'Suspenso';
+    if (grupo === 'ativos_encerrados') return status !== 'Arquivado';
+    return true;
+  }
+
   function _passaNosFiltrosProcesso(p, f) {
     if (f.numero && (p.numero_cnj || '').toLowerCase().indexOf(f.numero) === -1) return false;
     if (f.cliente && (p.cliente_nome || '').toLowerCase().indexOf(f.cliente) === -1) return false;
     if (f.tribunal && (p.tribunal || '').toLowerCase().indexOf(f.tribunal) === -1) return false;
-    if (f.status && p.status !== f.status) return false;
+    if (!_passaNoFiltroStatusProcesso(p.status, f.status)) return false;
     if (f.palavra) {
       var alvo = [p.numero_cnj, p.classe_processual, p.orgao_julgador, p.comarca, p.area_direito]
         .filter(Boolean).join(' ').toLowerCase();
@@ -2763,13 +2779,25 @@
       '</tbody></table>';
   }
 
+  function _lerFiltrosProcessoAtuais() {
+    var el = function (id) { return document.getElementById(id); };
+    return {
+      numero: (el('procpage-filtro-numero') || {}).value ? el('procpage-filtro-numero').value.trim().toLowerCase() : '',
+      cliente: (el('procpage-filtro-cliente') || {}).value ? el('procpage-filtro-cliente').value.trim().toLowerCase() : '',
+      tribunal: (el('procpage-filtro-tribunal') || {}).value ? el('procpage-filtro-tribunal').value.trim().toLowerCase() : '',
+      status: el('procpage-filtro-status') ? el('procpage-filtro-status').value : 'ativos_encerrados',
+      palavra: (el('procpage-filtro-palavra') || {}).value ? el('procpage-filtro-palavra').value.trim().toLowerCase() : '',
+    };
+  }
+
   function carregarProcessosManuais() {
     var lista = document.getElementById('procman-lista');
     if (!lista) return;
     apiGetJson('/api/painel?acao=processo_manual_listar')
       .then(function (dados) {
         _processosManuaisTodos = dados.processos || [];
-        _renderTabelaProcessosManuais(_processosManuaisTodos);
+        var f = _lerFiltrosProcessoAtuais();
+        _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
       })
       .catch(function () {
         lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar os processos agora.</div></div>';
@@ -3268,13 +3296,7 @@
       .catch(function () { /* datalist so ajuda, nao bloqueia a busca manual se falhar */ });
 
     function aplicarFiltros() {
-      var f = {
-        numero: document.getElementById('procpage-filtro-numero').value.trim().toLowerCase(),
-        cliente: document.getElementById('procpage-filtro-cliente').value.trim().toLowerCase(),
-        tribunal: document.getElementById('procpage-filtro-tribunal').value.trim().toLowerCase(),
-        status: document.getElementById('procpage-filtro-status').value,
-        palavra: document.getElementById('procpage-filtro-palavra').value.trim().toLowerCase(),
-      };
+      var f = _lerFiltrosProcessoAtuais();
       _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
     }
     document.getElementById('procpage-filtro-buscar').addEventListener('click', aplicarFiltros);
@@ -3282,8 +3304,8 @@
       ['procpage-filtro-numero', 'procpage-filtro-cliente', 'procpage-filtro-tribunal', 'procpage-filtro-palavra'].forEach(function (id) {
         document.getElementById(id).value = '';
       });
-      document.getElementById('procpage-filtro-status').value = '';
-      _renderTabelaProcessosManuais(_processosManuaisTodos);
+      document.getElementById('procpage-filtro-status').value = 'ativos_encerrados';
+      aplicarFiltros();
     });
 
     lista.addEventListener('click', function (ev) {
