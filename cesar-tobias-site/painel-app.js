@@ -2821,28 +2821,55 @@
 
           '<div class="procficha-painel hidden" data-procficha-painel="dados">' +
             '<p class="procficha-painel-titulo">Dados do processo</p>' +
-            '<div class="procficha-campos-grid">' +
-              _campoFicha('Classe processual', p.classe_processual) +
-              _campoFicha('Área do direito', p.area_direito) +
-              _campoFicha('Órgão julgador / Vara', p.orgao_julgador) +
-              _campoFicha('Tribunal', p.tribunal) +
-              _campoFicha('Comarca / Foro', p.comarca) +
-              _campoFicha('Grau', p.grau) +
-              _campoFicha('Fase processual', p.fase_processual) +
-              _campoFicha('Valor da causa', p.valor_causa != null ? 'R$ ' + fmtMoeda(p.valor_causa) : null) +
-              _campoFicha('Data de distribuição', p.data_distribuicao ? fmtDataProcesso(p.data_distribuicao) : null) +
-              _campoFicha('Data de encerramento', p.data_encerramento ? fmtDataProcesso(p.data_encerramento) : null) +
-              _campoFicha('Advogado responsável', p.advogado_responsavel) +
-              _campoFicha('Prioridade legal', p.prioridade_legal) +
-              _campoFicha('Risco do processo', p.risco_processo) +
-              _campoFicha('Nível de sigilo', p.nivel_sigilo) +
+            '<p class="procficha-painel-sub">Classificação, tribunal e órgão julgador</p>' +
+            '<div id="procficha-form-erro"></div>' +
+            '<div class="procficha-editar-grid">' +
+              '<div><label>Classe processual</label><input id="procficha-edit-classe" value="' + esc(p.classe_processual || '') + '"></div>' +
+              '<div><label>Área do direito</label><input id="procficha-edit-area" value="' + esc(p.area_direito || '') + '"></div>' +
+              '<div><label>Órgão julgador / Vara</label><input id="procficha-edit-orgao" value="' + esc(p.orgao_julgador || '') + '"></div>' +
+              '<div><label>Tribunal</label><input id="procficha-edit-tribunal" value="' + esc(p.tribunal || '') + '"></div>' +
+              '<div><label>Comarca / Foro</label><input id="procficha-edit-comarca" value="' + esc(p.comarca || '') + '"></div>' +
+              '<div><label>Grau</label><select id="procficha-edit-grau"><option value="">Selecione...</option>' +
+                ['1º Grau', '2º Grau', 'Tribunal Superior'].map(function (g) { return '<option' + (p.grau === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
+              '</select></div>' +
             '</div>' +
-            (p.observacoes_internas ? '<p class="procficha-campo-label">Observações internas</p><p class="procficha-campo-valor">' + esc(p.observacoes_internas) + '</p>' : '') +
+
+            '<p class="procficha-painel-titulo" style="margin-top:18px;">Cliente vinculado</p>' +
+            '<div class="procficha-editar-grid">' +
+              '<div><label>Cliente *</label><input id="procficha-edit-cliente" list="procficha-edit-clientes-lista" value="' + esc(p.cliente_nome || '') + '"><datalist id="procficha-edit-clientes-lista"></datalist></div>' +
+            '</div>' +
+
+            '<p class="procficha-painel-titulo" style="margin-top:18px;">Situação do processo</p>' +
+            '<div class="procficha-editar-grid">' +
+              '<div><label>Status</label><select id="procficha-edit-status">' +
+                ['Em andamento', 'Suspenso', 'Finalizado', 'Arquivado'].map(function (s) { return '<option' + (p.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
+              '</select></div>' +
+              '<div><label>Fase processual</label><input id="procficha-edit-fase" value="' + esc(p.fase_processual || '') + '"></div>' +
+              '<div><label>Data de distribuição</label><input type="date" id="procficha-edit-data-distribuicao" value="' + esc(p.data_distribuicao || '') + '"></div>' +
+              '<div><label>Data de encerramento</label><input type="date" id="procficha-edit-data-encerramento" value="' + esc(p.data_encerramento || '') + '"></div>' +
+              '<div><label>Valor da causa</label><input id="procficha-edit-valor-causa" value="' + (p.valor_causa != null ? esc(String(p.valor_causa).replace('.', ',')) : '') + '" placeholder="0,00"></div>' +
+              '<div><label>Advogado responsável</label><input id="procficha-edit-advogado" value="' + esc(p.advogado_responsavel || '') + '"></div>' +
+              '<div><label>Prioridade legal</label><input id="procficha-edit-prioridade" value="' + esc(p.prioridade_legal || '') + '" placeholder="Ex: idoso, saúde"></div>' +
+            '</div>' +
+
+            '<p class="procficha-painel-titulo" style="margin-top:18px;">Classificações e organização</p>' +
+            '<div class="procficha-editar-grid">' +
+              '<div><label>Risco do processo</label><select id="procficha-edit-risco"><option value="">—</option>' +
+                ['Baixo', 'Médio', 'Alto'].map(function (r) { return '<option' + (p.risco_processo === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
+              '</select></div>' +
+              '<div><label>Nível de sigilo</label><select id="procficha-edit-sigilo"><option value="">—</option>' +
+                ['Público', 'Restrito', 'Segredo de justiça'].map(function (s) { return '<option' + (p.nivel_sigilo === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
+              '</select></div>' +
+            '</div>' +
+            '<label style="display:block; font-size:11px; color:#8293b5; margin:14px 0 5px;">Observações internas</label>' +
+            '<textarea id="procficha-edit-obs" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #232d42;border-radius:6px;font-size:13px;font-family:inherit;background:#0b1220;color:#e7eaf0;resize:vertical;">' + esc(p.observacoes_internas || '') + '</textarea>' +
+
+            '<div style="margin-top:16px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-salvar-dados">Salvar alterações</button></div>' +
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="partes">' +
-            '<p class="procficha-painel-titulo">Partes</p>' +
-            '<p class="procficha-painel-sub">Hoje só registramos o cliente vinculado ao processo — polo ativo/passivo completo ainda não é um dado estruturado aqui.</p>' +
+            '<div style="display:flex; align-items:center; justify-content:space-between;"><p class="procficha-painel-titulo" style="margin:0;">Partes do processo</p></div>' +
+            '<p class="procficha-painel-sub">Hoje só registramos o cliente vinculado ao processo — cadastro de partes adicionais (polo ativo/passivo completo) ainda não é um recurso disponível.</p>' +
             '<div class="procficha-campos-grid">' + _campoFicha('Cliente vinculado', p.cliente_nome) + '</div>' +
           '</div>' +
 
@@ -2859,13 +2886,22 @@
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="documentos">' +
-            '<p class="procficha-painel-titulo">Documentos</p>' +
+            '<p class="procficha-painel-titulo">Anexos deste processo</p>' +
+            '<p class="procficha-painel-sub">Arquivos enviados e vinculados a este processo.</p>' +
             '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-doc">+ Enviar documento</button></div>' +
             '<div id="procficha-lista-docs"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+
+            '<p class="procficha-painel-titulo" style="margin-top:22px;">Modelos de documentos</p>' +
+            '<p class="procficha-painel-sub">Gere um PDF a partir dos modelos já cadastrados no escritório, preenchido com os dados do cliente vinculado.</p>' +
+            '<input type="text" id="procficha-modelos-busca" placeholder="Buscar por nome do modelo..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #232d42;border-radius:6px;font-size:13px;background:#0b1220;color:#e7eaf0;margin-bottom:10px;">' +
+            '<div id="procficha-lista-modelos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+            '<div id="procficha-modelo-preview"></div>' +
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="financeiro">' +
-            '<p class="procficha-painel-titulo">Financeiro</p>' +
+            '<div style="display:flex; align-items:center; justify-content:space-between;">' +
+              '<p class="procficha-painel-titulo" style="margin:0;">Financeiro do processo</p>' +
+            '</div>' +
             '<p class="procficha-painel-sub">Somado pelos contratos com o mesmo nome de cliente — hoje não há vínculo direto entre processo e contrato.</p>' +
             '<div id="procficha-financeiro-corpo"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
@@ -2999,19 +3035,36 @@
 
     apiGetJson('/api/painel?acao=processo_financeiro_resumo&cliente_nome=' + encodeURIComponent(processo.cliente_nome))
       .then(function (resumo) {
-        document.getElementById('procficha-resumo-financeiro').textContent = 'R$ ' + fmtMoeda(resumo.valor_total);
+        var totalEmAberto = resumo.pendente + resumo.em_atraso;
+        document.getElementById('procficha-resumo-financeiro').textContent = 'R$ ' + fmtMoeda(totalEmAberto);
         var corpoEl = document.getElementById('procficha-financeiro-corpo');
         if (!corpoEl) return;
         if (resumo.qtd_contratos === 0) {
           corpoEl.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum contrato encontrado com o nome desse cliente.</div></div>';
           return;
         }
-        corpoEl.innerHTML = '<div class="procficha-campos-grid">' +
-          _campoFicha('Contratos vinculados', String(resumo.qtd_contratos)) +
-          _campoFicha('Valor total', 'R$ ' + fmtMoeda(resumo.valor_total)) +
-          _campoFicha('Valor já pago', 'R$ ' + fmtMoeda(resumo.valor_pago)) +
-          _campoFicha('Saldo em aberto', 'R$ ' + fmtMoeda(resumo.saldo)) +
-        '</div>';
+        var vencimentosHtml = resumo.proximos_vencimentos.length === 0
+          ? '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhuma conta a receber.</div></div>'
+          : resumo.proximos_vencimentos.map(function (v) {
+              var corSituacao = v.situacao === 'Vencida' ? '#e23a2e' : (v.situacao === 'Vence hoje' ? '#9c7a16' : '#8293b5');
+              return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42;">' +
+                '<div class="prazo-card-topo">' +
+                  '<div><strong style="font-size:13px;color:#e7eaf0;">' + esc(v.tipo_servico || 'Parcela') + '</strong></div>' +
+                  '<span style="font-size:12px;color:' + corSituacao + ';">' + esc(v.situacao) + (v.dias_atraso ? ' · ' + v.dias_atraso + 'd' : '') + '</span>' +
+                '</div>' +
+                '<div class="prazo-resumo" style="color:#a7b0c2;">R$ ' + fmtMoeda(v.saldo) + (v.data_vencimento ? ' · vence ' + fmtDataProcesso(v.data_vencimento) : '') + '</div>' +
+              '</div>';
+            }).join('');
+        corpoEl.innerHTML =
+          '<div class="procficha-campos-grid" style="margin-bottom:18px;">' +
+            _campoFicha('Contratos', String(resumo.qtd_contratos)) +
+            _campoFicha('Pendente', 'R$ ' + fmtMoeda(resumo.pendente)) +
+            _campoFicha('Em atraso', 'R$ ' + fmtMoeda(resumo.em_atraso)) +
+            _campoFicha('Recebido', 'R$ ' + fmtMoeda(resumo.valor_pago)) +
+          '</div>' +
+          '<p class="procficha-painel-titulo">Próximos vencimentos</p>' + vencimentosHtml +
+          '<p class="procficha-painel-titulo" style="margin-top:18px;">Despesas do processo</p>' +
+          '<div class="empty-state"><div class="msg" style="color:#8293b5;">Registro de despesas do processo ainda não disponível.</div></div>';
       })
       .catch(function () {
         document.getElementById('procficha-resumo-financeiro').textContent = '—';
@@ -3019,6 +3072,111 @@
 
     document.getElementById('procficha-btn-novo-ato').addEventListener('click', function () { abrirModalAtosProcessuais(processo); });
     document.getElementById('procficha-btn-novo-doc').addEventListener('click', function () { abrirModalDocumentosProcesso(processo); });
+
+    var datalistClienteFicha = document.getElementById('procficha-edit-clientes-lista');
+    if (datalistClienteFicha) {
+      apiGetJson('/api/painel?acao=clientes')
+        .then(function (dados) {
+          datalistClienteFicha.innerHTML = (dados.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('');
+        })
+        .catch(function () { /* datalist so ajuda */ });
+    }
+    var btnSalvarDados = document.getElementById('procficha-btn-salvar-dados');
+    if (btnSalvarDados) {
+      btnSalvarDados.addEventListener('click', function () {
+        var erroDiv = document.getElementById('procficha-form-erro');
+        erroDiv.innerHTML = '';
+        var clienteNome = document.getElementById('procficha-edit-cliente').value.trim();
+        if (!clienteNome) {
+          erroDiv.innerHTML = '<div class="aviso-tenant">Selecione ou digite o nome do cliente.</div>';
+          return;
+        }
+        var corpo = {
+          id: processo.id,
+          cliente_nome: clienteNome,
+          numero_cnj: processo.numero_cnj || '',
+          classe_processual: document.getElementById('procficha-edit-classe').value.trim(),
+          area_direito: document.getElementById('procficha-edit-area').value.trim(),
+          orgao_julgador: document.getElementById('procficha-edit-orgao').value.trim(),
+          tribunal: document.getElementById('procficha-edit-tribunal').value.trim(),
+          comarca: document.getElementById('procficha-edit-comarca').value.trim(),
+          grau: document.getElementById('procficha-edit-grau').value,
+          status: document.getElementById('procficha-edit-status').value,
+          fase_processual: document.getElementById('procficha-edit-fase').value.trim(),
+          valor_causa: document.getElementById('procficha-edit-valor-causa').value.trim(),
+          data_distribuicao: document.getElementById('procficha-edit-data-distribuicao').value,
+          data_encerramento: document.getElementById('procficha-edit-data-encerramento').value,
+          advogado_responsavel: document.getElementById('procficha-edit-advogado').value.trim(),
+          prioridade_legal: document.getElementById('procficha-edit-prioridade').value.trim(),
+          risco_processo: document.getElementById('procficha-edit-risco').value,
+          nivel_sigilo: document.getElementById('procficha-edit-sigilo').value,
+          observacoes_internas: document.getElementById('procficha-edit-obs').value.trim(),
+        };
+        btnSalvarDados.disabled = true; btnSalvarDados.textContent = 'Salvando...';
+        apiPostJson('/api/painel?acao=processo_manual_atualizar', corpo)
+          .then(function () { return apiGetJson('/api/painel?acao=processo_manual_listar'); })
+          .then(function (dados) {
+            btnSalvarDados.disabled = false;
+            var atualizado = (dados.processos || []).find(function (pr) { return String(pr.id) === String(processo.id); }) || processo;
+            abrirFichaProcesso(atualizado);
+            mostrarAba('dados');
+            document.getElementById('procficha-form-erro').innerHTML =
+              '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">Alterações salvas com sucesso.</div>';
+          })
+          .catch(function (e) {
+            btnSalvarDados.disabled = false; btnSalvarDados.textContent = 'Salvar alterações';
+            erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
+          });
+      });
+    }
+
+    var listaModelosEl = document.getElementById('procficha-lista-modelos');
+    var modelosCarregados = [];
+    function renderModelos(nomes) {
+      if (!listaModelosEl) return;
+      if (nomes.length === 0) {
+        listaModelosEl.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum modelo cadastrado.</div></div>';
+        return;
+      }
+      listaModelosEl.innerHTML = nomes.map(function (nome) {
+        return '<div class="procficha-modelo-item"><span>' + esc(nome) + '</span>' +
+          '<button type="button" class="procpage-btn" data-procficha-gerar-modelo="' + esc(nome) + '">Gerar PDF</button></div>';
+      }).join('');
+      listaModelosEl.querySelectorAll('[data-procficha-gerar-modelo]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var nomeModelo = btn.getAttribute('data-procficha-gerar-modelo');
+          btn.disabled = true; btn.textContent = 'Gerando...';
+          apiPost('/api/painel?acao=executar', { tipo: 'gerar_contrato', nome: processo.cliente_nome, tipo_servico: nomeModelo })
+            .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+            .then(function (resultado) {
+              btn.disabled = false; btn.textContent = 'Gerar PDF';
+              if (resultado.status === 200 && resultado.corpo.pdf_id) {
+                mostrarPreviewDocumento(resultado.corpo.pdf_id, 'procficha-modelo-preview');
+              } else {
+                alert(resultado.corpo.erro || 'Não foi possível gerar o documento agora.');
+              }
+            })
+            .catch(function () {
+              btn.disabled = false; btn.textContent = 'Gerar PDF';
+              alert('Não foi possível gerar o documento agora.');
+            });
+        });
+      });
+    }
+    if (listaModelosEl) {
+      apiGetJson('/api/painel?acao=modelos_contrato')
+        .then(function (dados) {
+          modelosCarregados = dados.modelos || [];
+          renderModelos(modelosCarregados);
+        })
+        .catch(function () {
+          listaModelosEl.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar os modelos agora.</div></div>';
+        });
+      document.getElementById('procficha-modelos-busca').addEventListener('input', function () {
+        var termo = this.value.trim().toLowerCase();
+        renderModelos(modelosCarregados.filter(function (n) { return n.toLowerCase().indexOf(termo) !== -1; }));
+      });
+    }
   }
 
   function wireProcessosHub() {
