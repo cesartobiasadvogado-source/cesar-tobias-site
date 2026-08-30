@@ -2818,6 +2818,7 @@
         '<div class="procficha-titulo-wrap">' +
           '<button type="button" class="procficha-voltar" id="procficha-btn-voltar" aria-label="Voltar">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>' +
+            '<span>Voltar</span>' +
           '</button>' +
           '<h2 class="procficha-numero">' + esc(p.numero_cnj || p.cliente_nome) + '</h2>' +
         '</div>' +

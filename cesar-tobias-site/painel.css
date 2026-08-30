@@ -742,8 +742,12 @@
   /* Ficha do processo (detalhe) */
   .procficha-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   .procficha-titulo-wrap { display: flex; align-items: center; gap: 12px; }
-  .procficha-voltar { background: none; border: none; color: #a7b0c2; cursor: pointer; display: flex; padding: 4px; border-radius: 6px; }
-  .procficha-voltar:hover { background: #1b2743; color: #fff; }
+  .procficha-voltar {
+    display: flex; align-items: center; gap: 6px; background: #121a2c; border: 1px solid #232d42;
+    color: #e7eaf0; cursor: pointer; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: inherit;
+  }
+  .procficha-voltar:hover { background: #1b2743; border-color: #2c5ce0; }
+  .procficha-voltar svg { width: 16px; height: 16px; flex-shrink: 0; }
   .procficha-numero { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: #e7eaf0; margin: 0; }
   .procficha-tabs { display: flex; gap: 4px; border-bottom: 1px solid #232d42; margin-bottom: 18px; flex-wrap: wrap; }
   .procficha-tab {
