@@ -767,33 +767,33 @@
 
         '<div class="inicio-banner">' +
           '<p class="inicio-banner-eyebrow">Primeiro passo na Vero Jurídico</p>' +
-          '<h2 class="inicio-banner-titulo">' + esc(primeiroNome) + ', comece organizando seu escritório</h2>' +
-          '<p class="inicio-banner-sub">Cadastre seus clientes e processos — a partir daí a plataforma passa a acompanhar prazos, audiências e pendências financeiras automaticamente.</p>' +
+          '<h2 class="inicio-banner-titulo">' + esc(primeiroNome) + ', traga seus processos para a Vero Jurídico</h2>' +
+          '<p class="inicio-banner-sub">Traga sua carteira ou cadastre um caso — a partir daí a plataforma passa a acompanhar prazos, audiências e pendências financeiras automaticamente.</p>' +
 
           '<div class="inicio-tiles">' +
-            '<a class="inicio-tile inicio-tile--recomendado" href="painel-clientes.html#sec-clientes">' +
+            '<a class="inicio-tile inicio-tile--recomendado" href="painel-processos.html#sec-processos">' +
               '<div class="inicio-tile-topo">' +
-                '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg></span>' +
+                '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg></span>' +
                 '<span class="inicio-tile-badge">Recomendado</span>' +
               '</div>' +
-              '<div class="inicio-tile-titulo">Cadastrar cliente</div>' +
-              '<div class="inicio-tile-desc">Registre os dados do cliente uma vez — contratos, parcelas e processos ficam vinculados a ele automaticamente.</div>' +
-              '<span class="inicio-tile-link">Cadastrar cliente →</span>' +
+              '<div class="inicio-tile-titulo">Importar pela OAB</div>' +
+              '<div class="inicio-tile-desc">Consulte pelo número e UF, selecione os processos e importe em lote — ideal pra migrar a carteira.</div>' +
+              '<span class="inicio-tile-link">Buscar processos →</span>' +
             '</a>' +
             '<a class="inicio-tile" href="painel-processos.html#sec-processos">' +
               '<div class="inicio-tile-topo">' +
                 '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg></span>' +
               '</div>' +
-              '<div class="inicio-tile-titulo">Criar ou acompanhar processo</div>' +
-              '<div class="inicio-tile-desc">Insira o número do processo (PJe, e-SAJ, etc) e nossa IA buscará os dados automaticamente nos tribunais.</div>' +
+              '<div class="inicio-tile-titulo">Criar processo manualmente</div>' +
+              '<div class="inicio-tile-desc">Cadastre um caso novo com os dados completos — perfeito pra começar com um processo só.</div>' +
               '<span class="inicio-tile-link">Novo processo →</span>' +
             '</a>' +
           '</div>' +
 
           '<ul class="inicio-lista-check">' +
-            '<li>Agenda integrada</li>' +
-            '<li>Controle financeiro</li>' +
-            '<li>Organização por área</li>' +
+            '<li>Financeiro com parcelas vencidas destacadas automaticamente</li>' +
+            '<li>Prazos monitorados direto na base oficial do CNJ</li>' +
+            '<li>Painel organizado por área: Financeiro, Processual, Clientes, Agenda</li>' +
           '</ul>' +
         '</div>' +
 
@@ -802,40 +802,19 @@
           '<div class="inicio-checklist">' +
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">1</span>' +
-              '<span class="inicio-checklist-texto">Configure seu perfil profissional</span>' +
-              '<button type="button" class="inicio-checklist-btn" style="background:none; cursor:default;">Configurar</button>' +
+              '<span class="inicio-checklist-texto">Cadastre um cliente</span>' +
+              '<a class="inicio-checklist-btn" href="painel-clientes.html#sec-clientes">Cadastrar cliente</a>' +
             '</div>' +
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">2</span>' +
-              '<span class="inicio-checklist-texto">Importe sua primeira base de dados</span>' +
-              '<button type="button" class="inicio-checklist-btn" style="background:none; cursor:default;">Importar</button>' +
+              '<span class="inicio-checklist-texto">Crie ou importe processos</span>' +
+              '<a class="inicio-checklist-btn" href="painel-processos.html#sec-processos">Novo processo</a>' +
             '</div>' +
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">3</span>' +
-              '<span class="inicio-checklist-texto">Convide sua equipe para colaborar</span>' +
-              '<button type="button" class="inicio-checklist-btn" style="background:none; cursor:default;">Convidar</button>' +
+              '<span class="inicio-checklist-texto">Adicione um prazo</span>' +
+              '<a class="inicio-checklist-btn" href="painel-agenda.html#sec-agenda">Criar prazo</a>' +
             '</div>' +
-          '</div>' +
-        '</div>' +
-
-        '<div class="inicio-lit-stats">' +
-          '<div class="inicio-lit-stat-card">' +
-            '<div class="inicio-lit-stat-topo"><span class="inicio-lit-stat-titulo">Processos Ativos</span>' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg></div>' +
-            '<div class="inicio-lit-stat-valor">0</div>' +
-            '<div class="inicio-lit-stat-sub">Aguardando cadastro</div>' +
-          '</div>' +
-          '<div class="inicio-lit-stat-card acento-secondary">' +
-            '<div class="inicio-lit-stat-topo"><span class="inicio-lit-stat-titulo">Audiências (Semana)</span>' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></div>' +
-            '<div class="inicio-lit-stat-valor">0</div>' +
-            '<div class="inicio-lit-stat-sub">Nenhum evento próximo</div>' +
-          '</div>' +
-          '<div class="inicio-lit-stat-card acento-good">' +
-            '<div class="inicio-lit-stat-topo"><span class="inicio-lit-stat-titulo">Honorários a Receber</span>' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg></div>' +
-            '<div class="inicio-lit-stat-valor">R$ 0,00</div>' +
-            '<div class="inicio-lit-stat-sub">Este mês</div>' +
           '</div>' +
         '</div>' +
       '</section>';
