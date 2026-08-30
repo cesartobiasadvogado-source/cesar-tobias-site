@@ -59,7 +59,7 @@
 
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
-    importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo',
+    importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Administração',
   };
@@ -855,7 +855,7 @@
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">1</span>' +
               '<span class="inicio-checklist-texto">Cadastre um cliente</span>' +
-              '<a class="inicio-checklist-btn" href="painel-clientes.html#sec-clientes">Cadastrar cliente</a>' +
+              '<a class="inicio-checklist-btn" href="painel-novo-cliente.html#sec-novo-cliente">Cadastrar cliente</a>' +
             '</div>' +
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">2</span>' +
@@ -1236,6 +1236,93 @@
     var htmlCriarProcesso = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-criar-processo"><p class="section-label">Criar processo manualmente</p>' +
         htmlPainelCriarProcesso +
+      '</section>';
+
+    var htmlNovoCliente = perms.indexOf('clientes') === -1 ? '' :
+      '<section id="sec-novo-cliente">' +
+        '<div class="procpage-dark">' +
+          '<div class="procficha-topo">' +
+            '<div class="procficha-titulo-wrap">' +
+              '<button type="button" class="procficha-voltar" id="cliente-btn-cancelar">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>' +
+                '<span>Cancelar</span>' +
+              '</button>' +
+              '<h2 class="procficha-numero" id="cliente-form-titulo">Novo cliente</h2>' +
+            '</div>' +
+          '</div>' +
+          '<div id="cliente-form-erro"></div>' +
+
+          '<div class="procficha-corpo">' +
+            '<div>' +
+
+              '<div class="procficha-painel" style="margin-bottom:16px;">' +
+                '<p class="procficha-painel-titulo">Foto do Cliente</p>' +
+                '<p class="procficha-painel-sub">Adicione uma foto para identificação rápida</p>' +
+                '<div style="display:flex; align-items:center; gap:14px; margin-top:10px;">' +
+                  '<div id="cliente-foto-preview" style="width:56px; height:56px; border-radius:50%; background:#0b1220; border:1px solid #232d42; display:flex; align-items:center; justify-content:center; color:#8293b5; overflow:hidden; flex-shrink:0;">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="26" height="26"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg>' +
+                  '</div>' +
+                  '<button type="button" class="procpage-btn" id="cliente-btn-foto">Adicionar foto</button>' +
+                  '<input type="file" id="cliente-input-foto" accept="image/png,image/jpeg,image/webp" style="display:none;">' +
+                '</div>' +
+              '</div>' +
+
+              '<div class="procficha-painel" style="margin-bottom:16px;">' +
+                '<p class="procficha-painel-titulo">Dados Pessoais</p>' +
+                '<p class="procficha-painel-sub">Informações básicas do cliente</p>' +
+                '<div class="procficha-editar-grid">' +
+                  '<div><label>Tipo *</label><select id="cliente-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
+                  '<div><label>Nome / Razão Social *</label><input id="cliente-nome" placeholder="Digite o nome completo ou razão social"></div>' +
+                  '<div><label id="cliente-label-cpf">CPF</label><input id="cliente-cpf-cnpj" placeholder="000.000.000-00"></div>' +
+                  '<div><label>E-mail</label><input type="email" id="cliente-email" placeholder="cliente@exemplo.com"></div>' +
+                  '<div><label>Telefone</label><input id="cliente-telefone" placeholder="(00) 00000-0000"></div>' +
+                '</div>' +
+              '</div>' +
+
+              '<div class="procficha-painel" style="margin-bottom:16px;">' +
+                '<p class="procficha-painel-titulo">Endereço</p>' +
+                '<p class="procficha-painel-sub">Localização e dados de contato</p>' +
+                '<div class="procficha-editar-grid">' +
+                  '<div><label>CEP</label><input id="cliente-cep" placeholder="00000-000" maxlength="9"><span id="cliente-cep-status" style="display:block; font-size:11px; color:#8293b5; margin-top:3px;">Busca automática ao digitar</span></div>' +
+                  '<div><label>Logradouro</label><input id="cliente-logradouro" placeholder="Rua, avenida, praça..."></div>' +
+                  '<div><label>Número</label><input id="cliente-numero" placeholder="Nº"></div>' +
+                  '<div><label>Complemento</label><input id="cliente-complemento" placeholder="Apto, sala, bloco..."></div>' +
+                  '<div><label>Bairro</label><input id="cliente-bairro" placeholder="Nome do bairro"></div>' +
+                  '<div><label>Cidade</label><input id="cliente-cidade" placeholder="Nome da cidade"></div>' +
+                  '<div><label>UF</label><input id="cliente-uf" maxlength="2" style="text-transform:uppercase;"></div>' +
+                '</div>' +
+              '</div>' +
+
+              '<div class="procficha-painel" style="margin-bottom:16px;">' +
+                '<p class="procficha-painel-titulo">Observações</p>' +
+                '<p class="procficha-painel-sub">Anotações e informações complementares</p>' +
+                '<textarea id="cliente-observacoes" rows="3" placeholder="Observações gerais, combinados, informações complementares sobre o cliente..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #232d42;border-radius:6px;font-size:13px;font-family:inherit;background:#0b1220;color:#e7eaf0;resize:vertical;"></textarea>' +
+              '</div>' +
+
+              '<div class="procficha-painel" style="margin-bottom:16px;">' +
+                '<p class="procficha-painel-titulo">Etiquetas</p>' +
+                '<p class="procficha-painel-sub">Classifique e organize seus clientes</p>' +
+                '<div id="cliente-etiquetas-selecionadas" style="display:flex; flex-wrap:wrap; gap:6px; margin:10px 0;"></div>' +
+                '<div style="display:flex; gap:8px; flex-wrap:wrap; position:relative;">' +
+                  '<button type="button" class="procpage-btn" id="cliente-btn-add-etiqueta">+ Adicionar etiqueta</button>' +
+                  '<div id="cliente-etiquetas-dropdown" class="procman-acoes-menu hidden" style="position:absolute; top:calc(100% + 4px); left:0; min-width:200px; max-height:220px; overflow-y:auto;"></div>' +
+                  '<button type="button" class="procpage-btn" id="cliente-btn-nova-etiqueta">Cadastrar nova etiqueta</button>' +
+                '</div>' +
+              '</div>' +
+
+              '<div><button type="button" class="procpage-btn procpage-btn-primary" id="cliente-btn-salvar">Salvar cliente</button></div>' +
+            '</div>' +
+
+            '<div class="procficha-resumo">' +
+              '<p class="procficha-painel-titulo" style="margin:0 0 8px;">Progresso</p>' +
+              '<div id="cliente-progresso-itens" style="display:flex; flex-direction:column; gap:10px;"></div>' +
+              '<div style="margin-top:10px;">' +
+                '<div style="display:flex; justify-content:space-between; font-size:11px; color:#8293b5; margin-bottom:4px;"><span>Completude</span><span id="cliente-progresso-pct">0%</span></div>' +
+                '<div style="height:6px; background:#0b1220; border-radius:999px; overflow:hidden;"><div id="cliente-progresso-barra" style="height:100%; width:0%; background:#2c5ce0; transition:width .2s;"></div></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
       '</section>';
 
     var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
@@ -1710,6 +1797,7 @@
       processos: htmlProcessos + htmlProcessoAdministrativo,
       importar_oab: htmlImportarOab,
       criar_processo: htmlCriarProcesso,
+      novo_cliente: htmlNovoCliente,
       agenda: htmlAgenda,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
@@ -1718,7 +1806,7 @@
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
-      importar_oab: 'processos', criar_processo: 'processos',
+      importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes',
       agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null,
     };
@@ -1766,6 +1854,7 @@
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
+    if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
@@ -3620,6 +3709,235 @@
         })
         .catch(function () { /* se falhar, o formulario so fica em branco -- usuario preenche de novo */ });
     }
+  }
+
+  function wireNovoCliente() {
+    var btnSalvar = document.getElementById('cliente-btn-salvar');
+    if (!btnSalvar) return;
+
+    var fotoArquivoSelecionado = null;
+    var etiquetasCatalogo = [];
+    var etiquetasSelecionadasIds = [];
+
+    var CAMPOS_PROGRESSO_CLIENTE = [
+      { rotulo: 'Dados Básicos', sub: 'Nome e tipo obrigatórios',
+        completo: function () { return !!document.getElementById('cliente-nome').value.trim(); } },
+      { rotulo: 'CPF/CNPJ', sub: 'Opcional',
+        completo: function () { return !!document.getElementById('cliente-cpf-cnpj').value.trim(); } },
+      { rotulo: 'Endereço', sub: 'Opcional',
+        completo: function () { return !!document.getElementById('cliente-cep').value.trim(); } },
+      { rotulo: 'Etiquetas', sub: 'Opcional',
+        completo: function () { return etiquetasSelecionadasIds.length > 0; } },
+    ];
+
+    function renderProgressoCliente() {
+      var container = document.getElementById('cliente-progresso-itens');
+      var completos = 0;
+      container.innerHTML = CAMPOS_PROGRESSO_CLIENTE.map(function (c) {
+        var ok = c.completo();
+        if (ok) completos += 1;
+        return '<div style="display:flex; align-items:center; gap:8px;">' +
+          '<div style="width:20px; height:20px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; ' +
+            (ok ? 'background:#1b3a2a; color:#4fd88a;' : 'background:#1b2743; color:#8293b5;') + '">' + (ok ? '✓' : '') + '</div>' +
+          '<div><div style="font-size:12.5px; font-weight:600; color:#e7eaf0;">' + esc(c.rotulo) + '</div>' +
+          '<div style="font-size:11px; color:#8293b5;">' + esc(c.sub) + '</div></div>' +
+        '</div>';
+      }).join('');
+      var pct = Math.round((completos / CAMPOS_PROGRESSO_CLIENTE.length) * 100);
+      document.getElementById('cliente-progresso-pct').textContent = pct + '%';
+      document.getElementById('cliente-progresso-barra').style.width = pct + '%';
+    }
+
+    ['cliente-nome', 'cliente-cpf-cnpj'].forEach(function (id) {
+      document.getElementById(id).addEventListener('input', renderProgressoCliente);
+    });
+
+    document.getElementById('cliente-tipo').addEventListener('change', function () {
+      var labelCpf = document.getElementById('cliente-label-cpf');
+      var inputCpf = document.getElementById('cliente-cpf-cnpj');
+      if (this.value === 'Pessoa Jurídica') {
+        labelCpf.textContent = 'CNPJ';
+        inputCpf.placeholder = '00.000.000/0000-00';
+      } else {
+        labelCpf.textContent = 'CPF';
+        inputCpf.placeholder = '000.000.000-00';
+      }
+    });
+
+    document.getElementById('cliente-btn-foto').addEventListener('click', function () {
+      document.getElementById('cliente-input-foto').click();
+    });
+    document.getElementById('cliente-input-foto').addEventListener('change', function () {
+      var arquivo = this.files && this.files[0];
+      if (!arquivo) return;
+      if (arquivo.size > 5 * 1024 * 1024) {
+        alert('A foto precisa ter até 5MB.');
+        this.value = '';
+        return;
+      }
+      fotoArquivoSelecionado = arquivo;
+      var leitor = new FileReader();
+      leitor.onload = function (e) {
+        document.getElementById('cliente-foto-preview').innerHTML =
+          '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">';
+      };
+      leitor.readAsDataURL(arquivo);
+    });
+
+    document.getElementById('cliente-cep').addEventListener('input', function () {
+      var digitos = this.value.replace(/\D/g, '').slice(0, 8);
+      this.value = digitos.length > 5 ? digitos.slice(0, 5) + '-' + digitos.slice(5) : digitos;
+      var statusEl = document.getElementById('cliente-cep-status');
+      renderProgressoCliente();
+      if (digitos.length !== 8) { statusEl.textContent = 'Busca automática ao digitar'; return; }
+      statusEl.textContent = 'Buscando...';
+      fetch('https://viacep.com.br/ws/' + digitos + '/json/')
+        .then(function (r) { return r.json(); })
+        .then(function (dados) {
+          if (dados.erro) { statusEl.textContent = 'CEP não encontrado.'; return; }
+          document.getElementById('cliente-logradouro').value = dados.logradouro || '';
+          document.getElementById('cliente-bairro').value = dados.bairro || '';
+          document.getElementById('cliente-cidade').value = dados.localidade || '';
+          document.getElementById('cliente-uf').value = dados.uf || '';
+          statusEl.textContent = 'Endereço encontrado.';
+        })
+        .catch(function () { statusEl.textContent = 'Não foi possível buscar o CEP agora.'; });
+    });
+
+    function renderEtiquetasSelecionadas() {
+      var container = document.getElementById('cliente-etiquetas-selecionadas');
+      container.innerHTML = etiquetasSelecionadasIds.map(function (id) {
+        var et = etiquetasCatalogo.find(function (e) { return e.id === id; });
+        if (!et) return '';
+        return '<span class="chip good" style="display:inline-flex; align-items:center; gap:6px;">' + esc(et.nome) +
+          '<button type="button" data-remover-etiqueta="' + id + '" style="background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1; padding:0;">✕</button></span>';
+      }).join('');
+      container.querySelectorAll('[data-remover-etiqueta]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = parseInt(btn.getAttribute('data-remover-etiqueta'), 10);
+          etiquetasSelecionadasIds = etiquetasSelecionadasIds.filter(function (x) { return x !== id; });
+          renderEtiquetasSelecionadas();
+          renderProgressoCliente();
+        });
+      });
+    }
+
+    function renderDropdownEtiquetas() {
+      var dropdown = document.getElementById('cliente-etiquetas-dropdown');
+      var disponiveis = etiquetasCatalogo.filter(function (e) { return etiquetasSelecionadasIds.indexOf(e.id) === -1; });
+      if (disponiveis.length === 0) {
+        dropdown.innerHTML = '<span style="padding:8px 10px; font-size:12.5px; color:var(--ink-faint); display:block;">Nenhuma etiqueta disponível.</span>';
+        return;
+      }
+      dropdown.innerHTML = disponiveis.map(function (e) {
+        return '<button type="button" data-escolher-etiqueta="' + e.id + '">' + esc(e.nome) + '</button>';
+      }).join('');
+      dropdown.querySelectorAll('[data-escolher-etiqueta]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          etiquetasSelecionadasIds.push(parseInt(btn.getAttribute('data-escolher-etiqueta'), 10));
+          renderEtiquetasSelecionadas();
+          renderProgressoCliente();
+          dropdown.classList.add('hidden');
+        });
+      });
+    }
+
+    apiGetJson('/api/painel?acao=etiqueta_listar')
+      .then(function (dados) { etiquetasCatalogo = dados.etiquetas || []; })
+      .catch(function () { /* dropdown so fica vazio se falhar */ });
+
+    document.getElementById('cliente-btn-add-etiqueta').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      renderDropdownEtiquetas();
+      document.getElementById('cliente-etiquetas-dropdown').classList.toggle('hidden');
+    });
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('#cliente-etiquetas-dropdown') && !ev.target.closest('#cliente-btn-add-etiqueta')) {
+        var dropdown = document.getElementById('cliente-etiquetas-dropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+      }
+    });
+    document.getElementById('cliente-btn-nova-etiqueta').addEventListener('click', function () {
+      var nome = window.prompt('Nome da nova etiqueta:');
+      if (!nome || !nome.trim()) return;
+      apiPostJson('/api/painel?acao=etiqueta_criar', { nome: nome.trim() })
+        .then(function (etiqueta) {
+          if (!etiquetasCatalogo.find(function (e) { return e.id === etiqueta.id; })) etiquetasCatalogo.push(etiqueta);
+          etiquetasSelecionadasIds.push(etiqueta.id);
+          renderEtiquetasSelecionadas();
+          renderProgressoCliente();
+        })
+        .catch(function (e) { alert(e.message || 'Não foi possível criar a etiqueta agora.'); });
+    });
+
+    document.getElementById('cliente-btn-cancelar').addEventListener('click', function () {
+      window.location.href = 'painel-clientes.html#sec-clientes';
+    });
+
+    function arrayBufferParaBase64Cliente(buffer) {
+      var binario = '';
+      var bytes = new Uint8Array(buffer);
+      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+      return btoa(binario);
+    }
+
+    btnSalvar.addEventListener('click', function () {
+      var erroDiv = document.getElementById('cliente-form-erro');
+      erroDiv.innerHTML = '';
+      var nome = document.getElementById('cliente-nome').value.trim();
+      if (!nome) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Preencha o nome / razão social.</div>';
+        return;
+      }
+
+      var corpo = {
+        tipo: document.getElementById('cliente-tipo').value,
+        nome: nome,
+        cpf_cnpj: document.getElementById('cliente-cpf-cnpj').value.trim(),
+        email: document.getElementById('cliente-email').value.trim(),
+        telefone: document.getElementById('cliente-telefone').value.trim(),
+        cep: document.getElementById('cliente-cep').value.trim(),
+        logradouro: document.getElementById('cliente-logradouro').value.trim(),
+        numero: document.getElementById('cliente-numero').value.trim(),
+        complemento: document.getElementById('cliente-complemento').value.trim(),
+        bairro: document.getElementById('cliente-bairro').value.trim(),
+        cidade: document.getElementById('cliente-cidade').value.trim(),
+        uf: document.getElementById('cliente-uf').value.trim(),
+        observacoes: document.getElementById('cliente-observacoes').value.trim(),
+      };
+
+      btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...';
+
+      apiPostJson('/api/painel?acao=cliente_cadastro_criar', corpo)
+        .then(function (resultado) {
+          var clienteId = resultado.id;
+          var pendentes = [];
+          if (fotoArquivoSelecionado) {
+            pendentes.push(fotoArquivoSelecionado.arrayBuffer().then(function (buffer) {
+              return apiPostJson('/api/painel?acao=cliente_foto_salvar', {
+                cliente_id: clienteId, nome_arquivo: fotoArquivoSelecionado.name,
+                mimetype: fotoArquivoSelecionado.type || 'image/jpeg',
+                dados_base64: arrayBufferParaBase64Cliente(buffer),
+              });
+            }));
+          }
+          if (etiquetasSelecionadasIds.length > 0) {
+            pendentes.push(apiPostJson('/api/painel?acao=cliente_etiquetas_definir', {
+              cliente_id: clienteId, etiqueta_ids: etiquetasSelecionadasIds,
+            }));
+          }
+          return Promise.all(pendentes);
+        })
+        .then(function () {
+          window.location.href = 'painel-clientes.html#sec-clientes';
+        })
+        .catch(function (e) {
+          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar cliente';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
+        });
+    });
+
+    renderProgressoCliente();
   }
 
   function wireProcessosAdministrativos() {

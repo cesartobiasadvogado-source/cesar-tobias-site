@@ -592,6 +592,119 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'cliente_cadastro_listar') {
+    var tokenSessaoClienteListar = obterToken(req);
+    if (!tokenSessaoClienteListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=cliente_cadastro_listar&token=' + encodeURIComponent(tokenSessaoClienteListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar os clientes.' });
+    }
+    return;
+  }
+
+  if (acao === 'cliente_cadastro_obter') {
+    var tokenSessaoClienteObter = obterToken(req);
+    if (!tokenSessaoClienteObter) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var idClienteObter = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=cliente_cadastro_obter&id=' + encodeURIComponent(idClienteObter) +
+        '&token=' + encodeURIComponent(tokenSessaoClienteObter) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao carregar o cliente.' });
+    }
+    return;
+  }
+
+  if (acao === 'etiqueta_listar') {
+    var tokenSessaoEtiquetaListar = obterToken(req);
+    if (!tokenSessaoEtiquetaListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=etiqueta_listar&token=' + encodeURIComponent(tokenSessaoEtiquetaListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar as etiquetas.' });
+    }
+    return;
+  }
+
+  if (acao === 'cliente_foto_obter') {
+    var tokenSessaoFotoObter = obterToken(req);
+    if (!tokenSessaoFotoObter) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var idClienteFoto = (req.query && req.query.cliente_id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=cliente_foto_obter&cliente_id=' + encodeURIComponent(idClienteFoto) +
+        '&token=' + encodeURIComponent(tokenSessaoFotoObter) + segredoQS
+      );
+      if (!resposta.ok) {
+        const erroJson = await resposta.json().catch(function () { return { erro: 'Falha ao obter a foto.' }; });
+        res.status(resposta.status).json(erroJson);
+        return;
+      }
+      const buffer = Buffer.from(await resposta.arrayBuffer());
+      res.setHeader('Content-Type', resposta.headers.get('content-type') || 'image/jpeg');
+      res.status(200).send(buffer);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar a foto.' });
+    }
+    return;
+  }
+
+  var acoesClientePost = {
+    cliente_cadastro_criar: 'Erro de conexao ao salvar o cliente.',
+    cliente_cadastro_atualizar: 'Erro de conexao ao salvar as alteracoes.',
+    cliente_cadastro_excluir: 'Erro de conexao ao excluir o cliente.',
+    etiqueta_criar: 'Erro de conexao ao criar a etiqueta.',
+    cliente_etiquetas_definir: 'Erro de conexao ao salvar as etiquetas.',
+    cliente_foto_salvar: 'Erro de conexao ao enviar a foto.',
+  };
+  if (acoesClientePost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoClientePost = obterToken(req);
+    if (!tokenSessaoClientePost) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessaoClientePost) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesClientePost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'processo_manual_excluir') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });

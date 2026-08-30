@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow, noarchive">
-<title>Vero Jurídico — Início</title>
+<title>Vero Jurídico — Novo Cliente</title>
 <script>
   (function () {
     var temaSalvo = localStorage.getItem('painel_tema');
@@ -40,36 +40,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="painel.css">
-<style>
-  /* Estilo literal desta página, dessa vez inspirado num print da plataforma concorrente NEXOADV
-     (só o layout/tema escuro -- sem marca, sem logo, sem o banner de trial deles, sem itens de
-     menu fictícios: aqui usamos nossa navegação real de 10 páginas e conteúdo real). Tema escuro
-     na página inteira, não só no banner -- cores fixas, não usam var() de tema claro/escuro. */
-  body { background: #0b1220; }
-  .conteudo-area { background: #0b1220; }
-  .page { background: transparent; }
-
-  .inicio-lit-cta-wrap { padding: 0 16px 20px; }
-  .inicio-lit-cta {
-    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-    background: #0051d5; color: #fff; padding: 10px 0; border-radius: 4px; text-decoration: none;
-    font-size: 13.5px; font-weight: 600; font-family: 'IBM Plex Sans', sans-serif;
-  }
-  .inicio-lit-cta:hover { background: #316bf3; }
-  .inicio-lit-cta svg { width: 16px; height: 16px; }
-
-  /* "Primeiros passos" fica escuro nessa referência (não claro como na versão anterior) */
-  #conteudo .panel { background: #121a2c; border-color: #232d42; }
-  #conteudo .panel-header { border-color: #232d42; }
-  #conteudo .panel-title { color: #e7eaf0; }
-  .inicio-checklist-item { border-color: #232d42; }
-  .inicio-checklist-num { background: #1b2743; color: #a7b0c2; }
-  .inicio-checklist-texto { color: #e7eaf0; }
-  .inicio-checklist-btn { color: #6c8cf0; border-color: #232d42; }
-  .inicio-checklist-btn:hover { background: #1b2743; }
-
-
-</style>
 </head>
 <body>
 
@@ -142,13 +112,7 @@
         <small class="sub" id="sidebar-sub">Advocacia</small>
       </div>
 
-      <div class="inicio-lit-cta-wrap">
-        <a class="inicio-lit-cta" href="painel-processos.html#sec-processos">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
-          Novo Processo
-        </a>
-      </div>
-      <nav class="nav-grupo inicio-lit-nav">
+      <nav class="nav-grupo">
         <a class="nav-item" data-secao="inicio" href="painel-inicio.html#sec-inicio">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg>
           Início
@@ -285,7 +249,6 @@
             <div class="hdr-dropdown hidden" id="hdr-menu-add">
               <a href="painel-criar-processo.html#sec-criar-processo">Novo Processo</a>
               <a href="painel-agenda.html#sec-agenda">Nova Tarefa</a>
-              <a href="painel-novo-cliente.html#sec-novo-cliente">Novo Cliente</a>
             </div>
           </div>
           <div class="hdr-divisor"></div>
@@ -335,7 +298,7 @@
     </div>
   </div>
 
-<script>var PAGINA_ATUAL = "inicio";</script>
+<script>var PAGINA_ATUAL = "novo_cliente";</script>
 <script src="painel-app.js"></script>
 </body>
 </html>
