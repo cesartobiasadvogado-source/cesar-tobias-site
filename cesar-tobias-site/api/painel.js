@@ -344,6 +344,27 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_manual_buscar_oab') {
+    var tokenSessaoBuscaOab = obterToken(req);
+    if (!tokenSessaoBuscaOab) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var numeroOabBusca = (req.query && req.query.numero_oab) || '';
+    var ufOabBusca = (req.query && req.query.uf_oab) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_buscar_oab&numero_oab=' + encodeURIComponent(numeroOabBusca) +
+        '&uf_oab=' + encodeURIComponent(ufOabBusca) + '&token=' + encodeURIComponent(tokenSessaoBuscaOab) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao buscar pela OAB.' });
+    }
+    return;
+  }
+
   if (acao === 'processo_manual_criar') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });

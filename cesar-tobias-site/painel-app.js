@@ -1104,6 +1104,23 @@
         '</div>' +
 
         '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Importar pela OAB</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
+              'Busca processos com comunicações recentes (intimações, citações) vinculadas à sua OAB, direto na base ' +
+              'oficial do CNJ. Não cobre a carteira inteira — só processos com movimentação eletrônica publicada.</p>' +
+            '<div id="procoab-erro"></div>' +
+            '<div class="procman-linha" style="align-items:flex-end;">' +
+              '<div style="flex:0 0 140px;"><label>Número da OAB</label><input id="procoab-numero" placeholder="Ex: 12345"></div>' +
+              '<div style="flex:0 0 90px;"><label>UF</label><input id="procoab-uf" maxlength="2" style="text-transform:uppercase" placeholder="Ex: AP"></div>' +
+              '<div style="flex:0 0 auto;"><button id="procoab-btn-buscar" style="padding:9px 16px;border:none;' +
+                'border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Buscar processos</button></div>' +
+            '</div>' +
+            '<div id="procoab-resultado"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Criar processo manualmente</span></div>' +
           '<div style="padding:16px 20px;">' +
             '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
@@ -1627,7 +1644,7 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
@@ -2227,6 +2244,106 @@
       .catch(function () {
         lista.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os processos cadastrados manualmente agora.</div></div>';
       });
+  }
+
+  function wireImportarOab(dados) {
+    var btnBuscar = document.getElementById('procoab-btn-buscar');
+    if (!btnBuscar) return;
+
+    var inputNumero = document.getElementById('procoab-numero');
+    var inputUf = document.getElementById('procoab-uf');
+    if (dados.oab_numero) inputNumero.value = dados.oab_numero;
+    if (dados.oab_uf) inputUf.value = dados.oab_uf;
+
+    function linhaResultado(p, indice) {
+      var opcoesCliente = [];
+      (p.polo_ativo || '').split(' / ').forEach(function (n) { if (n.trim()) opcoesCliente.push(n.trim()); });
+      (p.polo_passivo || '').split(' / ').forEach(function (n) { if (n.trim()) opcoesCliente.push(n.trim()); });
+      var selectCliente = '<select class="procoab-cliente-select" data-indice="' + indice + '">' +
+        opcoesCliente.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') +
+        '</select>';
+      return '<tr>' +
+        '<td><input type="checkbox" class="procoab-check" data-indice="' + indice + '" checked></td>' +
+        '<td>' + esc(p.numero_cnj || '—') + '<div style="font-size:11px;color:var(--ink-faint);">' + esc(p.classe_processual || '') + '</div></td>' +
+        '<td>' + esc(p.tribunal || '—') + '</td>' +
+        '<td>' + esc(p.polo_ativo || '—') + '</td>' +
+        '<td>' + esc(p.polo_passivo || '—') + '</td>' +
+        '<td>' + selectCliente + '</td>' +
+        '</tr>';
+    }
+
+    btnBuscar.addEventListener('click', function () {
+      var erroDiv = document.getElementById('procoab-erro');
+      var resultadoDiv = document.getElementById('procoab-resultado');
+      erroDiv.innerHTML = '';
+      resultadoDiv.innerHTML = '';
+      var numero = inputNumero.value.trim();
+      var uf = inputUf.value.trim().toUpperCase();
+      if (!numero || !uf) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Preencha o número e a UF da OAB.</div>';
+        return;
+      }
+      btnBuscar.disabled = true; btnBuscar.textContent = 'Buscando...';
+      apiGetJson('/api/painel?acao=processo_manual_buscar_oab&numero_oab=' + encodeURIComponent(numero) + '&uf_oab=' + encodeURIComponent(uf))
+        .then(function (dadosResp) {
+          btnBuscar.disabled = false; btnBuscar.textContent = 'Buscar processos';
+          var processos = dadosResp.processos || [];
+          if (processos.length === 0) {
+            resultadoDiv.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo com comunicação recente encontrado pra essa OAB.</div></div>';
+            return;
+          }
+          resultadoDiv.innerHTML =
+            '<div class="table-scroll" style="margin-top:14px;"><table><thead><tr>' +
+              '<th></th><th>Processo</th><th>Tribunal</th><th>Polo ativo</th><th>Polo passivo</th><th>Cliente (confirme)</th>' +
+            '</tr></thead><tbody>' +
+            processos.map(linhaResultado).join('') +
+            '</tbody></table></div>' +
+            '<div style="margin-top:12px;"><button id="procoab-btn-importar" style="padding:9px 16px;border:none;' +
+              'border-radius:7px;background:var(--good);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Importar selecionados</button>' +
+              '<span id="procoab-status-importar" style="margin-left:10px;font-size:12.5px;color:var(--ink-soft);"></span></div>';
+
+          document.getElementById('procoab-btn-importar').addEventListener('click', function () {
+            var btnImportar = this;
+            var statusEl = document.getElementById('procoab-status-importar');
+            var linhasSelecionadas = Array.prototype.filter.call(
+              document.querySelectorAll('.procoab-check'), function (c) { return c.checked; }
+            );
+            if (linhasSelecionadas.length === 0) {
+              statusEl.textContent = 'Selecione ao menos um processo.';
+              return;
+            }
+            btnImportar.disabled = true;
+            var total = linhasSelecionadas.length;
+            var concluidos = 0;
+            var falhas = 0;
+
+            function importarProximo(pos) {
+              if (pos >= linhasSelecionadas.length) {
+                btnImportar.disabled = false;
+                statusEl.textContent = concluidos + ' de ' + total + ' importado(s)' + (falhas ? ', ' + falhas + ' falhou(aram)' : '') + '.';
+                if (concluidos > 0) carregarProcessosManuais();
+                return;
+              }
+              var indice = parseInt(linhasSelecionadas[pos].getAttribute('data-indice'), 10);
+              var p = processos[indice];
+              var selectEl = document.querySelector('.procoab-cliente-select[data-indice="' + indice + '"]');
+              var clienteEscolhido = selectEl ? selectEl.value : '';
+              statusEl.textContent = 'Importando ' + (pos + 1) + ' de ' + total + '...';
+              apiPostJson('/api/painel?acao=processo_manual_criar', {
+                cliente_nome: clienteEscolhido, numero_cnj: p.numero_cnj, tribunal: p.tribunal,
+                classe_processual: p.classe_processual, orgao_julgador: p.orgao_julgador,
+              })
+                .then(function () { concluidos += 1; importarProximo(pos + 1); })
+                .catch(function () { falhas += 1; importarProximo(pos + 1); });
+            }
+            importarProximo(0);
+          });
+        })
+        .catch(function (e) {
+          btnBuscar.disabled = false; btnBuscar.textContent = 'Buscar processos';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível buscar agora. Tente de novo.') + '</div>';
+        });
+    });
   }
 
   function wireProcessoManual() {
