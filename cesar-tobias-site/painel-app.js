@@ -2789,6 +2789,29 @@
     return '<div><div class="procficha-campo-label">' + esc(rotulo) + '</div><div class="procficha-campo-valor">' + esc(valor || '—') + '</div></div>';
   }
 
+  function _htmlDatajudMeta(meta) {
+    var assuntosHtml = (meta.assuntos && meta.assuntos.length)
+      ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">' +
+          meta.assuntos.map(function (a) { return '<span class="chip neutral">' + esc(a) + '</span>'; }).join('') +
+        '</div>'
+      : '';
+    var atualizadoEm = meta.atualizado_em ? fmtDataProcesso(String(meta.atualizado_em).slice(0, 10)) : null;
+    return (
+      '<div style="background:#0b1220; border:1px solid #232d42; border-radius:8px; padding:14px 16px; margin-bottom:18px;">' +
+        '<p class="procficha-painel-titulo" style="margin:0 0 2px;">Dados oficiais (DataJud/CNJ)</p>' +
+        '<p class="procficha-painel-sub" style="margin-bottom:12px;">Sincronizado automaticamente — não editável aqui.</p>' +
+        '<div class="procficha-campos-grid">' +
+          _campoFicha('Grau', meta.grau) +
+          _campoFicha('Sistema', meta.sistema) +
+          _campoFicha('Formato', meta.formato) +
+          _campoFicha('Data de ajuizamento', meta.data_ajuizamento ? fmtDataProcesso(meta.data_ajuizamento) : null) +
+          _campoFicha('Atualizado no DataJud em', atualizadoEm) +
+        '</div>' +
+        (assuntosHtml ? '<div class="procficha-campo-label" style="margin-top:10px;">Assuntos</div>' + assuntosHtml : '') +
+      '</div>'
+    );
+  }
+
   function _htmlFichaProcesso(p) {
     return (
       '<div class="procficha-topo">' +
@@ -2831,12 +2854,18 @@
               : 'Preencha o número completo do processo (formato CNJ) e o tribunal em "Dados do processo" pra habilitar a sincronização automática de movimentações via DataJud.') +
             (p.origem === 'oab' ? ' Este processo também apareceu numa busca automática por OAB.' : '') +
             '</p>' +
+            (p.datajud_meta && p.datajud_meta.nivel_sigilo ? (
+              '<div style="margin-top:14px; padding:10px 14px; border-radius:8px; background:#2a2312; border:1px solid #6b5a1a; color:#e8c766; font-size:13px;">' +
+                '⚠️ O DataJud registra este processo com nível de sigilo ' + esc(String(p.datajud_meta.nivel_sigilo)) + ' (não é totalmente público).' +
+              '</div>'
+            ) : '') +
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Últimas movimentações</p>' +
             '<p class="procficha-painel-sub">Movimentações do tribunal são sincronizadas automaticamente (DataJud/CNJ) quando o número do processo é reconhecido pela base pública — pode levar de algumas horas a alguns dias pra aparecer. Registre atos processuais pra completar com o histórico do escritório.</p>' +
             '<div id="procficha-geral-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="dados">' +
+            (p.datajud_meta ? _htmlDatajudMeta(p.datajud_meta) : '') +
             '<p class="procficha-painel-titulo">Dados do processo</p>' +
             '<p class="procficha-painel-sub">Classificação, tribunal e órgão julgador</p>' +
             '<div id="procficha-form-erro"></div>' +
