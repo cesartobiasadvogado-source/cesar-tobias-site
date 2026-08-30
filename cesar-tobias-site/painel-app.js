@@ -59,7 +59,7 @@
 
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
-    importar_oab: 'Importar pela OAB',
+    importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Administração',
   };
@@ -781,7 +781,7 @@
               '<div class="inicio-tile-desc">Consulte pelo número e UF, selecione os processos e importe em lote — ideal pra migrar a carteira.</div>' +
               '<span class="inicio-tile-link">Buscar processos →</span>' +
             '</a>' +
-            '<a class="inicio-tile" href="painel-processos.html#sec-processos">' +
+            '<a class="inicio-tile" href="painel-criar-processo.html#sec-criar-processo">' +
               '<div class="inicio-tile-topo">' +
                 '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg></span>' +
               '</div>' +
@@ -809,7 +809,7 @@
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">2</span>' +
               '<span class="inicio-checklist-texto">Crie ou importe processos</span>' +
-              '<a class="inicio-checklist-btn" href="painel-processos.html#sec-processos">Novo processo</a>' +
+              '<a class="inicio-checklist-btn" href="painel-criar-processo.html#sec-criar-processo">Novo processo</a>' +
             '</div>' +
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">3</span>' +
@@ -1121,13 +1121,8 @@
         htmlPainelImportarOab +
       '</section>';
 
-    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
-      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
-          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
-
-        '<div class="panel" style="margin-top:16px;">' +
+    var htmlPainelCriarProcesso =
+        '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Criar processo manualmente</span></div>' +
           '<div style="padding:16px 20px;">' +
             '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
@@ -1189,6 +1184,17 @@
         '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Processos cadastrados manualmente</span></div>' +
           '<div id="procman-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>';
+
+    var htmlCriarProcesso = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-criar-processo"><p class="section-label">Criar processo manualmente</p>' +
+        htmlPainelCriarProcesso +
+      '</section>';
+
+    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
+          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
       '</section>';
 
@@ -1610,6 +1616,7 @@
       clientes: htmlClientes,
       processos: htmlProcessos + htmlProcessoAdministrativo,
       importar_oab: htmlImportarOab,
+      criar_processo: htmlCriarProcesso,
       agenda: htmlAgenda,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
@@ -1618,7 +1625,7 @@
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
-      importar_oab: 'processos',
+      importar_oab: 'processos', criar_processo: 'processos',
       agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null,
     };
@@ -1654,8 +1661,9 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
+    if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
