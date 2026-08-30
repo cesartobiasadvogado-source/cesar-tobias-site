@@ -2427,6 +2427,7 @@
             '<span class="prazo-meta">' + fmtDataProcesso(a.data) + '</span>' +
           '</div>' +
           (a.descricao ? '<div class="prazo-resumo">' + esc(a.descricao) + '</div>' : '') +
+          (a.link ? '<div style="margin-top:6px;"><a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);">Ver documento original</a></div>' : '') +
         '</div>';
       }).join('');
     }
@@ -3003,7 +3004,7 @@
 
     function _htmlListaAtosInline(atos) {
       if (!atos.length) return '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum ato processual registrado.</div></div>';
-      return atos.slice(0, 8).map(function (a) {
+      return atos.map(function (a) {
         return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42;">' +
           '<div class="prazo-card-topo">' +
             '<div><span class="chip ' + (a.origem === 'Tribunal' ? 'neutral' : 'good') + '">' + esc(a.origem === 'Tribunal' ? 'Tribunal' : 'Escritório') + '</span> ' +
@@ -3011,6 +3012,7 @@
             '<span class="prazo-meta" style="color:#8293b5;">' + fmtDataProcesso(a.data) + '</span>' +
           '</div>' +
           (a.descricao ? '<div class="prazo-resumo" style="color:#a7b0c2;">' + esc(a.descricao) + '</div>' : '') +
+          (a.link ? '<div style="margin-top:6px;"><a href="' + esc(a.link) + '" target="_blank" rel="noopener" style="font-size:12px;color:#6c8cf0;">Ver documento original</a></div>' : '') +
         '</div>';
       }).join('');
     }
