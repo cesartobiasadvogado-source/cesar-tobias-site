@@ -2750,6 +2750,7 @@
               '<span class="procman-acoes-wrap">' +
                 '<button type="button" class="procpage-icone-btn" data-procman-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
                 '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
+                  '<a href="painel-criar-processo.html?editar=' + p.id + '#sec-criar-processo">Editar</a>' +
                   '<button type="button" data-procman-status-acao="Finalizado" data-procman-indice="' + indice + '">Encerrar</button>' +
                   '<button type="button" data-procman-status-acao="Arquivado" data-procman-indice="' + indice + '">Arquivar</button>' +
                   '<button type="button" class="procman-acao-excluir" data-procman-excluir="' + indice + '">Excluir</button>' +
@@ -3301,12 +3302,9 @@
         document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); m.classList.remove('abre-para-cima'); });
         if (!jaAberto) {
           menuAlvo.classList.remove('hidden');
-          // a tabela corta o que passar da borda (overflow:hidden, pra arredondar os cantos) --
-          // se abrir pra baixo estourar essa borda (ex: ultima linha), ou a propria tela, abre pra cima
+          // se abrir pra baixo estourar a tela (ex: tabela grande, linha perto do rodape), abre pra cima
           var retangulo = menuAlvo.getBoundingClientRect();
-          var wrapTabela = menuAlvo.closest('.procpage-tabela-wrap');
-          var limiteInferior = wrapTabela ? wrapTabela.getBoundingClientRect().bottom : window.innerHeight;
-          if (retangulo.bottom > Math.min(limiteInferior, window.innerHeight)) menuAlvo.classList.add('abre-para-cima');
+          if (retangulo.bottom > window.innerHeight) menuAlvo.classList.add('abre-para-cima');
         }
         return;
       }
