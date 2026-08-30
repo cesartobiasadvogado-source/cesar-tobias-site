@@ -689,6 +689,87 @@
   .procman-acoes-menu button.procman-acao-excluir { color: var(--crit); }
   .procman-acoes-menu button.procman-acao-excluir:hover { background: var(--crit-soft); }
 
+  /* Hub de Processos -- fiel ao print de referencia (tema escuro fixo, cores proprias, nao usa
+     var() de tema claro/escuro), mesmo criterio ja aplicado na Inicio. */
+  .procpage-dark {
+    background: #0b1220; color: #e7eaf0; border-radius: 10px; padding: 22px 24px 28px;
+    border: 1px solid #232d42;
+  }
+  .procpage-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .procpage-titulo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: #e7eaf0; margin: 0; }
+  .procpage-acoes-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .procpage-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px;
+    font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #232d42;
+    background: #121a2c; color: #e7eaf0; font-family: inherit;
+  }
+  .procpage-btn:hover { background: #1b2743; }
+  .procpage-btn svg { width: 15px; height: 15px; }
+  .procpage-btn-primary { background: #2c5ce0; border-color: #2c5ce0; color: #fff; }
+  .procpage-btn-primary:hover { background: #3f6ce8; }
+
+  .procpage-filtros {
+    background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;
+  }
+  .procpage-filtros-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #a7b0c2; margin: 0 0 12px; }
+  .procpage-filtros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+  .procpage-filtros-grid label { display: block; font-size: 11px; color: #8293b5; margin-bottom: 5px; }
+  .procpage-filtros-grid input, .procpage-filtros-grid select {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #232d42; border-radius: 6px;
+    font-size: 13px; background: #0b1220; color: #e7eaf0; font-family: inherit;
+  }
+  .procpage-filtros-botoes { display: flex; gap: 8px; }
+
+  .procpage-tabela-wrap { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; overflow: hidden; }
+  .procpage-tabela-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .procpage-tabela-wrap th {
+    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #8293b5; padding: 10px 16px; border-bottom: 1px solid #232d42; background: rgba(255,255,255,0.02);
+  }
+  .procpage-tabela-wrap td { padding: 12px 16px; border-bottom: 1px solid #1a2438; vertical-align: middle; }
+  .procpage-tabela-wrap tr:last-child td { border-bottom: none; }
+  .procpage-numero-link { background: none; border: none; padding: 0; font: inherit; color: #e7eaf0; font-weight: 600; cursor: pointer; text-align: left; }
+  .procpage-numero-link:hover { color: #6c8cf0; text-decoration: underline; }
+  .procpage-sub { font-size: 11.5px; color: #8293b5; margin-top: 2px; }
+  .procpage-tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #1b2743; color: #a7b0c2; margin-left: 6px; }
+  .procpage-acoes-icones { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+  .procpage-icone-btn {
+    background: none; border: none; padding: 7px; border-radius: 6px; color: #8293b5; cursor: pointer; display: flex;
+  }
+  .procpage-icone-btn:hover { background: #1b2743; color: #e7eaf0; }
+  .procpage-icone-btn svg { width: 16px; height: 16px; }
+
+  /* Ficha do processo (detalhe) */
+  .procficha-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .procficha-titulo-wrap { display: flex; align-items: center; gap: 12px; }
+  .procficha-voltar { background: none; border: none; color: #a7b0c2; cursor: pointer; display: flex; padding: 4px; border-radius: 6px; }
+  .procficha-voltar:hover { background: #1b2743; color: #fff; }
+  .procficha-numero { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: #e7eaf0; margin: 0; }
+  .procficha-tabs { display: flex; gap: 4px; border-bottom: 1px solid #232d42; margin-bottom: 18px; flex-wrap: wrap; }
+  .procficha-tab {
+    background: none; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #8293b5;
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit;
+  }
+  .procficha-tab:hover { color: #e7eaf0; }
+  .procficha-tab.ativo { color: #6c8cf0; border-bottom-color: #6c8cf0; }
+  .procficha-corpo { display: grid; grid-template-columns: 1fr 260px; gap: 18px; align-items: start; }
+  .procficha-painel { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 18px 20px; }
+  .procficha-painel-titulo { font-size: 13.5px; font-weight: 600; color: #e7eaf0; margin: 0 0 4px; }
+  .procficha-painel-sub { font-size: 12px; color: #8293b5; margin: 0 0 14px; }
+  .procficha-campos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  .procficha-campo-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8293b5; margin-bottom: 4px; }
+  .procficha-campo-valor { font-size: 13.5px; color: #e7eaf0; }
+  .procficha-resumo { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .procficha-resumo-item-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8293b5; margin-bottom: 3px; }
+  .procficha-resumo-item-valor { font-size: 18px; font-weight: 700; color: #e7eaf0; }
+  .procficha-resumo-item-link { font-size: 12px; color: #6c8cf0; text-decoration: none; }
+  .procficha-resumo-item-link:hover { text-decoration: underline; }
+  .procficha-resumo-divisor { height: 1px; background: #232d42; }
+  .procficha-acoes-wrap { position: relative; }
+  @media (max-width: 860px) {
+    .procficha-corpo { grid-template-columns: 1fr; }
+  }
+
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .stat-grid { flex-direction: column; }

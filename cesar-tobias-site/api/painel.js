@@ -451,6 +451,26 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_financeiro_resumo') {
+    var tokenSessaoFinResumo = obterToken(req);
+    if (!tokenSessaoFinResumo) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var clienteNomeFinResumo = (req.query && req.query.cliente_nome) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_financeiro_resumo&cliente_nome=' + encodeURIComponent(clienteNomeFinResumo) +
+        '&token=' + encodeURIComponent(tokenSessaoFinResumo) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao carregar o financeiro do processo.' });
+    }
+    return;
+  }
+
   var acoesDocumentoPost = {
     documento_processo_upload_iniciar: 'Erro de conexao ao iniciar o envio.',
     documento_processo_upload_chunk: 'Erro de conexao ao enviar o pedaco do arquivo.',

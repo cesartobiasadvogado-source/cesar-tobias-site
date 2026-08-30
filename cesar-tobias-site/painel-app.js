@@ -1227,14 +1227,10 @@
               'style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;' +
               'font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;"></textarea>' +
 
+            '<div id="procman-msg-sucesso"></div>' +
             '<div style="margin-top:14px;"><button id="procman-btn-salvar" style="padding:9px 16px;border:none;' +
               'border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar processo</button></div>' +
           '</div>' +
-        '</div>' +
-
-        '<div class="panel" style="margin-top:16px;">' +
-          '<div class="panel-header"><span class="panel-title">Processos cadastrados manualmente</span></div>' +
-          '<div id="procman-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>';
 
     var htmlCriarProcesso = perms.indexOf('processos') === -1 ? '' :
@@ -1243,9 +1239,51 @@
       '</section>';
 
     var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
-      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
-          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '<section id="sec-processos">' +
+        '<div class="procpage-dark">' +
+          '<div id="procpage-view-lista">' +
+            '<div class="procpage-topo">' +
+              '<h2 class="procpage-titulo">Processos</h2>' +
+              '<div class="procpage-acoes-topo">' +
+                '<a class="procpage-btn" href="painel-importar-oab.html#sec-importar-oab">' +
+                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>' +
+                  'Busca OAB</a>' +
+                '<a class="procpage-btn procpage-btn-primary" href="painel-criar-processo.html#sec-criar-processo">' +
+                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>' +
+                  'Novo processo</a>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="procpage-filtros">' +
+              '<p class="procpage-filtros-titulo">Busca avançada</p>' +
+              '<div class="procpage-filtros-grid">' +
+                '<div><label>Nº do processo</label><input type="text" id="procpage-filtro-numero"></div>' +
+                '<div><label>Cliente</label><input type="text" id="procpage-filtro-cliente" list="procpage-clientes-lista"><datalist id="procpage-clientes-lista"></datalist></div>' +
+                '<div><label>Tribunal</label><input type="text" id="procpage-filtro-tribunal"></div>' +
+                '<div><label>Status</label><select id="procpage-filtro-status">' +
+                  '<option value="">Todos</option><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option><option>Arquivado</option>' +
+                '</select></div>' +
+                '<div><label>Palavra-chave</label><input type="text" id="procpage-filtro-palavra" placeholder="Busca em número, classe, órgão..."></div>' +
+                '<div class="procpage-filtros-botoes">' +
+                  '<button type="button" class="procpage-btn" id="procpage-filtro-limpar">Limpar</button>' +
+                  '<button type="button" class="procpage-btn procpage-btn-primary" id="procpage-filtro-buscar">Buscar</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            '<div class="procpage-tabela-wrap">' +
+              '<div id="procman-lista"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div id="procpage-view-ficha" class="hidden"></div>' +
+        '</div>' +
+
+        '<div style="margin-top:22px;">' +
+          '<p class="section-label">Comunicações do PJe (sincronização automática)</p>' +
+          '<div class="panel"><div class="panel-header"><span class="panel-title">Processos com comunicações recentes</span></div>' +
+            '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
         '</div>' +
       '</section>';
 
@@ -1721,7 +1759,7 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
@@ -2654,45 +2692,437 @@
     return 'neutral';
   }
 
+  var _processosManuaisTodos = [];
+
+  function _passaNosFiltrosProcesso(p, f) {
+    if (f.numero && (p.numero_cnj || '').toLowerCase().indexOf(f.numero) === -1) return false;
+    if (f.cliente && (p.cliente_nome || '').toLowerCase().indexOf(f.cliente) === -1) return false;
+    if (f.tribunal && (p.tribunal || '').toLowerCase().indexOf(f.tribunal) === -1) return false;
+    if (f.status && p.status !== f.status) return false;
+    if (f.palavra) {
+      var alvo = [p.numero_cnj, p.classe_processual, p.orgao_julgador, p.comarca, p.area_direito]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (alvo.indexOf(f.palavra) === -1) return false;
+    }
+    return true;
+  }
+
+  function _renderTabelaProcessosManuais(processos) {
+    var lista = document.getElementById('procman-lista');
+    if (!lista) return;
+    _processosManuaisCarregados = processos;
+    if (processos.length === 0) {
+      lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum processo encontrado.</div></div>';
+      return;
+    }
+    var svgEditar = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+    var svgAtos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18"></path><path d="M5 7l-3 6a3 3 0 0 0 6 0z"></path><path d="M19 7l-3 6a3 3 0 0 0 6 0z"></path><path d="M5 7h14M9 3h6"></path></svg>';
+    var svgDocs = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"></path><path d="M14 4v5h5"></path></svg>';
+    var svgMais = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="6" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18" r="1.8"></circle></svg>';
+
+    lista.innerHTML = '<table><thead><tr>' +
+      '<th>Processo</th><th>Status</th><th>Cadastrado em</th><th></th>' +
+      '</tr></thead><tbody>' +
+      processos.map(function (p, indice) {
+        return '<tr>' +
+          '<td>' +
+            '<button type="button" class="procpage-numero-link" data-procpage-abrir="' + indice + '">' + esc(p.numero_cnj || 'Sem número') + '</button>' +
+            '<div class="procpage-sub">' + esc(p.cliente_nome) + (p.tribunal ? ' · ' + esc(p.tribunal) : '') + '<span class="procpage-tag">Manual</span></div>' +
+          '</td>' +
+          '<td><span class="chip ' + _chipStatusProcesso(p.status) + '">' + esc(p.status || '—') + '</span></td>' +
+          '<td style="color:#8293b5;">' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
+          '<td>' +
+            '<div class="procpage-acoes-icones">' +
+              '<a class="procpage-icone-btn" title="Editar" href="painel-criar-processo.html?editar=' + p.id + '#sec-criar-processo">' + svgEditar + '</a>' +
+              '<button type="button" class="procpage-icone-btn" title="Atos processuais" data-procman-atos="' + indice + '">' + svgAtos + '</button>' +
+              '<button type="button" class="procpage-icone-btn" title="Documentos" data-procman-docs="' + indice + '">' + svgDocs + '</button>' +
+              '<span class="procman-acoes-wrap">' +
+                '<button type="button" class="procpage-icone-btn" data-procman-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
+                '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
+                  '<button type="button" data-procman-status-acao="Finalizado" data-procman-indice="' + indice + '">Encerrar</button>' +
+                  '<button type="button" data-procman-status-acao="Arquivado" data-procman-indice="' + indice + '">Arquivar</button>' +
+                  '<button type="button" class="procman-acao-excluir" data-procman-excluir="' + indice + '">Excluir</button>' +
+                '</div>' +
+              '</span>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  }
+
   function carregarProcessosManuais() {
     var lista = document.getElementById('procman-lista');
     if (!lista) return;
     apiGetJson('/api/painel?acao=processo_manual_listar')
       .then(function (dados) {
-        var processos = dados.processos || [];
-        _processosManuaisCarregados = processos;
-        if (processos.length === 0) {
-          lista.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo cadastrado manualmente ainda.</div></div>';
-          return;
-        }
-        lista.innerHTML = '<div class="table-scroll"><table><thead><tr>' +
-          '<th>Cliente</th><th>Número CNJ</th><th>Tribunal</th><th>Status</th><th>Cadastrado em</th><th></th>' +
-          '</tr></thead><tbody>' +
-          processos.map(function (p, indice) {
-            return '<tr><td>' + esc(p.cliente_nome) + '</td><td>' + esc(p.numero_cnj || '—') + '</td>' +
-              '<td>' + esc(p.tribunal || '—') + '</td>' +
-              '<td><span class="chip ' + _chipStatusProcesso(p.status) + '">' + esc(p.status || '—') + '</span></td>' +
-              '<td>' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
-              '<td style="text-align:right; white-space:nowrap;">' +
-                '<button type="button" class="btn-editar" data-procman-editar="' + indice + '">Editar</button> ' +
-                '<button type="button" class="btn-editar" data-procman-atos="' + indice + '">Atos processuais</button> ' +
-                '<button type="button" class="btn-editar" data-procman-docs="' + indice + '">Documentos</button> ' +
-                '<span class="procman-acoes-wrap">' +
-                  '<button type="button" class="btn-editar" data-procman-mais="' + indice + '" aria-label="Mais opções">⋮</button>' +
-                  '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
-                    '<button type="button" data-procman-editar="' + indice + '">Editar</button>' +
-                    '<button type="button" data-procman-status-acao="Finalizado" data-procman-indice="' + indice + '">Encerrar</button>' +
-                    '<button type="button" data-procman-status-acao="Arquivado" data-procman-indice="' + indice + '">Arquivar</button>' +
-                    '<button type="button" class="procman-acao-excluir" data-procman-excluir="' + indice + '">Excluir</button>' +
-                  '</div>' +
-                '</span>' +
-              '</td></tr>';
-          }).join('') +
-          '</tbody></table></div>';
+        _processosManuaisTodos = dados.processos || [];
+        _renderTabelaProcessosManuais(_processosManuaisTodos);
       })
       .catch(function () {
-        lista.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os processos cadastrados manualmente agora.</div></div>';
+        lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar os processos agora.</div></div>';
       });
+  }
+
+  var ABAS_FICHA_PROCESSO = [
+    { chave: 'geral', rotulo: 'Visão geral' },
+    { chave: 'dados', rotulo: 'Dados do processo' },
+    { chave: 'partes', rotulo: 'Partes' },
+    { chave: 'andamentos', rotulo: 'Andamentos' },
+    { chave: 'prazos', rotulo: 'Prazos' },
+    { chave: 'documentos', rotulo: 'Documentos' },
+    { chave: 'financeiro', rotulo: 'Financeiro' },
+  ];
+
+  function _campoFicha(rotulo, valor) {
+    return '<div><div class="procficha-campo-label">' + esc(rotulo) + '</div><div class="procficha-campo-valor">' + esc(valor || '—') + '</div></div>';
+  }
+
+  function _htmlFichaProcesso(p) {
+    return (
+      '<div class="procficha-topo">' +
+        '<div class="procficha-titulo-wrap">' +
+          '<button type="button" class="procficha-voltar" id="procficha-btn-voltar" aria-label="Voltar">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>' +
+          '</button>' +
+          '<h2 class="procficha-numero">' + esc(p.numero_cnj || p.cliente_nome) + '</h2>' +
+        '</div>' +
+        '<span class="procficha-acoes-wrap">' +
+          '<button type="button" class="procpage-btn" id="procficha-btn-acoes">Ações ▾</button>' +
+          '<div class="procman-acoes-menu hidden" id="procficha-menu-acoes" style="right:0;">' +
+            '<a href="painel-criar-processo.html?editar=' + p.id + '#sec-criar-processo">Editar</a>' +
+            '<button type="button" data-procficha-status="Finalizado">Encerrar</button>' +
+            '<button type="button" data-procficha-status="Arquivado">Arquivar</button>' +
+            '<button type="button" class="procman-acao-excluir" id="procficha-btn-excluir">Excluir</button>' +
+          '</div>' +
+        '</span>' +
+      '</div>' +
+
+      '<div class="procficha-tabs">' +
+        ABAS_FICHA_PROCESSO.map(function (a, i) {
+          return '<button type="button" class="procficha-tab' + (i === 0 ? ' ativo' : '') + '" data-procficha-tab="' + a.chave + '">' + esc(a.rotulo) + '</button>';
+        }).join('') +
+      '</div>' +
+
+      '<div class="procficha-corpo">' +
+        '<div id="procficha-conteudo">' +
+
+          '<div class="procficha-painel" data-procficha-painel="geral">' +
+            '<p class="procficha-painel-titulo">Visão geral</p>' +
+            '<div class="procficha-campos-grid">' +
+              _campoFicha('Cliente', p.cliente_nome) +
+              _campoFicha('Número do processo', p.numero_cnj) +
+              _campoFicha('Status', p.status) +
+            '</div>' +
+            '<p class="procficha-painel-titulo" style="margin-top:18px;">Últimas movimentações</p>' +
+            '<p class="procficha-painel-sub">Sincronização automática de tribunal ainda não disponível — registre atos processuais pra manter o histórico do escritório.</p>' +
+            '<div id="procficha-geral-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="dados">' +
+            '<p class="procficha-painel-titulo">Dados do processo</p>' +
+            '<div class="procficha-campos-grid">' +
+              _campoFicha('Classe processual', p.classe_processual) +
+              _campoFicha('Área do direito', p.area_direito) +
+              _campoFicha('Órgão julgador / Vara', p.orgao_julgador) +
+              _campoFicha('Tribunal', p.tribunal) +
+              _campoFicha('Comarca / Foro', p.comarca) +
+              _campoFicha('Grau', p.grau) +
+              _campoFicha('Fase processual', p.fase_processual) +
+              _campoFicha('Valor da causa', p.valor_causa != null ? 'R$ ' + fmtMoeda(p.valor_causa) : null) +
+              _campoFicha('Data de distribuição', p.data_distribuicao ? fmtDataProcesso(p.data_distribuicao) : null) +
+              _campoFicha('Data de encerramento', p.data_encerramento ? fmtDataProcesso(p.data_encerramento) : null) +
+              _campoFicha('Advogado responsável', p.advogado_responsavel) +
+              _campoFicha('Prioridade legal', p.prioridade_legal) +
+              _campoFicha('Risco do processo', p.risco_processo) +
+              _campoFicha('Nível de sigilo', p.nivel_sigilo) +
+            '</div>' +
+            (p.observacoes_internas ? '<p class="procficha-campo-label">Observações internas</p><p class="procficha-campo-valor">' + esc(p.observacoes_internas) + '</p>' : '') +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="partes">' +
+            '<p class="procficha-painel-titulo">Partes</p>' +
+            '<p class="procficha-painel-sub">Hoje só registramos o cliente vinculado ao processo — polo ativo/passivo completo ainda não é um dado estruturado aqui.</p>' +
+            '<div class="procficha-campos-grid">' + _campoFicha('Cliente vinculado', p.cliente_nome) + '</div>' +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="andamentos">' +
+            '<p class="procficha-painel-titulo">Andamentos</p>' +
+            '<p class="procficha-painel-sub">Atos processuais registrados manualmente pelo escritório ou pelo tribunal.</p>' +
+            '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-ato">+ Novo ato</button></div>' +
+            '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="prazos">' +
+            '<p class="procficha-painel-titulo">Prazos</p>' +
+            '<div class="empty-state"><div class="msg" style="color:#8293b5;">Cadastro de prazos ainda não disponível — em breve.</div></div>' +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="documentos">' +
+            '<p class="procficha-painel-titulo">Documentos</p>' +
+            '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-doc">+ Enviar documento</button></div>' +
+            '<div id="procficha-lista-docs"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+          '</div>' +
+
+          '<div class="procficha-painel hidden" data-procficha-painel="financeiro">' +
+            '<p class="procficha-painel-titulo">Financeiro</p>' +
+            '<p class="procficha-painel-sub">Somado pelos contratos com o mesmo nome de cliente — hoje não há vínculo direto entre processo e contrato.</p>' +
+            '<div id="procficha-financeiro-corpo"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+          '</div>' +
+
+        '</div>' +
+
+        '<div class="procficha-resumo">' +
+          '<div><div class="procficha-resumo-item-label">Status</div><div class="procficha-resumo-item-valor" style="font-size:14px;">' + esc(p.status || '—') + '</div></div>' +
+          '<div class="procficha-resumo-divisor"></div>' +
+          '<div><div class="procficha-resumo-item-label">Prazos</div><div class="procficha-resumo-item-valor">—</div></div>' +
+          '<div class="procficha-resumo-divisor"></div>' +
+          '<div><div class="procficha-resumo-item-label">Documentos</div><div class="procficha-resumo-item-valor" id="procficha-resumo-docs">—</div></div>' +
+          '<div class="procficha-resumo-divisor"></div>' +
+          '<div><div class="procficha-resumo-item-label">Andamentos</div><div class="procficha-resumo-item-valor" id="procficha-resumo-atos">—</div>' +
+            '<a href="#" class="procficha-resumo-item-link" data-procficha-vertab="andamentos">Ver todos</a></div>' +
+          '<div class="procficha-resumo-divisor"></div>' +
+          '<div><div class="procficha-resumo-item-label">Financeiro</div><div class="procficha-resumo-item-valor" id="procficha-resumo-financeiro" style="font-size:16px;">—</div>' +
+            '<a href="painel.html#sec-visao-geral" class="procficha-resumo-item-link">Ver financeiro</a></div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function abrirFichaProcesso(processo) {
+    var viewLista = document.getElementById('procpage-view-lista');
+    var viewFicha = document.getElementById('procpage-view-ficha');
+    if (!viewLista || !viewFicha) return;
+
+    viewFicha.innerHTML = _htmlFichaProcesso(processo);
+    viewLista.classList.add('hidden');
+    viewFicha.classList.remove('hidden');
+    viewFicha.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    function mostrarAba(chave) {
+      document.querySelectorAll('[data-procficha-painel]').forEach(function (el) {
+        el.classList.toggle('hidden', el.getAttribute('data-procficha-painel') !== chave);
+      });
+      document.querySelectorAll('[data-procficha-tab]').forEach(function (btn) {
+        btn.classList.toggle('ativo', btn.getAttribute('data-procficha-tab') === chave);
+      });
+    }
+
+    document.querySelectorAll('[data-procficha-tab]').forEach(function (btn) {
+      btn.addEventListener('click', function () { mostrarAba(btn.getAttribute('data-procficha-tab')); });
+    });
+    document.querySelectorAll('[data-procficha-vertab]').forEach(function (a) {
+      a.addEventListener('click', function (ev) { ev.preventDefault(); mostrarAba(a.getAttribute('data-procficha-vertab')); });
+    });
+
+    document.getElementById('procficha-btn-voltar').addEventListener('click', function () {
+      viewFicha.classList.add('hidden');
+      viewLista.classList.remove('hidden');
+      carregarProcessosManuais();
+    });
+
+    document.getElementById('procficha-btn-acoes').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      document.getElementById('procficha-menu-acoes').classList.toggle('hidden');
+    });
+    document.addEventListener('click', function fecharMenuAcoesFicha(ev) {
+      var menu = document.getElementById('procficha-menu-acoes');
+      if (menu && !ev.target.closest('.procficha-acoes-wrap')) menu.classList.add('hidden');
+    });
+    document.querySelectorAll('[data-procficha-status]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('procficha-menu-acoes').classList.add('hidden');
+        apiPostJson('/api/painel?acao=processo_manual_status', { id: processo.id, status: btn.getAttribute('data-procficha-status') })
+          .then(function () { processo.status = btn.getAttribute('data-procficha-status'); abrirFichaProcesso(processo); })
+          .catch(function () { alert('Não foi possível atualizar o status agora.'); });
+      });
+    });
+    document.getElementById('procficha-btn-excluir').addEventListener('click', function () {
+      document.getElementById('procficha-menu-acoes').classList.add('hidden');
+      if (!window.confirm('Excluir o processo de ' + processo.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
+      apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processo.id })
+        .then(function () {
+          viewFicha.classList.add('hidden');
+          viewLista.classList.remove('hidden');
+          carregarProcessosManuais();
+        })
+        .catch(function () { alert('Não foi possível excluir o processo agora.'); });
+    });
+
+    function _htmlListaAtosInline(atos) {
+      if (!atos.length) return '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum ato processual registrado.</div></div>';
+      return atos.slice(0, 8).map(function (a) {
+        return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42;">' +
+          '<div class="prazo-card-topo">' +
+            '<div><span class="chip ' + (a.origem === 'Tribunal' ? 'neutral' : 'good') + '">' + esc(a.origem === 'Tribunal' ? 'Tribunal' : 'Escritório') + '</span> ' +
+              '<strong style="font-size:13px;color:#e7eaf0;">' + esc(a.tipo || 'Ato') + '</strong></div>' +
+            '<span class="prazo-meta" style="color:#8293b5;">' + fmtDataProcesso(a.data) + '</span>' +
+          '</div>' +
+          (a.descricao ? '<div class="prazo-resumo" style="color:#a7b0c2;">' + esc(a.descricao) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    apiGetJson('/api/painel?acao=ato_processual_listar&processo_id=' + processo.id)
+      .then(function (dados) {
+        var atos = dados.atos || [];
+        document.getElementById('procficha-resumo-atos').textContent = atos.length;
+        var geralEl = document.getElementById('procficha-geral-atos');
+        if (geralEl) geralEl.innerHTML = _htmlListaAtosInline(atos.slice(0, 3));
+        var listaEl = document.getElementById('procficha-lista-atos');
+        if (listaEl) listaEl.innerHTML = _htmlListaAtosInline(atos);
+      })
+      .catch(function () {
+        document.getElementById('procficha-resumo-atos').textContent = '—';
+      });
+
+    apiGetJson('/api/painel?acao=documento_processo_listar&processo_id=' + processo.id)
+      .then(function (dados) {
+        var documentos = dados.documentos || [];
+        document.getElementById('procficha-resumo-docs').textContent = documentos.length;
+        var listaEl = document.getElementById('procficha-lista-docs');
+        if (!listaEl) return;
+        listaEl.innerHTML = documentos.length === 0
+          ? '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum documento neste processo.</div></div>'
+          : documentos.map(function (d) {
+              return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42;">' +
+                '<div class="prazo-card-topo">' +
+                  '<strong style="font-size:13px;color:#e7eaf0;">' + esc(d.nome_arquivo) + '</strong>' +
+                  '<a href="' + esc(d.link) + '" target="_blank" rel="noopener" style="font-size:12px;color:#6c8cf0;">Abrir</a>' +
+                '</div>' +
+              '</div>';
+            }).join('');
+      })
+      .catch(function () {
+        document.getElementById('procficha-resumo-docs').textContent = '—';
+      });
+
+    apiGetJson('/api/painel?acao=processo_financeiro_resumo&cliente_nome=' + encodeURIComponent(processo.cliente_nome))
+      .then(function (resumo) {
+        document.getElementById('procficha-resumo-financeiro').textContent = 'R$ ' + fmtMoeda(resumo.valor_total);
+        var corpoEl = document.getElementById('procficha-financeiro-corpo');
+        if (!corpoEl) return;
+        if (resumo.qtd_contratos === 0) {
+          corpoEl.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum contrato encontrado com o nome desse cliente.</div></div>';
+          return;
+        }
+        corpoEl.innerHTML = '<div class="procficha-campos-grid">' +
+          _campoFicha('Contratos vinculados', String(resumo.qtd_contratos)) +
+          _campoFicha('Valor total', 'R$ ' + fmtMoeda(resumo.valor_total)) +
+          _campoFicha('Valor já pago', 'R$ ' + fmtMoeda(resumo.valor_pago)) +
+          _campoFicha('Saldo em aberto', 'R$ ' + fmtMoeda(resumo.saldo)) +
+        '</div>';
+      })
+      .catch(function () {
+        document.getElementById('procficha-resumo-financeiro').textContent = '—';
+      });
+
+    document.getElementById('procficha-btn-novo-ato').addEventListener('click', function () { abrirModalAtosProcessuais(processo); });
+    document.getElementById('procficha-btn-novo-doc').addEventListener('click', function () { abrirModalDocumentosProcesso(processo); });
+  }
+
+  function wireProcessosHub() {
+    var lista = document.getElementById('procman-lista');
+    if (!lista) return;
+
+    carregarProcessosManuais();
+
+    var datalistFiltro = document.getElementById('procpage-clientes-lista');
+    apiGetJson('/api/painel?acao=clientes')
+      .then(function (dados) {
+        datalistFiltro.innerHTML = (dados.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('');
+      })
+      .catch(function () { /* datalist so ajuda, nao bloqueia a busca manual se falhar */ });
+
+    function aplicarFiltros() {
+      var f = {
+        numero: document.getElementById('procpage-filtro-numero').value.trim().toLowerCase(),
+        cliente: document.getElementById('procpage-filtro-cliente').value.trim().toLowerCase(),
+        tribunal: document.getElementById('procpage-filtro-tribunal').value.trim().toLowerCase(),
+        status: document.getElementById('procpage-filtro-status').value,
+        palavra: document.getElementById('procpage-filtro-palavra').value.trim().toLowerCase(),
+      };
+      _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
+    }
+    document.getElementById('procpage-filtro-buscar').addEventListener('click', aplicarFiltros);
+    document.getElementById('procpage-filtro-limpar').addEventListener('click', function () {
+      ['procpage-filtro-numero', 'procpage-filtro-cliente', 'procpage-filtro-tribunal', 'procpage-filtro-palavra'].forEach(function (id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('procpage-filtro-status').value = '';
+      _renderTabelaProcessosManuais(_processosManuaisTodos);
+    });
+
+    lista.addEventListener('click', function (ev) {
+      var btnAbrir = ev.target.closest('[data-procpage-abrir]');
+      if (btnAbrir) {
+        var indiceAbrir = parseInt(btnAbrir.getAttribute('data-procpage-abrir'), 10);
+        var processoAbrir = _processosManuaisCarregados[indiceAbrir];
+        if (processoAbrir) abrirFichaProcesso(processoAbrir);
+        return;
+      }
+
+      var btnMais = ev.target.closest('[data-procman-mais]');
+      if (btnMais) {
+        var menuAlvo = document.querySelector('[data-procman-menu="' + btnMais.getAttribute('data-procman-mais') + '"]');
+        var jaAberto = !menuAlvo.classList.contains('hidden');
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        if (!jaAberto) menuAlvo.classList.remove('hidden');
+        return;
+      }
+
+      var btnAtos = ev.target.closest('[data-procman-atos]');
+      if (btnAtos) {
+        var indiceAtos = parseInt(btnAtos.getAttribute('data-procman-atos'), 10);
+        var processoAtos = _processosManuaisCarregados[indiceAtos];
+        if (processoAtos) abrirModalAtosProcessuais(processoAtos);
+        return;
+      }
+
+      var btnDocs = ev.target.closest('[data-procman-docs]');
+      if (btnDocs) {
+        var indiceDocs = parseInt(btnDocs.getAttribute('data-procman-docs'), 10);
+        var processoDocs = _processosManuaisCarregados[indiceDocs];
+        if (processoDocs) abrirModalDocumentosProcesso(processoDocs);
+        return;
+      }
+
+      var btnStatus = ev.target.closest('[data-procman-status-acao]');
+      if (btnStatus) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        var indiceStatus = parseInt(btnStatus.getAttribute('data-procman-indice'), 10);
+        var processoStatus = _processosManuaisCarregados[indiceStatus];
+        var novoStatus = btnStatus.getAttribute('data-procman-status-acao');
+        if (!processoStatus) return;
+        apiPostJson('/api/painel?acao=processo_manual_status', { id: processoStatus.id, status: novoStatus })
+          .then(function () { carregarProcessosManuais(); })
+          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        return;
+      }
+
+      var btnExcluir = ev.target.closest('[data-procman-excluir]');
+      if (btnExcluir) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        var indiceExcluir = parseInt(btnExcluir.getAttribute('data-procman-excluir'), 10);
+        var processoExcluir = _processosManuaisCarregados[indiceExcluir];
+        if (!processoExcluir) return;
+        if (!window.confirm('Excluir o processo de ' + processoExcluir.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
+        apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processoExcluir.id })
+          .then(function () { carregarProcessosManuais(); })
+          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        return;
+      }
+
+      if (!ev.target.closest('.procman-acoes-wrap')) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+      }
+    });
+
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('.procman-acoes-wrap')) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+      }
+    });
   }
 
   function wireImportarOab(dados) {
@@ -2810,8 +3240,6 @@
       })
       .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
 
-    carregarProcessosManuais();
-
     function limparFormulario() {
       ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao', 'procman-tribunal',
         'procman-comarca', 'procman-cliente', 'procman-fase', 'procman-valor-causa',
@@ -2905,11 +3333,14 @@
       btnSalvar.disabled = true; btnSalvar.textContent = textoSalvando;
       apiPostJson('/api/painel?acao=' + acao, corpo)
         .then(function () {
-          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">' +
-            (estaEditando ? 'Alterações salvas com sucesso.' : 'Processo salvo com sucesso.') + '</div>';
+          erroDiv.innerHTML = '';
+          document.getElementById('procman-msg-sucesso').innerHTML =
+            '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">' +
+              (estaEditando ? 'Alterações salvas com sucesso. ' : 'Processo salvo com sucesso. ') +
+              '<a href="painel-processos.html#sec-processos" style="color:inherit;font-weight:600;">Ver na lista de Processos</a>' +
+            '</div>';
           btnSalvar.disabled = false;
           limparFormulario();
-          carregarProcessosManuais();
         })
         .catch(function (e) {
           btnSalvar.disabled = false; btnSalvar.textContent = estaEditando ? 'Salvar alterações' : 'Salvar processo';
@@ -2917,80 +3348,17 @@
         });
     });
 
-    // acoes da lista (editar / mais opcoes / encerrar / arquivar / excluir) -- delegacao de
-    // evento no container, porque a tabela e recriada a cada carregarProcessosManuais()
-    document.getElementById('procman-lista').addEventListener('click', function (ev) {
-      var btnMais = ev.target.closest('[data-procman-mais]');
-      if (btnMais) {
-        var menuAlvo = document.querySelector('[data-procman-menu="' + btnMais.getAttribute('data-procman-mais') + '"]');
-        var jaAberto = !menuAlvo.classList.contains('hidden');
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-        if (!jaAberto) menuAlvo.classList.remove('hidden');
-        return;
-      }
-
-      var btnEditar = ev.target.closest('[data-procman-editar]');
-      if (btnEditar) {
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-        var indice = parseInt(btnEditar.getAttribute('data-procman-editar'), 10);
-        var processo = _processosManuaisCarregados[indice];
-        if (processo) preencherFormularioParaEdicao(processo);
-        return;
-      }
-
-      var btnAtos = ev.target.closest('[data-procman-atos]');
-      if (btnAtos) {
-        var indiceAtos = parseInt(btnAtos.getAttribute('data-procman-atos'), 10);
-        var processoAtos = _processosManuaisCarregados[indiceAtos];
-        if (processoAtos) abrirModalAtosProcessuais(processoAtos);
-        return;
-      }
-
-      var btnDocs = ev.target.closest('[data-procman-docs]');
-      if (btnDocs) {
-        var indiceDocs = parseInt(btnDocs.getAttribute('data-procman-docs'), 10);
-        var processoDocs = _processosManuaisCarregados[indiceDocs];
-        if (processoDocs) abrirModalDocumentosProcesso(processoDocs);
-        return;
-      }
-
-      var btnStatus = ev.target.closest('[data-procman-status-acao]');
-      if (btnStatus) {
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-        var indiceStatus = parseInt(btnStatus.getAttribute('data-procman-indice'), 10);
-        var processoStatus = _processosManuaisCarregados[indiceStatus];
-        var novoStatus = btnStatus.getAttribute('data-procman-status-acao');
-        if (!processoStatus) return;
-        apiPostJson('/api/painel?acao=processo_manual_status', { id: processoStatus.id, status: novoStatus })
-          .then(function () { carregarProcessosManuais(); })
-          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
-        return;
-      }
-
-      var btnExcluir = ev.target.closest('[data-procman-excluir]');
-      if (btnExcluir) {
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-        var indiceExcluir = parseInt(btnExcluir.getAttribute('data-procman-excluir'), 10);
-        var processoExcluir = _processosManuaisCarregados[indiceExcluir];
-        if (!processoExcluir) return;
-        if (!window.confirm('Excluir o processo de ' + processoExcluir.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
-        apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processoExcluir.id })
-          .then(function () { carregarProcessosManuais(); })
-          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
-        return;
-      }
-
-      // clique fora de qualquer botao de acao -- fecha os menus abertos
-      if (!ev.target.closest('.procman-acoes-wrap')) {
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-      }
-    });
-
-    document.addEventListener('click', function (ev) {
-      if (!ev.target.closest('.procman-acoes-wrap')) {
-        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
-      }
-    });
+    // veio de "Editar" na lista de Processos (painel-processos.html) -- pre-preenche o
+    // formulario com os dados desse processo, buscando a lista pra achar pelo id.
+    var idParaEditar = new URLSearchParams(window.location.search).get('editar');
+    if (idParaEditar) {
+      apiGetJson('/api/painel?acao=processo_manual_listar')
+        .then(function (dados) {
+          var processo = (dados.processos || []).find(function (p) { return String(p.id) === String(idParaEditar); });
+          if (processo) preencherFormularioParaEdicao(processo);
+        })
+        .catch(function () { /* se falhar, o formulario so fica em branco -- usuario preenche de novo */ });
+    }
   }
 
   function wireProcessosAdministrativos() {
