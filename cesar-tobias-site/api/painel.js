@@ -431,6 +431,55 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'documento_processo_listar') {
+    var tokenSessaoDocListar = obterToken(req);
+    if (!tokenSessaoDocListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var processoIdDoc = (req.query && req.query.processo_id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=documento_processo_listar&processo_id=' + encodeURIComponent(processoIdDoc) +
+        '&token=' + encodeURIComponent(tokenSessaoDocListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar os documentos.' });
+    }
+    return;
+  }
+
+  var acoesDocumentoPost = {
+    documento_processo_upload_iniciar: 'Erro de conexao ao iniciar o envio.',
+    documento_processo_upload_chunk: 'Erro de conexao ao enviar o pedaco do arquivo.',
+    documento_processo_upload_finalizar: 'Erro de conexao ao concluir o envio.',
+    documento_processo_excluir: 'Erro de conexao ao excluir o documento.',
+  };
+  if (acoesDocumentoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoDoc = obterToken(req);
+    if (!tokenSessaoDoc) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessaoDoc) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesDocumentoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'processo_manual_criar') {
     if (req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });

@@ -2408,6 +2408,193 @@
     document.getElementById('modal-atos-processuais')._abrirParaProcesso(processo);
   }
 
+  function _fmtTamanhoArquivo(bytes) {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function _arrayBufferParaBase64Doc(buffer) {
+    var binario = '';
+    var bytes = new Uint8Array(buffer);
+    for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+    return btoa(binario);
+  }
+
+  function _garantirModalDocumentosProcesso() {
+    if (document.getElementById('modal-documentos-processo')) return;
+    var div = document.createElement('div');
+    div.innerHTML =
+      '<div id="modal-documentos-processo" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:600px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="docs-modal-titulo">Documentos</span>' +
+            '<button type="button" class="modal-drill-fechar" id="docs-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div style="padding:18px 20px; border-bottom:1px solid var(--line);">' +
+            '<div id="docs-dropzone" style="border:2px dashed var(--line); border-radius:10px; padding:22px; text-align:center; cursor:pointer; color:var(--ink-soft); font-size:13px;">' +
+              '<strong style="display:block; color:var(--ink); font-size:13.5px; margin-bottom:4px;">Arraste o arquivo aqui ou clique para escolher</strong>' +
+              '<span>PDF, Word, JPG ou PNG · máximo 10 MB</span>' +
+            '</div>' +
+            '<input type="file" id="docs-input-arquivo" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;">' +
+            '<label style="display:block; margin-top:12px;">Descrição (opcional)</label>' +
+            '<input type="text" id="docs-input-descricao" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-top:6px;">' +
+            '<div id="docs-arquivo-selecionado" style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;"></div>' +
+            '<div style="display:flex; justify-content:flex-end; margin-top:12px;">' +
+              '<button type="button" id="docs-btn-enviar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" disabled>Enviar</button>' +
+            '</div>' +
+            '<div id="docs-upload-status" style="font-size:12.5px; color:var(--ink-soft); margin-top:6px;"></div>' +
+          '</div>' +
+          '<div id="docs-modal-lista" class="modal-drill-corpo"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-documentos-processo');
+    var processoAtual = null;
+    var arquivoEscolhido = null;
+    var dropzone = document.getElementById('docs-dropzone');
+    var inputArquivo = document.getElementById('docs-input-arquivo');
+    var inputDescricao = document.getElementById('docs-input-descricao');
+    var btnEnviar = document.getElementById('docs-btn-enviar');
+    var arquivoSelecionadoEl = document.getElementById('docs-arquivo-selecionado');
+    var statusEl = document.getElementById('docs-upload-status');
+
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('docs-modal-fechar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+
+    dropzone.addEventListener('click', function () { inputArquivo.click(); });
+    dropzone.addEventListener('dragover', function (e) { e.preventDefault(); dropzone.classList.add('arrastando'); });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.remove('arrastando'); });
+    });
+    dropzone.addEventListener('drop', function (e) {
+      var arquivo = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (arquivo) escolherArquivo(arquivo);
+    });
+    inputArquivo.addEventListener('change', function () {
+      if (inputArquivo.files && inputArquivo.files[0]) escolherArquivo(inputArquivo.files[0]);
+    });
+
+    function escolherArquivo(arquivo) {
+      if (arquivo.size > 10 * 1024 * 1024) {
+        statusEl.textContent = 'Arquivo maior que 10 MB.';
+        return;
+      }
+      arquivoEscolhido = arquivo;
+      arquivoSelecionadoEl.textContent = arquivo.name + ' (' + _fmtTamanhoArquivo(arquivo.size) + ')';
+      statusEl.textContent = '';
+      btnEnviar.disabled = false;
+    }
+
+    function renderLista(documentos) {
+      var corpo = document.getElementById('docs-modal-lista');
+      if (!documentos || documentos.length === 0) {
+        corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum documento neste processo. Envie o primeiro arquivo acima.</div></div>';
+        return;
+      }
+      corpo.innerHTML = documentos.map(function (d) {
+        return '<div class="prazo-card">' +
+          '<div class="prazo-card-topo">' +
+            '<div><strong style="font-size:13.5px;">' + esc(d.nome_arquivo) + '</strong> ' +
+              '<span class="prazo-meta">' + _fmtTamanhoArquivo(d.tamanho) + '</span></div>' +
+            '<a href="' + esc(d.link) + '" target="_blank" rel="noopener" style="font-size:12.5px; color:var(--accent);">Abrir</a>' +
+          '</div>' +
+          (d.descricao ? '<div class="prazo-resumo">' + esc(d.descricao) + '</div>' : '') +
+          '<div style="margin-top:6px;"><button type="button" class="procman-acao-excluir" data-docs-excluir="' + d.id + '" style="border:none;background:none;color:var(--danger,#c0392b);font-size:12px;cursor:pointer;padding:0;">Excluir</button></div>' +
+        '</div>';
+      }).join('');
+
+      Array.prototype.forEach.call(corpo.querySelectorAll('[data-docs-excluir]'), function (btn) {
+        btn.addEventListener('click', function () {
+          if (!window.confirm('Excluir este documento?')) return;
+          var id = btn.getAttribute('data-docs-excluir');
+          apiPostJson('/api/painel?acao=documento_processo_excluir', { id: id })
+            .then(function () { carregarDocumentos(); })
+            .catch(function (e) { alert(e.message || 'Não foi possível excluir o documento agora.'); });
+        });
+      });
+    }
+
+    function carregarDocumentos() {
+      document.getElementById('docs-modal-lista').innerHTML = '<div class="empty-state"><div class="msg">Carregando…</div></div>';
+      apiGetJson('/api/painel?acao=documento_processo_listar&processo_id=' + processoAtual.id)
+        .then(function (dados) { renderLista(dados.documentos || []); })
+        .catch(function () {
+          document.getElementById('docs-modal-lista').innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os documentos agora.</div></div>';
+        });
+    }
+
+    function enviarPedacosDoc(arquivo, uploadId, tamanhoChunk) {
+      var offset = 0;
+      function proximoPedaco() {
+        if (offset >= arquivo.size) return Promise.resolve(uploadId);
+        var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
+        return pedaco.arrayBuffer().then(function (buffer) {
+          return apiPostJson('/api/painel?acao=documento_processo_upload_chunk', {
+            upload_id: uploadId, dados_base64: _arrayBufferParaBase64Doc(buffer)
+          });
+        }).then(function () {
+          offset += tamanhoChunk;
+          var pct = Math.min(100, Math.round((offset / arquivo.size) * 100));
+          statusEl.textContent = pct + '% enviado';
+          return proximoPedaco();
+        });
+      }
+      return proximoPedaco();
+    }
+
+    btnEnviar.addEventListener('click', function () {
+      if (!arquivoEscolhido) return;
+      btnEnviar.disabled = true;
+      statusEl.textContent = 'Iniciando…';
+      var arquivo = arquivoEscolhido;
+      apiPostJson('/api/painel?acao=documento_processo_upload_iniciar', {
+        processo_id: processoAtual.id, nome_arquivo: arquivo.name,
+        mimetype: arquivo.type || 'application/octet-stream', tamanho_total: arquivo.size,
+        descricao: inputDescricao.value.trim(),
+      })
+        .then(function (dados) { return enviarPedacosDoc(arquivo, dados.upload_id, dados.tamanho_chunk); })
+        .then(function (uploadId) {
+          statusEl.textContent = 'Concluindo…';
+          return apiPostJson('/api/painel?acao=documento_processo_upload_finalizar', { upload_id: uploadId });
+        })
+        .then(function () {
+          statusEl.textContent = '';
+          arquivoEscolhido = null;
+          arquivoSelecionadoEl.textContent = '';
+          inputDescricao.value = '';
+          inputArquivo.value = '';
+          btnEnviar.disabled = true;
+          carregarDocumentos();
+        })
+        .catch(function (e) {
+          btnEnviar.disabled = false;
+          statusEl.textContent = 'Não foi possível enviar: ' + (e.message || 'erro desconhecido');
+        });
+    });
+
+    overlay._abrirParaProcesso = function (processo) {
+      processoAtual = processo;
+      arquivoEscolhido = null;
+      arquivoSelecionadoEl.textContent = '';
+      inputDescricao.value = '';
+      inputArquivo.value = '';
+      btnEnviar.disabled = true;
+      statusEl.textContent = '';
+      document.getElementById('docs-modal-titulo').textContent = 'Documentos — ' + (processo.numero_cnj || processo.cliente_nome);
+      overlay.classList.remove('hidden');
+      carregarDocumentos();
+    };
+  }
+
+  function abrirModalDocumentosProcesso(processo) {
+    _garantirModalDocumentosProcesso();
+    document.getElementById('modal-documentos-processo')._abrirParaProcesso(processo);
+  }
+
   function _chipStatusProcesso(status) {
     if (status === 'Finalizado') return 'good';
     if (status === 'Suspenso') return 'warn';
@@ -2437,6 +2624,7 @@
               '<td style="text-align:right; white-space:nowrap;">' +
                 '<button type="button" class="btn-editar" data-procman-editar="' + indice + '">Editar</button> ' +
                 '<button type="button" class="btn-editar" data-procman-atos="' + indice + '">Atos processuais</button> ' +
+                '<button type="button" class="btn-editar" data-procman-docs="' + indice + '">Documentos</button> ' +
                 '<span class="procman-acoes-wrap">' +
                   '<button type="button" class="btn-editar" data-procman-mais="' + indice + '" aria-label="Mais opções">⋮</button>' +
                   '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
@@ -2703,6 +2891,14 @@
         var indiceAtos = parseInt(btnAtos.getAttribute('data-procman-atos'), 10);
         var processoAtos = _processosManuaisCarregados[indiceAtos];
         if (processoAtos) abrirModalAtosProcessuais(processoAtos);
+        return;
+      }
+
+      var btnDocs = ev.target.closest('[data-procman-docs]');
+      if (btnDocs) {
+        var indiceDocs = parseInt(btnDocs.getAttribute('data-procman-docs'), 10);
+        var processoDocs = _processosManuaisCarregados[indiceDocs];
+        if (processoDocs) abrirModalDocumentosProcesso(processoDocs);
         return;
       }
 
