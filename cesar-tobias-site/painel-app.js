@@ -1144,7 +1144,7 @@
             '</div>' +
             '<div class="procman-linha">' +
               '<div><label>Grau</label><select id="procman-grau"><option value="">Selecione...</option><option>1º Grau</option><option>2º Grau</option><option>Tribunal Superior</option></select></div>' +
-              '<div><label>Status</label><select id="procman-status"><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option></select></div>' +
+              '<div><label>Status</label><select id="procman-status"><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option><option>Arquivado</option></select></div>' +
             '</div>' +
 
             '<p class="section-label" style="margin:18px 0 8px;">Cliente vinculado</p>' +
@@ -2247,24 +2247,46 @@
     return partes[2].slice(0, 2) + '/' + MESES_ABREV[parseInt(partes[1], 10) - 1] + '/' + partes[0];
   }
 
+  var _processosManuaisCarregados = [];
+
+  function _chipStatusProcesso(status) {
+    if (status === 'Finalizado') return 'good';
+    if (status === 'Suspenso') return 'warn';
+    if (status === 'Arquivado') return 'neutral';
+    return 'neutral';
+  }
+
   function carregarProcessosManuais() {
     var lista = document.getElementById('procman-lista');
     if (!lista) return;
     apiGetJson('/api/painel?acao=processo_manual_listar')
       .then(function (dados) {
         var processos = dados.processos || [];
+        _processosManuaisCarregados = processos;
         if (processos.length === 0) {
           lista.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo cadastrado manualmente ainda.</div></div>';
           return;
         }
         lista.innerHTML = '<div class="table-scroll"><table><thead><tr>' +
-          '<th>Cliente</th><th>Número CNJ</th><th>Tribunal</th><th>Status</th><th>Cadastrado em</th>' +
+          '<th>Cliente</th><th>Número CNJ</th><th>Tribunal</th><th>Status</th><th>Cadastrado em</th><th></th>' +
           '</tr></thead><tbody>' +
-          processos.map(function (p) {
+          processos.map(function (p, indice) {
             return '<tr><td>' + esc(p.cliente_nome) + '</td><td>' + esc(p.numero_cnj || '—') + '</td>' +
               '<td>' + esc(p.tribunal || '—') + '</td>' +
-              '<td><span class="chip ' + (p.status === 'Finalizado' ? 'good' : p.status === 'Suspenso' ? 'warn' : 'neutral') + '">' + esc(p.status || '—') + '</span></td>' +
-              '<td>' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td></tr>';
+              '<td><span class="chip ' + _chipStatusProcesso(p.status) + '">' + esc(p.status || '—') + '</span></td>' +
+              '<td>' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
+              '<td style="text-align:right; white-space:nowrap;">' +
+                '<button type="button" class="btn-editar" data-procman-editar="' + indice + '">Editar</button> ' +
+                '<span class="procman-acoes-wrap">' +
+                  '<button type="button" class="btn-editar" data-procman-mais="' + indice + '" aria-label="Mais opções">⋮</button>' +
+                  '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
+                    '<button type="button" data-procman-editar="' + indice + '">Editar</button>' +
+                    '<button type="button" data-procman-status-acao="Finalizado" data-procman-indice="' + indice + '">Encerrar</button>' +
+                    '<button type="button" data-procman-status-acao="Arquivado" data-procman-indice="' + indice + '">Arquivar</button>' +
+                    '<button type="button" class="procman-acao-excluir" data-procman-excluir="' + indice + '">Excluir</button>' +
+                  '</div>' +
+                '</span>' +
+              '</td></tr>';
           }).join('') +
           '</tbody></table></div>';
       })
@@ -2377,6 +2399,8 @@
     var btnSalvar = document.getElementById('procman-btn-salvar');
     if (!btnSalvar) return;
 
+    var processoEditandoId = null;
+
     var datalistProcMan = document.getElementById('procman-clientes-lista');
     apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
@@ -2387,6 +2411,61 @@
       .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
 
     carregarProcessosManuais();
+
+    function limparFormulario() {
+      ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao', 'procman-tribunal',
+        'procman-comarca', 'procman-cliente', 'procman-fase', 'procman-valor-causa',
+        'procman-data-distribuicao', 'procman-data-encerramento', 'procman-advogado',
+        'procman-prioridade', 'procman-obs'].forEach(function (id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('procman-grau').value = '';
+      document.getElementById('procman-status').value = 'Em andamento';
+      document.getElementById('procman-risco').value = '';
+      document.getElementById('procman-sigilo').value = '';
+      processoEditandoId = null;
+      btnSalvar.textContent = 'Salvar processo';
+      var btnCancelar = document.getElementById('procman-btn-cancelar-edicao');
+      if (btnCancelar) btnCancelar.remove();
+    }
+
+    function preencherFormularioParaEdicao(p) {
+      document.getElementById('procman-numero-cnj').value = p.numero_cnj || '';
+      document.getElementById('procman-classe').value = p.classe_processual || '';
+      document.getElementById('procman-area').value = p.area_direito || '';
+      document.getElementById('procman-orgao').value = p.orgao_julgador || '';
+      document.getElementById('procman-tribunal').value = p.tribunal || '';
+      document.getElementById('procman-comarca').value = p.comarca || '';
+      document.getElementById('procman-grau').value = p.grau || '';
+      document.getElementById('procman-status').value = p.status || 'Em andamento';
+      document.getElementById('procman-cliente').value = p.cliente_nome || '';
+      document.getElementById('procman-fase').value = p.fase_processual || '';
+      document.getElementById('procman-valor-causa').value = p.valor_causa != null ? String(p.valor_causa).replace('.', ',') : '';
+      document.getElementById('procman-data-distribuicao').value = p.data_distribuicao || '';
+      document.getElementById('procman-data-encerramento').value = p.data_encerramento || '';
+      document.getElementById('procman-advogado').value = p.advogado_responsavel || '';
+      document.getElementById('procman-prioridade').value = p.prioridade_legal || '';
+      document.getElementById('procman-risco').value = p.risco_processo || '';
+      document.getElementById('procman-sigilo').value = p.nivel_sigilo || '';
+      document.getElementById('procman-obs').value = p.observacoes_internas || '';
+
+      processoEditandoId = p.id;
+      btnSalvar.textContent = 'Salvar alterações';
+      if (!document.getElementById('procman-btn-cancelar-edicao')) {
+        var btnCancelar = document.createElement('button');
+        btnCancelar.type = 'button';
+        btnCancelar.id = 'procman-btn-cancelar-edicao';
+        btnCancelar.textContent = 'Cancelar edição';
+        btnCancelar.style.cssText = 'margin-left:8px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;';
+        btnCancelar.addEventListener('click', function () {
+          var erroDiv = document.getElementById('procman-erro');
+          erroDiv.innerHTML = '';
+          limparFormulario();
+        });
+        btnSalvar.parentNode.appendChild(btnCancelar);
+      }
+      btnSalvar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 
     btnSalvar.addEventListener('click', function () {
       var erroDiv = document.getElementById('procman-erro');
@@ -2418,27 +2497,83 @@
         observacoes_internas: document.getElementById('procman-obs').value.trim(),
       };
 
-      btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...';
-      apiPostJson('/api/painel?acao=processo_manual_criar', corpo)
+      var estaEditando = !!processoEditandoId;
+      if (estaEditando) corpo.id = processoEditandoId;
+      var acao = estaEditando ? 'processo_manual_atualizar' : 'processo_manual_criar';
+      var textoSalvando = estaEditando ? 'Salvando alterações...' : 'Salvando...';
+
+      btnSalvar.disabled = true; btnSalvar.textContent = textoSalvando;
+      apiPostJson('/api/painel?acao=' + acao, corpo)
         .then(function () {
-          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar processo';
-          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">Processo salvo com sucesso.</div>';
-          ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao', 'procman-tribunal',
-            'procman-comarca', 'procman-cliente', 'procman-fase', 'procman-valor-causa',
-            'procman-data-distribuicao', 'procman-data-encerramento', 'procman-advogado',
-            'procman-prioridade', 'procman-obs'].forEach(function (id) {
-            document.getElementById(id).value = '';
-          });
-          document.getElementById('procman-grau').value = '';
-          document.getElementById('procman-status').value = 'Em andamento';
-          document.getElementById('procman-risco').value = '';
-          document.getElementById('procman-sigilo').value = '';
+          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft);color:var(--good);">' +
+            (estaEditando ? 'Alterações salvas com sucesso.' : 'Processo salvo com sucesso.') + '</div>';
+          btnSalvar.disabled = false;
+          limparFormulario();
           carregarProcessosManuais();
         })
         .catch(function (e) {
-          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar processo';
-          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o processo agora.') + '</div>';
+          btnSalvar.disabled = false; btnSalvar.textContent = estaEditando ? 'Salvar alterações' : 'Salvar processo';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
         });
+    });
+
+    // acoes da lista (editar / mais opcoes / encerrar / arquivar / excluir) -- delegacao de
+    // evento no container, porque a tabela e recriada a cada carregarProcessosManuais()
+    document.getElementById('procman-lista').addEventListener('click', function (ev) {
+      var btnMais = ev.target.closest('[data-procman-mais]');
+      if (btnMais) {
+        var menuAlvo = document.querySelector('[data-procman-menu="' + btnMais.getAttribute('data-procman-mais') + '"]');
+        var jaAberto = !menuAlvo.classList.contains('hidden');
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        if (!jaAberto) menuAlvo.classList.remove('hidden');
+        return;
+      }
+
+      var btnEditar = ev.target.closest('[data-procman-editar]');
+      if (btnEditar) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        var indice = parseInt(btnEditar.getAttribute('data-procman-editar'), 10);
+        var processo = _processosManuaisCarregados[indice];
+        if (processo) preencherFormularioParaEdicao(processo);
+        return;
+      }
+
+      var btnStatus = ev.target.closest('[data-procman-status-acao]');
+      if (btnStatus) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        var indiceStatus = parseInt(btnStatus.getAttribute('data-procman-indice'), 10);
+        var processoStatus = _processosManuaisCarregados[indiceStatus];
+        var novoStatus = btnStatus.getAttribute('data-procman-status-acao');
+        if (!processoStatus) return;
+        apiPostJson('/api/painel?acao=processo_manual_status', { id: processoStatus.id, status: novoStatus })
+          .then(function () { carregarProcessosManuais(); })
+          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        return;
+      }
+
+      var btnExcluir = ev.target.closest('[data-procman-excluir]');
+      if (btnExcluir) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        var indiceExcluir = parseInt(btnExcluir.getAttribute('data-procman-excluir'), 10);
+        var processoExcluir = _processosManuaisCarregados[indiceExcluir];
+        if (!processoExcluir) return;
+        if (!window.confirm('Excluir o processo de ' + processoExcluir.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
+        apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processoExcluir.id })
+          .then(function () { carregarProcessosManuais(); })
+          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        return;
+      }
+
+      // clique fora de qualquer botao de acao -- fecha os menus abertos
+      if (!ev.target.closest('.procman-acoes-wrap')) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+      }
+    });
+
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('.procman-acoes-wrap')) {
+        document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+      }
     });
   }
 

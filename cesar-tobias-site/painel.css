@@ -599,6 +599,20 @@
     font-size: 13.5px; background: var(--bg); color: var(--ink); font-family: inherit;
   }
 
+  .procman-acoes-wrap { position: relative; display: inline-block; }
+  .procman-acoes-menu {
+    position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; min-width: 150px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.14); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .procman-acoes-menu button {
+    text-align: left; padding: 7px 10px; border: none; background: none; border-radius: 6px;
+    font-size: 13px; color: var(--ink); cursor: pointer; font-family: inherit;
+  }
+  .procman-acoes-menu button:hover { background: var(--surface-sunken); }
+  .procman-acoes-menu button.procman-acao-excluir { color: var(--crit); }
+  .procman-acoes-menu button.procman-acao-excluir:hover { background: var(--crit-soft); }
+
   .hidden { display: none !important; }
   @media (max-width: 640px) {
     .stat-grid { flex-direction: column; }

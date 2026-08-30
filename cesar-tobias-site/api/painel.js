@@ -388,6 +388,75 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'processo_manual_atualizar') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoProcAtualizar = obterToken(req);
+    if (!tokenSessaoProcAtualizar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_atualizar&token=' + encodeURIComponent(tokenSessaoProcAtualizar) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao salvar as alteracoes.' });
+    }
+    return;
+  }
+
+  if (acao === 'processo_manual_status') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoProcStatus = obterToken(req);
+    if (!tokenSessaoProcStatus) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_status&token=' + encodeURIComponent(tokenSessaoProcStatus) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao atualizar o status.' });
+    }
+    return;
+  }
+
+  if (acao === 'processo_manual_excluir') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoProcExcluir = obterToken(req);
+    if (!tokenSessaoProcExcluir) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=processo_manual_excluir&token=' + encodeURIComponent(tokenSessaoProcExcluir) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao excluir o processo.' });
+    }
+    return;
+  }
+
   if (acao === 'processos_administrativos') {
     var opProcAdm = (req.query && req.query.op) || corpo.op || '';
     if (opProcAdm !== 'listar' && req.method !== 'POST') {
