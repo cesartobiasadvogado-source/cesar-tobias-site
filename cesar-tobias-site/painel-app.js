@@ -59,6 +59,7 @@
 
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
+    importar_oab: 'Importar pela OAB',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Administração',
   };
@@ -771,7 +772,7 @@
           '<p class="inicio-banner-sub">Traga sua carteira ou cadastre um caso — a partir daí a plataforma passa a acompanhar prazos, audiências e pendências financeiras automaticamente.</p>' +
 
           '<div class="inicio-tiles">' +
-            '<a class="inicio-tile inicio-tile--recomendado" href="painel-processos.html#sec-processos">' +
+            '<a class="inicio-tile inicio-tile--recomendado" href="painel-importar-oab.html#sec-importar-oab">' +
               '<div class="inicio-tile-topo">' +
                 '<span class="inicio-tile-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg></span>' +
                 '<span class="inicio-tile-badge">Recomendado</span>' +
@@ -1097,13 +1098,8 @@
           '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
 
-    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
-      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
-          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
-
-        '<div class="panel" style="margin-top:16px;">' +
+    var htmlPainelImportarOab =
+        '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Importar pela OAB</span></div>' +
           '<div style="padding:16px 20px;">' +
             '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
@@ -1118,6 +1114,17 @@
             '</div>' +
             '<div id="procoab-resultado"></div>' +
           '</div>' +
+        '</div>';
+
+    var htmlImportarOab = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-importar-oab"><p class="section-label">Importar pela OAB</p>' +
+        htmlPainelImportarOab +
+      '</section>';
+
+    var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-processos"><p class="section-label">Ficha de processos</p>' +
+        '<div class="panel"><div class="panel-header"><span class="panel-title">Processos acompanhados</span></div>' +
+          '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
 
         '<div class="panel" style="margin-top:16px;">' +
@@ -1602,6 +1609,7 @@
       pje: htmlPje,
       clientes: htmlClientes,
       processos: htmlProcessos + htmlProcessoAdministrativo,
+      importar_oab: htmlImportarOab,
       agenda: htmlAgenda,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
@@ -1610,6 +1618,7 @@
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
+      importar_oab: 'processos',
       agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null,
     };
@@ -1645,7 +1654,8 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); wireImportarOab(dados); }
+    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessoManual(); }
+    if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
