@@ -2692,6 +2692,10 @@
     return 'neutral';
   }
 
+  function _numeroCnjValidoParaDatajud(numero) {
+    return ((numero || '').replace(/\D/g, '').length === 20);
+  }
+
   var _processosManuaisTodos = [];
 
   function _passaNosFiltrosProcesso(p, f) {
@@ -2724,15 +2728,16 @@
       '<th>Processo</th><th>Monitoramento</th><th>Status</th><th>Cadastrado em</th><th></th>' +
       '</tr></thead><tbody>' +
       processos.map(function (p, indice) {
-        var monitorado = p.origem === 'oab';
+        var monitorado = _numeroCnjValidoParaDatajud(p.numero_cnj) && !!p.tribunal;
+        var importadoOab = p.origem === 'oab';
         return '<tr>' +
           '<td>' +
             '<button type="button" class="procpage-numero-link" data-procpage-abrir="' + indice + '">' + esc(p.numero_cnj || 'Sem número') + '</button>' +
             '<div class="procpage-sub">' + esc(p.cliente_nome) + (p.tribunal ? ' · ' + esc(p.tribunal) : '') +
-              '<span class="procpage-tag">' + (monitorado ? 'Importado (OAB)' : 'Manual') + '</span></div>' +
+              '<span class="procpage-tag">' + (importadoOab ? 'Importado (OAB)' : 'Manual') + '</span></div>' +
           '</td>' +
           '<td><span class="chip ' + (monitorado ? 'good' : 'neutral') + '" title="' +
-            (monitorado ? 'Este processo apareceu na busca automática por OAB — entra na verificação diária de novas movimentações.' : 'Cadastrado manualmente, sem vínculo confirmado com a OAB monitorada — a API do CNJ só permite monitorar por OAB, não por número de processo.') +
+            (monitorado ? 'Número e tribunal reconhecidos — entra na sincronização diária de movimentações via DataJud (base pública do CNJ).' : 'Preencha o número do processo (formato completo) e o tribunal pra habilitar a sincronização automática via DataJud.') +
             '">' + (monitorado ? 'Monitorado automaticamente' : 'Sem monitoramento automático') + '</span></td>' +
           '<td><span class="chip ' + _chipStatusProcesso(p.status) + '">' + esc(p.status || '—') + '</span></td>' +
           '<td style="color:#8293b5;">' + fmtDataProcesso(String(p.criado_em || '').slice(0, 10)) + '</td>' +
@@ -2820,12 +2825,13 @@
               _campoFicha('Status', p.status) +
             '</div>' +
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Monitoramento</p>' +
-            '<p class="procficha-painel-sub">' + (p.origem === 'oab'
-              ? 'Este processo apareceu na busca automática por OAB — entra na verificação diária de novas comunicações do PJe (intimações, citações).'
-              : 'Cadastrado manualmente, sem monitoramento automático — a API do CNJ só permite monitorar por número de OAB, não por número de processo. Se este processo for seu, ele passa a ser monitorado ao aparecer numa busca por OAB.') +
+            '<p class="procficha-painel-sub">' + (_numeroCnjValidoParaDatajud(p.numero_cnj) && p.tribunal
+              ? 'Número e tribunal reconhecidos — as movimentações são sincronizadas automaticamente todo dia via DataJud (base pública do CNJ). Pode levar de horas a dias pra uma movimentação nova aparecer, dependendo do tribunal.'
+              : 'Preencha o número completo do processo (formato CNJ) e o tribunal em "Dados do processo" pra habilitar a sincronização automática de movimentações via DataJud.') +
+            (p.origem === 'oab' ? ' Este processo também apareceu numa busca automática por OAB.' : '') +
             '</p>' +
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Últimas movimentações</p>' +
-            '<p class="procficha-painel-sub">Sincronização automática de tribunal ainda não disponível — registre atos processuais pra manter o histórico do escritório.</p>' +
+            '<p class="procficha-painel-sub">Movimentações do tribunal são sincronizadas automaticamente (DataJud/CNJ) quando o número do processo é reconhecido pela base pública — pode levar de algumas horas a alguns dias pra aparecer. Registre atos processuais pra completar com o histórico do escritório.</p>' +
             '<div id="procficha-geral-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
 
@@ -2885,7 +2891,7 @@
 
           '<div class="procficha-painel hidden" data-procficha-painel="andamentos">' +
             '<p class="procficha-painel-titulo">Andamentos</p>' +
-            '<p class="procficha-painel-sub">Atos processuais registrados manualmente pelo escritório ou pelo tribunal.</p>' +
+            '<p class="procficha-painel-sub">Atos registrados pelo escritório e movimentações sincronizadas automaticamente do tribunal via DataJud/CNJ.</p>' +
             '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-ato">+ Novo ato</button></div>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
