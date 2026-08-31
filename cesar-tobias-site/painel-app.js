@@ -1227,7 +1227,12 @@
 
     var htmlClientes = perms.indexOf('clientes') === -1 ? '' :
       '<section id="sec-clientes"><p class="section-label">Clientes</p>' +
-        '<div class="panel"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Clientes cadastrados</span></div>' +
+          '<div style="padding:14px 20px 4px;"><a href="painel-novo-cliente.html#sec-novo-cliente" class="procpage-btn procpage-btn-primary" style="display:inline-block; text-decoration:none;">+ Novo cliente</a></div>' +
+          '<div id="clientes-cadastrados-lista" style="padding:6px 20px 18px;"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:14px;"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
           '<input type="text" id="clientes-busca" class="input-flush" placeholder="Buscar cliente pelo nome...">' +
           '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div></section>';
@@ -2239,7 +2244,7 @@
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
     if (PAGINA_ATUAL === 'prazos') { wireListaPrazos(); }
-    if (PAGINA_ATUAL === 'clientes') carregarClientes();
+    if (PAGINA_ATUAL === 'clientes') { carregarClientes(); carregarClientesCadastrados(); }
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
     if (PAGINA_ATUAL === 'inicio') {
@@ -2794,6 +2799,30 @@
     }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
 
     mapa.forEach(function (m) { observer.observe(m.alvo); });
+  }
+
+  function carregarClientesCadastrados() {
+    var container = document.getElementById('clientes-cadastrados-lista');
+    if (!container) return;
+    apiGetJson('/api/painel?acao=cliente_cadastro_listar')
+      .then(function (dados) {
+        var lista = dados.clientes || [];
+        if (lista.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente cadastrado ainda. Use "+ Novo cliente" pra adicionar.</div></div>';
+          return;
+        }
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:640px;">' +
+          '<thead><tr><th>Nome</th><th>Tipo</th><th>Telefone</th><th>E-mail</th><th>Etiquetas</th><th>Ações</th></tr></thead>' +
+          '<tbody>' + lista.map(function (c) {
+            return '<tr><td>' + esc(c.nome) + '</td><td>' + esc(c.tipo || '—') + '</td>' +
+              '<td>' + esc(c.telefone || '—') + '</td><td>' + esc(c.email || '—') + '</td>' +
+              '<td>' + (c.etiquetas && c.etiquetas.length ? c.etiquetas.map(function (e) { return '<span class="chip neutral">' + esc(e) + '</span>'; }).join(' ') : '—') + '</td>' +
+              '<td><a href="painel-novo-cliente.html?cliente=' + c.id + '#sec-novo-cliente" class="btn-conexao-secundario" style="display:inline-block; text-decoration:none;">Editar</a></td></tr>';
+          }).join('') + '</tbody></table></div>';
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes cadastrados.</div></div>';
+      });
   }
 
   var clientesCarregados = [];
@@ -5309,9 +5338,60 @@
       });
     }
 
+    var clienteIdEdicao = new URLSearchParams(window.location.search).get('cliente');
+
     apiGetJson('/api/painel?acao=etiqueta_listar')
-      .then(function (dados) { etiquetasCatalogo = dados.etiquetas || []; })
-      .catch(function () { /* dropdown so fica vazio se falhar */ });
+      .then(function (dados) {
+        etiquetasCatalogo = dados.etiquetas || [];
+        if (clienteIdEdicao) preencherParaEdicao(clienteIdEdicao);
+      })
+      .catch(function () {
+        /* dropdown so fica vazio se falhar */
+        if (clienteIdEdicao) preencherParaEdicao(clienteIdEdicao);
+      });
+
+    function preencherParaEdicao(id) {
+      var titulo = document.getElementById('cliente-form-titulo');
+      if (titulo) titulo.textContent = 'Editar cliente';
+      btnSalvar.textContent = 'Salvar alterações';
+      apiGetJson('/api/painel?acao=cliente_cadastro_obter&id=' + id)
+        .then(function (c) {
+          document.getElementById('cliente-tipo').value = c.tipo || 'Pessoa Física';
+          document.getElementById('cliente-tipo').dispatchEvent(new Event('change'));
+          document.getElementById('cliente-nome').value = c.nome || '';
+          document.getElementById('cliente-cpf-cnpj').value = c.cpf_cnpj || '';
+          document.getElementById('cliente-email').value = c.email || '';
+          document.getElementById('cliente-telefone').value = c.telefone || '';
+          document.getElementById('cliente-cep').value = c.cep || '';
+          document.getElementById('cliente-logradouro').value = c.logradouro || '';
+          document.getElementById('cliente-numero').value = c.numero || '';
+          document.getElementById('cliente-complemento').value = c.complemento || '';
+          document.getElementById('cliente-bairro').value = c.bairro || '';
+          document.getElementById('cliente-cidade').value = c.cidade || '';
+          document.getElementById('cliente-uf').value = c.uf || '';
+          document.getElementById('cliente-observacoes').value = c.observacoes || '';
+          (c.etiquetas || []).forEach(function (nomeEt) {
+            var et = etiquetasCatalogo.find(function (e) { return e.nome === nomeEt; });
+            if (et && etiquetasSelecionadasIds.indexOf(et.id) === -1) etiquetasSelecionadasIds.push(et.id);
+          });
+          renderEtiquetasSelecionadas();
+          renderProgressoCliente();
+          if (c.tem_foto) {
+            apiGet('/api/painel?acao=cliente_foto_obter&cliente_id=' + id)
+              .then(function (r) { return r.ok ? r.blob() : null; })
+              .then(function (blob) {
+                if (!blob) return;
+                document.getElementById('cliente-foto-preview').innerHTML =
+                  '<img src="' + URL.createObjectURL(blob) + '" style="width:100%;height:100%;object-fit:cover;">';
+              })
+              .catch(function () { /* preview so ajuda, nao bloqueia edicao se falhar */ });
+          }
+        })
+        .catch(function (e) {
+          document.getElementById('cliente-form-erro').innerHTML =
+            '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível carregar os dados desse cliente.') + '</div>';
+        });
+    }
 
     document.getElementById('cliente-btn-add-etiqueta').addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -5373,11 +5453,21 @@
         observacoes: document.getElementById('cliente-observacoes').value.trim(),
       };
 
+      var textoOriginalBtn = btnSalvar.textContent;
       btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...';
 
-      apiPostJson('/api/painel?acao=cliente_cadastro_criar', corpo)
+      var acaoSalvar, corpoSalvar;
+      if (clienteIdEdicao) {
+        acaoSalvar = 'cliente_cadastro_atualizar';
+        corpoSalvar = Object.assign({ id: clienteIdEdicao }, corpo);
+      } else {
+        acaoSalvar = 'cliente_cadastro_criar';
+        corpoSalvar = corpo;
+      }
+
+      apiPostJson('/api/painel?acao=' + acaoSalvar, corpoSalvar)
         .then(function (resultado) {
-          var clienteId = resultado.id;
+          var clienteId = clienteIdEdicao || resultado.id;
           var pendentes = [];
           if (fotoArquivoSelecionado) {
             pendentes.push(fotoArquivoSelecionado.arrayBuffer().then(function (buffer) {
@@ -5388,7 +5478,9 @@
               });
             }));
           }
-          if (etiquetasSelecionadasIds.length > 0) {
+          // ao editar, manda sempre (mesmo lista vazia) pra remover etiqueta tirada;
+          // ao criar, so manda se tiver alguma (evita chamada a toa na maioria dos casos).
+          if (clienteIdEdicao || etiquetasSelecionadasIds.length > 0) {
             pendentes.push(apiPostJson('/api/painel?acao=cliente_etiquetas_definir', {
               cliente_id: clienteId, etiqueta_ids: etiquetasSelecionadasIds,
             }));
@@ -5399,7 +5491,7 @@
           window.location.href = 'painel-clientes.html#sec-clientes';
         })
         .catch(function (e) {
-          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar cliente';
+          btnSalvar.disabled = false; btnSalvar.textContent = textoOriginalBtn;
           erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
         });
     });
