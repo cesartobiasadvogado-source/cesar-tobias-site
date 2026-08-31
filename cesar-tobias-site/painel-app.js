@@ -291,30 +291,6 @@
     });
   }
 
-  function wireAvisoRapido() {
-    var btn = document.getElementById('hdr-aviso-novo-btn');
-    var input = document.getElementById('hdr-aviso-novo-input');
-    if (!btn || !input || btn._avisoRapidoWired) return;
-    btn._avisoRapidoWired = true;
-    function postar() {
-      var mensagem = input.value.trim();
-      if (!mensagem) return;
-      btn.disabled = true;
-      apiPostJson('/api/painel?acao=aviso_criar', { mensagem: mensagem, ativo: true })
-        .then(function () {
-          btn.disabled = false;
-          input.value = '';
-          carregarAvisosHeader();
-        })
-        .catch(function (e) {
-          btn.disabled = false;
-          alert(e.message || 'Não foi possível postar o aviso agora.');
-        });
-    }
-    btn.addEventListener('click', postar);
-    input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') postar(); });
-  }
-
   function _prazoEstaVencendoEmBreve(p) {
     if (p.status === 'vencido') return true;
     if (p.status !== 'pendente') return false;
@@ -324,7 +300,6 @@
   }
 
   function carregarAvisosHeader() {
-    wireAvisoRapido();
     Promise.all([
       apiGetJson('/api/painel?acao=avisos_listar&apenas_ativos=true').catch(function () { return { avisos: [] }; }),
       apiGetJson('/api/painel?acao=prazo_listar').catch(function () { return { prazos: [] }; }),
