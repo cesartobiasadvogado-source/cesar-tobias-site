@@ -2817,8 +2817,22 @@
             return '<tr><td>' + esc(c.nome) + '</td><td>' + esc(c.tipo || '—') + '</td>' +
               '<td>' + esc(c.telefone || '—') + '</td><td>' + esc(c.email || '—') + '</td>' +
               '<td>' + (c.etiquetas && c.etiquetas.length ? c.etiquetas.map(function (e) { return '<span class="chip neutral">' + esc(e) + '</span>'; }).join(' ') : '—') + '</td>' +
-              '<td><a href="painel-novo-cliente.html?cliente=' + c.id + '#sec-novo-cliente" class="btn-conexao-secundario" style="display:inline-block; text-decoration:none;">Editar</a></td></tr>';
+              '<td><a href="painel-novo-cliente.html?cliente=' + c.id + '#sec-novo-cliente" class="btn-conexao-secundario" style="display:inline-block; text-decoration:none;">Editar</a> ' +
+                '<button type="button" class="btn-remover" data-excluir-cliente-cadastrado="' + c.id + '" data-nome-cliente="' + esc(c.nome) + '">Excluir</button></td></tr>';
           }).join('') + '</tbody></table></div>';
+        container.querySelectorAll('[data-excluir-cliente-cadastrado]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var nome = btn.getAttribute('data-nome-cliente');
+            if (!confirm('Excluir o cadastro de ' + nome + '? Essa ação não pode ser desfeita.')) return;
+            btn.disabled = true;
+            apiPostJson('/api/painel?acao=cliente_cadastro_excluir', { id: btn.getAttribute('data-excluir-cliente-cadastrado') })
+              .then(carregarClientesCadastrados)
+              .catch(function (e) {
+                btn.disabled = false;
+                alert(e.message || 'Não foi possível excluir o cliente agora.');
+              });
+          });
+        });
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes cadastrados.</div></div>';
