@@ -557,21 +557,6 @@
     return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
-  function animarContagem(el, valorFinal) {
-    if (!el) return;
-    if (reduzMotion()) { el.textContent = 'R$ ' + fmtMoeda(valorFinal); return; }
-    var duracao = 900;
-    var inicio = null;
-    function passo(ts) {
-      if (inicio === null) inicio = ts;
-      var progresso = Math.min((ts - inicio) / duracao, 1);
-      var facilitado = 1 - Math.pow(1 - progresso, 3); // ease-out cubic
-      el.textContent = 'R$ ' + fmtMoeda(valorFinal * facilitado);
-      if (progresso < 1) requestAnimationFrame(passo);
-    }
-    requestAnimationFrame(passo);
-  }
-
   var STATUS_PARCELA_CONFIG = [
     { chave: 'Vencida', rotulo: 'Vencidas', cor: '#f0616c' },
     { chave: 'Vence hoje', rotulo: 'Vencendo hoje', cor: '#f0a94e' },
@@ -625,99 +610,68 @@
     var wrap = document.getElementById('grafico-financeiro-svg');
     if (!wrap) return;
     var tooltipHtml = '<div class="fluxo-tooltip" id="grafico-tooltip"></div>';
-    var totalRecebido = somaRecebido(evolucaoFiltrada);
-    var totalAReceber = evolucaoFiltrada.reduce(function (acc, m) { return acc + m.a_receber; }, 0);
     if (!evolucaoFiltrada.length) {
       wrap.innerHTML = '<div class="fluxo-vazio">Sem movimentação financeira registrada ainda.</div>' + tooltipHtml;
       return;
     }
-    var W = 900, H = 220;
-    var orbeRaio = 38, orbeEsqX = 70, orbeDirX = W - 70, orbeY = 88;
-    var linhaEsqX = orbeEsqX + orbeRaio + 22, linhaDirX = orbeDirX - orbeRaio - 22;
-    var larguraUtil = linhaDirX - linhaEsqX;
-    var n = evolucaoFiltrada.length;
-    var passoX = n > 1 ? larguraUtil / (n - 1) : 0;
 
-    var maxRecebido = Math.max.apply(null, evolucaoFiltrada.map(function (m) { return m.recebido; }).concat([0.01]));
-    var maxAReceber = Math.max.apply(null, evolucaoFiltrada.map(function (m) { return m.a_receber; }).concat([0.01]));
+    var maxValor = Math.max.apply(null, evolucaoFiltrada.map(function (m) { return Math.max(m.recebido, m.vencido || 0); }).concat([0.01]));
+    var mesAtualChave = new Date().toISOString().slice(0, 7);
+    var ticks = [1, 0.75, 0.5, 0.25, 0].map(function (f) { return f * maxValor; });
 
-    var animado = !reduzMotion();
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fluxo de recebimentos por mês">';
-    svg += '<defs>' +
-      '<radialGradient id="fluxoOrbeAReceber" cx="35%" cy="30%" r="75%">' +
-        '<stop offset="0%" stop-color="#f0a94e" stop-opacity="0.95" />' +
-        '<stop offset="100%" stop-color="#c9822f" stop-opacity="0.35" />' +
-      '</radialGradient>' +
-      '<radialGradient id="fluxoOrbeRecebido" cx="35%" cy="30%" r="75%">' +
-        '<stop offset="0%" stop-color="#8fa6f7" stop-opacity="0.98" />' +
-        '<stop offset="100%" stop-color="#3b56c4" stop-opacity="0.4" />' +
-      '</radialGradient>' +
-    '</defs>';
-
-    // linha do tempo, se desenhando da esquerda pra direita
-    svg += '<line class="fluxo-linha' + (animado ? ' fluxo-linha-anim' : '') + '" x1="' + linhaEsqX + '" y1="' + orbeY + '" x2="' + linhaDirX + '" y2="' + orbeY + '" />';
-
-    // orbe "A Receber" (esquerda)
-    svg += '<circle cx="' + orbeEsqX + '" cy="' + orbeY + '" r="' + orbeRaio + '" fill="url(#fluxoOrbeAReceber)" style="filter:drop-shadow(0 0 10px rgba(240,169,78,.45));" />';
-    svg += '<text class="fluxo-orbe-label" x="' + orbeEsqX + '" y="' + (orbeY - orbeRaio - 14) + '" text-anchor="middle">A Receber</text>';
-    svg += '<text class="fluxo-orbe-valor" id="fluxo-valor-a-receber" fill="#f0a94e" x="' + orbeEsqX + '" y="' + (orbeY + orbeRaio + 26) + '" text-anchor="middle">R$ 0,00</text>';
-
-    // orbe "Recebido" (direita)
-    svg += '<circle cx="' + orbeDirX + '" cy="' + orbeY + '" r="' + orbeRaio + '" fill="url(#fluxoOrbeRecebido)" style="filter:drop-shadow(0 0 10px rgba(108,140,240,.55));" />';
-    svg += '<text class="fluxo-orbe-label" x="' + orbeDirX + '" y="' + (orbeY - orbeRaio - 14) + '" text-anchor="middle">Recebido</text>';
-    svg += '<text class="fluxo-orbe-valor" id="fluxo-valor-recebido" fill="#8fa6f7" x="' + orbeDirX + '" y="' + (orbeY + orbeRaio + 26) + '" text-anchor="middle">R$ 0,00</text>';
-
-    var passoRotulo = Math.ceil(n / 10);
-    evolucaoFiltrada.forEach(function (m, idx) {
-      var cx = linhaEsqX + passoX * idx;
-      var raioRecebido = 3 + (m.recebido / maxRecebido) * 6.5;
-      var raioAReceber = 5 + (m.a_receber / maxAReceber) * 8;
-      var atraso = animado ? (idx * (900 / Math.max(n, 1))) : 0;
-
-      if (m.a_receber > 0) {
-        svg += '<circle class="fluxo-no-a-receber' + (animado ? ' fluxo-no-entrada' : '') + '" cx="' + cx + '" cy="' + orbeY + '" r="' + raioAReceber + '" ' +
-          (animado ? 'style="animation-delay:' + atraso + 'ms;"' : '') + ' />';
-      }
-      svg += '<circle class="fluxo-no-recebido' + (animado ? ' fluxo-no-entrada' : '') + '" cx="' + cx + '" cy="' + orbeY + '" r="' + raioRecebido + '" ' +
-        (animado ? 'style="animation-delay:' + atraso + 'ms;"' : '') + ' />';
-      if (m.vencido > 0) {
-        svg += '<circle cx="' + cx + '" cy="' + orbeY + '" r="' + (raioAReceber + 3.5) + '" fill="none" stroke="#f0616c" stroke-width="1.6" opacity="0.85" />';
-      }
-      svg += '<rect x="' + (cx - passoX / 2) + '" y="' + (orbeY - 30) + '" width="' + (passoX || 40) + '" height="60" fill="transparent" ' +
-        'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" data-vencido="' + (m.vencido || 0) + '" style="cursor:pointer;" />';
-      if (idx % passoRotulo === 0) {
-        svg += '<text class="fluxo-mes-texto" x="' + cx + '" y="' + (orbeY + 34) + '" text-anchor="middle">' + esc(nomeMesAbrev(m.mes)) + '</text>';
-      }
+    var html = '<div class="fluxo-bars-wrap">';
+    html += '<div class="fluxo-bars-eixo-y">' + ticks.map(function (v) { return '<span>' + fmtValorEixo(v) + '</span>'; }).join('') + '</div>';
+    html += '<div class="fluxo-bars-grade">' + ticks.map(function () { return '<div></div>'; }).join('') + '</div>';
+    html += '<div class="fluxo-bars-grupos">';
+    evolucaoFiltrada.forEach(function (m) {
+      var alturaRecebido = Math.max((m.recebido / maxValor) * 100, m.recebido > 0 ? 1.5 : 0);
+      var alturaVencido = Math.max(((m.vencido || 0) / maxValor) * 100, m.vencido > 0 ? 1.5 : 0);
+      html += '<div class="fluxo-grupo">' +
+        '<div class="fluxo-barra fluxo-barra-recebido" style="height:' + alturaRecebido + '%;" ' +
+          'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" data-vencido="' + (m.vencido || 0) + '"></div>' +
+        '<div class="fluxo-barra fluxo-barra-vencido" style="height:' + alturaVencido + '%;" ' +
+          'data-mes="' + esc(m.mes) + '" data-recebido="' + m.recebido + '" data-a-receber="' + m.a_receber + '" data-vencido="' + (m.vencido || 0) + '"></div>' +
+      '</div>';
     });
+    html += '</div>';
+    html += '<div class="fluxo-bars-eixo-x">' + evolucaoFiltrada.map(function (m) {
+      return '<span' + (m.mes === mesAtualChave ? ' class="atual"' : '') + '>' + esc(nomeMesAbrev(m.mes)) + '</span>';
+    }).join('') + '</div>';
+    html += '</div>';
+    html += '<div class="fluxo-legenda">' +
+      '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#dcfce7;border:1px solid #166534;"></span>Recebido</span>' +
+      '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#fee2e2;border:1px solid #991b1b;"></span>Vencido</span>' +
+    '</div>';
 
-    svg += '</svg>';
-    wrap.innerHTML = svg + tooltipHtml;
+    wrap.innerHTML = html + tooltipHtml;
     wireHoverGrafico(wrap);
-    animarContagem(document.getElementById('fluxo-valor-a-receber'), totalAReceber);
-    animarContagem(document.getElementById('fluxo-valor-recebido'), totalRecebido);
+  }
+
+  function fmtValorEixo(v) {
+    if (v >= 1000) return 'R$ ' + Math.round(v / 1000) + 'k';
+    return 'R$ ' + Math.round(v);
   }
 
   function wireHoverGrafico(wrap) {
     var tooltip = document.getElementById('grafico-tooltip');
-    var svgEl = wrap.querySelector('svg');
-    if (!tooltip || !svgEl) return;
-    svgEl.addEventListener('mousemove', function (ev) {
-      var alvo = ev.target.closest('[data-mes]');
-      if (!alvo) { tooltip.classList.remove('visivel'); return; }
-      var mes = alvo.getAttribute('data-mes');
-      var recebido = parseFloat(alvo.getAttribute('data-recebido'));
-      var aReceber = parseFloat(alvo.getAttribute('data-a-receber'));
-      var vencido = parseFloat(alvo.getAttribute('data-vencido')) || 0;
-      tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + esc(nomeMesExtenso(mes)) + '</div>' +
-        'Recebido: <b>R$ ' + fmtMoeda(recebido) + '</b><br>' +
-        'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>' +
-        (vencido > 0 ? '<br>Em atraso: <b style="color:#f0616c;">R$ ' + fmtMoeda(vencido) + '</b>' : '');
-      var wrapRect = wrap.getBoundingClientRect();
-      tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
-      tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
-      tooltip.classList.add('visivel');
+    if (!tooltip) return;
+    wrap.querySelectorAll('[data-mes]').forEach(function (barra) {
+      barra.addEventListener('mousemove', function (ev) {
+        var mes = barra.getAttribute('data-mes');
+        var recebido = parseFloat(barra.getAttribute('data-recebido'));
+        var aReceber = parseFloat(barra.getAttribute('data-a-receber'));
+        var vencido = parseFloat(barra.getAttribute('data-vencido')) || 0;
+        tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + esc(nomeMesExtenso(mes)) + '</div>' +
+          'Recebido: <b>R$ ' + fmtMoeda(recebido) + '</b><br>' +
+          'A receber: <b>R$ ' + fmtMoeda(aReceber) + '</b>' +
+          (vencido > 0 ? '<br>Vencido: <b style="color:#991b1b;">R$ ' + fmtMoeda(vencido) + '</b>' : '');
+        var wrapRect = wrap.getBoundingClientRect();
+        tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
+        tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
+        tooltip.classList.add('visivel');
+      });
+      barra.addEventListener('mouseleave', function () { tooltip.classList.remove('visivel'); });
     });
-    svgEl.addEventListener('mouseleave', function () { tooltip.classList.remove('visivel'); });
   }
 
   function renderTabelaGrafico(evolucaoFiltrada) {
@@ -1089,12 +1043,8 @@
         '</div>' +
         '<div class="fluxo-card">' +
           '<div class="fluxo-cabecalho">' +
-            '<span class="fluxo-titulo">Fluxo de Caixa Vivo</span>' +
-          '</div>' +
-          '<div class="fluxo-legenda">' +
-            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:#6c8cf0;box-shadow:0 0 5px rgba(108,140,240,.8);"></span>Recebido</span>' +
-            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:rgba(240,169,78,.6);"></span>A receber</span>' +
-            '<span class="fluxo-legenda-item"><span class="fluxo-legenda-swatch" style="background:transparent;border:1.6px solid #f0616c;"></span>Com valor vencido</span>' +
+            '<div><div class="fluxo-titulo">Fluxo de Caixa</div>' +
+            '<div class="fluxo-subtitulo">Recebido e vencido por mês — ' + esc(rotuloFiltro(filtroGraficoAtual)) + '</div></div>' +
           '</div>' +
           '<div class="fluxo-svg-wrap" id="grafico-financeiro-svg" style="position:relative;"><div class="fluxo-tooltip" id="grafico-tooltip"></div></div>' +
           '<div id="grafico-tabela-wrap" class="hidden table-scroll" style="margin-top:14px;">' +
@@ -1103,7 +1053,7 @@
           '</div>' +
           '<button type="button" class="fluxo-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
           (f.recebido_sem_data > 0
-            ? '<div style="position:relative;z-index:1;margin-top:14px;padding:10px 13px;border-radius:8px;background:rgba(240,169,78,.1);border:1px solid rgba(240,169,78,.25);color:#e0b374;font-size:12.5px;line-height:1.5;">' +
+            ? '<div style="margin-top:14px;padding:10px 13px;border-radius:6px;background:#fff8ec;border:1px solid #f0dcb0;color:#8a6416;font-size:12.5px;line-height:1.5;font-family:\'IBM Plex Sans\',sans-serif;">' +
                 '<b>R$ ' + fmtMoeda(f.recebido_sem_data) + '</b> recebidos não aparecem no gráfico acima porque são lançamentos antigos sem data de pagamento registrada na planilha — esse valor já está incluído no "Total Acumulado".' +
               '</div>'
             : '') +
