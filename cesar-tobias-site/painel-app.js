@@ -195,6 +195,7 @@
   (function wireDropdownsTopo() {
     var pares = [
       { btn: document.getElementById('hdr-btn-add'), menu: document.getElementById('hdr-menu-add') },
+      { btn: document.getElementById('hdr-btn-avisos'), menu: document.getElementById('hdr-menu-avisos') },
       { btn: document.getElementById('hdr-btn-perfil'), menu: document.getElementById('hdr-menu-perfil') },
     ];
     function fecharTodos(exceto) {
@@ -218,6 +219,100 @@
     document.addEventListener('click', function () { fecharTodos(); });
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') fecharTodos(); });
   })();
+
+  function wireBuscaTopo() {
+    var input = document.getElementById('hdr-busca-input');
+    var resultadosEl = document.getElementById('hdr-busca-resultados');
+    if (!input || !resultadosEl || input._buscaTopoWired) return;
+    input._buscaTopoWired = true;
+
+    var clientesCache = null;
+    var processosCache = null;
+    var timerDebounce = null;
+
+    function garantirDados() {
+      var pendentes = [];
+      if (clientesCache === null) {
+        clientesCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=clientes').then(function (d) { clientesCache = d.clientes || []; }).catch(function () {}));
+      }
+      if (processosCache === null) {
+        processosCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) { processosCache = d.processos || []; }).catch(function () {}));
+      }
+      return Promise.all(pendentes);
+    }
+
+    function renderResultados(termo) {
+      var termoLower = termo.toLowerCase();
+      var clientesAchados = clientesCache.filter(function (c) { return (c.nome || '').toLowerCase().indexOf(termoLower) !== -1; }).slice(0, 5);
+      var processosAchados = processosCache.filter(function (p) {
+        return (p.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1 || (p.cliente_nome || '').toLowerCase().indexOf(termoLower) !== -1;
+      }).slice(0, 5);
+
+      if (clientesAchados.length === 0 && processosAchados.length === 0) {
+        resultadosEl.innerHTML = '<div class="hdr-avisos-vazio">Nada encontrado para "' + esc(termo) + '".</div>';
+        resultadosEl.classList.remove('hidden');
+        return;
+      }
+      var html = '';
+      if (clientesAchados.length) {
+        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Clientes</div>';
+        html += clientesAchados.map(function (c) {
+          return '<a href="painel-clientes.html?cliente=' + encodeURIComponent(c.nome) + '">' + esc(c.nome) + '</a>';
+        }).join('');
+      }
+      if (processosAchados.length) {
+        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Processos</div>';
+        html += processosAchados.map(function (p) {
+          return '<a href="painel-processos.html?processo=' + p.id + '#sec-processos">' + esc(p.numero_cnj || p.cliente_nome) + '</a>';
+        }).join('');
+      }
+      resultadosEl.innerHTML = html;
+      resultadosEl.classList.remove('hidden');
+    }
+
+    input.addEventListener('input', function () {
+      var termo = input.value.trim();
+      clearTimeout(timerDebounce);
+      if (termo.length < 2) {
+        resultadosEl.classList.add('hidden');
+        return;
+      }
+      timerDebounce = setTimeout(function () {
+        garantirDados().then(function () { renderResultados(termo); });
+      }, 220);
+    });
+    input.addEventListener('focus', function () {
+      if (input.value.trim().length >= 2) resultadosEl.classList.remove('hidden');
+    });
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('.hdr-busca')) resultadosEl.classList.add('hidden');
+    });
+  }
+
+  function carregarAvisosHeader() {
+    apiGetJson('/api/painel?acao=avisos_listar&apenas_ativos=true')
+      .then(function (dados) {
+        var avisos = dados.avisos || [];
+        var badge = document.getElementById('hdr-avisos-badge');
+        var lista = document.getElementById('hdr-avisos-lista');
+        if (avisos.length === 0) {
+          badge.classList.add('hidden');
+          lista.innerHTML = '<div class="hdr-avisos-vazio">Nenhum aviso no momento.</div>';
+          return;
+        }
+        badge.textContent = avisos.length;
+        badge.classList.remove('hidden');
+        lista.innerHTML = avisos.map(function (a) {
+          return '<div class="hdr-avisos-item">' + esc(a.mensagem) + '</div>';
+        }).join('');
+      })
+      .catch(function () {
+        var lista = document.getElementById('hdr-avisos-lista');
+        if (lista) lista.innerHTML = '<div class="hdr-avisos-vazio">Não foi possível carregar os avisos.</div>';
+      });
+  }
 
   function misturarComBranco(hex, fator) {
     var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
@@ -1788,7 +1883,7 @@
             '<label><input type="checkbox" data-permissao="pje"> Processual (PJe)</label>' +
             '<label><input type="checkbox" data-permissao="clientes"> Clientes</label>' +
             '<label><input type="checkbox" data-permissao="processos"> Ficha de processos</label>' +
-            '<label><input type="checkbox" data-permissao="agenda"> Tarefas</label>' +
+            '<label><input type="checkbox" data-permissao="agenda"> Tarefas e Agenda</label>' +
             '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
             '<label><input type="checkbox" data-permissao="padrao_operacional"> Padrão Operacional</label>' +
             '<label><input type="checkbox" data-permissao="audiencias"> Audiências</label>' +
@@ -2151,6 +2246,9 @@
       var iniciaisAdv = nomeAdv.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join('').toUpperCase() || '--';
       document.getElementById('hdr-perfil-avatar').textContent = iniciaisAdv;
     }
+
+    if (document.getElementById('hdr-btn-avisos')) carregarAvisosHeader();
+    if (document.getElementById('hdr-busca-input')) wireBuscaTopo();
 
     if (!temAcessoPagina) return;
 
@@ -4216,6 +4314,11 @@
         _processosManuaisTodos = dados.processos || [];
         var f = _lerFiltrosProcessoAtuais();
         _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
+        var idProcessoNaUrl = new URLSearchParams(window.location.search).get('processo');
+        if (idProcessoNaUrl) {
+          var processoDaUrl = _processosManuaisTodos.filter(function (p) { return String(p.id) === idProcessoNaUrl; })[0];
+          if (processoDaUrl) abrirFichaProcesso(processoDaUrl);
+        }
       })
       .catch(function () {
         lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar os processos agora.</div></div>';
@@ -6314,7 +6417,7 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
           return;
         }
-        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Tarefas', automacoes: 'Automações' };
+        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Tarefas e Agenda', automacoes: 'Automações' };
         var linhas = dados.usuarios.map(function (u) {
           var descPermissoes;
           if (u.admin) {

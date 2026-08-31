@@ -295,9 +295,10 @@
 
     <div class="conteudo-area">
       <header class="hdr-topo">
-        <div class="hdr-busca">
+        <div class="hdr-busca" style="position:relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-          <input type="text" placeholder="Buscar processo, cliente ou número...">
+          <input type="text" id="hdr-busca-input" placeholder="Buscar processo, cliente ou número..." autocomplete="off">
+          <div class="hdr-dropdown hidden" id="hdr-busca-resultados" style="top:calc(100% + 6px); left:0; right:auto; width:340px;"></div>
         </div>
         <div class="hdr-acoes">
           <div class="hdr-add-wrap">
@@ -310,6 +311,15 @@
               <a href="painel-novo-cliente.html#sec-novo-cliente">Novo Cliente</a>
               <a href="painel-prazos.html#sec-prazos">Novo Prazo</a>
               <a href="painel-agenda.html#sec-agenda-completa">Novo Compromisso</a>
+            </div>
+          </div>
+          <div class="hdr-avisos-wrap" style="position:relative;">
+            <button type="button" class="hdr-icone-btn" id="hdr-btn-avisos" aria-label="Avisos" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+              <span id="hdr-avisos-badge" class="hdr-badge hidden">0</span>
+            </button>
+            <div class="hdr-dropdown hidden" id="hdr-menu-avisos">
+              <div class="hdr-avisos-lista" id="hdr-avisos-lista"><div class="hdr-avisos-vazio">Carregando…</div></div>
             </div>
           </div>
           <div class="hdr-divisor"></div>

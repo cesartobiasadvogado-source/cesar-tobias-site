@@ -797,9 +797,13 @@ module.exports = async (req, res) => {
       res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
       return;
     }
+    var qsConfigGet = '';
+    if (acao === 'avisos_listar' && req.query && req.query.apenas_ativos) {
+      qsConfigGet = '&apenas_ativos=' + encodeURIComponent(req.query.apenas_ativos);
+    }
     try {
       const resposta = await fetch(
-        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessaoConfigGet) + segredoQS
+        base + '?action=' + acao + qsConfigGet + '&token=' + encodeURIComponent(tokenSessaoConfigGet) + segredoQS
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
