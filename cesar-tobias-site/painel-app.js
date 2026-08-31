@@ -291,6 +291,16 @@
     });
   }
 
+  function _abrirCalendarioAoClicar(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', function () {
+      if (this.showPicker) {
+        try { this.showPicker(); } catch (e) { /* alguns navegadores exigem gesto direto do usuario -- clique ja e, so ignora se falhar */ }
+      }
+    });
+  }
+
   function linkCliente(nome) {
     return '<a class="link-original" href="painel-clientes.html?cliente=' + encodeURIComponent(nome) + '">' + esc(nome) + '</a>';
   }
@@ -2928,6 +2938,7 @@
 
     document.getElementById('atos-btn-novo').addEventListener('click', mostrarForm);
     document.getElementById('atos-btn-cancelar').addEventListener('click', mostrarLista);
+    _abrirCalendarioAoClicar('atos-form-data');
     document.getElementById('atos-btn-hoje').addEventListener('click', function () {
       document.getElementById('atos-form-data').value = new Date().toISOString().slice(0, 10);
     });
@@ -3029,6 +3040,7 @@
     document.getElementById('prazo-modal-fechar').addEventListener('click', fechar);
     document.getElementById('prazo-btn-cancelar').addEventListener('click', fechar);
     overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    _abrirCalendarioAoClicar('prazo-form-data');
     document.getElementById('prazo-btn-hoje').addEventListener('click', function () {
       document.getElementById('prazo-form-data').value = new Date().toISOString().slice(0, 10);
     });
@@ -3257,6 +3269,7 @@
     document.getElementById('tarefa-modal-fechar').addEventListener('click', fechar);
     document.getElementById('tarefa-btn-cancelar').addEventListener('click', fechar);
     overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    _abrirCalendarioAoClicar('tarefa-form-vencimento');
     document.getElementById('tarefa-btn-hoje').addEventListener('click', function () {
       document.getElementById('tarefa-form-vencimento').value = new Date().toISOString().slice(0, 10);
     });
@@ -3344,6 +3357,8 @@
     var dataDeEl = document.getElementById('tarefas-filtro-data-de');
     var dataAteEl = document.getElementById('tarefas-filtro-data-ate');
     var tarefasCarregadas = [];
+    _abrirCalendarioAoClicar('tarefas-filtro-data-de');
+    _abrirCalendarioAoClicar('tarefas-filtro-data-ate');
 
     apiGetJson('/api/painel?acao=usuarios_nomes').then(function (dados) {
       var usuarios = dados.usuarios || [];
