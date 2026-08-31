@@ -59,7 +59,7 @@
 
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
-    importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente',
+    importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
@@ -1325,6 +1325,39 @@
         '</div>' +
       '</section>';
 
+    var htmlPrazos = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-prazos">' +
+        '<div class="procpage-dark">' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;">' +
+            '<div>' +
+              '<h2 class="procpage-titulo" style="margin:0;">Prazos processuais</h2>' +
+              '<p style="margin:4px 0 0; font-size:12.5px; color:#8293b5;">Acompanhe os prazos de todos os processos. Para adicionar um prazo, use o botão abaixo ou abra o processo e use a aba Prazos.</p>' +
+            '</div>' +
+            '<a class="procpage-btn" href="painel-processos.html#sec-processos">Ir para Processos</a>' +
+          '</div>' +
+
+          '<div class="procpage-filtros">' +
+            '<p style="margin:0 0 10px; font-size:12.5px; font-weight:600; color:#8293b5;">Busca avançada</p>' +
+            '<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Status</label>' +
+                '<select id="prazos-filtro-status" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                  '<option value="">Todos</option><option value="pendente">Pendente</option>' +
+                  '<option value="cumprido">Cumprido</option><option value="vencido">Vencido</option>' +
+                '</select></div>' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Tipo</label>' +
+                '<select id="prazos-filtro-tipo" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                  '<option value="">Todos</option><option value="legal">Legal</option><option value="interno">Interno</option>' +
+                '</select></div>' +
+              '<button type="button" class="procpage-btn procpage-btn-primary" id="prazos-btn-buscar">Buscar</button>' +
+              '<button type="button" class="procpage-btn" id="prazos-btn-limpar">Limpar</button>' +
+              '<button type="button" class="procpage-btn procpage-btn-primary" id="prazos-btn-adicionar" style="margin-left:auto;">+ Adicionar prazo</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div id="prazos-lista" style="margin-top:16px;"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlProcessos = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-processos">' +
         '<div class="procpage-dark">' +
@@ -1936,6 +1969,7 @@
       importar_oab: htmlImportarOab,
       criar_processo: htmlCriarProcesso,
       novo_cliente: htmlNovoCliente,
+      prazos: htmlPrazos,
       agenda: htmlAgenda,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
@@ -1945,7 +1979,7 @@
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
-      importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes',
+      importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
     };
@@ -1996,6 +2030,7 @@
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
+    if (PAGINA_ATUAL === 'prazos') { wireListaPrazos(); }
     if (PAGINA_ATUAL === 'clientes') carregarClientes();
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
@@ -2928,6 +2963,221 @@
     document.getElementById('modal-atos-processuais')._abrirParaProcesso(processo);
   }
 
+  function _chipStatusPrazo(status) {
+    var mapa = { pendente: ['neutral', 'Pendente'], cumprido: ['good', 'Cumprido'], vencido: ['crit', 'Vencido'] };
+    var par = mapa[status] || ['neutral', status];
+    return '<span class="chip ' + par[0] + '">' + par[1] + '</span>';
+  }
+
+  function _garantirModalPrazo() {
+    if (document.getElementById('modal-prazo')) return;
+    var div = document.createElement('div');
+    div.innerHTML =
+      '<div id="modal-prazo" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:460px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="prazo-modal-titulo">Novo prazo</span>' +
+            '<button type="button" class="modal-drill-fechar" id="prazo-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div style="padding:18px 20px;">' +
+            '<div id="prazo-form-erro"></div>' +
+            '<div id="prazo-form-processo-select-wrap">' +
+              '<label>Processo</label>' +
+              '<select id="prazo-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                '<option value="">Selecione o processo</option>' +
+              '</select>' +
+            '</div>' +
+            '<div id="prazo-form-processo-fixo" class="hidden" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></div>' +
+            '<label>Título</label>' +
+            '<input type="text" id="prazo-form-titulo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+            '<label>Data limite</label>' +
+            '<div style="display:flex; gap:8px; margin-bottom:14px;">' +
+              '<input type="date" id="prazo-form-data" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+              '<button type="button" id="prazo-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
+            '</div>' +
+            '<label>Tipo</label>' +
+            '<select id="prazo-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="legal">Legal</option>' +
+              '<option value="interno">Interno</option>' +
+            '</select>' +
+            '<label>Observação</label>' +
+            '<textarea id="prazo-form-observacao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:18px;"></textarea>' +
+            '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+              '<button type="button" id="prazo-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+              '<button type="button" id="prazo-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-prazo');
+    var processoFixo = null;
+    var prazoEmEdicao = null;
+    var callbackSalvo = null;
+
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('prazo-modal-fechar').addEventListener('click', fechar);
+    document.getElementById('prazo-btn-cancelar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    document.getElementById('prazo-btn-hoje').addEventListener('click', function () {
+      document.getElementById('prazo-form-data').value = new Date().toISOString().slice(0, 10);
+    });
+
+    document.getElementById('prazo-btn-salvar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('prazo-form-erro');
+      erroDiv.innerHTML = '';
+      var processoId = processoFixo ? processoFixo.id : document.getElementById('prazo-form-processo').value;
+      if (!processoId) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">Selecione o processo.</div>';
+        return;
+      }
+      var corpo = {
+        processo_id: processoId,
+        titulo: document.getElementById('prazo-form-titulo').value.trim(),
+        data_limite: document.getElementById('prazo-form-data').value,
+        tipo: document.getElementById('prazo-form-tipo').value,
+        observacao: document.getElementById('prazo-form-observacao').value.trim(),
+      };
+      if (prazoEmEdicao) corpo.id = prazoEmEdicao.id;
+      var acao = prazoEmEdicao ? 'prazo_atualizar' : 'prazo_criar';
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=' + acao, corpo)
+        .then(function () {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          fechar();
+          if (callbackSalvo) callbackSalvo();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o prazo agora.') + '</div>';
+        });
+    });
+
+    overlay._abrir = function (processo, prazoExistente, onSalvo) {
+      processoFixo = processo || null;
+      prazoEmEdicao = prazoExistente || null;
+      callbackSalvo = onSalvo || null;
+      document.getElementById('prazo-modal-titulo').textContent = prazoExistente ? 'Editar prazo' : 'Novo prazo';
+      document.getElementById('prazo-form-erro').innerHTML = '';
+      document.getElementById('prazo-form-titulo').value = prazoExistente ? prazoExistente.titulo : '';
+      document.getElementById('prazo-form-data').value = prazoExistente ? prazoExistente.data_limite : '';
+      document.getElementById('prazo-form-tipo').value = prazoExistente ? prazoExistente.tipo : 'legal';
+      document.getElementById('prazo-form-observacao').value = prazoExistente ? (prazoExistente.observacao || '') : '';
+
+      var wrapSelect = document.getElementById('prazo-form-processo-select-wrap');
+      var fixoEl = document.getElementById('prazo-form-processo-fixo');
+      if (processoFixo) {
+        wrapSelect.classList.add('hidden');
+        fixoEl.classList.remove('hidden');
+        fixoEl.textContent = 'Processo: ' + (processoFixo.numero_cnj || processoFixo.cliente_nome);
+        overlay.classList.remove('hidden');
+      } else {
+        fixoEl.classList.add('hidden');
+        wrapSelect.classList.remove('hidden');
+        var selectEl = document.getElementById('prazo-form-processo');
+        selectEl.innerHTML = '<option value="">Carregando...</option>';
+        apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
+          var processos = dados.processos || [];
+          selectEl.innerHTML = '<option value="">Selecione o processo</option>' +
+            processos.map(function (p) {
+              return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>';
+            }).join('');
+          if (prazoExistente) selectEl.value = prazoExistente.processo_id;
+        });
+        overlay.classList.remove('hidden');
+      }
+    };
+  }
+
+  function abrirModalPrazo(processo, prazoExistente, onSalvo) {
+    _garantirModalPrazo();
+    document.getElementById('modal-prazo')._abrir(processo, prazoExistente, onSalvo);
+  }
+
+  function wireListaPrazos() {
+    var statusEl = document.getElementById('prazos-filtro-status');
+    var tipoEl = document.getElementById('prazos-filtro-tipo');
+    var prazosCarregados = [];
+
+    function carregar() {
+      document.getElementById('prazos-lista').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div>';
+      var qs = '';
+      if (statusEl.value) qs += '&status=' + encodeURIComponent(statusEl.value);
+      if (tipoEl.value) qs += '&tipo=' + encodeURIComponent(tipoEl.value);
+      apiGetJson('/api/painel?acao=prazo_listar' + qs)
+        .then(function (dados) {
+          prazosCarregados = dados.prazos || [];
+          renderLista();
+        })
+        .catch(function () {
+          document.getElementById('prazos-lista').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar os prazos agora.</div></div>';
+        });
+    }
+
+    function abrirNovoPrazoGeral() { abrirModalPrazo(null, null, carregar); }
+
+    function renderLista() {
+      var container = document.getElementById('prazos-lista');
+      if (prazosCarregados.length === 0) {
+        container.innerHTML =
+          '<div style="padding:48px 24px; text-align:center; border:1px solid #232d42; border-radius:10px; background:#0e1728;">' +
+            '<div style="font-size:30px; margin-bottom:8px;">📅</div>' +
+            '<p style="margin:0 0 4px; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#c99a2e;">Nunca perca um prazo</p>' +
+            '<p style="margin:0 0 8px; font-size:15px; font-weight:600; color:#e7eaf0;">Nenhum prazo registrado</p>' +
+            '<p style="margin:0 auto 14px; font-size:13px; color:#8293b5; max-width:420px;">Adicione prazos aos processos para receber alertas e acompanhar tudo que precisa ser feito no prazo.</p>' +
+            '<ul style="text-align:left; display:inline-block; margin:0 0 18px; padding-left:18px; font-size:12.5px; color:#a7b0c2;">' +
+              '<li>receber alertas de vencimento</li><li>diferenciar prazos legais e internos</li><li>marcar como cumprido e manter histórico</li>' +
+            '</ul><br>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="prazos-btn-adicionar-vazio">+ Adicionar prazo</button>' +
+          '</div>';
+        document.getElementById('prazos-btn-adicionar-vazio').addEventListener('click', abrirNovoPrazoGeral);
+        return;
+      }
+      container.innerHTML = prazosCarregados.map(function (pz) {
+        return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42; margin-bottom:10px;">' +
+          '<div class="prazo-card-topo">' +
+            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' +
+              '<strong style="font-size:13px;color:#e7eaf0;">' + esc(pz.titulo) + '</strong>' +
+              '<div style="font-size:12px; color:#8293b5; margin-top:2px;">' + esc(pz.numero_cnj || '') + '</div></div>' +
+            '<span class="prazo-meta" style="color:#8293b5;">' + fmtDataProcesso(pz.data_limite) + '</span>' +
+          '</div>' +
+          (pz.observacao ? '<div class="prazo-resumo" style="color:#a7b0c2;">' + esc(pz.observacao) + '</div>' : '') +
+          '<div style="margin-top:8px; display:flex; gap:8px;">' +
+            (pz.status !== 'cumprido' ? '<button type="button" class="btn-conexao-secundario" data-prazo-cumprir="' + pz.id + '">Marcar como cumprido</button>' : '') +
+            '<button type="button" class="btn-conexao-secundario" data-prazo-editar="' + pz.id + '">Editar</button>' +
+            '<button type="button" class="btn-remover" data-prazo-excluir="' + pz.id + '">Excluir</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      container.querySelectorAll('[data-prazo-cumprir]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true }).then(carregar);
+        });
+      });
+      container.querySelectorAll('[data-prazo-editar]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pz = prazosCarregados.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-editar'); })[0];
+          if (pz) abrirModalPrazo({ id: pz.processo_id, numero_cnj: pz.numero_cnj }, pz, carregar);
+        });
+      });
+      container.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!confirm('Excluir este prazo?')) return;
+          apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregar);
+        });
+      });
+    }
+
+    document.getElementById('prazos-btn-buscar').addEventListener('click', carregar);
+    document.getElementById('prazos-btn-limpar').addEventListener('click', function () {
+      statusEl.value = ''; tipoEl.value = ''; carregar();
+    });
+    document.getElementById('prazos-btn-adicionar').addEventListener('click', abrirNovoPrazoGeral);
+    carregar();
+  }
+
   function _fmtTamanhoArquivo(bytes) {
     if (!bytes && bytes !== 0) return '';
     if (bytes < 1024) return bytes + ' B';
@@ -3387,7 +3637,8 @@
 
           '<div class="procficha-painel hidden" data-procficha-painel="prazos">' +
             '<p class="procficha-painel-titulo">Prazos</p>' +
-            '<div class="empty-state"><div class="msg" style="color:#8293b5;">Cadastro de prazos ainda não disponível — em breve.</div></div>' +
+            '<div style="margin-bottom:12px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-prazo">+ Novo prazo</button></div>' +
+            '<div id="procficha-lista-prazos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="documentos">' +
@@ -3517,6 +3768,62 @@
       .catch(function () {
         document.getElementById('procficha-resumo-atos').textContent = '—';
       });
+
+    function _htmlListaPrazosInline(prazos) {
+      if (!prazos.length) return '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum prazo cadastrado.</div></div>';
+      return prazos.map(function (pz) {
+        return '<div class="prazo-card" style="background:#0b1220;border-color:#232d42;">' +
+          '<div class="prazo-card-topo">' +
+            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' +
+              '<strong style="font-size:13px;color:#e7eaf0;">' + esc(pz.titulo) + '</strong></div>' +
+            '<span class="prazo-meta" style="color:#8293b5;">' + fmtDataProcesso(pz.data_limite) + '</span>' +
+          '</div>' +
+          (pz.observacao ? '<div class="prazo-resumo" style="color:#a7b0c2;">' + esc(pz.observacao) + '</div>' : '') +
+          '<div style="margin-top:8px; display:flex; gap:8px;">' +
+            (pz.status !== 'cumprido' ? '<button type="button" class="btn-conexao-secundario" data-prazo-cumprir="' + pz.id + '">Marcar como cumprido</button>' : '') +
+            '<button type="button" class="btn-conexao-secundario" data-prazo-editar="' + pz.id + '">Editar</button>' +
+            '<button type="button" class="btn-remover" data-prazo-excluir="' + pz.id + '">Excluir</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    var prazosCarregadosFicha = [];
+    function carregarPrazosFicha() {
+      apiGetJson('/api/painel?acao=prazo_listar&processo_id=' + processo.id)
+        .then(function (dados) {
+          prazosCarregadosFicha = dados.prazos || [];
+          var listaEl = document.getElementById('procficha-lista-prazos');
+          if (!listaEl) return;
+          listaEl.innerHTML = _htmlListaPrazosInline(prazosCarregadosFicha);
+          listaEl.querySelectorAll('[data-prazo-cumprir]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true }).then(carregarPrazosFicha);
+            });
+          });
+          listaEl.querySelectorAll('[data-prazo-editar]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var pz = prazosCarregadosFicha.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-editar'); })[0];
+              if (pz) abrirModalPrazo(processo, pz, carregarPrazosFicha);
+            });
+          });
+          listaEl.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              if (!confirm('Excluir este prazo?')) return;
+              apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregarPrazosFicha);
+            });
+          });
+        })
+        .catch(function () {
+          var listaEl = document.getElementById('procficha-lista-prazos');
+          if (listaEl) listaEl.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os prazos agora.</div></div>';
+        });
+    }
+    carregarPrazosFicha();
+    var btnNovoPrazoFicha = document.getElementById('procficha-btn-novo-prazo');
+    if (btnNovoPrazoFicha) {
+      btnNovoPrazoFicha.addEventListener('click', function () { abrirModalPrazo(processo, null, carregarPrazosFicha); });
+    }
 
     apiGetJson('/api/painel?acao=documento_processo_listar&processo_id=' + processo.id)
       .then(function (dados) {

@@ -431,6 +431,56 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'prazo_listar') {
+    var tokenSessaoPrazoListar = obterToken(req);
+    if (!tokenSessaoPrazoListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var qsPrazo = '';
+    ['processo_id', 'status', 'tipo'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsPrazo += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(
+        base + '?action=prazo_listar' + qsPrazo + '&token=' + encodeURIComponent(tokenSessaoPrazoListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar os prazos.' });
+    }
+    return;
+  }
+
+  var acoesPrazoPost = {
+    prazo_criar: 'Erro de conexao ao salvar o prazo.',
+    prazo_atualizar: 'Erro de conexao ao atualizar o prazo.',
+    prazo_excluir: 'Erro de conexao ao excluir o prazo.',
+  };
+  if (acoesPrazoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var tokenSessaoPrazoPost = obterToken(req);
+    if (!tokenSessaoPrazoPost) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessaoPrazoPost) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesPrazoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'documento_processo_listar') {
     var tokenSessaoDocListar = obterToken(req);
     if (!tokenSessaoDocListar) {
