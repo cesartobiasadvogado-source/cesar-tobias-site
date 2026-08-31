@@ -1972,7 +1972,7 @@
     });
 
     var navAdminEl = document.getElementById('nav-admin');
-    if (navAdminEl) navAdminEl.classList.toggle('hidden', !dados.usuario_admin);
+    if (navAdminEl) navAdminEl.classList.toggle('hidden', !dados.usuario_admin || !sessaoEhTenant);
     var navConfigEl = document.getElementById('nav-configuracoes');
     if (navConfigEl) navConfigEl.classList.toggle('hidden', !dados.usuario_admin);
 
