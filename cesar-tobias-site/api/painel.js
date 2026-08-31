@@ -276,27 +276,51 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (acao === 'agenda') {
-    var opAgenda = (req.query && req.query.op) || corpo.op || '';
-    if (opAgenda !== 'listar' && req.method !== 'POST') {
-      res.status(405).json({ erro: 'Metodo nao permitido.' });
-      return;
-    }
-    var url3 = base + '?action=painel_agenda&op=' + encodeURIComponent(opAgenda) + '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposAgenda = ['id', 'titulo', 'data', 'hora', 'meet'];
-    var origemAgenda = opAgenda === 'listar' ? (req.query || {}) : corpo;
-    camposAgenda.forEach(function (campo) {
-      if (origemAgenda[campo]) {
-        url3 += '&' + campo + '=' + encodeURIComponent(origemAgenda[campo]);
-      }
-    });
-
+  if (acao === 'usuarios_nomes') {
     try {
-      const resposta = await fetch(url3);
+      const resposta = await fetch(base + '?action=usuarios_nomes&token=' + encodeURIComponent(tokenSessao) + segredoQS);
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
     } catch (e) {
-      res.status(502).json({ erro: 'Erro de conexao com a agenda.' });
+      res.status(502).json({ erro: 'Erro de conexao ao listar os usuarios.' });
+    }
+    return;
+  }
+
+  if (acao === 'tarefa_listar') {
+    var qsTarefa = '';
+    ['responsavel', 'status', 'prioridade', 'vencimento_de', 'vencimento_ate'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsTarefa += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(base + '?action=tarefa_listar' + qsTarefa + '&token=' + encodeURIComponent(tokenSessao) + segredoQS);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar as tarefas.' });
+    }
+    return;
+  }
+
+  var acoesTarefaPost = {
+    tarefa_criar: 'Erro de conexao ao salvar a tarefa.',
+    tarefa_atualizar: 'Erro de conexao ao atualizar a tarefa.',
+    tarefa_excluir: 'Erro de conexao ao excluir a tarefa.',
+  };
+  if (acoesTarefaPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessao) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesTarefaPost[acao] });
     }
     return;
   }

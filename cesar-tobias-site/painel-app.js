@@ -60,7 +60,7 @@
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
-    agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
+    tarefas: 'Tarefas', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
 
@@ -865,7 +865,7 @@
             '<div class="inicio-checklist-item">' +
               '<span class="inicio-checklist-num">3</span>' +
               '<span class="inicio-checklist-texto">Adicione um prazo</span>' +
-              '<a class="inicio-checklist-btn" href="painel-agenda.html#sec-agenda">Criar prazo</a>' +
+              '<a class="inicio-checklist-btn" href="painel-prazos.html#sec-prazos">Criar prazo</a>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -1454,37 +1454,46 @@
         '</div>' +
       '</section>';
 
-    var htmlAgenda = perms.indexOf('agenda') === -1 ? '' :
-      '<section id="sec-agenda"><p class="section-label">Agenda — eventos e tarefas</p><div class="agenda-grid">' +
-
-        '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">Eventos</span></div>' +
-          '<div class="agenda-form">' +
-            '<input type="text" id="evento-titulo" placeholder="Título">' +
-            '<input type="date" id="evento-data">' +
-            '<input type="time" id="evento-hora">' +
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;">' +
-              '<input type="checkbox" id="evento-meet" style="width:auto;"> Gerar link do Meet' +
-            '</label>' +
-            '<button id="evento-btn-salvar">Criar</button>' +
-            '<button class="cancelar-edicao hidden" id="evento-btn-cancelar">Cancelar</button>' +
+    var htmlTarefas = perms.indexOf('agenda') === -1 ? '' :
+      '<section id="sec-tarefas">' +
+        '<div class="procpage-dark">' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;">' +
+            '<div>' +
+              '<h2 class="procpage-titulo" style="margin:0;">Tarefas</h2>' +
+              '<p style="margin:4px 0 0; font-size:12.5px; color:#8293b5;">Tarefas operacionais com responsável, prioridade e acompanhamento de status.</p>' +
+            '</div>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="tarefas-btn-adicionar">+ Nova tarefa</button>' +
           '</div>' +
-          '<div class="admin-msg hidden" id="evento-meet-resultado" aria-live="polite"></div>' +
-          '<div id="agenda-lista-eventos"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
 
-        '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">Tarefas</span></div>' +
-          '<div class="agenda-form">' +
-            '<input type="text" id="tarefa-titulo" placeholder="Título">' +
-            '<input type="date" id="tarefa-data">' +
-            '<button id="tarefa-btn-salvar">Criar</button>' +
-            '<button class="cancelar-edicao hidden" id="tarefa-btn-cancelar">Cancelar</button>' +
+          '<div class="procpage-filtros">' +
+            '<p style="margin:0 0 10px; font-size:12.5px; font-weight:600; color:#8293b5;">Busca avançada</p>' +
+            '<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Responsável</label>' +
+                '<select id="tarefas-filtro-responsavel" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                  '<option value="">Todos</option>' +
+                '</select></div>' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Status</label>' +
+                '<select id="tarefas-filtro-status" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                  '<option value="">Todos</option><option value="pendente">Pendente</option>' +
+                  '<option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option>' +
+                '</select></div>' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Prioridade</label>' +
+                '<select id="tarefas-filtro-prioridade" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                  '<option value="">Todas</option><option value="baixa">Baixa</option>' +
+                  '<option value="media">Média</option><option value="alta">Alta</option>' +
+                '</select></div>' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Data de</label>' +
+                '<input type="date" id="tarefas-filtro-data-de" style="padding:7px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;"></div>' +
+              '<div><label style="display:block; font-size:11.5px; color:#8293b5; margin-bottom:4px;">Data até</label>' +
+                '<input type="date" id="tarefas-filtro-data-ate" style="padding:7px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;"></div>' +
+              '<button type="button" class="procpage-btn procpage-btn-primary" id="tarefas-btn-buscar">Buscar</button>' +
+              '<button type="button" class="procpage-btn" id="tarefas-btn-limpar">Limpar</button>' +
+            '</div>' +
           '</div>' +
-          '<div id="agenda-lista-tarefas"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-        '</div>' +
 
-      '</div></section>';
+          '<div id="tarefas-lista" style="margin-top:16px;"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
 
     var htmlCobrancaAvulsa = perms.indexOf('financeiro') === -1 ? '' :
       '<section id="sec-cobranca-avulsa"><p class="section-label">Cobrança avulsa</p>' +
@@ -1769,7 +1778,7 @@
             '<label><input type="checkbox" data-permissao="pje"> Processual (PJe)</label>' +
             '<label><input type="checkbox" data-permissao="clientes"> Clientes</label>' +
             '<label><input type="checkbox" data-permissao="processos"> Ficha de processos</label>' +
-            '<label><input type="checkbox" data-permissao="agenda"> Agenda</label>' +
+            '<label><input type="checkbox" data-permissao="agenda"> Tarefas</label>' +
             '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
             '<label><input type="checkbox" data-permissao="padrao_operacional"> Padrão Operacional</label>' +
             '<label><input type="checkbox" data-permissao="audiencias"> Audiências</label>' +
@@ -1970,7 +1979,7 @@
       criar_processo: htmlCriarProcesso,
       novo_cliente: htmlNovoCliente,
       prazos: htmlPrazos,
-      agenda: htmlAgenda,
+      tarefas: htmlTarefas,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
@@ -1980,7 +1989,7 @@
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
-      agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
+      tarefas: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
@@ -2024,7 +2033,7 @@
     if (!temAcessoPagina) return;
 
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
-    if (PAGINA_ATUAL === 'agenda') { wireAgenda(); carregarAgenda(); }
+    if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3175,6 +3184,232 @@
       statusEl.value = ''; tipoEl.value = ''; carregar();
     });
     document.getElementById('prazos-btn-adicionar').addEventListener('click', abrirNovoPrazoGeral);
+    carregar();
+  }
+
+  function _chipStatusTarefa(status) {
+    var mapa = { pendente: ['neutral', 'Pendente'], em_andamento: ['warn', 'Em andamento'], concluida: ['good', 'Concluída'] };
+    var par = mapa[status] || ['neutral', status];
+    return '<span class="chip ' + par[0] + '">' + par[1] + '</span>';
+  }
+
+  function _chipPrioridadeTarefa(prioridade) {
+    var mapa = { baixa: ['neutral', 'Baixa'], media: ['warn', 'Média'], alta: ['crit', 'Alta'] };
+    var par = mapa[prioridade] || ['neutral', prioridade];
+    return '<span class="chip ' + par[0] + '">' + par[1] + '</span>';
+  }
+
+  function _garantirModalTarefa() {
+    if (document.getElementById('modal-tarefa')) return;
+    var div = document.createElement('div');
+    div.innerHTML =
+      '<div id="modal-tarefa" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:480px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="tarefa-modal-titulo">Nova tarefa</span>' +
+            '<button type="button" class="modal-drill-fechar" id="tarefa-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div style="padding:18px 20px; max-height:70vh; overflow-y:auto;">' +
+            '<div id="tarefa-form-erro"></div>' +
+            '<label>Título</label>' +
+            '<input type="text" id="tarefa-form-titulo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+            '<label>Responsável</label>' +
+            '<select id="tarefa-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="">Selecione</option>' +
+            '</select>' +
+            '<div style="display:flex; gap:10px;">' +
+              '<div style="flex:1;"><label>Prioridade</label>' +
+                '<select id="tarefa-form-prioridade" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                  '<option value="baixa">Baixa</option><option value="media" selected>Média</option><option value="alta">Alta</option>' +
+                '</select></div>' +
+              '<div id="tarefa-form-status-wrap" class="hidden" style="flex:1;"><label>Status</label>' +
+                '<select id="tarefa-form-status" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                  '<option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option>' +
+                '</select></div>' +
+            '</div>' +
+            '<label>Vencimento</label>' +
+            '<div style="display:flex; gap:8px; margin-bottom:14px;">' +
+              '<input type="date" id="tarefa-form-vencimento" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+              '<button type="button" id="tarefa-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
+            '</div>' +
+            '<label>Cliente</label>' +
+            '<input type="text" id="tarefa-form-cliente" placeholder="Opcional" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+            '<label>Processo</label>' +
+            '<select id="tarefa-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="">Nenhum</option>' +
+            '</select>' +
+            '<label>Observação</label>' +
+            '<textarea id="tarefa-form-observacao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:18px;"></textarea>' +
+            '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+              '<button type="button" id="tarefa-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+              '<button type="button" id="tarefa-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-tarefa');
+    var tarefaEmEdicao = null;
+    var callbackSalvo = null;
+
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('tarefa-modal-fechar').addEventListener('click', fechar);
+    document.getElementById('tarefa-btn-cancelar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    document.getElementById('tarefa-btn-hoje').addEventListener('click', function () {
+      document.getElementById('tarefa-form-vencimento').value = new Date().toISOString().slice(0, 10);
+    });
+
+    document.getElementById('tarefa-btn-salvar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('tarefa-form-erro');
+      erroDiv.innerHTML = '';
+      var corpo = {
+        titulo: document.getElementById('tarefa-form-titulo').value.trim(),
+        responsavel: document.getElementById('tarefa-form-responsavel').value,
+        prioridade: document.getElementById('tarefa-form-prioridade').value,
+        vencimento: document.getElementById('tarefa-form-vencimento').value,
+        cliente_nome: document.getElementById('tarefa-form-cliente').value.trim(),
+        processo_id: document.getElementById('tarefa-form-processo').value,
+        observacao: document.getElementById('tarefa-form-observacao').value.trim(),
+      };
+      var acao = 'tarefa_criar';
+      if (tarefaEmEdicao) {
+        corpo.id = tarefaEmEdicao.id;
+        corpo.status = document.getElementById('tarefa-form-status').value;
+        acao = 'tarefa_atualizar';
+      }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=' + acao, corpo)
+        .then(function () {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          fechar();
+          if (callbackSalvo) callbackSalvo();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar a tarefa agora.') + '</div>';
+        });
+    });
+
+    overlay._abrir = function (tarefaExistente, onSalvo) {
+      tarefaEmEdicao = tarefaExistente || null;
+      callbackSalvo = onSalvo || null;
+      document.getElementById('tarefa-modal-titulo').textContent = tarefaExistente ? 'Editar tarefa' : 'Nova tarefa';
+      document.getElementById('tarefa-form-erro').innerHTML = '';
+      document.getElementById('tarefa-form-titulo').value = tarefaExistente ? tarefaExistente.titulo : '';
+      document.getElementById('tarefa-form-prioridade').value = tarefaExistente ? tarefaExistente.prioridade : 'media';
+      document.getElementById('tarefa-form-vencimento').value = tarefaExistente ? (tarefaExistente.vencimento || '') : '';
+      document.getElementById('tarefa-form-cliente').value = tarefaExistente ? (tarefaExistente.cliente_nome || '') : '';
+      document.getElementById('tarefa-form-observacao').value = tarefaExistente ? (tarefaExistente.observacao || '') : '';
+
+      var statusWrap = document.getElementById('tarefa-form-status-wrap');
+      if (tarefaExistente) {
+        statusWrap.classList.remove('hidden');
+        document.getElementById('tarefa-form-status').value = tarefaExistente.status;
+      } else {
+        statusWrap.classList.add('hidden');
+      }
+
+      var selectResp = document.getElementById('tarefa-form-responsavel');
+      apiGetJson('/api/painel?acao=usuarios_nomes').then(function (dados) {
+        var usuarios = dados.usuarios || [];
+        selectResp.innerHTML = '<option value="">Selecione</option>' +
+          usuarios.map(function (u) { return '<option value="' + esc(u.usuario) + '">' + esc(u.nome) + '</option>'; }).join('');
+        if (tarefaExistente) selectResp.value = tarefaExistente.responsavel || '';
+      });
+
+      var selectProc = document.getElementById('tarefa-form-processo');
+      apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
+        var processos = dados.processos || [];
+        selectProc.innerHTML = '<option value="">Nenhum</option>' +
+          processos.map(function (p) { return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>'; }).join('');
+        if (tarefaExistente) selectProc.value = tarefaExistente.processo_id || '';
+      });
+
+      overlay.classList.remove('hidden');
+    };
+  }
+
+  function abrirModalTarefa(tarefaExistente, onSalvo) {
+    _garantirModalTarefa();
+    document.getElementById('modal-tarefa')._abrir(tarefaExistente, onSalvo);
+  }
+
+  function wireListaTarefas() {
+    var responsavelEl = document.getElementById('tarefas-filtro-responsavel');
+    var statusEl = document.getElementById('tarefas-filtro-status');
+    var prioridadeEl = document.getElementById('tarefas-filtro-prioridade');
+    var dataDeEl = document.getElementById('tarefas-filtro-data-de');
+    var dataAteEl = document.getElementById('tarefas-filtro-data-ate');
+    var tarefasCarregadas = [];
+
+    apiGetJson('/api/painel?acao=usuarios_nomes').then(function (dados) {
+      var usuarios = dados.usuarios || [];
+      responsavelEl.innerHTML = '<option value="">Todos</option>' +
+        usuarios.map(function (u) { return '<option value="' + esc(u.usuario) + '">' + esc(u.nome) + '</option>'; }).join('');
+    });
+
+    function carregar() {
+      document.getElementById('tarefas-lista').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div>';
+      var qs = '';
+      if (responsavelEl.value) qs += '&responsavel=' + encodeURIComponent(responsavelEl.value);
+      if (statusEl.value) qs += '&status=' + encodeURIComponent(statusEl.value);
+      if (prioridadeEl.value) qs += '&prioridade=' + encodeURIComponent(prioridadeEl.value);
+      if (dataDeEl.value) qs += '&vencimento_de=' + encodeURIComponent(dataDeEl.value);
+      if (dataAteEl.value) qs += '&vencimento_ate=' + encodeURIComponent(dataAteEl.value);
+      apiGetJson('/api/painel?acao=tarefa_listar' + qs)
+        .then(function (dados) {
+          tarefasCarregadas = dados.tarefas || [];
+          renderLista();
+        })
+        .catch(function () {
+          document.getElementById('tarefas-lista').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar as tarefas agora.</div></div>';
+        });
+    }
+
+    function abrirNovaTarefa() { abrirModalTarefa(null, carregar); }
+
+    function renderLista() {
+      var container = document.getElementById('tarefas-lista');
+      if (tarefasCarregadas.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhuma tarefa encontrada.</div></div>';
+        return;
+      }
+      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:820px;">' +
+        '<thead><tr><th>Título</th><th>Prioridade</th><th>Status</th><th>Vencimento</th><th>Responsável</th><th>Cliente / Processo</th><th>Ações</th></tr></thead>' +
+        '<tbody>' + tarefasCarregadas.map(function (t) {
+          return '<tr><td>' + esc(t.titulo) + '</td>' +
+            '<td>' + _chipPrioridadeTarefa(t.prioridade) + '</td>' +
+            '<td>' + _chipStatusTarefa(t.status) + '</td>' +
+            '<td>' + (t.vencimento ? fmtDataProcesso(t.vencimento) : '—') + '</td>' +
+            '<td>' + esc(t.responsavel || '—') + '</td>' +
+            '<td>' + esc(t.cliente_nome || t.numero_cnj || '—') + '</td>' +
+            '<td><button type="button" class="btn-conexao-secundario" data-tarefa-editar="' + t.id + '">Editar</button> ' +
+              '<button type="button" class="btn-remover" data-tarefa-excluir="' + t.id + '">Excluir</button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      container.querySelectorAll('[data-tarefa-editar]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var t = tarefasCarregadas.filter(function (x) { return String(x.id) === btn.getAttribute('data-tarefa-editar'); })[0];
+          if (t) abrirModalTarefa(t, carregar);
+        });
+      });
+      container.querySelectorAll('[data-tarefa-excluir]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!confirm('Excluir esta tarefa?')) return;
+          apiPostJson('/api/painel?acao=tarefa_excluir', { id: btn.getAttribute('data-tarefa-excluir') }).then(carregar);
+        });
+      });
+    }
+
+    document.getElementById('tarefas-btn-buscar').addEventListener('click', carregar);
+    document.getElementById('tarefas-btn-limpar').addEventListener('click', function () {
+      responsavelEl.value = ''; statusEl.value = ''; prioridadeEl.value = ''; dataDeEl.value = ''; dataAteEl.value = '';
+      carregar();
+    });
+    document.getElementById('tarefas-btn-adicionar').addEventListener('click', abrirNovaTarefa);
     carregar();
   }
 
@@ -4973,9 +5208,6 @@
     });
   }
 
-  var eventoEditandoId = null;
-  var tarefaEditandoId = null;
-
   function fmtDataCurta(iso) {
     if (!iso) return '';
     var dataParte = iso.split('T')[0];
@@ -4985,211 +5217,6 @@
     return horaParte ? dataFmt + ' às ' + horaParte : dataFmt;
   }
 
-  function carregarAgenda() {
-    apiGetJson('/api/painel?acao=agenda&op=listar')
-      .then(function (dados) {
-        renderAgendaEventos(dados.eventos || []);
-        renderAgendaTarefas(dados.tarefas || []);
-        renderProximosCompromissos(dados.eventos || [], dados.tarefas || []);
-      })
-      .catch(function () {
-        document.getElementById('agenda-lista-eventos').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar os eventos.</div></div>';
-        document.getElementById('agenda-lista-tarefas').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar as tarefas.</div></div>';
-        var listaProximos = document.getElementById('visao-proximos-lista');
-        if (listaProximos) {
-          listaProximos.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar a agenda.</div></div>';
-        }
-      });
-  }
-
-  function renderProximosCompromissos(eventos, tarefas) {
-    var container = document.getElementById('visao-proximos-lista');
-    if (!container) return;
-
-    var itens = eventos.map(function (ev) {
-      return { titulo: ev.titulo, dataOrdenacao: ev.inicio, dataExibida: fmtDataCurta(ev.inicio) };
-    }).concat(
-      tarefas.filter(function (t) { return t.data_vencimento; }).map(function (t) {
-        return { titulo: t.titulo, dataOrdenacao: t.data_vencimento, dataExibida: fmtDataCurta(t.data_vencimento) };
-      })
-    );
-    itens.sort(function (a, b) { return a.dataOrdenacao < b.dataOrdenacao ? -1 : 1; });
-    itens = itens.slice(0, 4);
-
-    if (itens.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nada agendado nos próximos dias.</div></div>';
-      return;
-    }
-
-    container.innerHTML = itens.map(function (item) {
-      return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + esc(item.titulo) + '</div>' +
-        '<div class="agenda-item-data">' + esc(item.dataExibida) + '</div></div>' +
-      '</div>';
-    }).join('');
-  }
-
-  function renderAgendaEventos(eventos) {
-    var container = document.getElementById('agenda-lista-eventos');
-    if (eventos.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum evento nos próximos 30 dias.</div></div>';
-      return;
-    }
-    container.innerHTML = eventos.map(function (ev) {
-      return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + esc(ev.titulo) + '</div>' +
-        '<div class="agenda-item-data">' + esc(fmtDataCurta(ev.inicio)) + '</div></div>' +
-        '<div class="agenda-item-acoes">' +
-          '<button class="btn-editar" data-editar-evento="' + esc(ev.id) + '" data-titulo="' + esc(ev.titulo) + '" data-inicio="' + esc(ev.inicio) + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-evento="' + esc(ev.id) + '">Excluir</button>' +
-        '</div></div>';
-    }).join('');
-
-    container.querySelectorAll('[data-editar-evento]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        eventoEditandoId = btn.getAttribute('data-editar-evento');
-        document.getElementById('evento-titulo').value = btn.getAttribute('data-titulo');
-        var inicio = btn.getAttribute('data-inicio');
-        document.getElementById('evento-data').value = inicio.split('T')[0];
-        document.getElementById('evento-hora').value = inicio.includes('T') ? inicio.split('T')[1].substring(0, 5) : '';
-        document.getElementById('evento-btn-salvar').textContent = 'Salvar edição';
-        document.getElementById('evento-btn-cancelar').classList.remove('hidden');
-      });
-    });
-    container.querySelectorAll('[data-excluir-evento]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Excluir esse evento?')) return;
-        apiPost('/api/painel?acao=agenda', { op: 'excluir_evento', id: btn.getAttribute('data-excluir-evento') })
-          .then(function () { carregarAgenda(); });
-      });
-    });
-  }
-
-  function renderAgendaTarefas(tarefas) {
-    var container = document.getElementById('agenda-lista-tarefas');
-    if (tarefas.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma tarefa pendente.</div></div>';
-      return;
-    }
-    container.innerHTML = tarefas.map(function (t) {
-      return '<div class="agenda-item">' +
-        '<div><div class="agenda-item-titulo">' + esc(t.titulo) + '</div>' +
-        '<div class="agenda-item-data">' + (t.data_vencimento ? esc(fmtDataCurta(t.data_vencimento)) : 'Sem prazo') + '</div></div>' +
-        '<div class="agenda-item-acoes">' +
-          '<button class="btn-concluir" data-concluir-tarefa="' + esc(t.id) + '">Concluir</button>' +
-          '<button class="btn-editar" data-editar-tarefa="' + esc(t.id) + '" data-titulo="' + esc(t.titulo) + '" data-venc="' + esc(t.data_vencimento || '') + '">Editar</button>' +
-          '<button class="btn-remover" data-excluir-tarefa="' + esc(t.id) + '">Excluir</button>' +
-        '</div></div>';
-    }).join('');
-
-    container.querySelectorAll('[data-concluir-tarefa]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        btn.disabled = true;
-        btn.textContent = 'Concluindo...';
-        apiPost('/api/painel?acao=agenda', { op: 'concluir_tarefa', id: btn.getAttribute('data-concluir-tarefa') })
-          .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
-          .then(function (resultado) {
-            if (resultado.status !== 200) {
-              btn.disabled = false;
-              btn.textContent = 'Concluir';
-              alert(resultado.corpo.erro || 'Não foi possível concluir a tarefa agora.');
-              return;
-            }
-            carregarAgenda();
-          })
-          .catch(function () {
-            btn.disabled = false;
-            btn.textContent = 'Concluir';
-            alert('Não foi possível concluir a tarefa agora.');
-          });
-      });
-    });
-    container.querySelectorAll('[data-editar-tarefa]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        tarefaEditandoId = btn.getAttribute('data-editar-tarefa');
-        document.getElementById('tarefa-titulo').value = btn.getAttribute('data-titulo');
-        document.getElementById('tarefa-data').value = btn.getAttribute('data-venc');
-        document.getElementById('tarefa-btn-salvar').textContent = 'Salvar edição';
-        document.getElementById('tarefa-btn-cancelar').classList.remove('hidden');
-      });
-    });
-    container.querySelectorAll('[data-excluir-tarefa]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (!confirm('Excluir essa tarefa?')) return;
-        apiPost('/api/painel?acao=agenda', { op: 'excluir_tarefa', id: btn.getAttribute('data-excluir-tarefa') })
-          .then(function () { carregarAgenda(); });
-      });
-    });
-  }
-
-  function wireAgenda() {
-    document.getElementById('evento-btn-salvar').addEventListener('click', function () {
-      var titulo = document.getElementById('evento-titulo').value.trim();
-      var data = document.getElementById('evento-data').value;
-      var hora = document.getElementById('evento-hora').value;
-      var comMeet = document.getElementById('evento-meet').checked;
-      if (!titulo || !data) return;
-      var op = eventoEditandoId ? 'editar_evento' : 'criar_evento';
-      var corpoEvento = { op: op, titulo: titulo, data: data };
-      if (hora) corpoEvento.hora = hora;
-      if (comMeet && !eventoEditandoId) corpoEvento.meet = 'true';
-      if (eventoEditandoId) corpoEvento.id = eventoEditandoId;
-      var resultadoEl = document.getElementById('evento-meet-resultado');
-      apiPost('/api/painel?acao=agenda', corpoEvento).then(function (r) { return r.json(); }).then(function (dados) {
-        eventoEditandoId = null;
-        document.getElementById('evento-titulo').value = '';
-        document.getElementById('evento-data').value = '';
-        document.getElementById('evento-hora').value = '';
-        document.getElementById('evento-meet').checked = false;
-        document.getElementById('evento-btn-salvar').textContent = 'Criar';
-        document.getElementById('evento-btn-cancelar').classList.add('hidden');
-        if (dados.link_meet) {
-          resultadoEl.classList.remove('hidden');
-          resultadoEl.innerHTML = 'Link do Meet: <a href="' + esc(dados.link_meet) + '" target="_blank" rel="noopener" style="color:var(--accent);">' + esc(dados.link_meet) + '</a>';
-        } else {
-          resultadoEl.classList.add('hidden');
-        }
-        carregarAgenda();
-      });
-    });
-
-    document.getElementById('evento-btn-cancelar').addEventListener('click', function () {
-      eventoEditandoId = null;
-      document.getElementById('evento-titulo').value = '';
-      document.getElementById('evento-data').value = '';
-      document.getElementById('evento-hora').value = '';
-      document.getElementById('evento-btn-salvar').textContent = 'Criar';
-      this.classList.add('hidden');
-    });
-
-    document.getElementById('tarefa-btn-salvar').addEventListener('click', function () {
-      var titulo = document.getElementById('tarefa-titulo').value.trim();
-      var data = document.getElementById('tarefa-data').value;
-      if (!titulo) return;
-      var op = tarefaEditandoId ? 'editar_tarefa' : 'criar_tarefa';
-      var corpoTarefa = { op: op, titulo: titulo };
-      if (data) corpoTarefa.data = data;
-      if (tarefaEditandoId) corpoTarefa.id = tarefaEditandoId;
-      apiPost('/api/painel?acao=agenda', corpoTarefa).then(function () {
-        tarefaEditandoId = null;
-        document.getElementById('tarefa-titulo').value = '';
-        document.getElementById('tarefa-data').value = '';
-        document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
-        document.getElementById('tarefa-btn-cancelar').classList.add('hidden');
-        carregarAgenda();
-      });
-    });
-
-    document.getElementById('tarefa-btn-cancelar').addEventListener('click', function () {
-      tarefaEditandoId = null;
-      document.getElementById('tarefa-titulo').value = '';
-      document.getElementById('tarefa-data').value = '';
-      document.getElementById('tarefa-btn-salvar').textContent = 'Criar';
-      this.classList.add('hidden');
-    });
-  }
 
   var CONTRATO_PLACEHOLDERS_PAGAMENTO = ['VALOR_TOTAL', 'VALOR_TOTAL_EXTENSO', 'VALOR_ENTRADA', 'VALOR_ENTRADA_EXTENSO', 'VALOR_PARCELA', 'VALOR_PARCELA_EXTENSO', 'NUM_PARCELAS', 'DATA_ENTRADA', 'DIA_VENCIMENTO'];
   var CONTRATO_PLACEHOLDERS_EXITO = ['PERCENTUAL_HONORARIOS', 'PERCENTUAL_RECURSAL'];
@@ -5779,7 +5806,7 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum usuario cadastrado.</div></div>';
           return;
         }
-        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Agenda', automacoes: 'Automações' };
+        var rotulos = { financeiro: 'Financeiro', pje: 'PJe', clientes: 'Clientes', processos: 'Processos', agenda: 'Tarefas', automacoes: 'Automações' };
         var linhas = dados.usuarios.map(function (u) {
           var descPermissoes;
           if (u.admin) {
