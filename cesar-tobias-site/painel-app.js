@@ -1854,16 +1854,38 @@
         '<div id="config-painel-usuarios" class="config-painel hidden">' + htmlAdmin + '</div>' +
 
         '<div id="config-painel-avisos" class="config-painel hidden">' +
-          '<div class="panel">' +
-            '<div class="panel-header"><span class="panel-title">Publicar aviso</span></div>' +
-            '<div style="padding:16px 20px;">' +
-              '<input type="text" id="aviso-titulo" placeholder="Título do aviso" style="margin-bottom:10px;">' +
-              '<textarea id="aviso-mensagem" rows="3" placeholder="Mensagem" style="width:100%; margin-bottom:10px; font:inherit; padding:10px; border-radius:8px;"></textarea>' +
-              '<button id="aviso-btn-criar">Publicar aviso</button>' +
-              '<span class="admin-msg" id="aviso-msg" aria-live="polite" style="margin-left:12px;"></span>' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:6px;">' +
+            '<div>' +
+              '<p style="margin:0; font-weight:600; color:var(--ink);">Avisos do Escritório</p>' +
+              '<p style="margin:4px 0 0; font-size:12.5px; color:var(--ink-soft); max-width:640px;">' +
+                'Mensagens ativas aparecem na seção <strong>Avisos do escritório</strong> do menu do sino no topo. ' +
+                'Desative pelo botão "Ativo" para ocultar sem excluir. Máximo 100 caracteres por mensagem.</p>' +
+            '</div>' +
+            '<button id="aviso-btn-novo" style="white-space:nowrap;">+ Novo aviso</button>' +
+          '</div>' +
+          '<span class="admin-msg" id="aviso-msg" aria-live="polite"></span>' +
+          '<div id="aviso-lista" style="margin-top:10px;"></div>' +
+        '</div>' +
+
+        '<div id="modal-aviso" class="modal-overlay hidden">' +
+          '<div class="aviso-modal-caixa">' +
+            '<h3><span id="aviso-modal-titulo">Novo aviso</span>' +
+              '<button type="button" class="aviso-modal-fechar" id="aviso-modal-fechar" aria-label="Fechar">✕</button></h3>' +
+            '<input type="hidden" id="aviso-modal-id">' +
+            '<label for="aviso-modal-mensagem">Mensagem</label>' +
+            '<textarea id="aviso-modal-mensagem" rows="3" maxlength="100" ' +
+              'placeholder="Texto exibido em Avisos do escritório no menu do sino (máx. 100 caracteres)"></textarea>' +
+            '<div class="aviso-modal-contador"><span id="aviso-modal-contador-num">0</span>/100</div>' +
+            '<div class="aviso-modal-ativo-row">' +
+              '<span style="font-size:12.5px; font-weight:600; color:var(--ink-soft);">Ativo</span>' +
+              '<label><input type="radio" name="aviso-modal-ativo" value="sim" checked> Sim</label>' +
+              '<label><input type="radio" name="aviso-modal-ativo" value="nao"> Não</label>' +
+            '</div>' +
+            '<div class="aviso-modal-acoes">' +
+              '<button type="button" class="btn-conexao-secundario" id="aviso-modal-cancelar">Cancelar</button>' +
+              '<button type="button" id="aviso-modal-salvar">Salvar</button>' +
             '</div>' +
           '</div>' +
-          '<div id="aviso-lista" style="margin-top:14px;"></div>' +
         '</div>' +
 
         '<div id="config-painel-atualizacoes" class="config-painel hidden">' +
@@ -2114,32 +2136,42 @@
     });
 
     // aba Avisos do escritorio
+    var avisosCache = [];
+    var modalAviso = document.getElementById('modal-aviso');
+    var campoModalMensagem = document.getElementById('aviso-modal-mensagem');
+
     function carregarAvisos() {
       apiGetJson('/api/painel?acao=avisos_listar').then(function (d) {
         var container = document.getElementById('aviso-lista');
         if (!container || !d || !d.avisos) return;
+        avisosCache = d.avisos;
         if (d.avisos.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum aviso publicado ainda.</div></div>';
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum aviso cadastrado. Clique em "Novo aviso" para adicionar.</div></div>';
           return;
         }
-        container.innerHTML = d.avisos.map(function (a) {
-          return '<div class="panel" style="margin-bottom:10px;">' +
-            '<div class="panel-header"><span class="panel-title">' + esc(a.titulo) + '</span>' +
-              (a.ativo ? '<span class="chip good">Ativo</span>' : '<span class="chip neutral">Inativo</span>') + '</div>' +
-            '<div style="padding:12px 20px; font-size:13.5px; color:var(--ink-soft); white-space:pre-wrap;">' + esc(a.mensagem) + '</div>' +
-            '<div style="padding:0 20px 14px; display:flex; gap:8px;">' +
-              '<button class="btn-conexao-secundario" data-aviso-toggle="' + a.id + '" data-aviso-ativo="' + a.ativo + '">' +
-                (a.ativo ? 'Desativar' : 'Ativar') + '</button>' +
-              '<button class="btn-remover" data-aviso-excluir="' + a.id + '">Excluir</button>' +
-            '</div>' +
-          '</div>';
-        }).join('');
+        container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:520px;">' +
+          '<thead><tr><th>Mensagem</th><th>Ativo</th><th>Ações</th></tr></thead>' +
+          '<tbody>' + d.avisos.map(function (a) {
+            return '<tr><td>' + esc(a.mensagem) + '</td>' +
+              '<td><button class="btn-conexao-secundario" data-aviso-toggle="' + a.id + '" data-aviso-ativo="' + a.ativo + '">' +
+                (a.ativo ? '<span class="chip good">Sim</span>' : '<span class="chip neutral">Não</span>') + '</button></td>' +
+              '<td><button class="btn-conexao-secundario" data-aviso-editar="' + a.id + '">Editar</button> ' +
+                '<button class="btn-remover" data-aviso-excluir="' + a.id + '">Excluir</button></td></tr>';
+          }).join('') + '</tbody></table></div>';
+
         container.querySelectorAll('[data-aviso-toggle]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             apiPost('/api/painel?acao=aviso_atualizar', {
               id: btn.getAttribute('data-aviso-toggle'),
               ativo: btn.getAttribute('data-aviso-ativo') !== 'true',
             }).then(carregarAvisos);
+          });
+        });
+        container.querySelectorAll('[data-aviso-editar]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var id = btn.getAttribute('data-aviso-editar');
+            var aviso = avisosCache.filter(function (a) { return String(a.id) === String(id); })[0];
+            if (aviso) abrirModalAviso(aviso);
           });
         });
         container.querySelectorAll('[data-aviso-excluir]').forEach(function (btn) {
@@ -2151,17 +2183,44 @@
       });
     }
     carregarAvisos();
-    document.getElementById('aviso-btn-criar').addEventListener('click', function () {
+
+    function atualizarContadorAviso() {
+      document.getElementById('aviso-modal-contador-num').textContent = campoModalMensagem.value.length;
+    }
+    campoModalMensagem.addEventListener('input', atualizarContadorAviso);
+
+    function abrirModalAviso(aviso) {
+      document.getElementById('aviso-modal-titulo').textContent = aviso ? 'Editar aviso' : 'Novo aviso';
+      document.getElementById('aviso-modal-id').value = aviso ? aviso.id : '';
+      campoModalMensagem.value = aviso ? aviso.mensagem : '';
+      atualizarContadorAviso();
+      var ativo = aviso ? aviso.ativo : true;
+      document.querySelector('input[name="aviso-modal-ativo"][value="' + (ativo ? 'sim' : 'nao') + '"]').checked = true;
+      document.getElementById('aviso-msg').textContent = '';
+      modalAviso.classList.remove('hidden');
+      campoModalMensagem.focus();
+    }
+    function fecharModalAviso() {
+      modalAviso.classList.add('hidden');
+    }
+    document.getElementById('aviso-btn-novo').addEventListener('click', function () { abrirModalAviso(null); });
+    document.getElementById('aviso-modal-fechar').addEventListener('click', fecharModalAviso);
+    document.getElementById('aviso-modal-cancelar').addEventListener('click', fecharModalAviso);
+    modalAviso.addEventListener('click', function (e) { if (e.target === modalAviso) fecharModalAviso(); });
+
+    document.getElementById('aviso-modal-salvar').addEventListener('click', function () {
       var msg = document.getElementById('aviso-msg');
-      var titulo = document.getElementById('aviso-titulo').value;
-      var mensagem = document.getElementById('aviso-mensagem').value;
-      apiPost('/api/painel?acao=aviso_criar', { titulo: titulo, mensagem: mensagem })
+      var id = document.getElementById('aviso-modal-id').value;
+      var mensagem = campoModalMensagem.value;
+      var ativo = document.querySelector('input[name="aviso-modal-ativo"]:checked').value === 'sim';
+      var acao = id ? 'aviso_atualizar' : 'aviso_criar';
+      var corpo = id ? { id: id, mensagem: mensagem, ativo: ativo } : { mensagem: mensagem, ativo: ativo };
+      apiPost('/api/painel?acao=' + acao, corpo)
         .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
         .then(function (resultado) {
-          if (resultado.status !== 200) { msg.textContent = resultado.corpo.erro || 'Erro ao publicar aviso.'; return; }
-          document.getElementById('aviso-titulo').value = '';
-          document.getElementById('aviso-mensagem').value = '';
-          msg.textContent = 'Aviso publicado.';
+          if (resultado.status !== 200) { msg.textContent = resultado.corpo.erro || 'Erro ao salvar o aviso.'; return; }
+          fecharModalAviso();
+          msg.textContent = id ? 'Aviso atualizado.' : 'Aviso publicado.';
           carregarAvisos();
         });
     });
