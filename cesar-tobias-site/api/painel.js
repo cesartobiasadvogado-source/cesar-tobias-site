@@ -325,6 +325,44 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'compromisso_listar') {
+    var qsCompromisso = '';
+    ['data_de', 'data_ate', 'tipo', 'responsavel', 'vinculo'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsCompromisso += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(base + '?action=compromisso_listar' + qsCompromisso + '&token=' + encodeURIComponent(tokenSessao) + segredoQS);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar a agenda.' });
+    }
+    return;
+  }
+
+  var acoesCompromissoPost = {
+    compromisso_criar: 'Erro de conexao ao salvar o compromisso.',
+    compromisso_atualizar: 'Erro de conexao ao atualizar o compromisso.',
+    compromisso_excluir: 'Erro de conexao ao excluir o compromisso.',
+  };
+  if (acoesCompromissoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessao) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesCompromissoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'processos') {
     var opProcessos = (req.query && req.query.op) || corpo.op || '';
     if (opProcessos !== 'listar' && req.method !== 'POST') {

@@ -60,7 +60,7 @@
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
-    tarefas: 'Tarefas', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
+    tarefas: 'Tarefas', agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
 
@@ -1975,6 +1975,117 @@
         '</div>' +
       '</section>';
 
+    var TIPOS_COMPROMISSO = [
+      ['audiencia', 'Audiência'], ['reuniao', 'Reunião'], ['atendimento', 'Atendimento'],
+      ['prazo', 'Prazo'], ['visita', 'Visita'], ['administrativo', 'Administrativo'],
+      ['pessoal', 'Pessoal'], ['outro', 'Outro'],
+    ];
+
+    var htmlAgendaCompleta = perms.indexOf('agenda') === -1 ? '' :
+      '<section id="sec-agenda-completa">' +
+        '<div class="procpage-dark">' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px;">' +
+            '<h2 class="procpage-titulo" style="margin:0;">Agenda</h2>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="ag-btn-novo">+ Novo compromisso</button>' +
+          '</div>' +
+
+          '<div class="procpage-filtros">' +
+            '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+              '<div class="subtabs">' +
+                '<button type="button" class="subtab-btn ativo" data-ag-view="lista">Lista</button>' +
+                '<button type="button" class="subtab-btn" data-ag-view="mensal">Mensal</button>' +
+                '<button type="button" class="subtab-btn" data-ag-view="semanal">Semanal</button>' +
+              '</div>' +
+              '<select id="ag-filtro-tipo" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                '<option value="">Todos os tipos</option>' +
+                TIPOS_COMPROMISSO.map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('') +
+              '</select>' +
+              '<button type="button" class="procpage-btn" id="ag-btn-mais-filtros">☰ Mais filtros</button>' +
+              '<button type="button" class="procpage-btn" id="ag-btn-atualizar" style="margin-left:auto;" title="Atualizar">⟳</button>' +
+            '</div>' +
+            '<div id="ag-mais-filtros" class="hidden" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">' +
+              '<select id="ag-filtro-responsavel" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                '<option value="">Todos os responsáveis</option>' +
+              '</select>' +
+              '<select id="ag-filtro-vinculo" style="padding:8px 10px; border-radius:7px; border:1px solid #232d42; background:#0b1220; color:#e7eaf0;">' +
+                '<option value="">Todos os vínculos</option><option value="com_processo">Com processo</option><option value="sem_processo">Sem processo</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>' +
+
+          '<div id="ag-nav" class="hidden" style="display:flex; align-items:center; justify-content:center; gap:14px; margin:14px 0;">' +
+            '<button type="button" class="procpage-btn" id="ag-nav-anterior">‹</button>' +
+            '<strong id="ag-nav-titulo" style="color:#e7eaf0; font-size:14px; min-width:180px; text-align:center;">—</strong>' +
+            '<button type="button" class="procpage-btn" id="ag-nav-hoje">Hoje</button>' +
+            '<button type="button" class="procpage-btn" id="ag-nav-proximo">›</button>' +
+          '</div>' +
+
+          '<div id="ag-conteudo" style="margin-top:14px;"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+        '</div>' +
+
+        '<div id="modal-compromisso" class="modal-overlay hidden">' +
+          '<div class="modal-drill-caixa" style="max-width:520px;">' +
+            '<div class="modal-drill-cabecalho">' +
+              '<span class="modal-drill-titulo" id="ag-modal-titulo">Novo compromisso</span>' +
+              '<button type="button" class="modal-drill-fechar" id="ag-modal-fechar" aria-label="Fechar">✕</button>' +
+            '</div>' +
+            '<div style="padding:18px 20px; max-height:74vh; overflow-y:auto;">' +
+              '<div id="ag-form-erro"></div>' +
+              '<label>Título *</label>' +
+              '<input type="text" id="ag-form-titulo" placeholder="Ex.: Dentista, Audiência de instrução..." style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<div style="display:flex; gap:10px;">' +
+                '<div style="flex:1;"><label>Tipo *</label>' +
+                  '<select id="ag-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                    TIPOS_COMPROMISSO.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === 'reuniao' ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') +
+                  '</select></div>' +
+                '<div style="flex:1;"><label>Responsável</label>' +
+                  '<select id="ag-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                    '<option value="">Selecione</option>' +
+                  '</select></div>' +
+              '</div>' +
+              '<label>Data e hora *</label>' +
+              '<div style="display:flex; gap:8px; margin-bottom:6px;">' +
+                '<input type="date" id="ag-form-data" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+                '<input type="time" id="ag-form-hora" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+                '<button type="button" id="ag-btn-agora" style="padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:12.5px;cursor:pointer;">Agora</button>' +
+                '<button type="button" id="ag-btn-hoje" style="padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:12.5px;cursor:pointer;">Hoje</button>' +
+              '</div>' +
+              '<div style="display:flex; gap:10px; margin-bottom:14px;">' +
+                '<div style="flex:1;"><label>Término</label>' +
+                  '<input type="time" id="ag-form-hora-fim" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);"></div>' +
+                '<div style="flex:1;"><label>Repetir</label>' +
+                  '<select id="ag-form-repetir" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
+                    '<option value="nao_repete">Não repetir</option><option value="diariamente">Diariamente</option>' +
+                    '<option value="semanalmente">Semanalmente</option><option value="mensalmente">Mensalmente</option>' +
+                  '</select></div>' +
+              '</div>' +
+              '<label>Local</label>' +
+              '<input type="text" id="ag-form-local" placeholder="Fórum, escritório, online..." style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<label style="display:flex; align-items:center; gap:8px; font-weight:400; margin-bottom:14px;">' +
+                '<input type="checkbox" id="ag-form-meet" style="width:auto;"> Gerar link do Meet</label>' +
+              '<label style="display:flex; align-items:center; gap:8px; font-weight:400; margin-bottom:18px;">' +
+                '<input type="checkbox" id="ag-form-privado" style="width:auto;"> Marcar como compromisso privado</label>' +
+              '<button type="button" id="ag-btn-mais-opcoes" style="background:none; border:none; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0; margin-bottom:14px;">› Mais opções</button>' +
+              '<div id="ag-mais-opcoes" class="hidden">' +
+                '<label>Cliente</label>' +
+                '<input type="text" id="ag-form-cliente" placeholder="Opcional" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                '<label>Processo</label>' +
+                '<select id="ag-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+                  '<option value="">Nenhum</option>' +
+                '</select>' +
+                '<label>Descrição</label>' +
+                '<textarea id="ag-form-descricao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:14px;"></textarea>' +
+              '</div>' +
+              '<div id="ag-link-meet-resultado" class="hidden" style="font-size:12.5px; margin-bottom:14px;"></div>' +
+              '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+                '<button type="button" id="ag-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+                '<button type="button" id="ag-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
     // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
@@ -1990,6 +2101,7 @@
       novo_cliente: htmlNovoCliente,
       prazos: htmlPrazos,
       tarefas: htmlTarefas,
+      agenda: htmlAgendaCompleta,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
@@ -1999,7 +2111,7 @@
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
-      tarefas: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
+      tarefas: 'agenda', agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
@@ -2044,6 +2156,7 @@
 
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
+    if (PAGINA_ATUAL === 'agenda') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3425,6 +3538,386 @@
       carregar();
     });
     document.getElementById('tarefas-btn-adicionar').addEventListener('click', abrirNovaTarefa);
+    carregar();
+  }
+
+  var ROTULO_TIPO_COMPROMISSO = {
+    audiencia: 'Audiência', reuniao: 'Reunião', atendimento: 'Atendimento', prazo: 'Prazo',
+    visita: 'Visita', administrativo: 'Administrativo', pessoal: 'Pessoal', outro: 'Outro',
+  };
+  var COR_TIPO_COMPROMISSO = {
+    audiencia: '#e23a2e', reuniao: '#2c5ce0', atendimento: '#1f9d55', prazo: '#c99a2e',
+    visita: '#8a4fd8', administrativo: '#5b6b8c', pessoal: '#d84f9c', outro: '#8293b5',
+  };
+  var NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  var NOMES_DIA_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  function _fmtISOData(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function _inicioSemana(d) {
+    var novo = new Date(d);
+    var diaSemana = novo.getDay(); // 0=domingo
+    var deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana; // segunda-feira como inicio
+    novo.setDate(novo.getDate() + deslocamento);
+    novo.setHours(0, 0, 0, 0);
+    return novo;
+  }
+  function _horaMinuto(isoDataHora) {
+    if (!isoDataHora) return null;
+    var parte = isoDataHora.split('T')[1];
+    return parte ? parte.slice(0, 5) : null;
+  }
+
+  function wireAgendaCompleta() {
+    var estado = { view: 'lista', refData: new Date() };
+    var compromissosCarregados = [];
+
+    var elTipo = document.getElementById('ag-filtro-tipo');
+    var elResponsavel = document.getElementById('ag-filtro-responsavel');
+    var elVinculo = document.getElementById('ag-filtro-vinculo');
+
+    apiGetJson('/api/painel?acao=usuarios_nomes').then(function (dados) {
+      var usuarios = dados.usuarios || [];
+      var opcoes = usuarios.map(function (u) { return '<option value="' + esc(u.usuario) + '">' + esc(u.nome) + '</option>'; }).join('');
+      elResponsavel.innerHTML = '<option value="">Todos os responsáveis</option>' + opcoes;
+      document.getElementById('ag-form-responsavel').innerHTML = '<option value="">Selecione</option>' + opcoes;
+    });
+    apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
+      var processos = dados.processos || [];
+      document.getElementById('ag-form-processo').innerHTML = '<option value="">Nenhum</option>' +
+        processos.map(function (p) { return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>'; }).join('');
+    });
+
+    document.querySelectorAll('[data-ag-view]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-ag-view]').forEach(function (b) { b.classList.remove('ativo'); });
+        btn.classList.add('ativo');
+        estado.view = btn.getAttribute('data-ag-view');
+        document.getElementById('ag-nav').classList.toggle('hidden', estado.view === 'lista');
+        carregar();
+      });
+    });
+
+    document.getElementById('ag-btn-mais-filtros').addEventListener('click', function () {
+      document.getElementById('ag-mais-filtros').classList.toggle('hidden');
+    });
+    document.getElementById('ag-btn-atualizar').addEventListener('click', carregar);
+    elTipo.addEventListener('change', carregar);
+    elResponsavel.addEventListener('change', carregar);
+    elVinculo.addEventListener('change', carregar);
+
+    document.getElementById('ag-nav-anterior').addEventListener('click', function () { navegar(-1); });
+    document.getElementById('ag-nav-proximo').addEventListener('click', function () { navegar(1); });
+    document.getElementById('ag-nav-hoje').addEventListener('click', function () { estado.refData = new Date(); carregar(); });
+
+    function navegar(direcao) {
+      var d = new Date(estado.refData);
+      if (estado.view === 'mensal') d.setMonth(d.getMonth() + direcao);
+      else d.setDate(d.getDate() + direcao * 7);
+      estado.refData = d;
+      carregar();
+    }
+
+    function calcularIntervalo() {
+      if (estado.view === 'lista') {
+        var hoje = new Date();
+        var fim = new Date();
+        fim.setDate(fim.getDate() + 90);
+        return { de: _fmtISOData(hoje) + 'T00:00:00', ate: _fmtISOData(fim) + 'T23:59:59' };
+      }
+      if (estado.view === 'semanal') {
+        var inicioSem = _inicioSemana(estado.refData);
+        var fimSem = new Date(inicioSem);
+        fimSem.setDate(fimSem.getDate() + 6);
+        return { de: _fmtISOData(inicioSem) + 'T00:00:00', ate: _fmtISOData(fimSem) + 'T23:59:59' };
+      }
+      // mensal -- pega o mes inteiro (com folga de semana antes/depois pra grid ficar completa)
+      var primeiroDiaMes = new Date(estado.refData.getFullYear(), estado.refData.getMonth(), 1);
+      var ultimoDiaMes = new Date(estado.refData.getFullYear(), estado.refData.getMonth() + 1, 0);
+      var inicioGrid = _inicioSemana(primeiroDiaMes);
+      var fimGrid = new Date(ultimoDiaMes);
+      fimGrid.setDate(fimGrid.getDate() + (7 - fimGrid.getDay()) % 7);
+      return { de: _fmtISOData(inicioGrid) + 'T00:00:00', ate: _fmtISOData(fimGrid) + 'T23:59:59' };
+    }
+
+    function atualizarTituloNav() {
+      var titulo = document.getElementById('ag-nav-titulo');
+      if (estado.view === 'mensal') {
+        titulo.textContent = NOMES_MES[estado.refData.getMonth()] + ' de ' + estado.refData.getFullYear();
+      } else if (estado.view === 'semanal') {
+        var inicioSem = _inicioSemana(estado.refData);
+        var fimSem = new Date(inicioSem);
+        fimSem.setDate(fimSem.getDate() + 6);
+        titulo.textContent = inicioSem.getDate() + ' de ' + NOMES_MES[inicioSem.getMonth()].slice(0, 3).toLowerCase() +
+          ' – ' + fimSem.getDate() + ' de ' + NOMES_MES[fimSem.getMonth()].slice(0, 3).toLowerCase() + ' de ' + fimSem.getFullYear();
+      }
+    }
+
+    function carregar() {
+      atualizarTituloNav();
+      document.getElementById('ag-conteudo').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div>';
+      var intervalo = calcularIntervalo();
+      var qs = '&data_de=' + encodeURIComponent(intervalo.de) + '&data_ate=' + encodeURIComponent(intervalo.ate);
+      if (elTipo.value) qs += '&tipo=' + encodeURIComponent(elTipo.value);
+      if (elResponsavel.value) qs += '&responsavel=' + encodeURIComponent(elResponsavel.value);
+      if (elVinculo.value) qs += '&vinculo=' + encodeURIComponent(elVinculo.value);
+      apiGetJson('/api/painel?acao=compromisso_listar' + qs)
+        .then(function (dados) {
+          compromissosCarregados = dados.compromissos || [];
+          renderizar();
+        })
+        .catch(function () {
+          document.getElementById('ag-conteudo').innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Não foi possível carregar a agenda agora.</div></div>';
+        });
+    }
+
+    function renderizar() {
+      if (estado.view === 'lista') renderLista();
+      else if (estado.view === 'mensal') renderMensal();
+      else renderSemanal();
+    }
+
+    function _chipTipo(tipo) {
+      return '<span class="chip neutral" style="color:' + (COR_TIPO_COMPROMISSO[tipo] || '#8293b5') + ';">' + esc(ROTULO_TIPO_COMPROMISSO[tipo] || tipo) + '</span>';
+    }
+
+    function renderLista() {
+      var container = document.getElementById('ag-conteudo');
+      if (compromissosCarregados.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum compromisso encontrado nos próximos 90 dias.</div></div>';
+        return;
+      }
+      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:820px;">' +
+        '<thead><tr><th>Título</th><th>Tipo</th><th>Data/Hora</th><th>Responsável</th><th>Local</th><th>Cliente / Processo</th><th>Ações</th></tr></thead>' +
+        '<tbody>' + compromissosCarregados.map(function (c) {
+          return '<tr><td>' + esc(c.titulo) + '</td><td>' + _chipTipo(c.tipo) + '</td>' +
+            '<td>' + fmtDataProcesso(c.data_inicio.slice(0, 10)) + (_horaMinuto(c.data_inicio) ? ' · ' + _horaMinuto(c.data_inicio) : '') + '</td>' +
+            '<td>' + esc(c.responsavel || '—') + '</td><td>' + esc(c.local || '—') + '</td>' +
+            '<td>' + esc(c.cliente_nome || c.numero_cnj || '—') + '</td>' +
+            '<td><button type="button" class="btn-conexao-secundario" data-ag-editar="' + c.id + '">Editar</button> ' +
+              '<button type="button" class="btn-remover" data-ag-excluir="' + c.id + '">Excluir</button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+      wireAcoesLinha(container);
+    }
+
+    function renderMensal() {
+      var container = document.getElementById('ag-conteudo');
+      var primeiroDiaMes = new Date(estado.refData.getFullYear(), estado.refData.getMonth(), 1);
+      var inicioGrid = _inicioSemana(primeiroDiaMes);
+      var porDia = {};
+      compromissosCarregados.forEach(function (c) {
+        var chave = c.data_inicio.slice(0, 10);
+        (porDia[chave] = porDia[chave] || []).push(c);
+      });
+
+      var html = '<div style="display:grid; grid-template-columns:repeat(7,1fr); border:1px solid #232d42; border-radius:8px; overflow:hidden;">';
+      NOMES_DIA_SEMANA.forEach(function (n) {
+        html += '<div style="padding:8px; text-align:center; font-size:11px; font-weight:700; color:#8293b5; background:#0e1728; border-bottom:1px solid #232d42;">' + n.toUpperCase() + '</div>';
+      });
+      for (var i = 0; i < 42; i++) {
+        var dia = new Date(inicioGrid);
+        dia.setDate(dia.getDate() + i);
+        if (i >= 35 && dia.getMonth() !== estado.refData.getMonth()) break; // nao mostra 6a linha se for so mes seguinte
+        var chaveDia = _fmtISOData(dia);
+        var doMes = dia.getMonth() === estado.refData.getMonth();
+        var eventosDia = porDia[chaveDia] || [];
+        var chips = eventosDia.slice(0, 3).map(function (c) {
+          return '<div data-ag-editar="' + c.id + '" style="font-size:10.5px; padding:2px 5px; border-radius:4px; margin-bottom:2px; background:' + (COR_TIPO_COMPROMISSO[c.tipo] || '#8293b5') + '22; color:' + (COR_TIPO_COMPROMISSO[c.tipo] || '#8293b5') + '; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' +
+            (_horaMinuto(c.data_inicio) ? esc(_horaMinuto(c.data_inicio)) + ' ' : '') + esc(c.titulo) + '</div>';
+        }).join('');
+        var maisTexto = eventosDia.length > 3 ? '<div style="font-size:10px; color:#8293b5;">+' + (eventosDia.length - 3) + ' mais</div>' : '';
+        html += '<div data-ag-dia="' + chaveDia + '" style="min-height:88px; padding:6px; border-right:1px solid #1b2540; border-bottom:1px solid #1b2540; background:' + (doMes ? '#0b1220' : '#080d18') + '; cursor:pointer;">' +
+          '<div style="font-size:11.5px; color:' + (doMes ? '#e7eaf0' : '#4a5674') + '; margin-bottom:4px;">' + dia.getDate() + '</div>' +
+          chips + maisTexto +
+        '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+
+      container.querySelectorAll('[data-ag-editar]').forEach(function (el) {
+        el.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var c = compromissosCarregados.filter(function (x) { return String(x.id) === el.getAttribute('data-ag-editar'); })[0];
+          if (c) abrirModal(c);
+        });
+      });
+      container.querySelectorAll('[data-ag-dia]').forEach(function (el) {
+        el.addEventListener('click', function () { abrirModal(null, el.getAttribute('data-ag-dia')); });
+      });
+    }
+
+    function renderSemanal() {
+      var container = document.getElementById('ag-conteudo');
+      var inicioSem = _inicioSemana(estado.refData);
+      var horaInicioGrid = 6, horaFimGrid = 22, alturaHora = 42;
+      var porDia = {};
+      compromissosCarregados.forEach(function (c) {
+        var chave = c.data_inicio.slice(0, 10);
+        (porDia[chave] = porDia[chave] || []).push(c);
+      });
+
+      var html = '<div style="display:grid; grid-template-columns:56px repeat(7,1fr); border:1px solid #232d42; border-radius:8px; overflow:hidden;">';
+      html += '<div style="background:#0e1728; border-bottom:1px solid #232d42;"></div>';
+      for (var d = 0; d < 7; d++) {
+        var dia = new Date(inicioSem);
+        dia.setDate(dia.getDate() + d);
+        html += '<div style="padding:8px; text-align:center; background:#0e1728; border-bottom:1px solid #232d42; border-left:1px solid #1b2540;">' +
+          '<div style="font-size:10.5px; color:#8293b5;">' + NOMES_DIA_SEMANA[dia.getDay()].toUpperCase() + '</div>' +
+          '<div style="font-size:13px; color:#e7eaf0; font-weight:600;">' + String(dia.getDate()).padStart(2, '0') + '/' + String(dia.getMonth() + 1).padStart(2, '0') + '</div>' +
+        '</div>';
+      }
+      // linhas de hora + coluna de rotulo
+      html += '<div style="position:relative; grid-column:1 / span 8; display:grid; grid-template-columns:56px repeat(7,1fr);">';
+      html += '<div>';
+      for (var h = horaInicioGrid; h <= horaFimGrid; h++) {
+        html += '<div style="height:' + alturaHora + 'px; font-size:10.5px; color:#8293b5; text-align:right; padding-right:6px; border-top:1px solid #1b2540;">' + String(h).padStart(2, '0') + ':00</div>';
+      }
+      html += '</div>';
+      for (var d2 = 0; d2 < 7; d2++) {
+        var dia2 = new Date(inicioSem);
+        dia2.setDate(dia2.getDate() + d2);
+        var chaveDia2 = _fmtISOData(dia2);
+        var eventosDia2 = (porDia[chaveDia2] || []).filter(function (c) { return _horaMinuto(c.data_inicio); });
+        html += '<div style="position:relative; border-left:1px solid #1b2540;">';
+        for (var h2 = horaInicioGrid; h2 <= horaFimGrid; h2++) {
+          html += '<div style="height:' + alturaHora + 'px; border-top:1px solid #1b2540;"></div>';
+        }
+        eventosDia2.forEach(function (c) {
+          var hm = _horaMinuto(c.data_inicio).split(':');
+          var horaFloat = parseInt(hm[0], 10) + parseInt(hm[1], 10) / 60;
+          if (horaFloat < horaInicioGrid || horaFloat > horaFimGrid) return;
+          var topo = (horaFloat - horaInicioGrid) * alturaHora;
+          var duracaoH = 1;
+          if (c.data_fim) {
+            var hmFim = _horaMinuto(c.data_fim);
+            if (hmFim) {
+              var hmFimArr = hmFim.split(':');
+              var horaFimFloat = parseInt(hmFimArr[0], 10) + parseInt(hmFimArr[1], 10) / 60;
+              duracaoH = Math.max(0.5, horaFimFloat - horaFloat);
+            }
+          }
+          html += '<div data-ag-editar="' + c.id + '" style="position:absolute; top:' + topo + 'px; left:2px; right:2px; height:' + (duracaoH * alturaHora - 2) + 'px; background:' + (COR_TIPO_COMPROMISSO[c.tipo] || '#8293b5') + '33; border-left:3px solid ' + (COR_TIPO_COMPROMISSO[c.tipo] || '#8293b5') + '; border-radius:4px; padding:2px 5px; font-size:10.5px; color:#e7eaf0; overflow:hidden; cursor:pointer;">' +
+            esc(hm.join(':')) + ' ' + esc(c.titulo) + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div></div>';
+      container.innerHTML = html;
+
+      container.querySelectorAll('[data-ag-editar]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var c = compromissosCarregados.filter(function (x) { return String(x.id) === el.getAttribute('data-ag-editar'); })[0];
+          if (c) abrirModal(c);
+        });
+      });
+    }
+
+    function wireAcoesLinha(container) {
+      container.querySelectorAll('[data-ag-editar]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var c = compromissosCarregados.filter(function (x) { return String(x.id) === btn.getAttribute('data-ag-editar'); })[0];
+          if (c) abrirModal(c);
+        });
+      });
+      container.querySelectorAll('[data-ag-excluir]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!confirm('Excluir este compromisso?')) return;
+          apiPostJson('/api/painel?acao=compromisso_excluir', { id: btn.getAttribute('data-ag-excluir') }).then(carregar);
+        });
+      });
+    }
+
+    // --- Modal "Novo compromisso" ---
+    var modal = document.getElementById('modal-compromisso');
+    var compromissoEmEdicao = null;
+    _abrirCalendarioAoClicar('ag-form-data');
+
+    function fecharModal() { modal.classList.add('hidden'); }
+    document.getElementById('ag-modal-fechar').addEventListener('click', fecharModal);
+    document.getElementById('ag-btn-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (ev) { if (ev.target === modal) fecharModal(); });
+    document.getElementById('ag-btn-mais-opcoes').addEventListener('click', function () {
+      document.getElementById('ag-mais-opcoes').classList.toggle('hidden');
+    });
+    document.getElementById('ag-btn-hoje').addEventListener('click', function () {
+      document.getElementById('ag-form-data').value = _fmtISOData(new Date());
+    });
+    document.getElementById('ag-btn-agora').addEventListener('click', function () {
+      var agora = new Date();
+      document.getElementById('ag-form-data').value = _fmtISOData(agora);
+      document.getElementById('ag-form-hora').value = String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+    });
+
+    function abrirModal(compromissoExistente, dataPreset) {
+      compromissoEmEdicao = compromissoExistente || null;
+      document.getElementById('ag-modal-titulo').textContent = compromissoExistente ? 'Editar compromisso' : 'Novo compromisso';
+      document.getElementById('ag-form-erro').innerHTML = '';
+      document.getElementById('ag-link-meet-resultado').classList.add('hidden');
+      document.getElementById('ag-form-titulo').value = compromissoExistente ? compromissoExistente.titulo : '';
+      document.getElementById('ag-form-tipo').value = compromissoExistente ? compromissoExistente.tipo : 'reuniao';
+      document.getElementById('ag-form-responsavel').value = compromissoExistente ? (compromissoExistente.responsavel || '') : '';
+      document.getElementById('ag-form-data').value = compromissoExistente ? compromissoExistente.data_inicio.slice(0, 10) : (dataPreset || _fmtISOData(new Date()));
+      document.getElementById('ag-form-hora').value = compromissoExistente ? (_horaMinuto(compromissoExistente.data_inicio) || '') : '';
+      document.getElementById('ag-form-hora-fim').value = compromissoExistente ? (_horaMinuto(compromissoExistente.data_fim) || '') : '';
+      document.getElementById('ag-form-repetir').value = compromissoExistente ? compromissoExistente.repetir : 'nao_repete';
+      document.getElementById('ag-form-local').value = compromissoExistente ? (compromissoExistente.local || '') : '';
+      document.getElementById('ag-form-meet').checked = false;
+      document.getElementById('ag-form-meet').disabled = !!compromissoExistente;
+      document.getElementById('ag-form-privado').checked = compromissoExistente ? !!compromissoExistente.privado : false;
+      document.getElementById('ag-form-cliente').value = compromissoExistente ? (compromissoExistente.cliente_nome || '') : '';
+      document.getElementById('ag-form-processo').value = compromissoExistente ? (compromissoExistente.processo_id || '') : '';
+      document.getElementById('ag-form-descricao').value = compromissoExistente ? (compromissoExistente.descricao || '') : '';
+      document.getElementById('ag-mais-opcoes').classList.add('hidden');
+      modal.classList.remove('hidden');
+    }
+    document.getElementById('ag-btn-novo').addEventListener('click', function () { abrirModal(null); });
+
+    document.getElementById('ag-btn-salvar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('ag-form-erro');
+      erroDiv.innerHTML = '';
+      var corpo = {
+        titulo: document.getElementById('ag-form-titulo').value.trim(),
+        tipo: document.getElementById('ag-form-tipo').value,
+        responsavel: document.getElementById('ag-form-responsavel').value,
+        data: document.getElementById('ag-form-data').value,
+        hora_inicio: document.getElementById('ag-form-hora').value,
+        hora_fim: document.getElementById('ag-form-hora-fim').value,
+        repetir: document.getElementById('ag-form-repetir').value,
+        local: document.getElementById('ag-form-local').value.trim(),
+        privado: document.getElementById('ag-form-privado').checked,
+        cliente_nome: document.getElementById('ag-form-cliente').value.trim(),
+        processo_id: document.getElementById('ag-form-processo').value,
+        descricao: document.getElementById('ag-form-descricao').value.trim(),
+      };
+      var acao = 'compromisso_criar';
+      if (compromissoEmEdicao) {
+        corpo.id = compromissoEmEdicao.id;
+        acao = 'compromisso_atualizar';
+      } else {
+        corpo.com_meet = document.getElementById('ag-form-meet').checked;
+      }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=' + acao, corpo)
+        .then(function (resultado) {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          if (resultado && resultado.link_meet) {
+            var resEl = document.getElementById('ag-link-meet-resultado');
+            resEl.classList.remove('hidden');
+            resEl.innerHTML = 'Link do Meet: <a href="' + esc(resultado.link_meet) + '" target="_blank" rel="noopener" style="color:var(--accent);">' + esc(resultado.link_meet) + '</a>';
+            carregar();
+          } else {
+            fecharModal();
+            carregar();
+          }
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o compromisso agora.') + '</div>';
+        });
+    });
+
     carregar();
   }
 
