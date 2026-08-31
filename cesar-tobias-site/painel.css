@@ -791,6 +791,12 @@
   }
 
   .hidden { display: none !important; }
+
+  .campo-label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+  .campo-label input, .campo-label select { font: inherit; font-weight: 400; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--card-border, #e2e6ee); background: var(--card-bg, #fff); color: var(--ink); }
+  @media (max-width: 640px) {
+    #sec-configuracoes [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  }
   @media (max-width: 640px) {
     .stat-grid { flex-direction: column; }
     .masthead { flex-direction: column; }

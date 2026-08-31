@@ -674,6 +674,29 @@ module.exports = async (req, res) => {
     return;
   }
 
+  var acoesConfigGet = {
+    escritorio_obter: 'Erro de conexao ao carregar os dados do escritorio.',
+    avisos_listar: 'Erro de conexao ao carregar os avisos.',
+    auditoria_listar: 'Erro de conexao ao carregar a auditoria.',
+  };
+  if (acoesConfigGet[acao]) {
+    var tokenSessaoConfigGet = obterToken(req);
+    if (!tokenSessaoConfigGet) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessaoConfigGet) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesConfigGet[acao] });
+    }
+    return;
+  }
+
   var acoesClientePost = {
     cliente_cadastro_criar: 'Erro de conexao ao salvar o cliente.',
     cliente_cadastro_atualizar: 'Erro de conexao ao salvar as alteracoes.',
@@ -681,6 +704,10 @@ module.exports = async (req, res) => {
     etiqueta_criar: 'Erro de conexao ao criar a etiqueta.',
     cliente_etiquetas_definir: 'Erro de conexao ao salvar as etiquetas.',
     cliente_foto_salvar: 'Erro de conexao ao enviar a foto.',
+    escritorio_salvar: 'Erro de conexao ao salvar os dados do escritorio.',
+    aviso_criar: 'Erro de conexao ao publicar o aviso.',
+    aviso_atualizar: 'Erro de conexao ao atualizar o aviso.',
+    aviso_excluir: 'Erro de conexao ao excluir o aviso.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

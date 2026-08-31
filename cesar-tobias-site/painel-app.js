@@ -61,7 +61,7 @@
     inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente',
     agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
-    audiencias: 'Audiências', admin: 'Administração',
+    audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
 
   function wireMenuMobile() {
@@ -1785,6 +1785,122 @@
         '</div>' +
       '</section>';
 
+    // Pagina "Configuracoes do Escritorio" -- admin-only, igual admin/conexoes. A aba Usuarios
+    // reaproveita htmlAdmin (definido acima) tal e qual, mesmos ids -- carregarListaUsuarios()/
+    // criarUsuarioAdmin ja funcionam sem mudar nada. Configuracao/Avisos/Atualizacoes/Auditoria
+    // sao conteudo novo.
+    var htmlConfiguracoes = !dados.usuario_admin ? '' :
+      '<section id="sec-configuracoes"><p class="section-label">Configurações do Escritório</p>' +
+        '<div class="subtabs" style="margin-bottom:14px;">' +
+          '<button type="button" class="subtab-btn ativo" data-aba-config="dados">Configuração</button>' +
+          '<button type="button" class="subtab-btn" data-aba-config="usuarios">Usuários</button>' +
+          '<button type="button" class="subtab-btn" data-aba-config="avisos">Avisos do escritório</button>' +
+          '<button type="button" class="subtab-btn" data-aba-config="atualizacoes">Atualizações automáticas</button>' +
+          '<button type="button" class="subtab-btn" data-aba-config="auditoria">Auditoria</button>' +
+          '<button type="button" class="subtab-btn" data-aba-config="assinatura">Assinatura e Faturamento</button>' +
+        '</div>' +
+
+        '<div id="config-painel-dados" class="config-painel">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Dados do escritório</span></div>' +
+            '<div style="padding:16px 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+              '<label class="campo-label">Nome fantasia<input type="text" id="cfg-nome-escritorio"></label>' +
+              '<label class="campo-label">Razão social<input type="text" id="cfg-razao-social"></label>' +
+              '<label class="campo-label">CNPJ<input type="text" id="cfg-cnpj" placeholder="00.000.000/0000-00"></label>' +
+              '<label class="campo-label">Inscrição estadual' +
+                '<input type="text" id="cfg-inscricao-estadual"></label>' +
+              '<label class="campo-label" style="align-self:end; flex-direction:row; align-items:center; gap:8px; display:flex;">' +
+                '<input type="checkbox" id="cfg-isento-ie" style="width:auto;"> Isento de inscrição estadual</label>' +
+              '<label class="campo-label">Inscrição municipal<input type="text" id="cfg-inscricao-municipal"></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Endereço</span>' +
+              '<span class="chip neutral" id="cfg-cep-status">Busca automática ao digitar</span></div>' +
+            '<div style="padding:16px 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+              '<label class="campo-label">CEP<input type="text" id="cfg-cep" placeholder="00000-000"></label>' +
+              '<label class="campo-label">Logradouro<input type="text" id="cfg-logradouro"></label>' +
+              '<label class="campo-label">Número<input type="text" id="cfg-numero"></label>' +
+              '<label class="campo-label">Complemento<input type="text" id="cfg-complemento"></label>' +
+              '<label class="campo-label">Bairro<input type="text" id="cfg-bairro"></label>' +
+              '<label class="campo-label">Cidade<input type="text" id="cfg-cidade"></label>' +
+              '<label class="campo-label">UF<input type="text" id="cfg-uf" maxlength="2" style="text-transform:uppercase;"></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Contato</span></div>' +
+            '<div style="padding:16px 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+              '<label class="campo-label">Telefone<input type="text" id="cfg-telefone"></label>' +
+              '<label class="campo-label">Celular/WhatsApp<input type="text" id="cfg-celular"></label>' +
+              '<label class="campo-label">E-mail<input type="email" id="cfg-email"></label>' +
+              '<label class="campo-label">Site<input type="text" id="cfg-site" placeholder="https://"></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="panel" style="margin-top:14px;">' +
+            '<div class="panel-header"><span class="panel-title">Dados bancários</span><small style="color:var(--ink-soft);">Opcional</small></div>' +
+            '<div style="padding:16px 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">' +
+              '<label class="campo-label">Banco<input type="text" id="cfg-banco-nome"></label>' +
+              '<label class="campo-label">Agência<input type="text" id="cfg-banco-agencia"></label>' +
+              '<label class="campo-label">Conta<input type="text" id="cfg-banco-conta"></label>' +
+              '<label class="campo-label">Chave Pix<input type="text" id="cfg-banco-pix"></label>' +
+            '</div>' +
+          '</div>' +
+          '<div style="padding:16px 0;">' +
+            '<button id="cfg-btn-salvar">Salvar dados do escritório</button>' +
+            '<span class="admin-msg" id="cfg-msg" aria-live="polite" style="margin-left:12px;"></span>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="config-painel-usuarios" class="config-painel hidden">' + htmlAdmin + '</div>' +
+
+        '<div id="config-painel-avisos" class="config-painel hidden">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Publicar aviso</span></div>' +
+            '<div style="padding:16px 20px;">' +
+              '<input type="text" id="aviso-titulo" placeholder="Título do aviso" style="margin-bottom:10px;">' +
+              '<textarea id="aviso-mensagem" rows="3" placeholder="Mensagem" style="width:100%; margin-bottom:10px; font:inherit; padding:10px; border-radius:8px;"></textarea>' +
+              '<button id="aviso-btn-criar">Publicar aviso</button>' +
+              '<span class="admin-msg" id="aviso-msg" aria-live="polite" style="margin-left:12px;"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div id="aviso-lista" style="margin-top:14px;"></div>' +
+        '</div>' +
+
+        '<div id="config-painel-atualizacoes" class="config-painel hidden">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Como a atualização automática funciona</span></div>' +
+            '<div style="padding:16px 20px; font-size:13.5px; color:var(--ink-soft); line-height:1.6;">' +
+              '<p><strong style="color:var(--ink);">DataJud (CNJ)</strong> — todo dia, o sistema consulta a API pública ' +
+              'do CNJ pra cada processo cadastrado e importa andamentos novos automaticamente. A atualização dos ' +
+              'tribunais no DataJud não é em tempo real (pode levar de horas a alguns dias).</p>' +
+              '<p><strong style="color:var(--ink);">Comunica PJe</strong> — as intimações eletrônicas do PJe são ' +
+              'verificadas automaticamente (a cada 15 minutos, quando chegam por push do Gmail, ou uma vez por dia) ' +
+              'e viram tarefa/prazo, linha na planilha e pasta do cliente sozinhas.</p>' +
+              '<p>Essas duas verificações rodam sozinhas em segundo plano — não precisa apertar nada. Se quiser forçar ' +
+              'uma checagem imediata de um processo específico, use o botão "Sincronizar agora" na ficha do processo.</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="config-painel-auditoria" class="config-painel hidden">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Auditoria</span></div>' +
+            '<p style="padding:0 20px; font-size:12.5px; color:var(--ink-soft);">Registra ações a partir de hoje — não há histórico de antes desta funcionalidade existir.</p>' +
+            '<div id="auditoria-lista" style="padding:0 20px 20px;"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="config-painel-assinatura" class="config-painel hidden">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Assinatura e Faturamento</span></div>' +
+            '<div style="padding:16px 20px; font-size:13.5px; color:var(--ink-soft); line-height:1.6;">' +
+              '<p>Esta plataforma ainda não tem cobrança nem planos pagos — o acesso não depende de assinatura hoje.</p>' +
+              '<p>Quando essa função existir, é aqui que você vai ver seu plano atual, forma de pagamento e faturas.</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
     // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
@@ -1802,16 +1918,17 @@
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
-      admin: htmlAdmin + htmlConexoes,
+      admin: htmlConexoes,
+      configuracoes: htmlConfiguracoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes',
       agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
-      audiencias: 'audiencias', admin: null,
+      audiencias: 'audiencias', admin: null, configuracoes: null,
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
-    var temAcessoPagina = PAGINA_ATUAL === 'admin'
+    var temAcessoPagina = (PAGINA_ATUAL === 'admin' || PAGINA_ATUAL === 'configuracoes')
       ? !!dados.usuario_admin
       : (permissaoNecessaria ? perms.indexOf(permissaoNecessaria) !== -1 : true);
     var htmlConteudoPagina = temAcessoPagina
@@ -1834,6 +1951,8 @@
 
     var navAdminEl = document.getElementById('nav-admin');
     if (navAdminEl) navAdminEl.classList.toggle('hidden', !dados.usuario_admin);
+    var navConfigEl = document.getElementById('nav-configuracoes');
+    if (navConfigEl) navConfigEl.classList.toggle('hidden', !dados.usuario_admin);
 
     wireSidebar(dados);
 
@@ -1872,9 +1991,10 @@
       }
     }
     if (PAGINA_ATUAL === 'admin' && dados.usuario_admin) {
-      carregarListaUsuarios();
-      document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
       if (document.getElementById('sec-conexoes')) wireConexoes();
+    }
+    if (PAGINA_ATUAL === 'configuracoes' && dados.usuario_admin) {
+      wireConfiguracoes();
     }
   }
 
@@ -1904,6 +2024,163 @@
         img.src = e.target.result;
       };
       leitor.readAsDataURL(arquivo);
+    });
+  }
+
+  function wireConfiguracoes() {
+    document.querySelectorAll('[data-aba-config]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-aba-config]').forEach(function (b) { b.classList.remove('ativo'); });
+        btn.classList.add('ativo');
+        var aba = btn.getAttribute('data-aba-config');
+        document.querySelectorAll('.config-painel').forEach(function (p) { p.classList.add('hidden'); });
+        document.getElementById('config-painel-' + aba).classList.remove('hidden');
+      });
+    });
+
+    // aba Usuarios -- reaproveita htmlAdmin/carregarListaUsuarios/criarUsuarioAdmin tal e qual.
+    carregarListaUsuarios();
+    document.getElementById('admin-btn-criar').addEventListener('click', criarUsuarioAdmin);
+
+    // aba Configuracao (dados do escritorio)
+    apiGetJson('/api/painel?acao=escritorio_obter').then(function (d) {
+      if (!d) return;
+      var mapa = {
+        'cfg-nome-escritorio': 'nome_escritorio', 'cfg-razao-social': 'razao_social', 'cfg-cnpj': 'cnpj',
+        'cfg-inscricao-estadual': 'inscricao_estadual', 'cfg-inscricao-municipal': 'inscricao_municipal',
+        'cfg-cep': 'cep', 'cfg-logradouro': 'logradouro', 'cfg-numero': 'numero', 'cfg-complemento': 'complemento',
+        'cfg-bairro': 'bairro', 'cfg-cidade': 'cidade_endereco', 'cfg-uf': 'uf_endereco',
+        'cfg-telefone': 'telefone', 'cfg-celular': 'celular', 'cfg-email': 'email_contato', 'cfg-site': 'site',
+        'cfg-banco-nome': 'banco_nome', 'cfg-banco-agencia': 'banco_agencia', 'cfg-banco-conta': 'banco_conta',
+        'cfg-banco-pix': 'banco_pix',
+      };
+      Object.keys(mapa).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = d[mapa[id]] || '';
+      });
+      document.getElementById('cfg-isento-ie').checked = !!d.isento_ie;
+    });
+
+    document.getElementById('cfg-cep').addEventListener('input', function () {
+      var digitos = this.value.replace(/\D/g, '').slice(0, 8);
+      this.value = digitos.length > 5 ? digitos.slice(0, 5) + '-' + digitos.slice(5) : digitos;
+      var statusEl = document.getElementById('cfg-cep-status');
+      if (digitos.length !== 8) { statusEl.textContent = 'Busca automática ao digitar'; return; }
+      statusEl.textContent = 'Buscando...';
+      fetch('https://viacep.com.br/ws/' + digitos + '/json/')
+        .then(function (r) { return r.json(); })
+        .then(function (dados) {
+          if (dados.erro) { statusEl.textContent = 'CEP não encontrado.'; return; }
+          document.getElementById('cfg-logradouro').value = dados.logradouro || '';
+          document.getElementById('cfg-bairro').value = dados.bairro || '';
+          document.getElementById('cfg-cidade').value = dados.localidade || '';
+          document.getElementById('cfg-uf').value = dados.uf || '';
+          statusEl.textContent = 'Endereço encontrado.';
+        })
+        .catch(function () { statusEl.textContent = 'Não foi possível buscar o CEP agora.'; });
+    });
+
+    document.getElementById('cfg-btn-salvar').addEventListener('click', function () {
+      var msg = document.getElementById('cfg-msg');
+      msg.textContent = 'Salvando...';
+      var corpo = {
+        nome_escritorio: document.getElementById('cfg-nome-escritorio').value,
+        razao_social: document.getElementById('cfg-razao-social').value,
+        cnpj: document.getElementById('cfg-cnpj').value,
+        inscricao_estadual: document.getElementById('cfg-inscricao-estadual').value,
+        isento_ie: document.getElementById('cfg-isento-ie').checked,
+        inscricao_municipal: document.getElementById('cfg-inscricao-municipal').value,
+        cep: document.getElementById('cfg-cep').value,
+        logradouro: document.getElementById('cfg-logradouro').value,
+        numero: document.getElementById('cfg-numero').value,
+        complemento: document.getElementById('cfg-complemento').value,
+        bairro: document.getElementById('cfg-bairro').value,
+        cidade_endereco: document.getElementById('cfg-cidade').value,
+        uf_endereco: document.getElementById('cfg-uf').value,
+        telefone: document.getElementById('cfg-telefone').value,
+        celular: document.getElementById('cfg-celular').value,
+        email_contato: document.getElementById('cfg-email').value,
+        site: document.getElementById('cfg-site').value,
+        banco_nome: document.getElementById('cfg-banco-nome').value,
+        banco_agencia: document.getElementById('cfg-banco-agencia').value,
+        banco_conta: document.getElementById('cfg-banco-conta').value,
+        banco_pix: document.getElementById('cfg-banco-pix').value,
+      };
+      apiPost('/api/painel?acao=escritorio_salvar', corpo)
+        .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+        .then(function (resultado) {
+          msg.textContent = resultado.status === 200 ? 'Dados salvos com sucesso.' : (resultado.corpo.erro || 'Erro ao salvar.');
+        });
+    });
+
+    // aba Avisos do escritorio
+    function carregarAvisos() {
+      apiGetJson('/api/painel?acao=avisos_listar').then(function (d) {
+        var container = document.getElementById('aviso-lista');
+        if (!container || !d || !d.avisos) return;
+        if (d.avisos.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum aviso publicado ainda.</div></div>';
+          return;
+        }
+        container.innerHTML = d.avisos.map(function (a) {
+          return '<div class="panel" style="margin-bottom:10px;">' +
+            '<div class="panel-header"><span class="panel-title">' + esc(a.titulo) + '</span>' +
+              (a.ativo ? '<span class="chip good">Ativo</span>' : '<span class="chip neutral">Inativo</span>') + '</div>' +
+            '<div style="padding:12px 20px; font-size:13.5px; color:var(--ink-soft); white-space:pre-wrap;">' + esc(a.mensagem) + '</div>' +
+            '<div style="padding:0 20px 14px; display:flex; gap:8px;">' +
+              '<button class="btn-conexao-secundario" data-aviso-toggle="' + a.id + '" data-aviso-ativo="' + a.ativo + '">' +
+                (a.ativo ? 'Desativar' : 'Ativar') + '</button>' +
+              '<button class="btn-remover" data-aviso-excluir="' + a.id + '">Excluir</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+        container.querySelectorAll('[data-aviso-toggle]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            apiPost('/api/painel?acao=aviso_atualizar', {
+              id: btn.getAttribute('data-aviso-toggle'),
+              ativo: btn.getAttribute('data-aviso-ativo') !== 'true',
+            }).then(carregarAvisos);
+          });
+        });
+        container.querySelectorAll('[data-aviso-excluir]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            if (!confirm('Excluir este aviso?')) return;
+            apiPost('/api/painel?acao=aviso_excluir', { id: btn.getAttribute('data-aviso-excluir') }).then(carregarAvisos);
+          });
+        });
+      });
+    }
+    carregarAvisos();
+    document.getElementById('aviso-btn-criar').addEventListener('click', function () {
+      var msg = document.getElementById('aviso-msg');
+      var titulo = document.getElementById('aviso-titulo').value;
+      var mensagem = document.getElementById('aviso-mensagem').value;
+      apiPost('/api/painel?acao=aviso_criar', { titulo: titulo, mensagem: mensagem })
+        .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+        .then(function (resultado) {
+          if (resultado.status !== 200) { msg.textContent = resultado.corpo.erro || 'Erro ao publicar aviso.'; return; }
+          document.getElementById('aviso-titulo').value = '';
+          document.getElementById('aviso-mensagem').value = '';
+          msg.textContent = 'Aviso publicado.';
+          carregarAvisos();
+        });
+    });
+
+    // aba Auditoria
+    apiGetJson('/api/painel?acao=auditoria_listar').then(function (d) {
+      var container = document.getElementById('auditoria-lista');
+      if (!container || !d || !d.registros) return;
+      if (d.registros.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma ação registrada ainda.</div></div>';
+        return;
+      }
+      container.innerHTML = '<div class="table-scroll"><table style="min-width:640px;">' +
+        '<thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr></thead>' +
+        '<tbody>' + d.registros.map(function (r) {
+          return '<tr><td>' + fmtDataHora(r.criado_em) + '</td><td>' + esc(r.usuario || '—') + '</td>' +
+            '<td>' + esc(r.acao) + '</td><td>' + esc(r.entidade) + (r.entidade_id ? ' #' + esc(r.entidade_id) : '') + '</td>' +
+            '<td>' + esc(r.detalhes || '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
     });
   }
 
