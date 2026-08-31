@@ -291,26 +291,79 @@
     });
   }
 
+  function wireAvisoRapido() {
+    var btn = document.getElementById('hdr-aviso-novo-btn');
+    var input = document.getElementById('hdr-aviso-novo-input');
+    if (!btn || !input || btn._avisoRapidoWired) return;
+    btn._avisoRapidoWired = true;
+    function postar() {
+      var mensagem = input.value.trim();
+      if (!mensagem) return;
+      btn.disabled = true;
+      apiPostJson('/api/painel?acao=aviso_criar', { mensagem: mensagem, ativo: true })
+        .then(function () {
+          btn.disabled = false;
+          input.value = '';
+          carregarAvisosHeader();
+        })
+        .catch(function (e) {
+          btn.disabled = false;
+          alert(e.message || 'Não foi possível postar o aviso agora.');
+        });
+    }
+    btn.addEventListener('click', postar);
+    input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') postar(); });
+  }
+
+  function _prazoEstaVencendoEmBreve(p) {
+    if (p.status === 'vencido') return true;
+    if (p.status !== 'pendente') return false;
+    var limite = new Date();
+    limite.setDate(limite.getDate() + 3);
+    return p.data_limite <= _fmtISOData(limite);
+  }
+
   function carregarAvisosHeader() {
-    apiGetJson('/api/painel?acao=avisos_listar&apenas_ativos=true')
-      .then(function (dados) {
-        var avisos = dados.avisos || [];
-        var badge = document.getElementById('hdr-avisos-badge');
-        var lista = document.getElementById('hdr-avisos-lista');
-        if (avisos.length === 0) {
-          badge.classList.add('hidden');
-          lista.innerHTML = '<div class="hdr-avisos-vazio">Nenhum aviso no momento.</div>';
-          return;
-        }
-        badge.textContent = avisos.length;
-        badge.classList.remove('hidden');
-        lista.innerHTML = avisos.map(function (a) {
+    wireAvisoRapido();
+    Promise.all([
+      apiGetJson('/api/painel?acao=avisos_listar&apenas_ativos=true').catch(function () { return { avisos: [] }; }),
+      apiGetJson('/api/painel?acao=prazo_listar').catch(function () { return { prazos: [] }; }),
+    ]).then(function (resultados) {
+      var avisos = resultados[0].avisos || [];
+      var prazosUrgentes = (resultados[1].prazos || []).filter(_prazoEstaVencendoEmBreve);
+      var badge = document.getElementById('hdr-avisos-badge');
+      var lista = document.getElementById('hdr-avisos-lista');
+      var total = avisos.length + prazosUrgentes.length;
+
+      if (total === 0) {
+        badge.classList.add('hidden');
+        lista.innerHTML = '<div class="hdr-avisos-vazio">Nada por aqui no momento.</div>';
+        return;
+      }
+      badge.textContent = total;
+      badge.classList.remove('hidden');
+
+      var html = '';
+      if (prazosUrgentes.length) {
+        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Prazos vencendo</div>';
+        html += prazosUrgentes.map(function (p) {
+          var cor = p.status === 'vencido' ? 'var(--crit)' : 'var(--warn)';
+          return '<a href="painel-prazos.html#sec-prazos" class="hdr-avisos-item" style="display:block;">' +
+            '<strong style="color:' + cor + ';">' + (p.status === 'vencido' ? 'Vencido' : 'Vence em breve') + '</strong> — ' + esc(p.titulo) +
+            '<div style="font-size:11px; color:var(--ink-faint);">' + fmtDataProcesso(p.data_limite) + (p.numero_cnj ? ' · ' + esc(p.numero_cnj) : '') + '</div>' +
+          '</a>';
+        }).join('');
+      }
+      if (avisos.length) {
+        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Avisos do escritório</div>';
+        html += avisos.map(function (a) {
           return '<div class="hdr-avisos-item">' + esc(a.mensagem) + '</div>';
         }).join('');
-      })
-      .catch(function () {
-        var lista = document.getElementById('hdr-avisos-lista');
-        if (lista) lista.innerHTML = '<div class="hdr-avisos-vazio">Não foi possível carregar os avisos.</div>';
+      }
+      lista.innerHTML = html;
+    }).catch(function () {
+      var lista = document.getElementById('hdr-avisos-lista');
+      if (lista) lista.innerHTML = '<div class="hdr-avisos-vazio">Não foi possível carregar os avisos.</div>';
       });
   }
 
