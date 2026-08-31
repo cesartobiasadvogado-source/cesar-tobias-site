@@ -1668,30 +1668,8 @@
       '</section>';
 
     var htmlCadastroCliente = perms.indexOf('financeiro') === -1 ? '' :
-      '<section id="sec-cadastro-cliente"><p class="section-label">Cadastrar cliente</p>' +
+      '<section id="sec-cadastro-cliente"><p class="section-label">Clientes da planilha</p>' +
         '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">Cadastrar cliente na planilha de honorários</span></div>' +
-          '<div class="proposta-form">' +
-            '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="WhatsApp do cliente" data-campo="whatsapp" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="email" placeholder="E-mail do cliente (opcional)" data-campo="email" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="Tipo de serviço" data-campo="tipo_servico" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="Valor total (ex: 3000,00)" data-campo="valor_total" data-form="cadastrar_cliente_financeiro">' +
-            '<select data-campo="forma_pagamento" data-form="cadastrar_cliente_financeiro">' +
-              '<option value="Parcelado">Parcelado</option>' +
-              '<option value="À Vista">À Vista</option>' +
-            '</select>' +
-            '<input type="text" placeholder="Valor de entrada (opcional)" data-campo="valor_entrada" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="Nº de parcelas (opcional)" data-campo="num_parcelas" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="Data de início (ex: 01/09/2026)" data-campo="data_inicio" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" placeholder="Vencimento da 1ª parcela (ex: 10/09/2026)" data-campo="data_primeira_parcela" data-form="cadastrar_cliente_financeiro">' +
-            '<input type="text" list="lista-percentuais-exito" placeholder="% de honorários de êxito (opcional)" data-campo="percentual_exito" data-form="cadastrar_cliente_financeiro">' +
-            '<datalist id="lista-percentuais-exito"><option value="20"><option value="25"><option value="30"><option value="40"></datalist>' +
-            '<button data-tipo="cadastrar_cliente_financeiro" class="btn-automacao">Cadastrar cliente</button>' +
-          '</div>' +
-          '<div class="automacao-resultado" data-resultado="cadastrar_cliente_financeiro" aria-live="polite" style="padding:0 20px 16px;"></div>' +
-        '</div>' +
-        '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Clientes cadastrados na planilha</span></div>' +
           '<div id="lista-clientes-financeiro-wrap" style="padding:16px 20px;"><div class="empty-state"><div class="msg">Carregando...</div></div></div>' +
         '</div>' +
@@ -6120,9 +6098,6 @@
         }
         if (resultado.status === 200 && resultado.corpo.pdf_id) {
           mostrarPreviewDocumento(resultado.corpo.pdf_id, botao.getAttribute('data-preview') || 'proposta-preview');
-        }
-        if (tipo === 'cadastrar_cliente_financeiro' && resultado.status === 200) {
-          carregarListaClientesFinanceiro();
         }
         if (tipo === 'notificacao_extrajudicial_gerar') {
           var areaConfirmarNotif = document.getElementById('notificacao-extrajudicial-confirmar-area');
