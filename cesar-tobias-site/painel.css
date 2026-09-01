@@ -439,6 +439,17 @@
   .aviso-tabela td:nth-child(2), .aviso-tabela th:nth-child(2) { text-align: center; }
   .aviso-tabela td:last-child, .aviso-tabela th:last-child { text-align: right; }
 
+  .confirm-modal-caixa { background: var(--surface); border-radius: 12px; width: 100%; max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 1px solid var(--line); padding: 22px; }
+  .confirm-modal-titulo { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+  .confirm-modal-msg { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
+  .confirm-modal-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .btn-conexao-perigo {
+    padding: 8px 16px; border: none; border-radius: 7px; background: var(--crit); color: #fff;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-conexao-perigo:hover { opacity: 0.92; }
+
   .fin-tab-panel.hidden { display: none; }
   .ncontrato-modal-caixa { background: var(--surface); border-radius: 12px; width: 100%; max-width: 480px;
     max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 1px solid var(--line); padding: 20px; }

@@ -424,6 +424,57 @@
     });
   }
 
+  // Substitui o confirm() nativo do navegador (que parece "sistema quebrado") por um modal no
+  // estilo da plataforma. Uso: confirmarModal('mensagem').then(function (ok) { if (!ok) return; ... }).
+  function confirmarModal(mensagem, opcoes) {
+    opcoes = opcoes || {};
+    return new Promise(function (resolve) {
+      var overlay = document.getElementById('confirm-modal-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'confirm-modal-overlay';
+        overlay.className = 'modal-overlay hidden';
+        overlay.innerHTML =
+          '<div class="confirm-modal-caixa">' +
+            '<div class="confirm-modal-titulo" id="confirm-modal-titulo"></div>' +
+            '<div class="confirm-modal-msg" id="confirm-modal-msg"></div>' +
+            '<div class="confirm-modal-acoes">' +
+              '<button type="button" class="btn-conexao-secundario" id="confirm-modal-cancelar"></button>' +
+              '<button type="button" id="confirm-modal-ok"></button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+      }
+      document.getElementById('confirm-modal-titulo').textContent = opcoes.titulo || 'Confirmar ação';
+      document.getElementById('confirm-modal-msg').textContent = mensagem;
+      var btnOk = document.getElementById('confirm-modal-ok');
+      var btnCancelar = document.getElementById('confirm-modal-cancelar');
+      btnOk.textContent = opcoes.textoOk || 'Excluir';
+      btnCancelar.textContent = opcoes.textoCancelar || 'Cancelar';
+      btnOk.className = opcoes.perigo === false ? 'btn-conexao' : 'btn-conexao-perigo';
+
+      function limpar(resultado) {
+        overlay.classList.add('hidden');
+        btnOk.removeEventListener('click', onOk);
+        btnCancelar.removeEventListener('click', onCancelar);
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onEsc);
+        resolve(resultado);
+      }
+      function onOk() { limpar(true); }
+      function onCancelar() { limpar(false); }
+      function onOverlay(e) { if (e.target === overlay) limpar(false); }
+      function onEsc(e) { if (e.key === 'Escape') limpar(false); }
+
+      btnOk.addEventListener('click', onOk);
+      btnCancelar.addEventListener('click', onCancelar);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onEsc);
+      overlay.classList.remove('hidden');
+      btnOk.focus();
+    });
+  }
+
   function linkCliente(nome) {
     return '<a class="link-original" href="painel-clientes.html?cliente=' + encodeURIComponent(nome) + '">' + esc(nome) + '</a>';
   }
@@ -803,14 +854,16 @@
         wrap.querySelectorAll('[data-remover-cliente]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             var nome = btn.getAttribute('data-remover-cliente');
-            if (!confirm('Remover "' + nome + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) return;
-            btn.disabled = true; btn.textContent = 'Removendo...';
-            apiPostJson('/api/painel?acao=executar', { tipo: 'remover_cliente_financeiro', nome: nome })
-              .then(function () { carregarListaClientesFinanceiro(); })
-              .catch(function () {
-                btn.disabled = false; btn.textContent = 'Remover';
-                alert('Não foi possível remover agora. Tente de novo.');
-              });
+            confirmarModal('Remover "' + nome + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.').then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true; btn.textContent = 'Removendo...';
+              apiPostJson('/api/painel?acao=executar', { tipo: 'remover_cliente_financeiro', nome: nome })
+                .then(function () { carregarListaClientesFinanceiro(); })
+                .catch(function () {
+                  btn.disabled = false; btn.textContent = 'Remover';
+                  alert('Não foi possível remover agora. Tente de novo.');
+                });
+            });
           });
         });
       })
@@ -2508,8 +2561,10 @@
         });
         container.querySelectorAll('[data-aviso-excluir]').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            if (!confirm('Excluir este aviso?')) return;
-            apiPost('/api/painel?acao=aviso_excluir', { id: btn.getAttribute('data-aviso-excluir') }).then(carregarAvisos);
+            confirmarModal('Excluir este aviso?').then(function (ok) {
+              if (!ok) return;
+              apiPost('/api/painel?acao=aviso_excluir', { id: btn.getAttribute('data-aviso-excluir') }).then(carregarAvisos);
+            });
           });
         });
       });
@@ -3065,14 +3120,16 @@
         container.querySelectorAll('[data-excluir-cliente-cadastrado]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             var nome = btn.getAttribute('data-nome-cliente');
-            if (!confirm('Excluir o cadastro de ' + nome + '? Essa ação não pode ser desfeita.')) return;
-            btn.disabled = true;
-            apiPostJson('/api/painel?acao=cliente_cadastro_excluir', { id: btn.getAttribute('data-excluir-cliente-cadastrado') })
-              .then(carregarClientesCadastrados)
-              .catch(function (e) {
-                btn.disabled = false;
-                alert(e.message || 'Não foi possível excluir o cliente agora.');
-              });
+            confirmarModal('Excluir o cadastro de ' + nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              apiPostJson('/api/painel?acao=cliente_cadastro_excluir', { id: btn.getAttribute('data-excluir-cliente-cadastrado') })
+                .then(carregarClientesCadastrados)
+                .catch(function (e) {
+                  btn.disabled = false;
+                  alert(e.message || 'Não foi possível excluir o cliente agora.');
+                });
+            });
           });
         });
       })
@@ -3659,8 +3716,10 @@
       });
       container.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          if (!confirm('Excluir este prazo?')) return;
-          apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregar);
+          confirmarModal('Excluir este prazo?').then(function (ok) {
+            if (!ok) return;
+            apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregar);
+          });
         });
       });
     }
@@ -3887,8 +3946,10 @@
       });
       container.querySelectorAll('[data-tarefa-excluir]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          if (!confirm('Excluir esta tarefa?')) return;
-          apiPostJson('/api/painel?acao=tarefa_excluir', { id: btn.getAttribute('data-tarefa-excluir') }).then(carregar);
+          confirmarModal('Excluir esta tarefa?').then(function (ok) {
+            if (!ok) return;
+            apiPostJson('/api/painel?acao=tarefa_excluir', { id: btn.getAttribute('data-tarefa-excluir') }).then(carregar);
+          });
         });
       });
     }
@@ -4183,8 +4244,10 @@
       });
       container.querySelectorAll('[data-ag-excluir]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          if (!confirm('Excluir este compromisso?')) return;
-          apiPostJson('/api/painel?acao=compromisso_excluir', { id: btn.getAttribute('data-ag-excluir') }).then(carregar);
+          confirmarModal('Excluir este compromisso?').then(function (ok) {
+            if (!ok) return;
+            apiPostJson('/api/painel?acao=compromisso_excluir', { id: btn.getAttribute('data-ag-excluir') }).then(carregar);
+          });
         });
       });
     }
@@ -4383,11 +4446,13 @@
 
       Array.prototype.forEach.call(corpo.querySelectorAll('[data-docs-excluir]'), function (btn) {
         btn.addEventListener('click', function () {
-          if (!window.confirm('Excluir este documento?')) return;
-          var id = btn.getAttribute('data-docs-excluir');
-          apiPostJson('/api/painel?acao=documento_processo_excluir', { id: id })
-            .then(function () { carregarDocumentos(); })
-            .catch(function (e) { alert(e.message || 'Não foi possível excluir o documento agora.'); });
+          confirmarModal('Excluir este documento?').then(function (ok) {
+            if (!ok) return;
+            var id = btn.getAttribute('data-docs-excluir');
+            apiPostJson('/api/painel?acao=documento_processo_excluir', { id: id })
+              .then(function () { carregarDocumentos(); })
+              .catch(function (e) { alert(e.message || 'Não foi possível excluir o documento agora.'); });
+          });
         });
       });
     }
@@ -4840,14 +4905,16 @@
     });
     document.getElementById('procficha-btn-excluir').addEventListener('click', function () {
       document.getElementById('procficha-menu-acoes').classList.add('hidden');
-      if (!window.confirm('Excluir o processo de ' + processo.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
-      apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processo.id })
-        .then(function () {
-          viewFicha.classList.add('hidden');
-          viewLista.classList.remove('hidden');
-          carregarProcessosManuais();
-        })
-        .catch(function () { alert('Não foi possível excluir o processo agora.'); });
+      confirmarModal('Excluir o processo de ' + processo.cliente_nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
+        if (!ok) return;
+        apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processo.id })
+          .then(function () {
+            viewFicha.classList.add('hidden');
+            viewLista.classList.remove('hidden');
+            carregarProcessosManuais();
+          })
+          .catch(function () { alert('Não foi possível excluir o processo agora.'); });
+      });
     });
 
     function _htmlListaAtosInline(atos) {
@@ -4918,8 +4985,10 @@
           });
           listaEl.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-              if (!confirm('Excluir este prazo?')) return;
-              apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregarPrazosFicha);
+              confirmarModal('Excluir este prazo?').then(function (ok) {
+                if (!ok) return;
+                apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregarPrazosFicha);
+              });
             });
           });
         })
@@ -5207,10 +5276,12 @@
         var indiceExcluir = parseInt(btnExcluir.getAttribute('data-procman-excluir'), 10);
         var processoExcluir = _processosManuaisCarregados[indiceExcluir];
         if (!processoExcluir) return;
-        if (!window.confirm('Excluir o processo de ' + processoExcluir.cliente_nome + '? Essa ação não pode ser desfeita.')) return;
-        apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processoExcluir.id })
-          .then(function () { carregarProcessosManuais(); })
-          .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        confirmarModal('Excluir o processo de ' + processoExcluir.cliente_nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=processo_manual_excluir', { id: processoExcluir.id })
+            .then(function () { carregarProcessosManuais(); })
+            .catch(function () { /* lista so nao atualiza -- usuario pode tentar de novo */ });
+        });
         return;
       }
 
@@ -6004,10 +6075,12 @@
     container.querySelectorAll('[data-remover-doc-procadm]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var partes = btn.getAttribute('data-remover-doc-procadm').split('|');
-        if (!confirm('Remover este documento?')) return;
-        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'remover_documento', id: partes[0], documento_id: partes[1] })
-          .then(function () { carregarProcessosAdministrativos(); })
-          .catch(function () { alert('Não foi possível remover o documento agora.'); });
+        confirmarModal('Remover este documento?').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=processos_administrativos', { op: 'remover_documento', id: partes[0], documento_id: partes[1] })
+            .then(function () { carregarProcessosAdministrativos(); })
+            .catch(function () { alert('Não foi possível remover o documento agora.'); });
+        });
       });
     });
 
@@ -6043,10 +6116,12 @@
     container.querySelectorAll('[data-excluir-procadm]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-excluir-procadm');
-        if (!confirm('Excluir este processo administrativo? Os documentos continuam na pasta do cliente no Drive.')) return;
-        apiPostJson('/api/painel?acao=processos_administrativos', { op: 'excluir', id: id })
-          .then(function () { carregarProcessosAdministrativos(); })
-          .catch(function () { alert('Não foi possível excluir agora.'); });
+        confirmarModal('Excluir este processo administrativo? Os documentos continuam na pasta do cliente no Drive.').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=processos_administrativos', { op: 'excluir', id: id })
+            .then(function () { carregarProcessosAdministrativos(); })
+            .catch(function () { alert('Não foi possível excluir agora.'); });
+        });
       });
     });
   }
@@ -6076,26 +6151,29 @@
 
     document.querySelectorAll('[data-cobrar-nome]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        if (!confirm('Enviar cobrança de R$ ' + btn.getAttribute('data-cobrar-valor') + ' para ' +
-          btn.getAttribute('data-cobrar-nome') + '?')) return;
-        var textoOriginal = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Enviando...';
-        apiPost('/api/painel?acao=executar', {
-          tipo: 'cobrar_cliente',
-          nome: btn.getAttribute('data-cobrar-nome'),
-          valor: btn.getAttribute('data-cobrar-valor'),
-          vencimento: btn.getAttribute('data-cobrar-vencimento'),
-          linha_contrato: btn.getAttribute('data-cobrar-linha-contrato'),
-          numero_parcela: btn.getAttribute('data-cobrar-numero-parcela')
-        }).then(function (r) { return r.json(); }).then(function (dados) {
-          alert(dados.resposta || dados.erro || 'Concluído.');
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-        }).catch(function () {
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-          alert('Não foi possível enviar a cobrança agora.');
+        var mensagemCobranca = 'Enviar cobrança de R$ ' + btn.getAttribute('data-cobrar-valor') + ' para ' +
+          btn.getAttribute('data-cobrar-nome') + '?';
+        confirmarModal(mensagemCobranca, { perigo: false, textoOk: 'Enviar' }).then(function (ok) {
+          if (!ok) return;
+          var textoOriginal = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Enviando...';
+          apiPost('/api/painel?acao=executar', {
+            tipo: 'cobrar_cliente',
+            nome: btn.getAttribute('data-cobrar-nome'),
+            valor: btn.getAttribute('data-cobrar-valor'),
+            vencimento: btn.getAttribute('data-cobrar-vencimento'),
+            linha_contrato: btn.getAttribute('data-cobrar-linha-contrato'),
+            numero_parcela: btn.getAttribute('data-cobrar-numero-parcela')
+          }).then(function (r) { return r.json(); }).then(function (dados) {
+            alert(dados.resposta || dados.erro || 'Concluído.');
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+          }).catch(function () {
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+            alert('Não foi possível enviar a cobrança agora.');
+          });
         });
       });
     });
@@ -6120,28 +6198,30 @@
       var aviso = 'Isso vai enviar a notificação de verdade pro cliente' +
         (email ? ' (WhatsApp + e-mail).' : ' (WhatsApp -- nenhum e-mail foi informado).') +
         ' Não dá pra desfazer. Confirma?';
-      if (!confirm(aviso)) return;
+      confirmarModal(aviso, { textoOk: 'Enviar' }).then(function (ok) {
+        if (!ok) return;
 
-      var textoOriginal = btnConfirmar.textContent;
-      btnConfirmar.disabled = true;
-      btnConfirmar.textContent = 'Enviando...';
+        var textoOriginal = btnConfirmar.textContent;
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'Enviando...';
 
-      apiPostJson('/api/painel?acao=executar', {
-        tipo: 'notificacao_extrajudicial_enviar',
-        nome: nome, pdf_id: pdfId, prazo_dias: prazoDias, email: email
-      })
-        .then(function (dados) {
-          if (resultadoEl) resultadoEl.textContent = dados.resposta || 'Concluído.';
-          areaConfirmar.classList.add('hidden');
-          delete areaConfirmar.dataset.pdfId;
+        apiPostJson('/api/painel?acao=executar', {
+          tipo: 'notificacao_extrajudicial_enviar',
+          nome: nome, pdf_id: pdfId, prazo_dias: prazoDias, email: email
         })
-        .catch(function (erro) {
-          if (resultadoEl) resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
-        })
-        .finally(function () {
-          btnConfirmar.disabled = false;
-          btnConfirmar.textContent = textoOriginal;
-        });
+          .then(function (dados) {
+            if (resultadoEl) resultadoEl.textContent = dados.resposta || 'Concluído.';
+            areaConfirmar.classList.add('hidden');
+            delete areaConfirmar.dataset.pdfId;
+          })
+          .catch(function (erro) {
+            if (resultadoEl) resultadoEl.textContent = (erro && erro.message) || 'Não foi possível enviar agora. Tente de novo.';
+          })
+          .finally(function () {
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = textoOriginal;
+          });
+      });
     });
   }
 
@@ -6310,9 +6390,11 @@
         if (tipoBotao === 'remover_cliente_financeiro') {
           var nomeCampo = document.querySelector('[data-form="remover_cliente_financeiro"][data-campo="nome"]');
           var nomeDigitado = nomeCampo ? nomeCampo.value.trim() : '';
-          if (!nomeDigitado || !confirm('Remover "' + nomeDigitado + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.')) {
-            return;
-          }
+          if (!nomeDigitado) return;
+          confirmarModal('Remover "' + nomeDigitado + '" da planilha de honorários? Essa ação não pode ser desfeita pelo painel.').then(function (ok) {
+            if (ok) executarAutomacao(tipoBotao, e.target);
+          });
+          return;
         }
         executarAutomacao(tipoBotao, e.target);
       });
@@ -6676,18 +6758,20 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var id = btn.getAttribute('data-excluir-audiencia');
-        if (!confirm('Excluir essa transcrição de audiência? O PDF também será apagado do Drive. Essa ação não pode ser desfeita.')) return;
-        var textoOriginal = btn.textContent;
-        btn.textContent = 'Excluindo...';
-        btn.disabled = true;
-        apiPost('/api/painel?acao=audiencias', { op: 'excluir', id: id })
-          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
-          .then(function () { carregarAudiencias(); })
-          .catch(function () {
-            btn.textContent = textoOriginal;
-            btn.disabled = false;
-            alert('Não foi possível excluir agora.');
-          });
+        confirmarModal('Excluir essa transcrição de audiência? O PDF também será apagado do Drive. Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          var textoOriginal = btn.textContent;
+          btn.textContent = 'Excluindo...';
+          btn.disabled = true;
+          apiPost('/api/painel?acao=audiencias', { op: 'excluir', id: id })
+            .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+            .then(function () { carregarAudiencias(); })
+            .catch(function () {
+              btn.textContent = textoOriginal;
+              btn.disabled = false;
+              alert('Não foi possível excluir agora.');
+            });
+        });
       });
     });
   }
