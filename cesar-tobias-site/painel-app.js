@@ -3205,18 +3205,51 @@
             '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
             '<td class="num">R$ ' + fmtMoeda(c.valor_entrada) + '</td>' +
             '<td>' + (c.num_parcelas || 1) + 'x</td>' +
-            '<td>' + statusChip + '</td></tr>';
+            '<td>' + statusChip + '</td>' +
+            '<td><button type="button" class="btn-remover" data-excluir-contrato="' + c.id + '" data-excluir-contrato-nome="' + esc(c.nome_cliente) + '">Excluir</button></td></tr>';
         }).join('');
         var linhasExito = exitos.map(function (e) {
           return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
             '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
             '<td class="num">—</td><td>Êxito</td>' +
-            '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td></tr>';
+            '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
+            '<td><button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button></td></tr>';
         }).join('');
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:680px;">' +
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
           '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
-          '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th></tr></thead>' +
+          '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>' +
           '<tbody>' + linhasContratos + linhasExito + '</tbody></table></div>';
+
+        function excluirRegistro(tipoRegistro, id, nome, botao) {
+          confirmarModal('Excluir o contrato de ' + nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
+            if (!ok) return;
+            botao.disabled = true;
+            apiPost('/api/painel?acao=executar', { tipo: 'financeiro_contrato_excluir', tipo_registro: tipoRegistro, id: id })
+              .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+              .then(function (resultado) {
+                if (resultado.status === 200) {
+                  carregarHonorariosContratos();
+                } else {
+                  botao.disabled = false;
+                  alert(resultado.corpo.erro || 'Não foi possível excluir agora.');
+                }
+              })
+              .catch(function () {
+                botao.disabled = false;
+                alert('Erro de conexão ao excluir.');
+              });
+          });
+        }
+        container.querySelectorAll('[data-excluir-contrato]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            excluirRegistro('contrato', btn.getAttribute('data-excluir-contrato'), btn.getAttribute('data-excluir-contrato-nome'), btn);
+          });
+        });
+        container.querySelectorAll('[data-excluir-exito]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            excluirRegistro('exito', btn.getAttribute('data-excluir-exito'), btn.getAttribute('data-excluir-contrato-nome'), btn);
+          });
+        });
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os contratos agora.</div></div>';
