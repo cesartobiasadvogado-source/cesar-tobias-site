@@ -475,6 +475,65 @@
     });
   }
 
+  // Confirmacao "reforcada" pra acao sem volta nenhuma (apagar definitivamente): so libera o
+  // botao quando a pessoa digita o texto exigido, igual GitHub/AWS pedem digitar o nome do
+  // recurso antes de apagar de vez.
+  function confirmarDigitando(mensagem, textoEsperado, opcoes) {
+    opcoes = opcoes || {};
+    return new Promise(function (resolve) {
+      var overlay = document.getElementById('confirm-digitando-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'confirm-digitando-overlay';
+        overlay.className = 'modal-overlay hidden';
+        overlay.innerHTML =
+          '<div class="confirm-modal-caixa">' +
+            '<div class="confirm-modal-titulo" id="confirm-digitando-titulo"></div>' +
+            '<div class="confirm-modal-msg" id="confirm-digitando-msg"></div>' +
+            '<div class="ncontrato-campo" style="margin-top:14px;">' +
+              '<input type="text" id="confirm-digitando-input" autocomplete="off">' +
+            '</div>' +
+            '<div class="confirm-modal-acoes">' +
+              '<button type="button" class="btn-conexao-secundario" id="confirm-digitando-cancelar">Cancelar</button>' +
+              '<button type="button" class="btn-conexao-perigo" id="confirm-digitando-ok" disabled></button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+      }
+      document.getElementById('confirm-digitando-titulo').textContent = opcoes.titulo || 'Confirmar ação definitiva';
+      document.getElementById('confirm-digitando-msg').textContent = mensagem;
+      var input = document.getElementById('confirm-digitando-input');
+      var btnOk = document.getElementById('confirm-digitando-ok');
+      var btnCancelar = document.getElementById('confirm-digitando-cancelar');
+      input.value = '';
+      btnOk.textContent = opcoes.textoOk || 'Apagar definitivamente';
+      btnOk.disabled = true;
+
+      function onInput() { btnOk.disabled = input.value !== textoEsperado; }
+      function limpar(resultado) {
+        overlay.classList.add('hidden');
+        input.removeEventListener('input', onInput);
+        btnOk.removeEventListener('click', onOk);
+        btnCancelar.removeEventListener('click', onCancelar);
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onEsc);
+        resolve(resultado);
+      }
+      function onOk() { if (!btnOk.disabled) limpar(true); }
+      function onCancelar() { limpar(false); }
+      function onOverlay(e) { if (e.target === overlay) limpar(false); }
+      function onEsc(e) { if (e.key === 'Escape') limpar(false); }
+
+      input.addEventListener('input', onInput);
+      btnOk.addEventListener('click', onOk);
+      btnCancelar.addEventListener('click', onCancelar);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onEsc);
+      overlay.classList.remove('hidden');
+      input.focus();
+    });
+  }
+
   function linkCliente(nome) {
     return '<a class="link-original" href="painel-clientes.html?cliente=' + encodeURIComponent(nome) + '">' + esc(nome) + '</a>';
   }
@@ -2661,7 +2720,7 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum outro escritório cadastrado ainda.</div></div>';
           return;
         }
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:820px;">' +
           '<thead><tr><th>Escritório</th><th>Advogado</th><th>OAB</th><th>Conexões</th><th>Status</th><th>Ações</th></tr></thead>' +
           '<tbody>' + lista.map(function (t) {
             var conexoes = [
@@ -2669,20 +2728,33 @@
               t.whatsapp_conectado ? 'WhatsApp' : null,
               t.asaas_conectado ? 'Asaas' : null,
             ].filter(Boolean);
-            var suspenso = t.status === 'suspenso';
-            var chipStatus = suspenso
-              ? '<span class="chip crit">Suspenso</span>'
-              : '<span class="chip good">Ativo</span>';
+            var chipsPorStatus = {
+              ativo: '<span class="chip good">Ativo</span>',
+              suspenso: '<span class="chip crit">Suspenso</span>',
+              excluido: '<span class="chip neutral">Excluído' + (t.excluido_em ? ' em ' + fmtDataCurta(t.excluido_em) : '') + '</span>',
+            };
+            var chipStatus = chipsPorStatus[t.status] || chipsPorStatus.ativo;
+            var nomeExibicao = t.nome_escritorio || t.tenant_id;
+
+            var acoesHtml;
+            if (t.status === 'excluido') {
+              acoesHtml =
+                '<button type="button" class="btn-editar" data-tenant-restaurar="' + esc(t.tenant_id) + '">Restaurar</button> ' +
+                '<button type="button" class="btn-remover" data-tenant-apagar="' + esc(t.tenant_id) + '" data-tenant-apagar-nome="' + esc(nomeExibicao) + '">Apagar definitivamente</button>';
+            } else {
+              var suspenso = t.status === 'suspenso';
+              acoesHtml =
+                '<button type="button" class="btn-editar" data-tenant-status="' + esc(t.tenant_id) + '" data-status-alvo="' + (suspenso ? 'ativo' : 'suspenso') + '">' +
+                  (suspenso ? 'Reativar' : 'Suspender') + '</button> ' +
+                '<button type="button" class="btn-remover" data-tenant-excluir="' + esc(t.tenant_id) + '" data-tenant-nome="' + esc(nomeExibicao) + '">Excluir</button>';
+            }
+
             return '<tr><td>' + esc(t.nome_escritorio || '—') + '</td>' +
               '<td>' + esc(t.nome_advogado || '—') + '</td>' +
               '<td>' + esc((t.oab_numero || '—') + (t.oab_uf ? '/' + t.oab_uf : '')) + '</td>' +
               '<td>' + (conexoes.length ? conexoes.map(function (c) { return '<span class="chip neutral">' + c + '</span>'; }).join(' ') : '—') + '</td>' +
               '<td>' + chipStatus + '</td>' +
-              '<td style="white-space:nowrap;">' +
-                '<button type="button" class="btn-editar" data-tenant-status="' + esc(t.tenant_id) + '" data-status-alvo="' + (suspenso ? 'ativo' : 'suspenso') + '">' +
-                  (suspenso ? 'Reativar' : 'Suspender') + '</button> ' +
-                '<button type="button" class="btn-remover" data-tenant-excluir="' + esc(t.tenant_id) + '" data-tenant-nome="' + esc(t.nome_escritorio || t.tenant_id) + '">Excluir</button>' +
-              '</td></tr>';
+              '<td style="white-space:nowrap;">' + acoesHtml + '</td></tr>';
           }).join('') + '</tbody></table></div>';
 
         container.querySelectorAll('[data-tenant-status]').forEach(function (btn) {
@@ -2706,17 +2778,56 @@
             });
           });
         });
+        // "Excluir" = exclusao reversivel (soft delete, igual Google Workspace/GitHub/AWS): bloqueia
+        // o acesso na hora, mas nao apaga nada -- fica em "Excluído", com "Restaurar" disponivel.
         container.querySelectorAll('[data-tenant-excluir]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             var nome = btn.getAttribute('data-tenant-nome');
-            confirmarModal('Excluir o escritório "' + nome + '" da plataforma? Ele perde o acesso imediatamente. Essa ação não pode ser desfeita.').then(function (ok) {
+            confirmarModal('Excluir o escritório "' + nome + '" da plataforma? Ele perde o acesso imediatamente, mas o cadastro fica guardado — dá pra restaurar depois, se precisar.', { textoOk: 'Excluir' }).then(function (ok) {
               if (!ok) return;
               btn.disabled = true;
-              apiPostJson('/api/painel?acao=plataforma_tenant_excluir', { tenant_id: btn.getAttribute('data-tenant-excluir') })
+              apiPostJson('/api/painel?acao=plataforma_tenant_status', { tenant_id: btn.getAttribute('data-tenant-excluir'), status: 'excluido' })
                 .then(carregarEscritoriosPlataforma)
                 .catch(function (e) {
                   btn.disabled = false;
                   alert(e.message || 'Não foi possível excluir agora.');
+                });
+            });
+          });
+        });
+        container.querySelectorAll('[data-tenant-restaurar]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            confirmarModal('Restaurar este escritório? Ele volta a conseguir fazer login normalmente.', { perigo: false, textoOk: 'Restaurar' }).then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              apiPostJson('/api/painel?acao=plataforma_tenant_status', { tenant_id: btn.getAttribute('data-tenant-restaurar'), status: 'ativo' })
+                .then(carregarEscritoriosPlataforma)
+                .catch(function (e) {
+                  btn.disabled = false;
+                  alert(e.message || 'Não foi possível restaurar agora.');
+                });
+            });
+          });
+        });
+        // "Apagar definitivamente" = sem volta -- so aparece pra quem ja esta excluido, e exige
+        // digitar o nome do escritorio pra confirmar (mesmo padrao do GitHub/AWS).
+        container.querySelectorAll('[data-tenant-apagar]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var nome = btn.getAttribute('data-tenant-apagar-nome');
+            confirmarDigitando(
+              'Isso apaga o cadastro de "' + nome + '" pra sempre — não dá mais pra restaurar. ' +
+              'Dados que já foram gravados em nome dele (contratos, processos, arquivos no Drive) não são apagados por essa ação, só o acesso/cadastro. ' +
+              'Digite o nome do escritório exatamente como mostrado (' + nome + ') pra confirmar.',
+              nome,
+              { titulo: 'Apagar definitivamente' }
+            ).then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              apiPostJson('/api/painel?acao=plataforma_tenant_excluir', { tenant_id: btn.getAttribute('data-tenant-apagar'), confirmacao: nome })
+                .then(carregarEscritoriosPlataforma)
+                .catch(function (e) {
+                  btn.disabled = false;
+                  alert(e.message || 'Não foi possível apagar agora.');
                 });
             });
           });
