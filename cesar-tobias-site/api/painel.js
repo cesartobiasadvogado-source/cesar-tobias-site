@@ -166,7 +166,8 @@ module.exports = async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_id: corpo.tenant_id, nome_advogado: corpo.nome_advogado, nome_escritorio: corpo.nome_escritorio,
+          tenant_id: corpo.tenant_id, signup_token: corpo.signup_token,
+          nome_advogado: corpo.nome_advogado, nome_escritorio: corpo.nome_escritorio,
           cpf: corpo.cpf, rg: corpo.rg, cidade_escritorio: corpo.cidade_escritorio,
         })
       });
@@ -188,7 +189,8 @@ module.exports = async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_id: corpo.tenant_id, nome: corpo.nome, usuario: corpo.usuario, senha: corpo.senha,
+          tenant_id: corpo.tenant_id, signup_token: corpo.signup_token,
+          nome: corpo.nome, usuario: corpo.usuario, senha: corpo.senha,
         })
       });
       const dados = await resposta.json();

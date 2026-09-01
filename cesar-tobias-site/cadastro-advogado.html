@@ -132,11 +132,16 @@
   var estado = {
     passo: 1,
     tenant_id: localStorage.getItem('cadastro_tenant_id') || '',
+    signup_token: localStorage.getItem('cadastro_signup_token') || '',
     nome_advogado: '',
   };
 
   function salvarEstado() {
     if (estado.tenant_id) localStorage.setItem('cadastro_tenant_id', estado.tenant_id);
+    // signup_token e a prova de que essa aba/navegador foi quem criou o cadastro -- sem ele,
+    // os proximos passos (conectar Google, criar o login) recusam a operacao (ver correcao de
+    // seguranca: antes, bastava saber o numero da OAB de alguem pra mexer no cadastro dela).
+    if (estado.signup_token) localStorage.setItem('cadastro_signup_token', estado.signup_token);
   }
 
   async function chamar(acao, corpo, metodo) {
@@ -259,7 +264,8 @@
       btn.disabled = true; btn.textContent = editando ? 'Salvando...' : 'Criando...';
       var r = editando
         ? await chamar('atualizar_tenant', {
-            tenant_id: estado.tenant_id, nome_advogado: nome, nome_escritorio: escritorio,
+            tenant_id: estado.tenant_id, signup_token: estado.signup_token,
+            nome_advogado: nome, nome_escritorio: escritorio,
             cpf: cpf, rg: rg, cidade_escritorio: cidade,
           })
         : await chamar('criar_tenant', {
@@ -271,7 +277,7 @@
         erroDiv.innerHTML = '<div class="aviso erro">' + (r.dados.erro || 'Não foi possível salvar.') + '</div>';
         return;
       }
-      if (!editando) estado.tenant_id = r.dados.tenant_id;
+      if (!editando) { estado.tenant_id = r.dados.tenant_id; estado.signup_token = r.dados.signup_token; }
       estado.nome_advogado = nome;
       salvarEstado();
       avancar();
@@ -298,7 +304,7 @@
     document.getElementById('btn-conectar-google').onclick = function () {
       window.open(
         'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/?action=oauth_google_iniciar&tenant_id=' +
-        encodeURIComponent(estado.tenant_id), '_blank'
+        encodeURIComponent(estado.tenant_id) + '&signup_token=' + encodeURIComponent(estado.signup_token), '_blank'
       );
     };
     document.getElementById('btn-verificar-google').onclick = async function () {
@@ -359,7 +365,8 @@
       }
       btn.disabled = true; btn.textContent = 'Criando...';
       var r = await chamar('criar_usuario_tenant', {
-        tenant_id: estado.tenant_id, nome: estado.nome_advogado || usuario, usuario: usuario, senha: senha
+        tenant_id: estado.tenant_id, signup_token: estado.signup_token,
+        nome: estado.nome_advogado || usuario, usuario: usuario, senha: senha
       });
       if (!r.ok || !r.dados.ok) {
         btn.disabled = false; btn.textContent = 'Criar login e finalizar';
@@ -404,7 +411,9 @@
   }
   document.getElementById('link-novo-cadastro').onclick = function () {
     localStorage.removeItem('cadastro_tenant_id');
+    localStorage.removeItem('cadastro_signup_token');
     estado.tenant_id = '';
+    estado.signup_token = '';
     estado.nome_advogado = '';
     estado.usuario = '';
     estado.dadosPasso1 = null;
