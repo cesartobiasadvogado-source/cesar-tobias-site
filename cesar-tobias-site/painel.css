@@ -439,6 +439,25 @@
   .aviso-tabela td:nth-child(2), .aviso-tabela th:nth-child(2) { text-align: center; }
   .aviso-tabela td:last-child, .aviso-tabela th:last-child { text-align: right; }
 
+  .fin-tab-panel.hidden { display: none; }
+  .ncontrato-modal-caixa { background: var(--surface); border-radius: 12px; width: 100%; max-width: 480px;
+    max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); border: 1px solid var(--line); padding: 20px; }
+  .ncontrato-modal-caixa h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: var(--ink);
+    display: flex; align-items: center; justify-content: space-between; }
+  .ncontrato-campo { margin-bottom: 14px; }
+  .ncontrato-campo label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+  .ncontrato-campo input, .ncontrato-campo select {
+    width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px;
+    font-size: 13.5px; background: var(--bg); color: var(--ink); font-family: inherit;
+  }
+  .ncontrato-linha2 { display: flex; gap: 10px; }
+  .ncontrato-linha2 > .ncontrato-campo { flex: 1; min-width: 0; }
+  .ncontrato-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+  .ncontrato-erro { color: var(--crit); font-size: 12.5px; margin: -6px 0 12px; min-height: 0; }
+  .fin-em-breve { padding: 40px 20px; text-align: center; }
+  .fin-em-breve .glyph { font-family: var(--font-display); font-size: 20px; color: var(--ink-faint); margin-bottom: 8px; }
+  .fin-em-breve .msg { font-size: 13.5px; color: var(--ink-faint); max-width: 420px; margin: 0 auto; line-height: 1.6; }
+
   .empty-state { padding: 36px 20px; text-align: center; }
   .empty-state .glyph { font-family: var(--font-display); font-size: 22px; color: var(--good); margin-bottom: 6px; }
   .empty-state .msg { font-size: 13.5px; color: var(--ink-faint); }

@@ -2142,6 +2142,107 @@
         '</div>' +
       '</section>';
 
+    function htmlFinEmBreve(mensagem) {
+      return '<div class="fin-em-breve"><div class="glyph">em breve</div><div class="msg">' + esc(mensagem) + '</div></div>';
+    }
+
+    var htmlHonorariosContratos =
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Contratos e honorários</span>' +
+          '<button type="button" class="btn-conexao" id="btn-novo-contrato-honorarios">+ Novo contrato de honorários</button>' +
+        '</div>' +
+        '<div id="honorarios-contratos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-novo-contrato">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3>Novo contrato de honorários<button type="button" class="modal-drill-fechar" id="ncontrato-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncontrato-processo">Processo (opcional — consultivo/mensal)</label>' +
+            '<select id="ncontrato-processo"><option value="">Nenhum (contrato consultivo/mensal)</option></select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncontrato-cliente">Cliente *</label>' +
+            '<select id="ncontrato-cliente"><option value="">Selecione o cliente</option></select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncontrato-tipo">Tipo</label>' +
+            '<select id="ncontrato-tipo">' +
+              '<option value="fixo">Fixo</option>' +
+              '<option value="exito">Êxito</option>' +
+              '<option value="valor_exito">Valor + Êxito</option>' +
+              '<option value="mensal">Mensal</option>' +
+              '<option value="vinculado_processo">Vinculado ao processo</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-campo" id="ncontrato-campo-valor">' +
+            '<label for="ncontrato-valor">Valor base (R$)</label>' +
+            '<input type="number" step="0.01" min="0" id="ncontrato-valor" placeholder="0,00">' +
+          '</div>' +
+          '<div class="ncontrato-campo hidden" id="ncontrato-campo-percentual">' +
+            '<label for="ncontrato-percentual">% de honorários de êxito</label>' +
+            '<input type="number" step="0.01" min="0" max="100" id="ncontrato-percentual" placeholder="ex: 30">' +
+          '</div>' +
+          '<div class="ncontrato-linha2 hidden" id="ncontrato-linha-entrada">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="ncontrato-valor-entrada">Valor de entrada (R$)</label>' +
+              '<input type="number" step="0.01" min="0" id="ncontrato-valor-entrada" placeholder="0,00">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label for="ncontrato-data-entrada">Data de pagamento da entrada</label>' +
+              '<input type="date" id="ncontrato-data-entrada">' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncontrato-data-inicio">Data início</label>' +
+            '<input type="date" id="ncontrato-data-inicio">' +
+          '</div>' +
+          '<div class="ncontrato-linha2" id="ncontrato-linha-parcelas">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="ncontrato-parcelas">Nº de parcelas</label>' +
+              '<input type="number" step="1" min="1" id="ncontrato-parcelas" value="1">' +
+            '</div>' +
+            '<div class="ncontrato-campo hidden" id="ncontrato-campo-periodicidade">' +
+              '<label for="ncontrato-periodicidade">Periodicidade</label>' +
+              '<select id="ncontrato-periodicidade">' +
+                '<option value="Mensal">Mensal</option>' +
+                '<option value="Quinzenal">Quinzenal</option>' +
+                '<option value="Semanal">Semanal</option>' +
+              '</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="ncontrato-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="ncontrato-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="ncontrato-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    var htmlFinanceiroNovo =
+      '<section id="sec-financeiro-novo">' +
+        '<p class="section-label">Financeiro</p>' +
+        '<div class="subtabs" role="tablist" style="margin-bottom:16px; flex-wrap:wrap;">' +
+          '<button type="button" class="subtab-btn ativo" data-fin-tab="dashboard">Dashboard</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="contratos">Honorários e Contratos</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="receber">Contas a receber</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="despesas">Despesas do Processo</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="pagar">Contas a pagar</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="recorrentes">Contas recorrentes</button>' +
+        '</div>' +
+        '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlFinanceiro + htmlExito + '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="contratos">' + htmlHonorariosContratos + '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="receber">' + painelVencidasHtml + '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' +
+          htmlFinEmBreve('Registro de custas, honorários de terceiros e outras despesas vinculadas a cada processo. Ainda não foi construído — avise se quiser priorizar.') +
+        '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' +
+          htmlFinEmBreve('Controle de contas do escritório a pagar, com vencimento e status. Ainda não foi construído — avise se quiser priorizar.') +
+        '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' +
+          htmlFinEmBreve('Lançamentos recorrentes automáticos (aluguel, softwares, folha etc). Ainda não foi construído — avise se quiser priorizar.') +
+        '</div>' +
+      '</section>';
+
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
     // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
@@ -2149,6 +2250,7 @@
     var MAPA_CONTEUDO_POR_PAGINA = {
       inicio: htmlInicio,
       financeiro: htmlFinanceiro + htmlExito + painelVencidasHtml + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente,
+      financeiro_novo: htmlFinanceiroNovo,
       pje: htmlPje,
       clientes: htmlClientes,
       processos: htmlProcessos + htmlProcessoAdministrativo,
@@ -2165,7 +2267,7 @@
       configuracoes: htmlConfiguracoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
-      financeiro: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
+      financeiro: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       tarefas: 'agenda', agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
@@ -2217,6 +2319,10 @@
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
     if (PAGINA_ATUAL === 'agenda') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
+    if (PAGINA_ATUAL === 'financeiro_novo') {
+      wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
+      carregarHonorariosContratos(); wireNovoContratoModal();
+    }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
@@ -2777,6 +2883,164 @@
     }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
 
     mapa.forEach(function (m) { observer.observe(m.alvo); });
+  }
+
+  function wireFinTabs() {
+    var botoes = document.querySelectorAll('.subtabs [data-fin-tab]');
+    if (!botoes.length) return;
+    botoes.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var alvo = btn.getAttribute('data-fin-tab');
+        botoes.forEach(function (b) { b.classList.toggle('ativo', b === btn); });
+        document.querySelectorAll('[data-fin-panel]').forEach(function (p) {
+          p.classList.toggle('hidden', p.getAttribute('data-fin-panel') !== alvo);
+        });
+      });
+    });
+  }
+
+  function carregarHonorariosContratos() {
+    var container = document.getElementById('honorarios-contratos-lista');
+    if (!container) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_contrato_listar' })
+      .then(function (dados) {
+        var contratos = dados.contratos || [];
+        var exitos = dados.honorarios_exito || [];
+        if (contratos.length === 0 && exitos.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum contrato cadastrado ainda. Use "+ Novo contrato de honorários" pra adicionar.</div></div>';
+          return;
+        }
+        var linhasContratos = contratos.map(function (c) {
+          var pago = (c.entrada_recebida || 0) + (c.valor_pago_parcelas || 0);
+          var statusChip = c.valor_total > 0 && pago >= c.valor_total
+            ? '<span class="chip good">Quitado</span>'
+            : '<span class="chip neutral">' + esc(c.status_pagamento || c.status_contrato || '—') + '</span>';
+          return '<tr><td>' + esc(c.nome_cliente) + '</td><td>' + esc(c.tipo_servico || '—') + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(c.valor_entrada) + '</td>' +
+            '<td>' + (c.num_parcelas || 1) + 'x</td>' +
+            '<td>' + statusChip + '</td></tr>';
+        }).join('');
+        var linhasExito = exitos.map(function (e) {
+          return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
+            '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
+            '<td class="num">—</td><td>Êxito</td>' +
+            '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td></tr>';
+        }).join('');
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:680px;">' +
+          '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
+          '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th></tr></thead>' +
+          '<tbody>' + linhasContratos + linhasExito + '</tbody></table></div>';
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os contratos agora.</div></div>';
+      });
+  }
+
+  function wireNovoContratoModal() {
+    var btnAbrir = document.getElementById('btn-novo-contrato-honorarios');
+    var modal = document.getElementById('modal-novo-contrato');
+    if (!btnAbrir || !modal) return;
+    var selectCliente = document.getElementById('ncontrato-cliente');
+    var selectProcesso = document.getElementById('ncontrato-processo');
+    var selectTipo = document.getElementById('ncontrato-tipo');
+    var campoValor = document.getElementById('ncontrato-campo-valor');
+    var campoPercentual = document.getElementById('ncontrato-campo-percentual');
+    var linhaEntrada = document.getElementById('ncontrato-linha-entrada');
+    var linhaParcelas = document.getElementById('ncontrato-linha-parcelas');
+    var campoPeriodicidade = document.getElementById('ncontrato-campo-periodicidade');
+    var inputParcelas = document.getElementById('ncontrato-parcelas');
+    var inputDataInicio = document.getElementById('ncontrato-data-inicio');
+    var erroEl = document.getElementById('ncontrato-erro');
+    var btnSalvar = document.getElementById('ncontrato-salvar');
+    var opcoesCarregadas = false;
+
+    function atualizarCamposPorTipo() {
+      var tipo = selectTipo.value;
+      var temValor = tipo === 'fixo' || tipo === 'valor_exito' || tipo === 'mensal' || tipo === 'vinculado_processo';
+      var temExito = tipo === 'exito' || tipo === 'valor_exito';
+      campoValor.classList.toggle('hidden', !temValor);
+      campoPercentual.classList.toggle('hidden', !temExito);
+      linhaEntrada.classList.toggle('hidden', !temValor);
+      linhaParcelas.classList.toggle('hidden', !temValor);
+    }
+
+    function atualizarPeriodicidade() {
+      var n = parseInt(inputParcelas.value, 10) || 1;
+      campoPeriodicidade.classList.toggle('hidden', n <= 1);
+    }
+
+    function abrirModal() {
+      erroEl.textContent = '';
+      selectTipo.value = 'fixo';
+      document.getElementById('ncontrato-valor').value = '';
+      document.getElementById('ncontrato-percentual').value = '';
+      document.getElementById('ncontrato-valor-entrada').value = '';
+      document.getElementById('ncontrato-data-entrada').value = '';
+      inputParcelas.value = '1';
+      document.getElementById('ncontrato-periodicidade').value = 'Mensal';
+      inputDataInicio.value = new Date().toISOString().slice(0, 10);
+      selectCliente.value = '';
+      selectProcesso.value = '';
+      atualizarCamposPorTipo();
+      atualizarPeriodicidade();
+      modal.classList.remove('hidden');
+      if (!opcoesCarregadas) {
+        opcoesCarregadas = true;
+        apiGetJson('/api/painel?acao=cliente_cadastro_listar').then(function (d) {
+          selectCliente.innerHTML = '<option value="">Selecione o cliente</option>' +
+            (d.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">' + esc(c.nome) + '</option>'; }).join('');
+        }).catch(function () {});
+        apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) {
+          selectProcesso.innerHTML = '<option value="">Nenhum (contrato consultivo/mensal)</option>' +
+            (d.processos || []).map(function (p) {
+              return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
+            }).join('');
+        }).catch(function () {});
+      }
+    }
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    btnAbrir.addEventListener('click', abrirModal);
+    document.getElementById('ncontrato-fechar').addEventListener('click', fecharModal);
+    document.getElementById('ncontrato-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+    selectTipo.addEventListener('change', atualizarCamposPorTipo);
+    inputParcelas.addEventListener('input', atualizarPeriodicidade);
+
+    btnSalvar.addEventListener('click', function () {
+      var nome = selectCliente.value;
+      if (!nome) { erroEl.textContent = 'Selecione o cliente.'; return; }
+      var corpo = {
+        tipo: 'financeiro_contrato_criar',
+        nome: nome,
+        tipo_contrato: selectTipo.value,
+        processo_numero: selectProcesso.value,
+        valor_total: document.getElementById('ncontrato-valor').value,
+        percentual_exito: document.getElementById('ncontrato-percentual').value,
+        valor_entrada: document.getElementById('ncontrato-valor-entrada').value,
+        data_entrada: document.getElementById('ncontrato-data-entrada').value ? fmtDataCurta(document.getElementById('ncontrato-data-entrada').value) : '',
+        data_inicio: inputDataInicio.value ? fmtDataCurta(inputDataInicio.value) : '',
+        num_parcelas: inputParcelas.value,
+        periodicidade: document.getElementById('ncontrato-periodicidade').value,
+      };
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      erroEl.textContent = '';
+      apiPost('/api/painel?acao=executar', corpo)
+        .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+        .then(function (resultado) {
+          if (resultado.status === 200) {
+            fecharModal();
+            carregarHonorariosContratos();
+          } else {
+            erroEl.textContent = resultado.corpo.erro || 'Não foi possível salvar o contrato.';
+          }
+        })
+        .catch(function () { erroEl.textContent = 'Erro de conexão ao salvar o contrato.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
   }
 
   function carregarClientesCadastrados() {
