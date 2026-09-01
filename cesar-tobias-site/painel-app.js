@@ -2720,8 +2720,9 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum outro escritório cadastrado ainda.</div></div>';
           return;
         }
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:820px;">' +
-          '<thead><tr><th>Escritório</th><th>Advogado</th><th>OAB</th><th>Conexões</th><th>Status</th><th>Ações</th></tr></thead>' +
+        var catalogoPlanos = dados.planos || [];
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:920px;">' +
+          '<thead><tr><th>Escritório</th><th>Advogado</th><th>OAB</th><th>Conexões</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>' +
           '<tbody>' + lista.map(function (t) {
             var conexoes = [
               t.google_conectado ? 'Google' : null,
@@ -2735,6 +2736,12 @@
             };
             var chipStatus = chipsPorStatus[t.status] || chipsPorStatus.ativo;
             var nomeExibicao = t.nome_escritorio || t.tenant_id;
+
+            var selectPlano = '<select data-tenant-plano="' + esc(t.tenant_id) + '" style="font-size:12.5px; padding:4px 6px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
+              catalogoPlanos.map(function (p) {
+                return '<option value="' + esc(p.chave) + '"' + (p.chave === t.plano ? ' selected' : '') + '>' +
+                  esc(p.nome) + ' (' + p.max_usuarios + ' usuário(s), ' + p.max_processos + ' processos)</option>';
+              }).join('') + '</select>';
 
             var acoesHtml;
             if (t.status === 'excluido') {
@@ -2753,9 +2760,22 @@
               '<td>' + esc(t.nome_advogado || '—') + '</td>' +
               '<td>' + esc((t.oab_numero || '—') + (t.oab_uf ? '/' + t.oab_uf : '')) + '</td>' +
               '<td>' + (conexoes.length ? conexoes.map(function (c) { return '<span class="chip neutral">' + c + '</span>'; }).join(' ') : '—') + '</td>' +
+              '<td>' + selectPlano + '</td>' +
               '<td>' + chipStatus + '</td>' +
               '<td style="white-space:nowrap;">' + acoesHtml + '</td></tr>';
           }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('[data-tenant-plano]').forEach(function (select) {
+          select.addEventListener('change', function () {
+            var tenantId = select.getAttribute('data-tenant-plano');
+            select.disabled = true;
+            apiPostJson('/api/painel?acao=plataforma_tenant_plano', { tenant_id: tenantId, plano: select.value })
+              .catch(function (e) {
+                alert(e.message || 'Não foi possível trocar o plano agora.');
+              })
+              .finally(function () { select.disabled = false; });
+          });
+        });
 
         container.querySelectorAll('[data-tenant-status]').forEach(function (btn) {
           btn.addEventListener('click', function () {

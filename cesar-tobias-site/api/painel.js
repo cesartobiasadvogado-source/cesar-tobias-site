@@ -827,6 +827,7 @@ module.exports = async (req, res) => {
     aviso_excluir: 'Erro de conexao ao excluir o aviso.',
     plataforma_tenant_status: 'Erro de conexao ao atualizar o status do escritorio.',
     plataforma_tenant_excluir: 'Erro de conexao ao excluir o escritorio.',
+    plataforma_tenant_plano: 'Erro de conexao ao trocar o plano do escritorio.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {
