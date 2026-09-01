@@ -2894,11 +2894,14 @@
       if (secao && secao !== 'inicio') {
         item.classList.toggle('hidden', perms.indexOf(secao) === -1);
       }
-      item.classList.toggle('ativo', (secao || 'admin') === PAGINA_ATUAL);
 
       var partesHref = item.getAttribute('href').split('#');
       var arquivoAlvo = partesHref[0];
       var ancora = partesHref[1];
+      // financeiro.html (antigo) e painel.html (novo, com abas) compartilham data-secao="financeiro"
+      // pra permissao, mas sao paginas diferentes -- acende pelo arquivo de verdade, nao so pela secao,
+      // senao os dois links do grupo "Financeiro" acendiam juntos (ou nenhum) na pagina errada.
+      item.classList.toggle('ativo', arquivoAlvo === arquivoAtual || (secao || 'admin') === PAGINA_ATUAL);
       if (ancora && arquivoAlvo === arquivoAtual) {
         // mesma pagina -- so rola suavemente ate a secao, em vez de recarregar
         item.addEventListener('click', function (e) {
