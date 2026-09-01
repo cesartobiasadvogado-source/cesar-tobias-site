@@ -1946,6 +1946,17 @@
         '</div>' +
       '</section>';
 
+    // "Escritorios da plataforma" -- so aparece pra voce (Cesar), nao pra outros tenants: eles
+    // veem "Conexoes" (htmlConexoes, acima) na mesma pagina/secao; voce ve isto, pra gerenciar
+    // (suspender/reativar/excluir) os escritorios de outros advogados cadastrados na plataforma.
+    var htmlEscritoriosPlataforma = (!dados.usuario_admin || sessaoEhTenant) ? '' :
+      '<section id="sec-escritorios-plataforma"><p class="section-label">Escritórios da plataforma</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Escritórios cadastrados</span></div>' +
+          '<div id="escritorios-plataforma-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
     // Pagina "Configuracoes do Escritorio" -- admin-only, igual admin/conexoes. A aba Usuarios
     // reaproveita htmlAdmin (definido acima) tal e qual, mesmos ids -- carregarListaUsuarios()/
     // criarUsuarioAdmin ja funcionam sem mudar nada. Configuracao/Avisos/Atualizacoes/Auditoria
@@ -2316,7 +2327,7 @@
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
-      admin: htmlConexoes,
+      admin: htmlConexoes + htmlEscritoriosPlataforma,
       configuracoes: htmlConfiguracoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
@@ -2348,7 +2359,16 @@
     });
 
     var navAdminEl = document.getElementById('nav-admin');
-    if (navAdminEl) navAdminEl.classList.toggle('hidden', !dados.usuario_admin || !sessaoEhTenant);
+    if (navAdminEl) {
+      navAdminEl.classList.toggle('hidden', !dados.usuario_admin);
+      // pra voce (Cesar), o mesmo link do menu leva pra "Escritorios da plataforma" em vez de
+      // "Conexoes" (que so faz sentido pra outro tenant conectar o proprio WhatsApp/Asaas) --
+      // troca so o texto visivel, o href continua o mesmo (painel-admin.html#sec-admin).
+      if (!sessaoEhTenant) {
+        var textoNavAdmin = navAdminEl.childNodes[navAdminEl.childNodes.length - 1];
+        if (textoNavAdmin && textoNavAdmin.nodeType === 3) textoNavAdmin.textContent = 'Escritórios';
+      }
+    }
     var navConfigEl = document.getElementById('nav-configuracoes');
     if (navConfigEl) navConfigEl.classList.toggle('hidden', !dados.usuario_admin);
 
@@ -2399,6 +2419,7 @@
     }
     if (PAGINA_ATUAL === 'admin' && dados.usuario_admin) {
       if (document.getElementById('sec-conexoes')) wireConexoes();
+      if (document.getElementById('sec-escritorios-plataforma')) carregarEscritoriosPlataforma();
     }
     if (PAGINA_ATUAL === 'configuracoes' && dados.usuario_admin) {
       wireConfiguracoes();
@@ -2628,6 +2649,82 @@
             '<td>' + esc(r.detalhes || '') + '</td></tr>';
         }).join('') + '</tbody></table></div>';
     });
+  }
+
+  function carregarEscritoriosPlataforma() {
+    var container = document.getElementById('escritorios-plataforma-lista');
+    if (!container) return;
+    apiGetJson('/api/painel?acao=plataforma_tenants_listar')
+      .then(function (dados) {
+        var lista = dados.tenants || [];
+        if (lista.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum outro escritório cadastrado ainda.</div></div>';
+          return;
+        }
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
+          '<thead><tr><th>Escritório</th><th>Advogado</th><th>OAB</th><th>Conexões</th><th>Status</th><th>Ações</th></tr></thead>' +
+          '<tbody>' + lista.map(function (t) {
+            var conexoes = [
+              t.google_conectado ? 'Google' : null,
+              t.whatsapp_conectado ? 'WhatsApp' : null,
+              t.asaas_conectado ? 'Asaas' : null,
+            ].filter(Boolean);
+            var suspenso = t.status === 'suspenso';
+            var chipStatus = suspenso
+              ? '<span class="chip crit">Suspenso</span>'
+              : '<span class="chip good">Ativo</span>';
+            return '<tr><td>' + esc(t.nome_escritorio || '—') + '</td>' +
+              '<td>' + esc(t.nome_advogado || '—') + '</td>' +
+              '<td>' + esc((t.oab_numero || '—') + (t.oab_uf ? '/' + t.oab_uf : '')) + '</td>' +
+              '<td>' + (conexoes.length ? conexoes.map(function (c) { return '<span class="chip neutral">' + c + '</span>'; }).join(' ') : '—') + '</td>' +
+              '<td>' + chipStatus + '</td>' +
+              '<td style="white-space:nowrap;">' +
+                '<button type="button" class="btn-editar" data-tenant-status="' + esc(t.tenant_id) + '" data-status-alvo="' + (suspenso ? 'ativo' : 'suspenso') + '">' +
+                  (suspenso ? 'Reativar' : 'Suspender') + '</button> ' +
+                '<button type="button" class="btn-remover" data-tenant-excluir="' + esc(t.tenant_id) + '" data-tenant-nome="' + esc(t.nome_escritorio || t.tenant_id) + '">Excluir</button>' +
+              '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+
+        container.querySelectorAll('[data-tenant-status]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var statusAlvo = btn.getAttribute('data-status-alvo');
+            var acaoTexto = statusAlvo === 'suspenso' ? 'Suspender' : 'Reativar';
+            confirmarModal(
+              (statusAlvo === 'suspenso'
+                ? 'Suspender este escritório? Ele deixa de conseguir fazer login imediatamente, mas nenhum dado é apagado.'
+                : 'Reativar este escritório? Ele volta a conseguir fazer login normalmente.'),
+              { perigo: statusAlvo === 'suspenso', textoOk: acaoTexto }
+            ).then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              apiPostJson('/api/painel?acao=plataforma_tenant_status', { tenant_id: btn.getAttribute('data-tenant-status'), status: statusAlvo })
+                .then(carregarEscritoriosPlataforma)
+                .catch(function (e) {
+                  btn.disabled = false;
+                  alert(e.message || 'Não foi possível atualizar o status agora.');
+                });
+            });
+          });
+        });
+        container.querySelectorAll('[data-tenant-excluir]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var nome = btn.getAttribute('data-tenant-nome');
+            confirmarModal('Excluir o escritório "' + nome + '" da plataforma? Ele perde o acesso imediatamente. Essa ação não pode ser desfeita.').then(function (ok) {
+              if (!ok) return;
+              btn.disabled = true;
+              apiPostJson('/api/painel?acao=plataforma_tenant_excluir', { tenant_id: btn.getAttribute('data-tenant-excluir') })
+                .then(carregarEscritoriosPlataforma)
+                .catch(function (e) {
+                  btn.disabled = false;
+                  alert(e.message || 'Não foi possível excluir agora.');
+                });
+            });
+          });
+        });
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os escritórios agora.</div></div>';
+      });
   }
 
   function wireConexoes() {

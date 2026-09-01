@@ -790,6 +790,7 @@ module.exports = async (req, res) => {
     escritorio_obter: 'Erro de conexao ao carregar os dados do escritorio.',
     avisos_listar: 'Erro de conexao ao carregar os avisos.',
     auditoria_listar: 'Erro de conexao ao carregar a auditoria.',
+    plataforma_tenants_listar: 'Erro de conexao ao carregar os escritorios.',
   };
   if (acoesConfigGet[acao]) {
     var tokenSessaoConfigGet = obterToken(req);
@@ -824,6 +825,8 @@ module.exports = async (req, res) => {
     aviso_criar: 'Erro de conexao ao publicar o aviso.',
     aviso_atualizar: 'Erro de conexao ao atualizar o aviso.',
     aviso_excluir: 'Erro de conexao ao excluir o aviso.',
+    plataforma_tenant_status: 'Erro de conexao ao atualizar o status do escritorio.',
+    plataforma_tenant_excluir: 'Erro de conexao ao excluir o escritorio.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {
