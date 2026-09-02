@@ -2270,6 +2270,44 @@
     }
 
     var htmlHonorariosContratos =
+      '<div class="panel" style="margin-bottom:14px;">' +
+        '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
+        '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+          '<div style="min-width:180px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Processo</label>' +
+            '<select id="honfiltro-processo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os processos</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:180px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Cliente</label>' +
+            '<select id="honfiltro-cliente" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os clientes</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Tipo</label>' +
+            '<select id="honfiltro-tipo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os tipos</option>' +
+              '<option value="fixo">Fixo</option>' +
+              '<option value="exito">Êxito</option>' +
+              '<option value="valor_exito">Valor + Êxito</option>' +
+              '<option value="mensal">Mensal</option>' +
+              '<option value="vinculado_processo">Vinculado ao processo</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:150px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<select id="honfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os status</option>' +
+              '<option value="ativo">Ativo</option>' +
+              '<option value="quitado">Quitado</option>' +
+            '</select>' +
+          '</div>' +
+          '<button type="button" class="btn-conexao" id="honfiltro-buscar">Buscar</button>' +
+          '<button type="button" class="btn-conexao-secundario" id="honfiltro-limpar">Limpar</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="panel">' +
         '<div class="panel-header"><span class="panel-title">Contratos e honorários</span>' +
           '<button type="button" class="btn-conexao" id="btn-novo-contrato-honorarios">+ Novo contrato de honorários</button>' +
@@ -2354,7 +2392,12 @@
         '</div>' +
         '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlFinanceiro + htmlExito + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="contratos">' + htmlHonorariosContratos + '</div>' +
-        '<div class="fin-tab-panel hidden" data-fin-panel="receber">' + painelVencidasHtml + '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="receber">' +
+          '<div class="panel">' +
+            '<div class="panel-header"><span class="panel-title">Contas a receber</span></div>' +
+            '<div id="financeiro-parcelas-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' +
           htmlFinEmBreve('Registro de custas, honorários de terceiros e outras despesas vinculadas a cada processo. Ainda não foi construído — avise se quiser priorizar.') +
         '</div>' +
@@ -2453,7 +2496,8 @@
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
-      carregarHonorariosContratos(); wireNovoContratoModal();
+      carregarHonorariosContratos(); wireNovoContratoModal(); wireFiltroHonorarios();
+      carregarParcelasAReceber();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3185,74 +3229,191 @@
     });
   }
 
+  var honorariosContratosCache = { contratos: [], exitos: [] };
+  var ROTULOS_TIPO_CONTRATO = {
+    fixo: 'Honorários', valor_exito: 'Honorários + êxito',
+    mensal: 'Honorários mensais', vinculado_processo: 'Honorários vinculados ao processo',
+  };
+
+  function honorariosPassaFiltro(item, ehExito, filtros) {
+    if (filtros.cliente && item.nome_cliente !== filtros.cliente) return false;
+    if (filtros.processo && (item.tipo_servico || '').indexOf('Processo ' + filtros.processo) === -1) return false;
+    if (filtros.tipo) {
+      if (ehExito) {
+        if (filtros.tipo !== 'exito') return false;
+      } else {
+        var rotulo = ROTULOS_TIPO_CONTRATO[filtros.tipo];
+        if (!rotulo || (item.tipo_servico || '').indexOf(rotulo) !== 0) return false;
+      }
+    }
+    if (filtros.status) {
+      var quitado = ehExito
+        ? false
+        : (item.valor_total > 0 && ((item.entrada_recebida || 0) + (item.valor_pago_parcelas || 0)) >= item.valor_total);
+      if (filtros.status === 'quitado' && !quitado) return false;
+      if (filtros.status === 'ativo' && quitado) return false;
+    }
+    return true;
+  }
+
+  function lerFiltrosHonorarios() {
+    var elProcesso = document.getElementById('honfiltro-processo');
+    var elCliente = document.getElementById('honfiltro-cliente');
+    var elTipo = document.getElementById('honfiltro-tipo');
+    var elStatus = document.getElementById('honfiltro-status');
+    return {
+      processo: elProcesso ? elProcesso.value : '',
+      cliente: elCliente ? elCliente.value : '',
+      tipo: elTipo ? elTipo.value : '',
+      status: elStatus ? elStatus.value : '',
+    };
+  }
+
+  function renderHonorariosContratos() {
+    var container = document.getElementById('honorarios-contratos-lista');
+    if (!container) return;
+    var filtros = lerFiltrosHonorarios();
+    var contratos = honorariosContratosCache.contratos.filter(function (c) { return honorariosPassaFiltro(c, false, filtros); });
+    var exitos = honorariosContratosCache.exitos.filter(function (e) { return honorariosPassaFiltro(e, true, filtros); });
+
+    if (contratos.length === 0 && exitos.length === 0) {
+      var temFiltroAtivo = filtros.processo || filtros.cliente || filtros.tipo || filtros.status;
+      container.innerHTML = '<div class="empty-state"><div class="msg">' +
+        (temFiltroAtivo ? 'Nenhum contrato encontrado com esses filtros.' : 'Nenhum contrato cadastrado ainda. Use "+ Novo contrato de honorários" pra adicionar.') +
+        '</div></div>';
+      return;
+    }
+    var linhasContratos = contratos.map(function (c) {
+      var pago = (c.entrada_recebida || 0) + (c.valor_pago_parcelas || 0);
+      var statusChip = c.valor_total > 0 && pago >= c.valor_total
+        ? '<span class="chip good">Quitado</span>'
+        : '<span class="chip neutral">' + esc(c.status_pagamento || c.status_contrato || '—') + '</span>';
+      return '<tr><td>' + esc(c.nome_cliente) + '</td><td>' + esc(c.tipo_servico || '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.valor_entrada) + '</td>' +
+        '<td>' + (c.num_parcelas || 1) + 'x</td>' +
+        '<td>' + statusChip + '</td>' +
+        '<td><button type="button" class="btn-remover" data-excluir-contrato="' + c.id + '" data-excluir-contrato-nome="' + esc(c.nome_cliente) + '">Excluir</button></td></tr>';
+    }).join('');
+    var linhasExito = exitos.map(function (e) {
+      return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
+        '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
+        '<td class="num">—</td><td>Êxito</td>' +
+        '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
+        '<td><button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button></td></tr>';
+    }).join('');
+    container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
+      '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
+      '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>' +
+      '<tbody>' + linhasContratos + linhasExito + '</tbody></table></div>';
+
+    function excluirRegistro(tipoRegistro, id, nome, botao) {
+      confirmarModal('Excluir o contrato de ' + nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
+        if (!ok) return;
+        botao.disabled = true;
+        apiPost('/api/painel?acao=executar', { tipo: 'financeiro_contrato_excluir', tipo_registro: tipoRegistro, id: id })
+          .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
+          .then(function (resultado) {
+            if (resultado.status === 200) {
+              carregarHonorariosContratos();
+            } else {
+              botao.disabled = false;
+              alert(resultado.corpo.erro || 'Não foi possível excluir agora.');
+            }
+          })
+          .catch(function () {
+            botao.disabled = false;
+            alert('Erro de conexão ao excluir.');
+          });
+      });
+    }
+    container.querySelectorAll('[data-excluir-contrato]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        excluirRegistro('contrato', btn.getAttribute('data-excluir-contrato'), btn.getAttribute('data-excluir-contrato-nome'), btn);
+      });
+    });
+    container.querySelectorAll('[data-excluir-exito]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        excluirRegistro('exito', btn.getAttribute('data-excluir-exito'), btn.getAttribute('data-excluir-contrato-nome'), btn);
+      });
+    });
+  }
+
   function carregarHonorariosContratos() {
     var container = document.getElementById('honorarios-contratos-lista');
     if (!container) return;
     apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_contrato_listar' })
       .then(function (dados) {
-        var contratos = dados.contratos || [];
-        var exitos = dados.honorarios_exito || [];
-        if (contratos.length === 0 && exitos.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum contrato cadastrado ainda. Use "+ Novo contrato de honorários" pra adicionar.</div></div>';
-          return;
-        }
-        var linhasContratos = contratos.map(function (c) {
-          var pago = (c.entrada_recebida || 0) + (c.valor_pago_parcelas || 0);
-          var statusChip = c.valor_total > 0 && pago >= c.valor_total
-            ? '<span class="chip good">Quitado</span>'
-            : '<span class="chip neutral">' + esc(c.status_pagamento || c.status_contrato || '—') + '</span>';
-          return '<tr><td>' + esc(c.nome_cliente) + '</td><td>' + esc(c.tipo_servico || '—') + '</td>' +
-            '<td class="num">R$ ' + fmtMoeda(c.valor_total) + '</td>' +
-            '<td class="num">R$ ' + fmtMoeda(c.valor_entrada) + '</td>' +
-            '<td>' + (c.num_parcelas || 1) + 'x</td>' +
-            '<td>' + statusChip + '</td>' +
-            '<td><button type="button" class="btn-remover" data-excluir-contrato="' + c.id + '" data-excluir-contrato-nome="' + esc(c.nome_cliente) + '">Excluir</button></td></tr>';
-        }).join('');
-        var linhasExito = exitos.map(function (e) {
-          return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
-            '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
-            '<td class="num">—</td><td>Êxito</td>' +
-            '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
-            '<td><button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button></td></tr>';
-        }).join('');
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
-          '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
-          '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>' +
-          '<tbody>' + linhasContratos + linhasExito + '</tbody></table></div>';
-
-        function excluirRegistro(tipoRegistro, id, nome, botao) {
-          confirmarModal('Excluir o contrato de ' + nome + '? Essa ação não pode ser desfeita.').then(function (ok) {
-            if (!ok) return;
-            botao.disabled = true;
-            apiPost('/api/painel?acao=executar', { tipo: 'financeiro_contrato_excluir', tipo_registro: tipoRegistro, id: id })
-              .then(function (r) { return r.json().then(function (c) { return { status: r.status, corpo: c }; }); })
-              .then(function (resultado) {
-                if (resultado.status === 200) {
-                  carregarHonorariosContratos();
-                } else {
-                  botao.disabled = false;
-                  alert(resultado.corpo.erro || 'Não foi possível excluir agora.');
-                }
-              })
-              .catch(function () {
-                botao.disabled = false;
-                alert('Erro de conexão ao excluir.');
-              });
-          });
-        }
-        container.querySelectorAll('[data-excluir-contrato]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            excluirRegistro('contrato', btn.getAttribute('data-excluir-contrato'), btn.getAttribute('data-excluir-contrato-nome'), btn);
-          });
-        });
-        container.querySelectorAll('[data-excluir-exito]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            excluirRegistro('exito', btn.getAttribute('data-excluir-exito'), btn.getAttribute('data-excluir-contrato-nome'), btn);
-          });
-        });
+        honorariosContratosCache.contratos = dados.contratos || [];
+        honorariosContratosCache.exitos = dados.honorarios_exito || [];
+        renderHonorariosContratos();
+        // se chamou depois de criar/excluir um contrato, recarrega Contas a receber tambem
+        // (mesmos dados, aba diferente) -- assim o cadastro novo ja aparece la sem precisar
+        // trocar de aba e voltar.
+        if (document.getElementById('financeiro-parcelas-lista')) carregarParcelasAReceber();
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os contratos agora.</div></div>';
+      });
+  }
+
+  function wireFiltroHonorarios() {
+    var selectProcesso = document.getElementById('honfiltro-processo');
+    var selectCliente = document.getElementById('honfiltro-cliente');
+    if (!selectProcesso || !selectCliente) return;
+
+    apiGetJson('/api/painel?acao=cliente_cadastro_listar').then(function (d) {
+      selectCliente.innerHTML = '<option value="">Todos os clientes</option>' +
+        (d.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">' + esc(c.nome) + '</option>'; }).join('');
+    }).catch(function () {});
+    apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) {
+      selectProcesso.innerHTML = '<option value="">Todos os processos</option>' +
+        (d.processos || []).map(function (p) { return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + '</option>'; }).join('');
+    }).catch(function () {});
+
+    document.getElementById('honfiltro-buscar').addEventListener('click', renderHonorariosContratos);
+    document.getElementById('honfiltro-limpar').addEventListener('click', function () {
+      selectProcesso.value = '';
+      selectCliente.value = '';
+      document.getElementById('honfiltro-tipo').value = '';
+      document.getElementById('honfiltro-status').value = '';
+      renderHonorariosContratos();
+    });
+  }
+
+  function carregarParcelasAReceber() {
+    var container = document.getElementById('financeiro-parcelas-lista');
+    if (!container) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcelas_listar' })
+      .then(function (dados) {
+        var parcelas = dados.parcelas || [];
+        if (parcelas.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma conta a receber ainda. Cadastre um contrato em "Honorários e Contratos" que ela aparece aqui.</div></div>';
+          return;
+        }
+        var chipsPorStatus = {
+          Paga: '<span class="chip good">Paga</span>',
+          Vencida: '<span class="chip crit">Vencida</span>',
+          Aberta: '<span class="chip neutral">Aberta</span>',
+        };
+        var linhas = parcelas.map(function (p) {
+          var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
+          var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
+          if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
+          return '<tr><td>' + esc(p.nome_cliente) + '</td>' +
+            '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
+            '<td>' + esc(descricao) + '</td>' +
+            '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
+            '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
+            '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td></tr>';
+        }).join('');
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:720px;">' +
+          '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
+          '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th></tr></thead>' +
+          '<tbody>' + linhas + '</tbody></table></div>';
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as contas a receber agora.</div></div>';
       });
   }
 
