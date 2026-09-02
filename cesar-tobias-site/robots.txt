@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /painel*
+Disallow: /portal.html
+Disallow: /acesso.html
+Disallow: /pagamento.html
+Disallow: /cadastro-advogado.html
+Disallow: /api/
+
+Sitemap: https://www.cesartobias.adv.br/sitemap.xml
