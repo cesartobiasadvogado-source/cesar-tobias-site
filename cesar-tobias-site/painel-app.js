@@ -3019,7 +3019,18 @@
             erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(dados.erro || 'Não foi possível conectar.') + '</div>';
             return;
           }
-          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">Conectado! Conta: ' + esc(dados.nome_conta || '') + '</div>';
+          var avisoWebhook = '';
+          if (dados.webhook_url && dados.webhook_token) {
+            avisoWebhook =
+              '<div style="margin-top:8px; font-size:12.5px;">' +
+                'Pra receber a confirmação automática de pagamento, configure um webhook na sua conta Asaas ' +
+                '(Configurações → Integrações → Webhooks) com:<br>' +
+                '<b>URL:</b> ' + esc(dados.webhook_url) + '<br>' +
+                '<b>Token de acesso:</b> ' + esc(dados.webhook_token) + '<br>' +
+                '<b>Eventos:</b> Pagamento recebido / Pagamento confirmado' +
+              '</div>';
+          }
+          erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">Conectado! Conta: ' + esc(dados.nome_conta || '') + avisoWebhook + '</div>';
         })
         .catch(function (e) {
           btn.disabled = false; btn.textContent = 'Conectar Asaas';
