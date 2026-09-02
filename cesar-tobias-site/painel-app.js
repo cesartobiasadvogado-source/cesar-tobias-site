@@ -475,6 +475,57 @@
     });
   }
 
+  // Escolha de 3 vias (cancelar / só Pix / com Asaas) pro botão "Cobrar" -- confirmarModal só
+  // tem ok/cancelar, e aqui o cliente as vezes prefere pagar direto na chave Pix do advogado
+  // (sem taxa do Asaas) em vez do link automático. Resolve com 'asaas', 'pix' ou null (cancelou).
+  function escolherTipoCobranca() {
+    return new Promise(function (resolve) {
+      var overlay = document.getElementById('tipo-cobranca-modal-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'tipo-cobranca-modal-overlay';
+        overlay.className = 'modal-overlay hidden';
+        overlay.innerHTML =
+          '<div class="confirm-modal-caixa">' +
+            '<div class="confirm-modal-titulo">Como cobrar?</div>' +
+            '<div class="confirm-modal-msg">Escolha como enviar esta cobrança pro cliente.</div>' +
+            '<div class="confirm-modal-acoes" style="flex-wrap:wrap;">' +
+              '<button type="button" class="btn-conexao-secundario" id="tipo-cobranca-cancelar">Cancelar</button>' +
+              '<button type="button" class="btn-conexao-secundario" id="tipo-cobranca-pix">Só Pix (sem taxas)</button>' +
+              '<button type="button" class="btn-conexao" id="tipo-cobranca-asaas">Com Asaas (link automático)</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+      }
+      var btnCancelar = document.getElementById('tipo-cobranca-cancelar');
+      var btnPix = document.getElementById('tipo-cobranca-pix');
+      var btnAsaas = document.getElementById('tipo-cobranca-asaas');
+
+      function limpar(resultado) {
+        overlay.classList.add('hidden');
+        btnCancelar.removeEventListener('click', onCancelar);
+        btnPix.removeEventListener('click', onPix);
+        btnAsaas.removeEventListener('click', onAsaas);
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onEsc);
+        resolve(resultado);
+      }
+      function onCancelar() { limpar(null); }
+      function onPix() { limpar('pix'); }
+      function onAsaas() { limpar('asaas'); }
+      function onOverlay(e) { if (e.target === overlay) limpar(null); }
+      function onEsc(e) { if (e.key === 'Escape') limpar(null); }
+
+      btnCancelar.addEventListener('click', onCancelar);
+      btnPix.addEventListener('click', onPix);
+      btnAsaas.addEventListener('click', onAsaas);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onEsc);
+      overlay.classList.remove('hidden');
+      btnAsaas.focus();
+    });
+  }
+
   // Confirmacao "reforcada" pra acao sem volta nenhuma (apagar definitivamente): so libera o
   // botao quando a pessoa digita o texto exigido, igual GitHub/AWS pedem digitar o nome do
   // recurso antes de apagar de vez.
@@ -3423,12 +3474,16 @@
       container.addEventListener('click', function (ev) {
         var btn = ev.target.closest('[data-cobrar-parcela-id]');
         if (!btn) return;
-        confirmarModal('Enviar cobrança (Asaas + WhatsApp) para esta parcela?', { perigo: false, textoOk: 'Enviar' }).then(function (ok) {
-          if (!ok) return;
+        escolherTipoCobranca().then(function (tipo) {
+          if (!tipo) return;
           var textoOriginal = btn.textContent;
           btn.disabled = true;
           btn.textContent = 'Enviando...';
-          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_cobrar', id: btn.getAttribute('data-cobrar-parcela-id') })
+          apiPostJson('/api/painel?acao=executar', {
+            tipo: 'financeiro_parcela_cobrar',
+            id: btn.getAttribute('data-cobrar-parcela-id'),
+            usar_asaas: tipo === 'asaas' ? 'true' : 'false'
+          })
             .then(function (dados) {
               alert(dados.resposta || dados.erro || 'Concluído.');
               carregarParcelasAReceber();
