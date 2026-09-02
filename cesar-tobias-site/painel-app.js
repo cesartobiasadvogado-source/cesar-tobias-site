@@ -2428,6 +2428,45 @@
             '<button type="button" class="btn-conexao" id="ncontrato-salvar">Salvar</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-editar-contrato">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3>Editar<button type="button" class="modal-drill-fechar" id="econtrato-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="econtrato-cliente">Cliente *</label>' +
+            '<input type="text" id="econtrato-cliente">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="econtrato-servico">Serviço</label>' +
+            '<input type="text" id="econtrato-servico">' +
+          '</div>' +
+          '<div class="ncontrato-campo hidden" id="econtrato-campo-status-contrato">' +
+            '<label for="econtrato-status-contrato">Status</label>' +
+            '<select id="econtrato-status-contrato">' +
+              '<option value="Ativo">Ativo</option>' +
+              '<option value="Cancelado">Cancelado</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-linha2 hidden" id="econtrato-linha-exito">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-percentual">% de honorários de êxito</label>' +
+              '<input type="number" step="0.01" min="0" max="100" id="econtrato-percentual">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-valor-recebido">Valor recebido pelo cliente (R$)</label>' +
+              '<input type="number" step="0.01" min="0" id="econtrato-valor-recebido" placeholder="deixe em branco se ainda não recebeu">' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo hidden" id="econtrato-campo-situacao">' +
+            '<label for="econtrato-situacao">Situação</label>' +
+            '<input type="text" id="econtrato-situacao" placeholder="ex: Aguardando resultado">' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="econtrato-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="econtrato-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="econtrato-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
     var htmlFinanceiroNovo =
@@ -2547,7 +2586,7 @@
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
-      carregarHonorariosContratos(); wireNovoContratoModal(); wireFiltroHonorarios();
+      carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
       carregarParcelasAReceber();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
@@ -3355,14 +3394,20 @@
         '<td class="num">R$ ' + fmtMoeda(c.valor_entrada) + '</td>' +
         '<td>' + (c.num_parcelas || 1) + 'x</td>' +
         '<td>' + statusChip + '</td>' +
-        '<td><button type="button" class="btn-remover" data-excluir-contrato="' + c.id + '" data-excluir-contrato-nome="' + esc(c.nome_cliente) + '">Excluir</button></td></tr>';
+        '<td>' +
+          '<button type="button" class="btn-editar" data-editar-contrato="' + c.id + '">Editar</button> ' +
+          '<button type="button" class="btn-remover" data-excluir-contrato="' + c.id + '" data-excluir-contrato-nome="' + esc(c.nome_cliente) + '">Excluir</button>' +
+        '</td></tr>';
     }).join('');
     var linhasExito = exitos.map(function (e) {
       return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
         '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
         '<td class="num">—</td><td>Êxito</td>' +
         '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
-        '<td><button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button></td></tr>';
+        '<td>' +
+          '<button type="button" class="btn-editar" data-editar-exito="' + e.id + '">Editar</button> ' +
+          '<button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button>' +
+        '</td></tr>';
     }).join('');
     container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
       '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
@@ -3397,6 +3442,18 @@
     container.querySelectorAll('[data-excluir-exito]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         excluirRegistro('exito', btn.getAttribute('data-excluir-exito'), btn.getAttribute('data-excluir-contrato-nome'), btn);
+      });
+    });
+    container.querySelectorAll('[data-editar-contrato]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = honorariosContratosCache.contratos.filter(function (c) { return String(c.id) === btn.getAttribute('data-editar-contrato'); })[0];
+        if (item && window.abrirModalEditarContrato) window.abrirModalEditarContrato('contrato', item);
+      });
+    });
+    container.querySelectorAll('[data-editar-exito]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = honorariosContratosCache.exitos.filter(function (e) { return String(e.id) === btn.getAttribute('data-editar-exito'); })[0];
+        if (item && window.abrirModalEditarContrato) window.abrirModalEditarContrato('exito', item);
       });
     });
   }
@@ -3611,6 +3668,80 @@
           }
         })
         .catch(function () { erroEl.textContent = 'Erro de conexão ao salvar o contrato.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
+  }
+
+  // Edicao dos campos descritivos (cliente, servico, status/situacao e, pro exito, percentual +
+  // valor recebido) de um contrato ou honorario de exito ja lancado -- de proposito NAO deixa
+  // mudar valor_total/parcelas de um contrato (ver banco.atualizar_contrato: as parcelas ja
+  // foram geradas e podem ja ter pagamento registrado; pra corrigir valor, exclua e recrie).
+  function wireEditarContratoModal() {
+    var modal = document.getElementById('modal-editar-contrato');
+    if (!modal) return;
+    var campoCliente = document.getElementById('econtrato-cliente');
+    var campoServico = document.getElementById('econtrato-servico');
+    var campoStatusContratoWrap = document.getElementById('econtrato-campo-status-contrato');
+    var selectStatusContrato = document.getElementById('econtrato-status-contrato');
+    var linhaExito = document.getElementById('econtrato-linha-exito');
+    var campoPercentual = document.getElementById('econtrato-percentual');
+    var campoValorRecebido = document.getElementById('econtrato-valor-recebido');
+    var campoSituacaoWrap = document.getElementById('econtrato-campo-situacao');
+    var campoSituacao = document.getElementById('econtrato-situacao');
+    var erroEl = document.getElementById('econtrato-erro');
+    var btnSalvar = document.getElementById('econtrato-salvar');
+    var tipoRegistroAtual = null;
+    var idAtual = null;
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    window.abrirModalEditarContrato = function (tipoRegistro, item) {
+      tipoRegistroAtual = tipoRegistro;
+      idAtual = item.id;
+      erroEl.textContent = '';
+      campoCliente.value = item.nome_cliente || '';
+      var ehExito = tipoRegistro === 'exito';
+      campoServico.value = (ehExito ? item.servico : item.tipo_servico) || '';
+      campoStatusContratoWrap.classList.toggle('hidden', ehExito);
+      linhaExito.classList.toggle('hidden', !ehExito);
+      campoSituacaoWrap.classList.toggle('hidden', !ehExito);
+      if (ehExito) {
+        campoPercentual.value = item.percentual ? Math.round(item.percentual * 10000) / 100 : '';
+        campoValorRecebido.value = '';
+        campoSituacao.value = item.situacao || '';
+      } else {
+        selectStatusContrato.value = item.status_contrato === 'Cancelado' ? 'Cancelado' : 'Ativo';
+      }
+      modal.classList.remove('hidden');
+    };
+
+    document.getElementById('econtrato-fechar').addEventListener('click', fecharModal);
+    document.getElementById('econtrato-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      var nome = campoCliente.value.trim();
+      if (!nome) { erroEl.textContent = 'Informe o cliente.'; return; }
+      var corpo = {
+        tipo: 'financeiro_contrato_editar', tipo_registro: tipoRegistroAtual, id: idAtual,
+        nome: nome, tipo_servico: campoServico.value.trim(),
+      };
+      if (tipoRegistroAtual === 'exito') {
+        corpo.percentual_exito = campoPercentual.value;
+        corpo.valor_recebido_cliente = campoValorRecebido.value;
+        corpo.status = campoSituacao.value.trim();
+      } else {
+        corpo.status = selectStatusContrato.value;
+      }
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function () {
+          fecharModal();
+          carregarHonorariosContratos();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
         .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
     });
   }
