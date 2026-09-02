@@ -3400,21 +3400,47 @@
           var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
           var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
           if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
+          var botaoCobrar = p.status === 'Paga' ? '—' :
+            '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button>';
           return '<tr><td>' + esc(p.nome_cliente) + '</td>' +
             '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
             '<td>' + esc(descricao) + '</td>' +
             '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
             '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
-            '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td></tr>';
+            '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td>' +
+            '<td>' + botaoCobrar + '</td></tr>';
         }).join('');
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:720px;">' +
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:780px;">' +
           '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
-          '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th></tr></thead>' +
+          '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table></div>';
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as contas a receber agora.</div></div>';
       });
+    if (!container.dataset.cobrarWired) {
+      container.dataset.cobrarWired = '1';
+      container.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('[data-cobrar-parcela-id]');
+        if (!btn) return;
+        confirmarModal('Enviar cobrança (Asaas + WhatsApp) para esta parcela?', { perigo: false, textoOk: 'Enviar' }).then(function (ok) {
+          if (!ok) return;
+          var textoOriginal = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Enviando...';
+          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_cobrar', id: btn.getAttribute('data-cobrar-parcela-id') })
+            .then(function (dados) {
+              alert(dados.resposta || dados.erro || 'Concluído.');
+              carregarParcelasAReceber();
+            })
+            .catch(function () {
+              alert('Não foi possível enviar a cobrança agora.');
+              btn.disabled = false;
+              btn.textContent = textoOriginal;
+            });
+        });
+      });
+    }
   }
 
   function wireNovoContratoModal() {
