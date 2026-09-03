@@ -1019,9 +1019,30 @@
       '<tbody>' + linhas + '</tbody></table></div>';
   }
 
+  function preencherExecKpisContratos() {
+    var f = dadosPainelAtual && dadosPainelAtual.financeiro;
+    if (!f) return;
+    var elValorTotal = document.getElementById('exec-kpi-valor-total');
+    if (elValorTotal) elValorTotal.textContent = fmtMoeda(f.valor_total_geral || 0);
+    var elRecebido = document.getElementById('exec-kpi-recebido');
+    if (elRecebido) elRecebido.textContent = fmtMoeda(f.valor_recebido_geral || 0);
+    var elPendente = document.getElementById('exec-kpi-pendente');
+    if (elPendente) elPendente.textContent = fmtMoeda(f.total_a_receber || 0);
+    var elAtraso = document.getElementById('exec-kpi-atraso');
+    if (elAtraso) elAtraso.textContent = fmtMoeda(f.total_vencido || 0);
+    var elAtrasoSub = document.getElementById('exec-kpi-atraso-sub');
+    if (elAtrasoSub) {
+      var qtdVencidas = (f.parcelas_vencidas || []).length;
+      elAtrasoSub.textContent = qtdVencidas ? qtdVencidas + ' parcela(s) vencida(s)' : 'nenhuma parcela vencida';
+    }
+    var elContratosAtivos = document.getElementById('exec-kpi-contratos-ativos');
+    if (elContratosAtivos) elContratosAtivos.textContent = f.contratos_ativos || 0;
+  }
+
   function carregarPainelExecutivo() {
     var wrap = document.getElementById('exec-grafico-svg');
     if (!wrap) return;
+    preencherExecKpisContratos();
     apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_resumo_executivo' })
       .then(function (dados) {
         var r = dados.resumo || {};
@@ -3000,6 +3021,19 @@
             '<div class="stat-label">Total a pagar</div><div class="stat-sub" id="exec-kpi-vencido-sub">—</div></div>' +
           '<div class="stat-card"><div class="stat-value" id="exec-kpi-recorrentes">0</div>' +
             '<div class="stat-label">Contas recorrentes ativas</div><div class="stat-sub" id="exec-kpi-comprometido-sub">—</div></div>' +
+        '</div>' +
+        '<p class="exec-card-sub" style="margin:16px 0 8px;">Honorários e Contratos</p>' +
+        '<div class="stat-grid">' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-valor-total">0,00</div>' +
+            '<div class="stat-label">Valor total de contratos</div><div class="stat-sub">fechados até hoje</div></div>' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-recebido" style="color:var(--good);">0,00</div>' +
+            '<div class="stat-label">Total recebido</div><div class="stat-sub">entradas + parcelas pagas</div></div>' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-pendente">0,00</div>' +
+            '<div class="stat-label">Total pendente</div><div class="stat-sub">ainda a receber</div></div>' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-atraso" style="color:var(--crit);">0,00</div>' +
+            '<div class="stat-label">Total em atraso</div><div class="stat-sub" id="exec-kpi-atraso-sub">—</div></div>' +
+          '<div class="stat-card"><div class="stat-value" id="exec-kpi-contratos-ativos">0</div>' +
+            '<div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento agora</div></div>' +
         '</div>' +
         '<div class="exec-grid">' +
           '<div class="exec-card">' +
