@@ -860,6 +860,206 @@
     }).join('');
   }
 
+  // ---------------------------------------------------------------------------------------
+  // Painel Executivo (Dashboard financeiro) -- cruza Contratos/Parcelas (receita) com
+  // Despesas do Processo + Contas a Pagar (despesa) mes a mes, despesas por categoria e
+  // proximos vencimentos. Grafico de linhas em SVG desenhado a mao (sem biblioteca): 2px de
+  // traco, marcadores de 8px com anel na cor da superficie, area em ~10% de opacidade,
+  // crosshair + tooltip por mes ao passar o mouse -- mesmas especificacoes do Fluxo de Caixa
+  // acima, so que como linha (tendencia no tempo) em vez de barra.
+  // ---------------------------------------------------------------------------------------
+
+  function arredondarEixoValor(v) {
+    if (v <= 0) return 1;
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var passos = [1, 2, 2.5, 5, 10];
+    for (var i = 0; i < passos.length; i++) {
+      var candidato = passos[i] * mag;
+      if (candidato >= v) return candidato;
+    }
+    return 10 * mag;
+  }
+
+  function desenharReceitaDespesas(serie) {
+    var wrap = document.getElementById('exec-grafico-svg');
+    if (!wrap) return;
+    var tooltipHtml = '<div class="exec-tooltip" id="exec-grafico-tooltip"></div>';
+    var temDado = serie.some(function (m) { return m.receita > 0 || m.despesa > 0; });
+    if (!serie.length || !temDado) {
+      wrap.innerHTML = '<div class="fluxo-vazio">Sem movimentação registrada nos últimos 12 meses.</div>' + tooltipHtml;
+      return;
+    }
+
+    var W = 720, H = 260, padL = 50, padR = 54, padT = 14, padB = 28;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maiorValor = Math.max.apply(null, serie.map(function (m) { return Math.max(m.receita, m.despesa); }).concat([1]));
+    var maxEixo = arredondarEixoValor(maiorValor);
+    var n = serie.length;
+
+    function xAt(i) { return padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW); }
+    function yAt(v) { return padT + plotH - (Math.max(v, 0) / maxEixo) * plotH; }
+
+    var ticks = [0, 0.25, 0.5, 0.75, 1].map(function (f) { return f * maxEixo; });
+    var gridSvg = ticks.map(function (v) {
+      var y = yAt(v);
+      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-width="1"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="var(--ink-faint)">' + fmtValorEixo(v) + '</text>';
+    }).join('');
+
+    function pathLinha(campo) {
+      return serie.map(function (m, i) { return (i === 0 ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + yAt(m[campo]).toFixed(1); }).join(' ');
+    }
+    function pathArea(campo) {
+      return pathLinha(campo) + ' L' + xAt(n - 1).toFixed(1) + ',' + yAt(0).toFixed(1) + ' L' + xAt(0).toFixed(1) + ',' + yAt(0).toFixed(1) + ' Z';
+    }
+    function pontos(campo, cor) {
+      return serie.map(function (m, i) {
+        return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(m[campo]).toFixed(1) + '" r="4" fill="' + cor + '" stroke="var(--surface)" stroke-width="2"/>';
+      }).join('');
+    }
+
+    var ultimo = serie[n - 1];
+    var labelReceita = '<text x="' + (xAt(n - 1) + 8).toFixed(1) + '" y="' + (yAt(ultimo.receita) + 4).toFixed(1) + '" font-size="11" font-weight="600" fill="var(--chart-receita)">' + fmtValorEixo(ultimo.receita) + '</text>';
+    var labelDespesa = '<text x="' + (xAt(n - 1) + 8).toFixed(1) + '" y="' + (yAt(ultimo.despesa) + 4).toFixed(1) + '" font-size="11" font-weight="600" fill="var(--chart-despesa)">' + fmtValorEixo(ultimo.despesa) + '</text>';
+
+    var eixoX = serie.map(function (m, i) {
+      return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)">' + esc(nomeMesAbrev(m.mes)) + '</text>';
+    }).join('');
+
+    var hoverCols = serie.map(function (m, i) {
+      var xCentro = xAt(i);
+      var xEsq = i === 0 ? padL : (xAt(i - 1) + xCentro) / 2;
+      var xDir = i === n - 1 ? (W - padR) : (xCentro + xAt(i + 1)) / 2;
+      return '<rect data-idx="' + i + '" x="' + xEsq.toFixed(1) + '" y="' + padT + '" width="' + Math.max(xDir - xEsq, 0).toFixed(1) + '" height="' + plotH + '" fill="transparent" style="cursor:crosshair;"/>';
+    }).join('');
+
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
+      gridSvg +
+      '<path d="' + pathArea('receita') + '" fill="var(--chart-receita)" opacity="0.1" stroke="none"/>' +
+      '<path d="' + pathArea('despesa') + '" fill="var(--chart-despesa)" opacity="0.1" stroke="none"/>' +
+      '<path d="' + pathLinha('receita') + '" fill="none" stroke="var(--chart-receita)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<path d="' + pathLinha('despesa') + '" fill="none" stroke="var(--chart-despesa)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      pontos('receita', 'var(--chart-receita)') + pontos('despesa', 'var(--chart-despesa)') +
+      labelReceita + labelDespesa + eixoX +
+      '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
+      hoverCols +
+      '</svg>';
+
+    wrap.innerHTML = svg + tooltipHtml;
+    wireHoverExecGrafico(wrap, serie, xAt);
+  }
+
+  function wireHoverExecGrafico(wrap, serie, xAtFn) {
+    var tooltip = document.getElementById('exec-grafico-tooltip');
+    var crosshair = document.getElementById('exec-crosshair');
+    if (!tooltip) return;
+    wrap.querySelectorAll('[data-idx]').forEach(function (rect) {
+      rect.addEventListener('mousemove', function (ev) {
+        var idx = parseInt(rect.getAttribute('data-idx'), 10);
+        var m = serie[idx];
+        var saldo = m.receita - m.despesa;
+        tooltip.innerHTML = '<div style="font-weight:600; margin-bottom:4px;">' + esc(nomeMesExtenso(m.mes)) + '</div>' +
+          '<span style="color:var(--chart-receita);">●</span> Receita: <b>R$ ' + fmtMoeda(m.receita) + '</b><br>' +
+          '<span style="color:var(--chart-despesa);">●</span> Despesas: <b>R$ ' + fmtMoeda(m.despesa) + '</b><br>' +
+          'Saldo: <b style="color:' + (saldo >= 0 ? 'var(--good)' : 'var(--crit)') + ';">R$ ' + fmtMoeda(saldo) + '</b>';
+        var wrapRect = wrap.getBoundingClientRect();
+        tooltip.style.left = (ev.clientX - wrapRect.left) + 'px';
+        tooltip.style.top = (ev.clientY - wrapRect.top) + 'px';
+        tooltip.classList.add('visivel');
+        if (crosshair) {
+          var x = xAtFn(idx);
+          crosshair.setAttribute('x1', x);
+          crosshair.setAttribute('x2', x);
+          crosshair.style.display = 'block';
+        }
+      });
+      rect.addEventListener('mouseleave', function () {
+        tooltip.classList.remove('visivel');
+        if (crosshair) crosshair.style.display = 'none';
+      });
+    });
+  }
+
+  function renderExecCategorias(lista) {
+    var container = document.getElementById('exec-categorias-lista');
+    if (!container) return;
+    if (!lista.length) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma despesa registrada nos últimos 12 meses.</div></div>';
+      return;
+    }
+    var maior = Math.max.apply(null, lista.map(function (c) { return c.valor; }).concat([1]));
+    container.innerHTML = lista.map(function (c, i) {
+      var pct = Math.max((c.valor / maior) * 100, 2);
+      var cor = 'var(--chart-cat-' + ((i % 8) + 1) + ')';
+      return '<div class="exec-catbar-row">' +
+        '<div class="exec-catbar-label" title="' + esc(c.categoria) + '">' + esc(c.categoria) + '</div>' +
+        '<div class="exec-catbar-track"><div class="exec-catbar-fill" style="width:' + pct + '%; background:' + cor + ';"></div></div>' +
+        '<div class="exec-catbar-valor">R$ ' + fmtMoeda(c.valor) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderExecProximos(lista) {
+    var container = document.getElementById('exec-proximos-lista');
+    if (!container) return;
+    if (!lista.length) {
+      container.innerHTML = '<div class="empty-state"><div class="glyph">✓</div><div class="msg">Nenhuma conta a pagar em aberto agora.</div></div>';
+      return;
+    }
+    var chips = { Vencida: '<span class="chip crit">Vencida</span>', Parcial: '<span class="chip neutral">Parcial</span>', Aberta: '<span class="chip neutral">Aberta</span>' };
+    var linhas = lista.map(function (c) {
+      return '<tr><td>' + esc(c.descricao) + '</td>' +
+        '<td>' + esc(c.categoria || '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.saldo) + '</td>' +
+        '<td>' + (c.vencimento ? fmtDataCurta(c.vencimento) : '—') + '</td>' +
+        '<td>' + (chips[c.status_exibicao] || chips.Aberta) + '</td></tr>';
+    }).join('');
+    container.innerHTML = '<div class="table-scroll"><table>' +
+      '<thead><tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th>Status</th></tr></thead>' +
+      '<tbody>' + linhas + '</tbody></table></div>';
+  }
+
+  function carregarPainelExecutivo() {
+    var wrap = document.getElementById('exec-grafico-svg');
+    if (!wrap) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_resumo_executivo' })
+      .then(function (dados) {
+        var r = dados.resumo || {};
+        var kpis = r.kpis || {};
+        desenharReceitaDespesas(r.receita_x_despesas || []);
+        renderExecCategorias(r.despesas_por_categoria || []);
+        renderExecProximos(r.proximos_vencimentos || []);
+
+        var elSaldo = document.getElementById('exec-kpi-saldo');
+        if (elSaldo) {
+          var saldoNegativo = (kpis.saldo_mes || 0) < 0;
+          elSaldo.textContent = (saldoNegativo ? '-' : '') + fmtMoeda(Math.abs(kpis.saldo_mes || 0));
+          elSaldo.style.color = saldoNegativo ? 'var(--crit)' : 'var(--good)';
+        }
+        var elSaldoSub = document.getElementById('exec-kpi-saldo-sub');
+        if (elSaldoSub) {
+          elSaldoSub.textContent = 'receita R$ ' + fmtMoeda(kpis.receita_mes || 0) + ' · despesas R$ ' + fmtMoeda(kpis.despesa_mes || 0);
+        }
+        var elAPagar = document.getElementById('exec-kpi-a-pagar');
+        if (elAPagar) elAPagar.textContent = fmtMoeda(kpis.total_a_pagar || 0);
+        var elVencidoSub = document.getElementById('exec-kpi-vencido-sub');
+        if (elVencidoSub) {
+          if (kpis.total_vencido_pagar > 0) {
+            elVencidoSub.innerHTML = '<span style="color:var(--crit);">R$ ' + fmtMoeda(kpis.total_vencido_pagar) + ' vencido(s)</span>';
+          } else {
+            elVencidoSub.textContent = 'nenhuma conta vencida';
+          }
+        }
+        var elRecorrentes = document.getElementById('exec-kpi-recorrentes');
+        if (elRecorrentes) elRecorrentes.textContent = kpis.recorrentes_ativas || 0;
+        var elComprometidoSub = document.getElementById('exec-kpi-comprometido-sub');
+        if (elComprometidoSub) elComprometidoSub.textContent = 'R$ ' + fmtMoeda(kpis.comprometido_mensal || 0) + ' comprometidos/mês';
+      })
+      .catch(function () {
+        wrap.innerHTML = '<div class="fluxo-vazio">Não foi possível carregar o painel executivo agora.</div>';
+      });
+  }
+
   function aplicarFiltroGrafico(filtro) {
     filtroGraficoAtual = filtro;
     document.querySelectorAll('.fluxo-filtro-btn').forEach(function (btn) {
@@ -2780,6 +2980,39 @@
         '</div>' +
       '</div>';
 
+    var htmlPainelExecutivo =
+      '<section id="sec-painel-executivo" style="margin-top:28px;">' +
+        '<p class="section-label">Painel Executivo</p>' +
+        '<div class="stat-grid">' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-saldo">0,00</div>' +
+            '<div class="stat-label">Saldo do mês</div><div class="stat-sub" id="exec-kpi-saldo-sub">—</div></div>' +
+          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-a-pagar">0,00</div>' +
+            '<div class="stat-label">Total a pagar</div><div class="stat-sub" id="exec-kpi-vencido-sub">—</div></div>' +
+          '<div class="stat-card"><div class="stat-value" id="exec-kpi-recorrentes">0</div>' +
+            '<div class="stat-label">Contas recorrentes ativas</div><div class="stat-sub" id="exec-kpi-comprometido-sub">—</div></div>' +
+        '</div>' +
+        '<div class="exec-grid">' +
+          '<div class="exec-card">' +
+            '<div class="exec-card-titulo">Receita × Despesas</div>' +
+            '<div class="exec-card-sub">Últimos 12 meses</div>' +
+            '<div class="exec-legend">' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesas</span>' +
+            '</div>' +
+            '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+          '<div class="exec-card">' +
+            '<div class="exec-card-titulo">Despesas por categoria</div>' +
+            '<div class="exec-card-sub">Últimos 12 meses</div>' +
+            '<div id="exec-categorias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
+          '<div class="panel-header"><span class="panel-title">Próximos vencimentos</span></div>' +
+          '<div id="exec-proximos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlFinanceiroNovo =
       '<section id="sec-financeiro-novo">' +
         '<p class="section-label">Financeiro</p>' +
@@ -2791,7 +3024,7 @@
           '<button type="button" class="subtab-btn" data-fin-tab="pagar">Contas a pagar</button>' +
           '<button type="button" class="subtab-btn" data-fin-tab="recorrentes">Contas recorrentes</button>' +
         '</div>' +
-        '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlFinanceiro + htmlExito + '</div>' +
+        '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlFinanceiro + htmlPainelExecutivo + htmlExito + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="contratos">' + htmlHonorariosContratos + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="receber">' +
           '<div class="panel">' +
@@ -2896,6 +3129,7 @@
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
       wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
+      carregarPainelExecutivo();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
