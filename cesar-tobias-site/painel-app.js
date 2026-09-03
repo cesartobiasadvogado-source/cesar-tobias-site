@@ -58,7 +58,7 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    inicio: 'Início', financeiro: 'Financeiro', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
+    inicio: 'Início', financeiro: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
@@ -3043,7 +3043,11 @@
     // o que realmente entra na pagina.
     var MAPA_CONTEUDO_POR_PAGINA = {
       inicio: htmlInicio,
-      financeiro: htmlFinanceiro + htmlExito + painelVencidasHtml + htmlCobrancaAvulsa + htmlNotificacaoExtrajudicial + htmlCadastroCliente,
+      // O Financeiro antigo (dashboard/fluxo de caixa) foi descontinuado -- ja existe uma
+      // versao melhor em painel.html (financeiro_novo, com Painel Executivo). Notificacao
+      // Extrajudicial e Clientes da planilha continuam aqui, sao features proprias, nao parte
+      // do dashboard antigo.
+      financeiro: htmlNotificacaoExtrajudicial + htmlCadastroCliente,
       financeiro_novo: htmlFinanceiroNovo,
       pje: htmlPje,
       clientes: htmlClientes,
