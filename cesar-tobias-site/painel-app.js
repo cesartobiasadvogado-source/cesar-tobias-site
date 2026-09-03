@@ -4135,7 +4135,7 @@
       var linhasFilhas = g.itens.map(function (p) {
         return linhaParcelaHtml(p, true);
       }).join('');
-      var linhasFilhasEnvolvidas = '<tbody class="hidden" data-grupo-filhas="' + idGrupo + '" style="display:none;">' + linhasFilhas + '</tbody>';
+      var linhasFilhasEnvolvidas = '<tbody class="hidden" data-grupo-filhas="' + idGrupo + '">' + linhasFilhas + '</tbody>';
 
       return '<tbody>' + linhaGrupo + '</tbody>' + linhasFilhasEnvolvidas;
     }).join('');
@@ -4168,8 +4168,8 @@
           var idGrupo = btnSeta.getAttribute('data-grupo-seta');
           var filhas = container.querySelector('[data-grupo-filhas="' + idGrupo + '"]');
           if (!filhas) return;
-          var abrindo = filhas.style.display === 'none';
-          filhas.style.display = abrindo ? '' : 'none';
+          var abrindo = filhas.classList.contains('hidden');
+          filhas.classList.toggle('hidden', !abrindo);
           btnSeta.textContent = abrindo ? '▾' : '▸';
           btnSeta.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
           return;
