@@ -2467,6 +2467,30 @@
             '<button type="button" class="btn-conexao" id="econtrato-salvar">Salvar</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-editar-parcela">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3>Editar parcela<button type="button" class="modal-drill-fechar" id="eparcela-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="eparcela-descricao">Descrição</label>' +
+            '<input type="text" id="eparcela-descricao">' +
+          '</div>' +
+          '<div class="ncontrato-linha2">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="eparcela-valor">Valor da parcela (R$)</label>' +
+              '<input type="number" step="0.01" min="0" id="eparcela-valor">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label for="eparcela-vencimento">Vencimento</label>' +
+              '<input type="date" id="eparcela-vencimento">' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="eparcela-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="eparcela-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="eparcela-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
     var htmlFinanceiroNovo =
@@ -2587,7 +2611,7 @@
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
-      carregarParcelasAReceber();
+      wireEditarParcelaModal(); carregarParcelasAReceber();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3500,12 +3524,15 @@
     });
   }
 
+  var parcelasAReceberCache = [];
+
   function carregarParcelasAReceber() {
     var container = document.getElementById('financeiro-parcelas-lista');
     if (!container) return;
     apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcelas_listar' })
       .then(function (dados) {
         var parcelas = dados.parcelas || [];
+        parcelasAReceberCache = parcelas;
         if (parcelas.length === 0) {
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma conta a receber ainda. Cadastre um contrato em "Honorários e Contratos" que ela aparece aqui.</div></div>';
           return;
@@ -3519,17 +3546,24 @@
           var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
           var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
           if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
-          var botaoCobrar = p.status === 'Paga' ? '—' :
-            '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button>';
+          var acoes = '';
+          if (p.status !== 'Paga') {
+            acoes +=
+              '<button type="button" class="btn-conexao" data-receber-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> ' +
+              '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button> ';
+          }
+          acoes +=
+            '<button type="button" class="btn-editar" data-editar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Editar</button> ' +
+            '<button type="button" class="btn-remover" data-excluir-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Excluir</button>';
           return '<tr><td>' + esc(p.nome_cliente) + '</td>' +
             '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
             '<td>' + esc(descricao) + '</td>' +
             '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
             '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
             '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td>' +
-            '<td>' + botaoCobrar + '</td></tr>';
+            '<td style="white-space:nowrap;">' + acoes + '</td></tr>';
         }).join('');
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:780px;">' +
+        container.innerHTML = '<div class="table-scroll"><table style="min-width:900px;">' +
           '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
           '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table></div>';
@@ -3540,30 +3574,121 @@
     if (!container.dataset.cobrarWired) {
       container.dataset.cobrarWired = '1';
       container.addEventListener('click', function (ev) {
-        var btn = ev.target.closest('[data-cobrar-parcela-id]');
-        if (!btn) return;
-        escolherTipoCobranca().then(function (tipo) {
-          if (!tipo) return;
-          var textoOriginal = btn.textContent;
-          btn.disabled = true;
-          btn.textContent = 'Enviando...';
-          apiPostJson('/api/painel?acao=executar', {
-            tipo: 'financeiro_parcela_cobrar',
-            id: btn.getAttribute('data-cobrar-parcela-id'),
-            usar_asaas: tipo === 'asaas' ? 'true' : 'false'
-          })
-            .then(function (dados) {
-              alert(dados.resposta || dados.erro || 'Concluído.');
-              carregarParcelasAReceber();
+        var btnCobrar = ev.target.closest('[data-cobrar-parcela-id]');
+        if (btnCobrar) {
+          escolherTipoCobranca().then(function (tipo) {
+            if (!tipo) return;
+            var textoOriginal = btnCobrar.textContent;
+            btnCobrar.disabled = true;
+            btnCobrar.textContent = 'Enviando...';
+            apiPostJson('/api/painel?acao=executar', {
+              tipo: 'financeiro_parcela_cobrar',
+              id: btnCobrar.getAttribute('data-cobrar-parcela-id'),
+              usar_asaas: tipo === 'asaas' ? 'true' : 'false'
             })
-            .catch(function () {
-              alert('Não foi possível enviar a cobrança agora.');
-              btn.disabled = false;
-              btn.textContent = textoOriginal;
-            });
-        });
+              .then(function (dados) {
+                alert(dados.resposta || dados.erro || 'Concluído.');
+                carregarParcelasAReceber();
+              })
+              .catch(function () {
+                alert('Não foi possível enviar a cobrança agora.');
+                btnCobrar.disabled = false;
+                btnCobrar.textContent = textoOriginal;
+              });
+          });
+          return;
+        }
+
+        var btnReceber = ev.target.closest('[data-receber-parcela-id]');
+        if (btnReceber) {
+          var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
+          var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
+          var msgReceber = itemReceber
+            ? 'Confirma o recebimento de R$ ' + fmtMoeda(itemReceber.saldo) + ' de ' + itemReceber.nome_cliente + '?'
+            : 'Confirma o recebimento dessa parcela?';
+          confirmarModal(msgReceber, { perigo: false, textoOk: 'Confirmar' }).then(function (ok) {
+            if (!ok) return;
+            btnReceber.disabled = true;
+            btnReceber.textContent = 'Registrando...';
+            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber })
+              .then(function () { carregarParcelasAReceber(); })
+              .catch(function (e) {
+                alert(e.message || 'Não foi possível registrar o recebimento agora.');
+                btnReceber.disabled = false;
+                btnReceber.textContent = 'Receber';
+              });
+          });
+          return;
+        }
+
+        var btnEditar = ev.target.closest('[data-editar-parcela-id]');
+        if (btnEditar) {
+          var itemEditar = parcelasAReceberCache.filter(function (p) { return String(p.id) === btnEditar.getAttribute('data-editar-parcela-id'); })[0];
+          if (itemEditar && window.abrirModalEditarParcela) window.abrirModalEditarParcela(itemEditar);
+          return;
+        }
+
+        var btnExcluir = ev.target.closest('[data-excluir-parcela-id]');
+        if (btnExcluir) {
+          var idExcluir = btnExcluir.getAttribute('data-excluir-parcela-id');
+          confirmarModal('Excluir essa parcela? Essa ação não pode ser desfeita.').then(function (ok) {
+            if (!ok) return;
+            btnExcluir.disabled = true;
+            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_excluir', id: idExcluir })
+              .then(function () { carregarParcelasAReceber(); })
+              .catch(function (e) {
+                alert(e.message || 'Não foi possível excluir agora.');
+                btnExcluir.disabled = false;
+              });
+          });
+        }
       });
     }
+  }
+
+  // Edicao dos campos de uma parcela isolada (descricao, valor, vencimento) -- separado do
+  // modal de edicao de contrato (wireEditarContratoModal): aqui e uma parcela especifica de
+  // 'Contas a receber', nao o contrato inteiro.
+  function wireEditarParcelaModal() {
+    var modal = document.getElementById('modal-editar-parcela');
+    if (!modal) return;
+    var campoDescricao = document.getElementById('eparcela-descricao');
+    var campoValor = document.getElementById('eparcela-valor');
+    var campoVencimento = document.getElementById('eparcela-vencimento');
+    var erroEl = document.getElementById('eparcela-erro');
+    var btnSalvar = document.getElementById('eparcela-salvar');
+    var idAtual = null;
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    window.abrirModalEditarParcela = function (item) {
+      idAtual = item.id;
+      erroEl.textContent = '';
+      campoDescricao.value = item.tipo_servico || '';
+      campoValor.value = item.status === 'Paga' ? item.valor_parcela : item.saldo;
+      campoVencimento.value = item.data_vencimento ? item.data_vencimento.split('T')[0] : '';
+      modal.classList.remove('hidden');
+    };
+
+    document.getElementById('eparcela-fechar').addEventListener('click', fecharModal);
+    document.getElementById('eparcela-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      var corpo = { tipo: 'financeiro_parcela_editar', id: idAtual, tipo_servico: campoDescricao.value.trim() };
+      if (campoValor.value) corpo.valor = campoValor.value;
+      if (campoVencimento.value) corpo.vencimento = fmtDataCurta(campoVencimento.value);
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function () {
+          fecharModal();
+          carregarParcelasAReceber();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
   }
 
   function wireNovoContratoModal() {
