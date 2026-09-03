@@ -22,7 +22,7 @@
       corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum lançamento encontrado.</div></div>';
       return;
     }
-    corpo.innerHTML = '<div class="table-scroll"><table style="min-width:420px;">' +
+    corpo.innerHTML = '<div class="table-scroll"><table>' +
       '<thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Saldo</th><th></th></tr></thead><tbody>' +
       itens.map(function (i) {
         var classeChip = i.situacao === 'Vencida' ? 'crit' : (i.situacao === 'Paga' ? 'good' : (i.situacao === 'Vence hoje' ? 'warn' : 'neutral'));
@@ -931,7 +931,7 @@
           }).join('');
           resultado.innerHTML =
             '<div class="chip warn" style="margin-bottom:12px;">Total do mês: R$ ' + fmtMoeda(corpo.total_devedores) + '</div>' +
-            '<div class="table-scroll"><table style="min-width:460px;"><thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>' +
+            '<div class="table-scroll"><table><thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>' +
             '<tbody>' + linhas + '</tbody></table></div>';
         })
         .catch(function () {
@@ -959,7 +959,7 @@
             '<td style="text-align:right"><button class="btn-editar" data-remover-cliente="' + esc(c.nome) + '">Remover</button></td></tr>';
         }).join('');
         wrap.innerHTML =
-          '<div class="table-scroll"><table style="min-width:480px;"><thead><tr><th>Cliente</th><th>Status</th><th style="text-align:right">Valor total</th><th></th></tr></thead>' +
+          '<div class="table-scroll"><table><thead><tr><th>Cliente</th><th>Status</th><th style="text-align:right">Valor total</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table></div>';
         wrap.querySelectorAll('[data-remover-cliente]').forEach(function (btn) {
           btn.addEventListener('click', function () {
@@ -1146,7 +1146,7 @@
         }).join('');
         htmlVencidas =
           '<div class="table-scroll">' +
-          '<table style="min-width:560px;"><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
+          '<table><thead><tr><th>Cliente</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th style="text-align:right">Atraso</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table>' +
           '</div>';
       }
@@ -1211,7 +1211,7 @@
           '</div>' +
           '<div class="fluxo-svg-wrap" id="grafico-financeiro-svg" style="position:relative;"><div class="fluxo-tooltip" id="grafico-tooltip"></div></div>' +
           '<div id="grafico-tabela-wrap" class="hidden table-scroll" style="margin-top:14px;">' +
-            '<table style="min-width:420px;"><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th style="text-align:right">Vencido</th></tr></thead>' +
+            '<table><thead><tr><th>Mês</th><th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th style="text-align:right">Vencido</th></tr></thead>' +
             '<tbody id="grafico-tabela-corpo"></tbody></table>' +
           '</div>' +
           '<button type="button" class="fluxo-tabela-toggle" id="grafico-tabela-toggle">Ver como tabela</button>' +
@@ -1244,7 +1244,7 @@
             '<td class="num">R$ ' + fmtMoeda(c.a_receber) + '</td>' +
             '<td><span class="chip ' + (CHIP_STATUS_EXITO[c.status] || 'neutral') + '">' + esc(c.status || '—') + '</span></td></tr>';
         }).join('');
-        htmlListaExito = '<div class="table-scroll"><table style="min-width:680px;">' +
+        htmlListaExito = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">%</th><th style="text-align:right">Honorário</th>' +
           '<th style="text-align:right">Recebido</th><th style="text-align:right">A receber</th><th>Status</th></tr></thead>' +
           '<tbody>' + linhasExito + '</tbody></table></div>';
@@ -1283,7 +1283,7 @@
         htmlRanking = '<div class="empty-state"><div class="glyph">✓</div><div class="msg">Ninguém com saldo em aberto.</div></div>';
       } else {
         var maiorSaldoRanking = rankingLista[0].saldo || 1;
-        htmlRanking = '<div class="table-scroll"><table style="min-width:380px;">' +
+        htmlRanking = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Cliente</th><th style="text-align:right">A receber</th></tr></thead><tbody>' +
           rankingLista.map(function (r, idx) {
             var pctBarra = Math.max(4, Math.round((r.saldo / maiorSaldoRanking) * 100));
@@ -2772,7 +2772,7 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum aviso cadastrado. Clique em "Novo aviso" para adicionar.</div></div>';
           return;
         }
-        container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:520px;">' +
+        container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela">' +
           '<thead><tr><th>Mensagem</th><th>Ativo</th><th>Ações</th></tr></thead>' +
           '<tbody>' + d.avisos.map(function (a) {
             return '<tr><td>' + esc(a.mensagem) + '</td>' +
@@ -2858,7 +2858,7 @@
         container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma ação registrada ainda.</div></div>';
         return;
       }
-      container.innerHTML = '<div class="table-scroll"><table style="min-width:640px;">' +
+      container.innerHTML = '<div class="table-scroll"><table>' +
         '<thead><tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>Detalhes</th></tr></thead>' +
         '<tbody>' + d.registros.map(function (r) {
           return '<tr><td>' + fmtDataHora(r.criado_em) + '</td><td>' + esc(r.usuario || '—') + '</td>' +
@@ -2879,7 +2879,7 @@
           return;
         }
         var catalogoPlanos = dados.planos || [];
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:920px;">' +
+        container.innerHTML = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Escritório</th><th>Advogado</th><th>OAB</th><th>Conexões</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>' +
           '<tbody>' + lista.map(function (t) {
             var conexoes = [
@@ -3433,7 +3433,7 @@
           '<button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button>' +
         '</td></tr>';
     }).join('');
-    container.innerHTML = '<div class="table-scroll"><table style="min-width:760px;">' +
+    container.innerHTML = '<div class="table-scroll"><table>' +
       '<thead><tr><th>Cliente</th><th>Serviço</th><th style="text-align:right">Valor total / %</th>' +
       '<th style="text-align:right">Entrada</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>' +
       '<tbody>' + linhasContratos + linhasExito + '</tbody></table></div>';
@@ -3563,7 +3563,7 @@
             '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td>' +
             '<td style="white-space:nowrap;">' + acoes + '</td></tr>';
         }).join('');
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:900px;">' +
+        container.innerHTML = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
           '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table></div>';
@@ -3881,7 +3881,7 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente cadastrado ainda. Use "+ Novo cliente" pra adicionar.</div></div>';
           return;
         }
-        container.innerHTML = '<div class="table-scroll"><table style="min-width:640px;">' +
+        container.innerHTML = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Nome</th><th>Tipo</th><th>Telefone</th><th>E-mail</th><th>Etiquetas</th><th>Ações</th></tr></thead>' +
           '<tbody>' + lista.map(function (c) {
             return '<tr><td>' + esc(c.nome) + '</td><td>' + esc(c.tipo || '—') + '</td>' +
@@ -4698,7 +4698,7 @@
         container.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhuma tarefa encontrada.</div></div>';
         return;
       }
-      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:820px;">' +
+      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela">' +
         '<thead><tr><th>Título</th><th>Prioridade</th><th>Status</th><th>Vencimento</th><th>Responsável</th><th>Cliente / Processo</th><th>Ações</th></tr></thead>' +
         '<tbody>' + tarefasCarregadas.map(function (t) {
           return '<tr><td>' + esc(t.titulo) + '</td>' +
@@ -4883,7 +4883,7 @@
         container.innerHTML = '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum compromisso encontrado nos próximos 90 dias.</div></div>';
         return;
       }
-      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela" style="min-width:820px;">' +
+      container.innerHTML = '<div class="table-scroll"><table class="aviso-tabela">' +
         '<thead><tr><th>Título</th><th>Tipo</th><th>Data/Hora</th><th>Responsável</th><th>Local</th><th>Cliente / Processo</th><th>Ações</th></tr></thead>' +
         '<tbody>' + compromissosCarregados.map(function (c) {
           return '<tr><td>' + esc(c.titulo) + '</td><td>' + _chipTipo(c.tipo) + '</td>' +
@@ -7615,7 +7615,7 @@
         }).join('');
         container.innerHTML =
           '<div class="table-scroll">' +
-          '<table style="min-width:480px;"><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
+          '<table><thead><tr><th>Nome</th><th>Login</th><th>Nível</th><th></th></tr></thead>' +
           '<tbody>' + linhas + '</tbody></table>' +
           '</div>';
         var botoes = container.querySelectorAll('.btn-remover');
