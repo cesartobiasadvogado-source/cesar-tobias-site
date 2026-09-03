@@ -397,6 +397,16 @@
   .exec-catbar-track { flex: 1; height: 10px; background: var(--surface-sunken); border-radius: 5px; overflow: hidden; min-width: 0; }
   .exec-catbar-fill { height: 100%; border-radius: 5px; }
   .exec-catbar-valor { flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink); min-width: 74px; text-align: right; }
+  .exec-nota { margin-top: 14px; padding: 10px 13px; border-radius: 6px; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn); font-size: 12.5px; line-height: 1.5; }
+
+  /* Linha-resumo de um grupo de parcelas (Contas a receber) com seta pra expandir/recolher --
+     as parcelas do contrato ficam escondidas ate clicar. */
+  .parcela-grupo-linha { background: var(--surface-sunken); font-weight: 600; }
+  .parcela-grupo-seta {
+    background: none; border: none; cursor: pointer; font-size: 12px; color: var(--ink-soft);
+    padding: 0 6px 0 0; font-family: inherit; line-height: 1; vertical-align: middle;
+  }
+  .parcela-grupo-seta:hover { color: var(--ink); }
 
   .alerta-inadimplencia {
     display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 16px;

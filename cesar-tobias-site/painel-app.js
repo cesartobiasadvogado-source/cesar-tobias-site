@@ -1054,6 +1054,16 @@
         if (elRecorrentes) elRecorrentes.textContent = kpis.recorrentes_ativas || 0;
         var elComprometidoSub = document.getElementById('exec-kpi-comprometido-sub');
         if (elComprometidoSub) elComprometidoSub.textContent = 'R$ ' + fmtMoeda(kpis.comprometido_mensal || 0) + ' comprometidos/mês';
+
+        var notaSemData = document.getElementById('exec-nota-sem-data');
+        if (notaSemData) {
+          if (kpis.receita_sem_data > 0) {
+            notaSemData.classList.remove('hidden');
+            notaSemData.innerHTML = '<b>R$ ' + fmtMoeda(kpis.receita_sem_data) + '</b> recebidos não aparecem no gráfico acima porque são lançamentos antigos sem data de pagamento registrada — esse valor já entrou, só não dá pra saber em qual mês.';
+          } else {
+            notaSemData.classList.add('hidden');
+          }
+        }
       })
       .catch(function () {
         wrap.innerHTML = '<div class="fluxo-vazio">Não foi possível carregar o painel executivo agora.</div>';
@@ -3000,6 +3010,7 @@
               '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesas</span>' +
             '</div>' +
             '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+            '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
           '</div>' +
           '<div class="exec-card">' +
             '<div class="exec-card-titulo">Despesas por categoria</div>' +
@@ -4048,6 +4059,88 @@
 
   var parcelasAReceberCache = [];
 
+  var CHIPS_STATUS_PARCELA = {
+    Paga: '<span class="chip good">Paga</span>',
+    Vencida: '<span class="chip crit">Vencida</span>',
+    Aberta: '<span class="chip neutral">Aberta</span>',
+  };
+
+  function linhaParcelaHtml(p, comIndentacao) {
+    var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
+    var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
+    if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
+    var acoes = '';
+    if (p.status !== 'Paga') {
+      acoes +=
+        '<button type="button" class="btn-conexao" data-receber-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> ' +
+        '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button> ';
+    }
+    acoes +=
+      '<button type="button" class="btn-editar" data-editar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Editar</button> ' +
+      '<button type="button" class="btn-remover" data-excluir-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Excluir</button>';
+    return '<tr>' +
+      '<td' + (comIndentacao ? ' style="padding-left:34px; color:var(--ink-soft);"' : '') + '>' + esc(p.nome_cliente) + '</td>' +
+      '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
+      '<td>' + esc(descricao) + '</td>' +
+      '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
+      '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
+      '<td>' + (CHIPS_STATUS_PARCELA[p.status] || CHIPS_STATUS_PARCELA.Aberta) + '</td>' +
+      '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoes + '</div></td></tr>';
+  }
+
+  // Agrupa por contrato (mesmo contrato = mesmas parcelas de um unico lancamento) -- clientes
+  // sem contrato_id (fluxo bem antigo) caem num grupo por nome+servico, pra nunca perder uma
+  // parcela por falta de id.
+  function agruparParcelas(parcelas) {
+    var grupos = {}, ordem = [];
+    parcelas.forEach(function (p) {
+      var chave = p.contrato_id != null ? ('c' + p.contrato_id) : ('n' + p.nome_cliente + '|' + p.tipo_servico);
+      if (!grupos[chave]) {
+        grupos[chave] = { chave: chave, nome_cliente: p.nome_cliente, tipo_servico: p.tipo_servico, itens: [] };
+        ordem.push(chave);
+      }
+      grupos[chave].itens.push(p);
+    });
+    return ordem.map(function (chave) { return grupos[chave]; });
+  }
+
+  function renderParcelasAgrupadas(parcelas) {
+    var grupos = agruparParcelas(parcelas);
+    return grupos.map(function (g) {
+      if (g.itens.length === 1) return linhaParcelaHtml(g.itens[0], false);
+
+      var matchProcesso = /Processo (\S+)/.exec(g.tipo_servico || '');
+      var descricaoBase = (g.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
+      var pagas = g.itens.filter(function (p) { return p.status === 'Paga'; }).length;
+      var temVencida = g.itens.some(function (p) { return p.status === 'Vencida'; });
+      var saldoAberto = g.itens.reduce(function (acc, p) { return acc + (p.status === 'Paga' ? 0 : p.saldo); }, 0);
+      var valorTotalGrupo = g.itens.reduce(function (acc, p) { return acc + p.valor_parcela; }, 0);
+      var proximaAberta = g.itens
+        .filter(function (p) { return p.status !== 'Paga' && p.data_vencimento; })
+        .sort(function (a, b) { return a.data_vencimento < b.data_vencimento ? -1 : 1; })[0];
+      var chipResumo = pagas === g.itens.length
+        ? '<span class="chip good">Paga (' + pagas + '/' + g.itens.length + ')</span>'
+        : '<span class="chip ' + (temVencida ? 'crit' : 'neutral') + '">' + pagas + '/' + g.itens.length + ' pagas</span>';
+
+      var idGrupo = esc(g.chave);
+      var linhaGrupo = '<tr class="parcela-grupo-linha" data-grupo-linha="' + idGrupo + '">' +
+        '<td><button type="button" class="parcela-grupo-seta" data-grupo-seta="' + idGrupo + '" aria-expanded="false" aria-label="Ver parcelas de ' + esc(g.nome_cliente) + '">▸</button> ' + esc(g.nome_cliente) + '</td>' +
+        '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
+        '<td>' + esc(descricaoBase) + ' (' + g.itens.length + 'x)</td>' +
+        '<td class="num">R$ ' + fmtMoeda(saldoAberto > 0 ? saldoAberto : valorTotalGrupo) + '</td>' +
+        '<td>' + (proximaAberta ? fmtDataCurta(proximaAberta.data_vencimento) : '—') + '</td>' +
+        '<td>' + chipResumo + '</td>' +
+        '<td></td></tr>';
+
+      var linhasFilhas = g.itens.map(function (p) {
+        return linhaParcelaHtml(p, true);
+      }).join('');
+      var linhasFilhasEnvolvidas = '<tbody class="hidden" data-grupo-filhas="' + idGrupo + '" style="display:none;">' + linhasFilhas + '</tbody>';
+
+      return '<tbody>' + linhaGrupo + '</tbody>' + linhasFilhasEnvolvidas;
+    }).join('');
+  }
+
   function carregarParcelasAReceber() {
     var container = document.getElementById('financeiro-parcelas-lista');
     if (!container) return;
@@ -4059,36 +4152,10 @@
           container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma conta a receber ainda. Cadastre um contrato em "Honorários e Contratos" que ela aparece aqui.</div></div>';
           return;
         }
-        var chipsPorStatus = {
-          Paga: '<span class="chip good">Paga</span>',
-          Vencida: '<span class="chip crit">Vencida</span>',
-          Aberta: '<span class="chip neutral">Aberta</span>',
-        };
-        var linhas = parcelas.map(function (p) {
-          var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
-          var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
-          if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
-          var acoes = '';
-          if (p.status !== 'Paga') {
-            acoes +=
-              '<button type="button" class="btn-conexao" data-receber-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> ' +
-              '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button> ';
-          }
-          acoes +=
-            '<button type="button" class="btn-editar" data-editar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Editar</button> ' +
-            '<button type="button" class="btn-remover" data-excluir-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Excluir</button>';
-          return '<tr><td>' + esc(p.nome_cliente) + '</td>' +
-            '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
-            '<td>' + esc(descricao) + '</td>' +
-            '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
-            '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
-            '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td>' +
-            '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoes + '</div></td></tr>';
-        }).join('');
         container.innerHTML = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
           '<th style="text-align:right">Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>' +
-          '<tbody>' + linhas + '</tbody></table></div>';
+          renderParcelasAgrupadas(parcelas) + '</table></div>';
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as contas a receber agora.</div></div>';
@@ -4096,6 +4163,18 @@
     if (!container.dataset.cobrarWired) {
       container.dataset.cobrarWired = '1';
       container.addEventListener('click', function (ev) {
+        var btnSeta = ev.target.closest('[data-grupo-seta]');
+        if (btnSeta) {
+          var idGrupo = btnSeta.getAttribute('data-grupo-seta');
+          var filhas = container.querySelector('[data-grupo-filhas="' + idGrupo + '"]');
+          if (!filhas) return;
+          var abrindo = filhas.style.display === 'none';
+          filhas.style.display = abrindo ? '' : 'none';
+          btnSeta.textContent = abrindo ? '▾' : '▸';
+          btnSeta.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+          return;
+        }
+
         var btnCobrar = ev.target.closest('[data-cobrar-parcela-id]');
         if (btnCobrar) {
           escolherTipoCobranca().then(function (tipo) {
