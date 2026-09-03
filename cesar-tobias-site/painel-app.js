@@ -452,6 +452,7 @@
       btnOk.textContent = opcoes.textoOk || 'Excluir';
       btnCancelar.textContent = opcoes.textoCancelar || 'Cancelar';
       btnOk.className = opcoes.perigo === false ? 'btn-conexao' : 'btn-conexao-perigo';
+      btnCancelar.classList.toggle('hidden', !!opcoes.somenteOk);
 
       function limpar(resultado) {
         overlay.classList.add('hidden');
@@ -472,6 +473,19 @@
       document.addEventListener('keydown', onEsc);
       overlay.classList.remove('hidden');
       btnOk.focus();
+    });
+  }
+
+  // Substitui o alert() nativo do navegador (feio, fora do visual do site) por um aviso no
+  // mesmo estilo dos outros modais -- reaproveita confirmarModal, so escondendo o botao
+  // "Cancelar" (somenteOk) e trocando o titulo padrao pra "Aviso".
+  function mostrarAviso(mensagem, opcoes) {
+    opcoes = opcoes || {};
+    return confirmarModal(mensagem, {
+      titulo: opcoes.titulo || 'Aviso',
+      textoOk: opcoes.textoOk || 'OK',
+      perigo: false,
+      somenteOk: true,
     });
   }
 
@@ -971,7 +985,7 @@
                 .then(function () { carregarListaClientesFinanceiro(); })
                 .catch(function () {
                   btn.disabled = false; btn.textContent = 'Remover';
-                  alert('Não foi possível remover agora. Tente de novo.');
+                  mostrarAviso('Não foi possível remover agora. Tente de novo.');
                 });
             });
           });
@@ -3007,7 +3021,7 @@
             select.disabled = true;
             apiPostJson('/api/painel?acao=plataforma_tenant_plano', { tenant_id: tenantId, plano: select.value })
               .catch(function (e) {
-                alert(e.message || 'Não foi possível trocar o plano agora.');
+                mostrarAviso(e.message || 'Não foi possível trocar o plano agora.');
               })
               .finally(function () { select.disabled = false; });
           });
@@ -3029,7 +3043,7 @@
                 .then(carregarEscritoriosPlataforma)
                 .catch(function (e) {
                   btn.disabled = false;
-                  alert(e.message || 'Não foi possível atualizar o status agora.');
+                  mostrarAviso(e.message || 'Não foi possível atualizar o status agora.');
                 });
             });
           });
@@ -3046,7 +3060,7 @@
                 .then(carregarEscritoriosPlataforma)
                 .catch(function (e) {
                   btn.disabled = false;
-                  alert(e.message || 'Não foi possível excluir agora.');
+                  mostrarAviso(e.message || 'Não foi possível excluir agora.');
                 });
             });
           });
@@ -3060,7 +3074,7 @@
                 .then(carregarEscritoriosPlataforma)
                 .catch(function (e) {
                   btn.disabled = false;
-                  alert(e.message || 'Não foi possível restaurar agora.');
+                  mostrarAviso(e.message || 'Não foi possível restaurar agora.');
                 });
             });
           });
@@ -3083,7 +3097,7 @@
                 .then(carregarEscritoriosPlataforma)
                 .catch(function (e) {
                   btn.disabled = false;
-                  alert(e.message || 'Não foi possível apagar agora.');
+                  mostrarAviso(e.message || 'Não foi possível apagar agora.');
                 });
             });
           });
@@ -3270,7 +3284,7 @@
     function processarUploadAudiencia(arquivo) {
       var nomeCliente = (campoCliente.value || '').trim();
       if (!nomeCliente) {
-        alert('Informe o nome do cliente antes de enviar o áudio.');
+        mostrarAviso('Informe o nome do cliente antes de enviar o áudio.');
         return;
       }
       msg.innerHTML = '<strong>Enviando…</strong><span class="audiencia-upload-progresso" id="audiencia-upload-progresso">Iniciando…</span>';
@@ -3297,13 +3311,13 @@
           campoCliente.value = '';
           input.value = '';
           carregarAudiencias();
-          alert(dados.resposta || 'Áudio processado.');
+          mostrarAviso(dados.resposta || 'Áudio processado.');
         })
         .catch(function (e) {
           msg.innerHTML = '<strong>Arraste a gravação aqui</strong><span>Áudio ou vídeo de audiência, reunião ou atendimento.</span>' +
             '<button type="button" id="audiencia-upload-escolher">Escolher arquivo</button>';
           document.getElementById('audiencia-upload-escolher').addEventListener('click', function () { input.click(); });
-          alert('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
+          mostrarAviso('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
         });
     }
 
@@ -3527,12 +3541,12 @@
               carregarHonorariosContratos();
             } else {
               botao.disabled = false;
-              alert(resultado.corpo.erro || 'Não foi possível excluir agora.');
+              mostrarAviso(resultado.corpo.erro || 'Não foi possível excluir agora.');
             }
           })
           .catch(function () {
             botao.disabled = false;
-            alert('Erro de conexão ao excluir.');
+            mostrarAviso('Erro de conexão ao excluir.');
           });
       });
     }
@@ -3665,11 +3679,11 @@
               usar_asaas: tipo === 'asaas' ? 'true' : 'false'
             })
               .then(function (dados) {
-                alert(dados.resposta || dados.erro || 'Concluído.');
+                mostrarAviso(dados.resposta || dados.erro || 'Concluído.');
                 carregarParcelasAReceber();
               })
               .catch(function () {
-                alert('Não foi possível enviar a cobrança agora.');
+                mostrarAviso('Não foi possível enviar a cobrança agora.');
                 btnCobrar.disabled = false;
                 btnCobrar.textContent = textoOriginal;
               });
@@ -3691,7 +3705,7 @@
             apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber })
               .then(function () { carregarParcelasAReceber(); })
               .catch(function (e) {
-                alert(e.message || 'Não foi possível registrar o recebimento agora.');
+                mostrarAviso(e.message || 'Não foi possível registrar o recebimento agora.');
                 btnReceber.disabled = false;
                 btnReceber.textContent = 'Receber';
               });
@@ -3715,7 +3729,7 @@
             apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_excluir', id: idExcluir })
               .then(function () { carregarParcelasAReceber(); })
               .catch(function (e) {
-                alert(e.message || 'Não foi possível excluir agora.');
+                mostrarAviso(e.message || 'Não foi possível excluir agora.');
                 btnExcluir.disabled = false;
               });
           });
@@ -3837,7 +3851,7 @@
           apiPostJson('/api/painel?acao=executar', { tipo: 'despesa_processo_excluir', id: idExcluir })
             .then(function () { carregarDespesasProcesso(); })
             .catch(function (e) {
-              alert(e.message || 'Não foi possível excluir agora.');
+              mostrarAviso(e.message || 'Não foi possível excluir agora.');
               btn.disabled = false;
             });
         });
@@ -4175,7 +4189,7 @@
                 .then(carregarClientesCadastrados)
                 .catch(function (e) {
                   btn.disabled = false;
-                  alert(e.message || 'Não foi possível excluir o cliente agora.');
+                  mostrarAviso(e.message || 'Não foi possível excluir o cliente agora.');
                 });
             });
           });
@@ -4375,7 +4389,7 @@
         }).catch(function () {
           btn.disabled = false;
           btn.textContent = textoOriginal;
-          alert('Não foi possível salvar agora.');
+          mostrarAviso('Não foi possível salvar agora.');
         });
       });
     });
@@ -5499,7 +5513,7 @@
             var id = btn.getAttribute('data-docs-excluir');
             apiPostJson('/api/painel?acao=documento_processo_excluir', { id: id })
               .then(function () { carregarDocumentos(); })
-              .catch(function (e) { alert(e.message || 'Não foi possível excluir o documento agora.'); });
+              .catch(function (e) { mostrarAviso(e.message || 'Não foi possível excluir o documento agora.'); });
           });
         });
       });
@@ -5948,7 +5962,7 @@
         document.getElementById('procficha-menu-acoes').classList.add('hidden');
         apiPostJson('/api/painel?acao=processo_manual_status', { id: processo.id, status: btn.getAttribute('data-procficha-status') })
           .then(function () { processo.status = btn.getAttribute('data-procficha-status'); abrirFichaProcesso(processo); })
-          .catch(function () { alert('Não foi possível atualizar o status agora.'); });
+          .catch(function () { mostrarAviso('Não foi possível atualizar o status agora.'); });
       });
     });
     document.getElementById('procficha-btn-excluir').addEventListener('click', function () {
@@ -5961,7 +5975,7 @@
             viewLista.classList.remove('hidden');
             carregarProcessosManuais();
           })
-          .catch(function () { alert('Não foi possível excluir o processo agora.'); });
+          .catch(function () { mostrarAviso('Não foi possível excluir o processo agora.'); });
       });
     });
 
@@ -6214,12 +6228,12 @@
               if (resultado.status === 200 && resultado.corpo.pdf_id) {
                 mostrarPreviewDocumento(resultado.corpo.pdf_id, 'procficha-modelo-preview');
               } else {
-                alert(resultado.corpo.erro || 'Não foi possível gerar o documento agora.');
+                mostrarAviso(resultado.corpo.erro || 'Não foi possível gerar o documento agora.');
               }
             })
             .catch(function () {
               btn.disabled = false; btn.textContent = 'Gerar PDF';
-              alert('Não foi possível gerar o documento agora.');
+              mostrarAviso('Não foi possível gerar o documento agora.');
             });
         });
       });
@@ -6642,7 +6656,7 @@
       var arquivo = this.files && this.files[0];
       if (!arquivo) return;
       if (arquivo.size > 5 * 1024 * 1024) {
-        alert('A foto precisa ter até 5MB.');
+        mostrarAviso('A foto precisa ter até 5MB.');
         this.value = '';
         return;
       }
@@ -6789,7 +6803,7 @@
           renderEtiquetasSelecionadas();
           renderProgressoCliente();
         })
-        .catch(function (e) { alert(e.message || 'Não foi possível criar a etiqueta agora.'); });
+        .catch(function (e) { mostrarAviso(e.message || 'Não foi possível criar a etiqueta agora.'); });
     });
 
     document.getElementById('cliente-btn-cancelar').addEventListener('click', function () {
@@ -6941,8 +6955,8 @@
     if (btnAnalisar) {
       btnAnalisar.addEventListener('click', function () {
         var arquivo = inputAnalisar.files && inputAnalisar.files[0];
-        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
-        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+        if (!arquivo) { mostrarAviso('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { mostrarAviso('Arquivo maior que 4 MB -- suba um menor.'); return; }
 
         var textoOriginal = btnAnalisar.textContent;
         btnAnalisar.disabled = true;
@@ -7099,7 +7113,7 @@
         var id = select.getAttribute('data-status-select-procadm');
         apiPostJson('/api/painel?acao=processos_administrativos', { op: 'atualizar', id: id, status: select.value })
           .then(function () { carregarProcessosAdministrativos(); })
-          .catch(function () { alert('Não foi possível atualizar o status agora.'); });
+          .catch(function () { mostrarAviso('Não foi possível atualizar o status agora.'); });
       });
     });
 
@@ -7115,7 +7129,7 @@
           })
           .catch(function () {
             btn.textContent = textoOriginal;
-            alert('Não foi possível abrir o documento agora.');
+            mostrarAviso('Não foi possível abrir o documento agora.');
           });
       });
     });
@@ -7127,7 +7141,7 @@
           if (!ok) return;
           apiPostJson('/api/painel?acao=processos_administrativos', { op: 'remover_documento', id: partes[0], documento_id: partes[1] })
             .then(function () { carregarProcessosAdministrativos(); })
-            .catch(function () { alert('Não foi possível remover o documento agora.'); });
+            .catch(function () { mostrarAviso('Não foi possível remover o documento agora.'); });
         });
       });
     });
@@ -7137,8 +7151,8 @@
         var id = btn.getAttribute('data-upload-btn-procadm');
         var input = container.querySelector('[data-upload-input-procadm="' + id + '"]');
         var arquivo = input && input.files && input.files[0];
-        if (!arquivo) { alert('Escolha um arquivo primeiro.'); return; }
-        if (arquivo.size > 4 * 1024 * 1024) { alert('Arquivo maior que 4 MB -- suba um menor.'); return; }
+        if (!arquivo) { mostrarAviso('Escolha um arquivo primeiro.'); return; }
+        if (arquivo.size > 4 * 1024 * 1024) { mostrarAviso('Arquivo maior que 4 MB -- suba um menor.'); return; }
 
         var textoOriginal = btn.textContent;
         btn.disabled = true;
@@ -7156,7 +7170,7 @@
           .catch(function (erro) {
             btn.disabled = false;
             btn.textContent = textoOriginal;
-            alert((erro && erro.message) || 'Não foi possível enviar o arquivo agora.');
+            mostrarAviso((erro && erro.message) || 'Não foi possível enviar o arquivo agora.');
           });
       });
     });
@@ -7168,7 +7182,7 @@
           if (!ok) return;
           apiPostJson('/api/painel?acao=processos_administrativos', { op: 'excluir', id: id })
             .then(function () { carregarProcessosAdministrativos(); })
-            .catch(function () { alert('Não foi possível excluir agora.'); });
+            .catch(function () { mostrarAviso('Não foi possível excluir agora.'); });
         });
       });
     });
@@ -7214,13 +7228,13 @@
             linha_contrato: btn.getAttribute('data-cobrar-linha-contrato'),
             numero_parcela: btn.getAttribute('data-cobrar-numero-parcela')
           }).then(function (r) { return r.json(); }).then(function (dados) {
-            alert(dados.resposta || dados.erro || 'Concluído.');
+            mostrarAviso(dados.resposta || dados.erro || 'Concluído.');
             btn.disabled = false;
             btn.textContent = textoOriginal;
           }).catch(function () {
             btn.disabled = false;
             btn.textContent = textoOriginal;
-            alert('Não foi possível enviar a cobrança agora.');
+            mostrarAviso('Não foi possível enviar a cobrança agora.');
           });
         });
       });
@@ -7665,7 +7679,7 @@
           .catch(function () {
             btn.textContent = textoOriginal;
             btn.disabled = false;
-            alert('Não foi possível marcar a audiência como realizada agora.');
+            mostrarAviso('Não foi possível marcar a audiência como realizada agora.');
           });
       });
     });
@@ -7768,7 +7782,7 @@
           })
           .catch(function () {
             btn.textContent = textoOriginal;
-            alert('Não foi possível carregar a transcrição agora.');
+            mostrarAviso('Não foi possível carregar a transcrição agora.');
           });
       });
     });
@@ -7797,7 +7811,7 @@
           })
           .catch(function () {
             btn.textContent = textoOriginal;
-            alert('Não foi possível abrir o PDF agora.');
+            mostrarAviso('Não foi possível abrir o PDF agora.');
           });
       });
     });
@@ -7817,7 +7831,7 @@
             .catch(function () {
               btn.textContent = textoOriginal;
               btn.disabled = false;
-              alert('Não foi possível excluir agora.');
+              mostrarAviso('Não foi possível excluir agora.');
             });
         });
       });
