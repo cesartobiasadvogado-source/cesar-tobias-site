@@ -79,7 +79,7 @@
   .sidebar-rodape .cargo { font-size: 10.5px; color: var(--sidebar-ink-soft); }
 
   .conteudo-area { flex: 1; min-width: 0; }
-  .page { max-width: 1440px; padding: 32px 28px 72px; scroll-behavior: smooth; }
+  .page { padding: 32px 28px 72px; scroll-behavior: smooth; }
 
   /* Topo fixo compartilhado por todas as paginas (nao so a Inicio) -- usa os tokens do sidebar
      pra ficar sempre escuro e respeitar a customizacao de cor de fundo do menu, ao inves de cor
