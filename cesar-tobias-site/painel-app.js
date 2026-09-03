@@ -4273,7 +4273,13 @@
         if (btnReceber) {
           var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
           var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
-          if (itemReceber && window.abrirModalReceberParcela) window.abrirModalReceberParcela(itemReceber);
+          if (!itemReceber) { mostrarAviso('Não encontrei essa parcela na lista carregada (id ' + idReceber + '). Atualize a página e tente de novo.'); return; }
+          if (!window.abrirModalReceberParcela) { mostrarAviso('O formulário de recebimento não carregou nesta página. Atualize a página com Ctrl+Shift+R e tente de novo.'); return; }
+          try {
+            window.abrirModalReceberParcela(itemReceber);
+          } catch (erroAbrir) {
+            mostrarAviso('Erro ao abrir o formulário de recebimento: ' + (erroAbrir && erroAbrir.message ? erroAbrir.message : erroAbrir));
+          }
           return;
         }
 
