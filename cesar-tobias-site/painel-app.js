@@ -2920,7 +2920,7 @@
               '<td>' + (conexoes.length ? conexoes.map(function (c) { return '<span class="chip neutral">' + c + '</span>'; }).join(' ') : '—') + '</td>' +
               '<td>' + selectPlano + '</td>' +
               '<td>' + chipStatus + '</td>' +
-              '<td style="white-space:nowrap;">' + acoesHtml + '</td></tr>';
+              '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoesHtml + '</div></td></tr>';
           }).join('') + '</tbody></table></div>';
 
         container.querySelectorAll('[data-tenant-plano]').forEach(function (select) {
@@ -3561,7 +3561,7 @@
             '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
             '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
             '<td>' + (chipsPorStatus[p.status] || chipsPorStatus.Aberta) + '</td>' +
-            '<td style="white-space:nowrap;">' + acoes + '</td></tr>';
+            '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoes + '</div></td></tr>';
         }).join('');
         container.innerHTML = '<div class="table-scroll"><table>' +
           '<thead><tr><th>Cliente/Contrato</th><th>Processo</th><th>Descrição</th>' +
