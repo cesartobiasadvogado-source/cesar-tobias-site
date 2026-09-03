@@ -4273,13 +4273,23 @@
         if (btnReceber) {
           var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
           var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
-          if (!itemReceber) { mostrarAviso('Não encontrei essa parcela na lista carregada (id ' + idReceber + '). Atualize a página e tente de novo.'); return; }
-          if (!window.abrirModalReceberParcela) { mostrarAviso('O formulário de recebimento não carregou nesta página. Atualize a página com Ctrl+Shift+R e tente de novo.'); return; }
-          try {
-            window.abrirModalReceberParcela(itemReceber);
-          } catch (erroAbrir) {
-            mostrarAviso('Erro ao abrir o formulário de recebimento: ' + (erroAbrir && erroAbrir.message ? erroAbrir.message : erroAbrir));
-          }
+          if (!itemReceber) { window.alert('Não encontrei essa parcela na lista carregada (id ' + idReceber + '). Atualize a página e tente de novo.'); return; }
+          // window.prompt em vez de modal customizado -- caixa nativa do navegador, sempre
+          // aparece na frente de tudo, sem depender de CSS/z-index/cache do resto da pagina.
+          var valorDigitadoReceber = window.prompt('Valor recebido de ' + itemReceber.nome_cliente + ' (R$)', fmtMoeda(itemReceber.saldo));
+          if (valorDigitadoReceber === null) return;
+          valorDigitadoReceber = valorDigitadoReceber.trim();
+          if (!valorDigitadoReceber) { window.alert('Informe um valor.'); return; }
+          var textoOriginalReceber = btnReceber.textContent;
+          btnReceber.disabled = true;
+          btnReceber.textContent = 'Registrando...';
+          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber, valor: valorDigitadoReceber })
+            .then(function () { carregarParcelasAReceber(); })
+            .catch(function (e) {
+              window.alert(e.message || 'Não foi possível registrar o recebimento agora.');
+              btnReceber.disabled = false;
+              btnReceber.textContent = textoOriginalReceber;
+            });
           return;
         }
 
