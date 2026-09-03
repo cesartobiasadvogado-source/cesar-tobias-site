@@ -2752,6 +2752,20 @@
             '<button type="button" class="btn-conexao" id="eparcela-salvar">Salvar</button>' +
           '</div>' +
         '</div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-receber-parcela">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3>Registrar recebimento<button type="button" class="modal-drill-fechar" id="rparcela-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label id="rparcela-cliente-label" for="rparcela-valor">Valor recebido (R$)</label>' +
+            '<input type="text" id="rparcela-valor">' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="rparcela-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="rparcela-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="rparcela-salvar">Confirmar</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
 
     var htmlDespesasProcesso =
@@ -3195,7 +3209,7 @@
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
-      wireEditarParcelaModal(); carregarParcelasAReceber();
+      wireEditarParcelaModal(); wireReceberParcelaModal(); carregarParcelasAReceber();
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
       wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
@@ -4259,21 +4273,7 @@
         if (btnReceber) {
           var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
           var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
-          var msgReceber = itemReceber
-            ? 'Confirma o recebimento de R$ ' + fmtMoeda(itemReceber.saldo) + ' de ' + itemReceber.nome_cliente + '?'
-            : 'Confirma o recebimento dessa parcela?';
-          confirmarModal(msgReceber, { perigo: false, textoOk: 'Confirmar' }).then(function (ok) {
-            if (!ok) return;
-            btnReceber.disabled = true;
-            btnReceber.textContent = 'Registrando...';
-            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber })
-              .then(function () { carregarParcelasAReceber(); })
-              .catch(function (e) {
-                mostrarAviso(e.message || 'Não foi possível registrar o recebimento agora.');
-                btnReceber.disabled = false;
-                btnReceber.textContent = 'Receber';
-              });
-          });
+          if (itemReceber && window.abrirModalReceberParcela) window.abrirModalReceberParcela(itemReceber);
           return;
         }
 
@@ -4345,6 +4345,50 @@
         })
         .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
         .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
+  }
+
+  // Registrar recebimento de uma parcela -- pre-preenche com o saldo em aberto, mas deixa
+  // editar (cliente as vezes manda so parte da parcela); manda pro mesmo
+  // financeiro_parcela_receber, que ja aceita um valor customizado (default: saldo cheio).
+  function wireReceberParcelaModal() {
+    var modal = document.getElementById('modal-receber-parcela');
+    if (!modal) return;
+    var labelCliente = document.getElementById('rparcela-cliente-label');
+    var campoValor = document.getElementById('rparcela-valor');
+    var erroEl = document.getElementById('rparcela-erro');
+    var btnSalvar = document.getElementById('rparcela-salvar');
+    var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    window.abrirModalReceberParcela = function (item) {
+      idAtual = item.id;
+      erroEl.textContent = '';
+      labelCliente.textContent = 'Valor recebido de ' + item.nome_cliente + ' (R$)';
+      campoValor.value = fmtMoeda(item.saldo);
+      modal.classList.remove('hidden');
+      campoValor.focus();
+      campoValor.select();
+    };
+
+    document.getElementById('rparcela-fechar').addEventListener('click', fecharModal);
+    document.getElementById('rparcela-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      if (!campoValor.value) { erroEl.textContent = 'Informe o valor recebido.'; return; }
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Registrando…';
+      apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idAtual, valor: campoValor.value })
+        .then(function () {
+          fecharModal();
+          carregarParcelasAReceber();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível registrar o recebimento agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Confirmar'; });
     });
   }
 
