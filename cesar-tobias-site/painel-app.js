@@ -2622,7 +2622,7 @@
           '</div>' +
           '<div style="min-width:160px;">' +
             '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Categoria</label>' +
-            '<input type="text" id="cpagarfiltro-categoria" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+            '<input type="text" id="cpagarfiltro-categoria" list="ncpagar-categoria-lista" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
           '</div>' +
           '<button type="button" class="btn-conexao" id="cpagarfiltro-buscar">Buscar</button>' +
           '<button type="button" class="btn-conexao-secundario" id="cpagarfiltro-limpar">Limpar</button>' +
@@ -2643,7 +2643,11 @@
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncpagar-categoria">Categoria</label>' +
-            '<input type="text" id="ncpagar-categoria" placeholder="ex: aluguel, internet, software">' +
+            '<input type="text" id="ncpagar-categoria" list="ncpagar-categoria-lista" placeholder="ex: aluguel, internet, software">' +
+            '<datalist id="ncpagar-categoria-lista">' +
+              '<option value="Aluguel">' + '<option value="Internet">' + '<option value="Contador">' +
+              '<option value="Software">' + '<option value="Taxas">' + '<option value="Energia">' + '<option value="Água">' +
+            '</datalist>' +
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncpagar-valor">Valor (R$) *</label>' +
