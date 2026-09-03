@@ -2686,6 +2686,100 @@
         '</div>' +
       '</div>';
 
+    var htmlContasRecorrentes =
+      '<div class="panel" style="margin-bottom:14px;">' +
+        '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
+        '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<select id="crecfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os status</option>' +
+              '<option value="Ativa">Ativa</option>' +
+              '<option value="Pausada">Pausada</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Categoria</label>' +
+            '<input type="text" id="crecfiltro-categoria" list="ncpagar-categoria-lista" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+          '</div>' +
+          '<button type="button" class="btn-conexao" id="crecfiltro-buscar">Buscar</button>' +
+          '<button type="button" class="btn-conexao-secundario" id="crecfiltro-limpar">Limpar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Contas recorrentes</span>' +
+          '<button type="button" class="btn-conexao" id="btn-nova-conta-recorrente">+ Nova conta recorrente</button>' +
+        '</div>' +
+        '<div id="contas-recorrentes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-nova-conta-recorrente">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3 id="ncrec-titulo">Nova conta recorrente<button type="button" class="modal-drill-fechar" id="ncrec-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-descricao">Descrição *</label>' +
+            '<input type="text" id="ncrec-descricao">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-categoria">Categoria</label>' +
+            '<input type="text" id="ncrec-categoria" list="ncpagar-categoria-lista">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-valor">Valor (R$) *</label>' +
+            '<input type="number" step="0.01" min="0" id="ncrec-valor">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-periodicidade">Periodicidade *</label>' +
+            '<select id="ncrec-periodicidade">' +
+              '<option value="Semanal">Semanal</option>' +
+              '<option value="Quinzenal">Quinzenal</option>' +
+              '<option value="Mensal" selected>Mensal</option>' +
+              '<option value="Anual">Anual</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-dia-vencimento">Dia do vencimento (1-31) *</label>' +
+            '<input type="number" step="1" min="1" max="31" id="ncrec-dia-vencimento">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-data-inicio">Data início *</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="date" id="ncrec-data-inicio" style="flex:1;">' +
+              '<button type="button" class="btn-conexao-secundario" id="ncrec-data-inicio-hoje" style="padding:4px 10px; font-size:12.5px;">Hoje</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-data-termino">Data término (opcional)</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="date" id="ncrec-data-termino" style="flex:1;">' +
+              '<button type="button" class="btn-conexao-secundario" id="ncrec-data-termino-hoje" style="padding:4px 10px; font-size:12.5px;">Hoje</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-forma-pagamento">Forma de pagamento padrão</label>' +
+            '<select id="ncrec-forma-pagamento">' +
+              '<option value="">Selecione</option>' +
+              '<option value="Pix">Pix</option>' +
+              '<option value="Boleto">Boleto</option>' +
+              '<option value="Cartão de crédito">Cartão de crédito</option>' +
+              '<option value="Transferência">Transferência</option>' +
+              '<option value="Débito automático">Débito automático</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncrec-status">Status</label>' +
+            '<select id="ncrec-status">' +
+              '<option value="Ativa">Ativa</option>' +
+              '<option value="Pausada">Pausada</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="ncrec-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="ncrec-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="ncrec-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
     var htmlFinanceiroNovo =
       '<section id="sec-financeiro-novo">' +
         '<p class="section-label">Financeiro</p>' +
@@ -2707,9 +2801,7 @@
         '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' + htmlDespesasProcesso + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' + htmlContasPagar + '</div>' +
-        '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' +
-          htmlFinEmBreve('Lançamentos recorrentes automáticos (aluguel, softwares, folha etc). Ainda não foi construído — avise se quiser priorizar.') +
-        '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' + htmlContasRecorrentes + '</div>' +
       '</section>';
 
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
@@ -2803,6 +2895,7 @@
       wireEditarParcelaModal(); carregarParcelasAReceber();
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
       wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
+      wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -4333,6 +4426,196 @@
         })
         .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível registrar o pagamento agora.'; })
         .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Confirmar'; });
+    });
+  }
+
+  var contasRecorrentesCache = [];
+
+  function lerFiltrosContasRecorrentes() {
+    var elStatus = document.getElementById('crecfiltro-status');
+    var elCategoria = document.getElementById('crecfiltro-categoria');
+    return {
+      status: elStatus ? elStatus.value : '',
+      categoria: elCategoria ? elCategoria.value.toLowerCase().trim() : '',
+    };
+  }
+
+  function contaRecorrentePassaFiltro(c, filtros) {
+    if (filtros.status && c.status !== filtros.status) return false;
+    if (filtros.categoria && (c.categoria || '').toLowerCase().indexOf(filtros.categoria) === -1) return false;
+    return true;
+  }
+
+  function renderContasRecorrentes() {
+    var container = document.getElementById('contas-recorrentes-lista');
+    if (!container) return;
+    var filtros = lerFiltrosContasRecorrentes();
+    var contas = contasRecorrentesCache.filter(function (c) { return contaRecorrentePassaFiltro(c, filtros); });
+    if (contas.length === 0) {
+      var temFiltroAtivo = filtros.status || filtros.categoria;
+      container.innerHTML = '<div class="empty-state"><div class="msg">' +
+        (temFiltroAtivo ? 'Nenhuma conta recorrente encontrada com esses filtros.' : 'Nenhuma conta recorrente cadastrada ainda. Use "+ Nova conta recorrente" pra adicionar.') +
+        '</div></div>';
+      return;
+    }
+    var linhas = contas.map(function (c) {
+      return '<tr><td>' + esc(c.descricao) + '</td>' +
+        '<td>' + esc(c.categoria || '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.valor) + '</td>' +
+        '<td>' + esc(c.periodicidade) + '</td>' +
+        '<td>' + esc(c.dia_vencimento) + '</td>' +
+        '<td>' + (c.data_inicio ? fmtDataCurta(c.data_inicio) : '—') + '</td>' +
+        '<td>' + (c.data_termino ? fmtDataCurta(c.data_termino) : '—') + '</td>' +
+        '<td>' + (c.status === 'Ativa' ? '<span class="chip good">Ativa</span>' : '<span class="chip neutral">Pausada</span>') + '</td>' +
+        '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+          '<button type="button" class="btn-editar" data-editar-conta-rec-id="' + esc(c.id) + '">Editar</button>' +
+          '<button type="button" class="btn-remover" data-excluir-conta-rec-id="' + esc(c.id) + '">Excluir</button>' +
+        '</div></td></tr>';
+    }).join('');
+    container.innerHTML = '<div class="table-scroll"><table>' +
+      '<thead><tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th>' +
+      '<th>Periodicidade</th><th>Dia Venc.</th><th>Início</th><th>Término</th><th>Status</th><th>Ações</th></tr></thead>' +
+      '<tbody>' + linhas + '</tbody></table></div>';
+
+    container.querySelectorAll('[data-editar-conta-rec-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = contasRecorrentesCache.filter(function (c) { return String(c.id) === btn.getAttribute('data-editar-conta-rec-id'); })[0];
+        if (item && window.abrirModalContaRecorrente) window.abrirModalContaRecorrente(item);
+      });
+    });
+    container.querySelectorAll('[data-excluir-conta-rec-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idExcluir = btn.getAttribute('data-excluir-conta-rec-id');
+        confirmarModal('Excluir essa conta recorrente? Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          btn.disabled = true;
+          apiPostJson('/api/painel?acao=executar', { tipo: 'conta_recorrente_excluir', id: idExcluir })
+            .then(function () { carregarContasRecorrentes(); })
+            .catch(function (e) {
+              mostrarAviso(e.message || 'Não foi possível excluir agora.');
+              btn.disabled = false;
+            });
+        });
+      });
+    });
+  }
+
+  function carregarContasRecorrentes() {
+    var container = document.getElementById('contas-recorrentes-lista');
+    if (!container) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'conta_recorrente_listar' })
+      .then(function (dados) {
+        contasRecorrentesCache = dados.recorrentes || [];
+        renderContasRecorrentes();
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as contas recorrentes agora.</div></div>';
+      });
+  }
+
+  function wireFiltroContasRecorrentes() {
+    var selectStatus = document.getElementById('crecfiltro-status');
+    if (!selectStatus) return;
+    document.getElementById('crecfiltro-buscar').addEventListener('click', renderContasRecorrentes);
+    document.getElementById('crecfiltro-limpar').addEventListener('click', function () {
+      selectStatus.value = '';
+      document.getElementById('crecfiltro-categoria').value = '';
+      renderContasRecorrentes();
+    });
+  }
+
+  // Modal unico de "Nova conta recorrente" / "Editar" -- idAtual null = criar, preenchido = editar.
+  function wireNovaContaRecorrenteModal() {
+    var btnAbrir = document.getElementById('btn-nova-conta-recorrente');
+    var modal = document.getElementById('modal-nova-conta-recorrente');
+    if (!btnAbrir || !modal) return;
+    var titulo = document.getElementById('ncrec-titulo');
+    var campoDescricao = document.getElementById('ncrec-descricao');
+    var campoCategoria = document.getElementById('ncrec-categoria');
+    var campoValor = document.getElementById('ncrec-valor');
+    var selectPeriodicidade = document.getElementById('ncrec-periodicidade');
+    var campoDiaVencimento = document.getElementById('ncrec-dia-vencimento');
+    var campoDataInicio = document.getElementById('ncrec-data-inicio');
+    var campoDataTermino = document.getElementById('ncrec-data-termino');
+    var selectFormaPagamento = document.getElementById('ncrec-forma-pagamento');
+    var selectStatus = document.getElementById('ncrec-status');
+    var erroEl = document.getElementById('ncrec-erro');
+    var btnSalvar = document.getElementById('ncrec-salvar');
+    var idAtual = null;
+
+    function abrirModalCriar() {
+      idAtual = null;
+      titulo.firstChild.textContent = 'Nova conta recorrente';
+      erroEl.textContent = '';
+      campoDescricao.value = '';
+      campoCategoria.value = '';
+      campoValor.value = '';
+      selectPeriodicidade.value = 'Mensal';
+      campoDiaVencimento.value = '10';
+      campoDataInicio.value = new Date().toISOString().slice(0, 10);
+      campoDataTermino.value = '';
+      selectFormaPagamento.value = '';
+      selectStatus.value = 'Ativa';
+      modal.classList.remove('hidden');
+    }
+
+    window.abrirModalContaRecorrente = function (item) {
+      idAtual = item.id;
+      titulo.firstChild.textContent = 'Editar conta recorrente';
+      erroEl.textContent = '';
+      campoDescricao.value = item.descricao || '';
+      campoCategoria.value = item.categoria || '';
+      campoValor.value = item.valor || '';
+      selectPeriodicidade.value = item.periodicidade || 'Mensal';
+      campoDiaVencimento.value = item.dia_vencimento || '';
+      campoDataInicio.value = item.data_inicio ? item.data_inicio.split('T')[0] : '';
+      campoDataTermino.value = item.data_termino ? item.data_termino.split('T')[0] : '';
+      selectFormaPagamento.value = item.forma_pagamento || '';
+      selectStatus.value = item.status || 'Ativa';
+      modal.classList.remove('hidden');
+    };
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    btnAbrir.addEventListener('click', abrirModalCriar);
+    document.getElementById('ncrec-fechar').addEventListener('click', fecharModal);
+    document.getElementById('ncrec-cancelar').addEventListener('click', fecharModal);
+    document.getElementById('ncrec-data-inicio-hoje').addEventListener('click', function () {
+      campoDataInicio.value = new Date().toISOString().slice(0, 10);
+    });
+    document.getElementById('ncrec-data-termino-hoje').addEventListener('click', function () {
+      campoDataTermino.value = new Date().toISOString().slice(0, 10);
+    });
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      if (!campoDescricao.value.trim()) { erroEl.textContent = 'Informe a descrição.'; return; }
+      if (!campoValor.value) { erroEl.textContent = 'Informe o valor.'; return; }
+      if (!campoDiaVencimento.value) { erroEl.textContent = 'Informe o dia do vencimento.'; return; }
+      if (!campoDataInicio.value) { erroEl.textContent = 'Informe a data de início.'; return; }
+      var corpo = {
+        tipo: idAtual ? 'conta_recorrente_editar' : 'conta_recorrente_criar',
+        descricao: campoDescricao.value.trim(),
+        categoria: campoCategoria.value.trim(),
+        valor: campoValor.value,
+        periodicidade: selectPeriodicidade.value,
+        dia_vencimento: campoDiaVencimento.value,
+        data_inicio: fmtDataCurta(campoDataInicio.value),
+        data_termino: campoDataTermino.value ? fmtDataCurta(campoDataTermino.value) : '',
+        forma_pagamento: selectFormaPagamento.value,
+        status: selectStatus.value,
+      };
+      if (idAtual) corpo.id = idAtual;
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function () {
+          fecharModal();
+          carregarContasRecorrentes();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
     });
   }
 
