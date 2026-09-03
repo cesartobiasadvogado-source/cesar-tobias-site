@@ -2752,20 +2752,6 @@
             '<button type="button" class="btn-conexao" id="eparcela-salvar">Salvar</button>' +
           '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="modal-overlay hidden" id="modal-receber-parcela">' +
-        '<div class="ncontrato-modal-caixa">' +
-          '<h3>Registrar recebimento<button type="button" class="modal-drill-fechar" id="rparcela-fechar">✕</button></h3>' +
-          '<div class="ncontrato-campo">' +
-            '<label id="rparcela-cliente-label" for="rparcela-valor">Valor recebido (R$)</label>' +
-            '<input type="text" id="rparcela-valor">' +
-          '</div>' +
-          '<div class="ncontrato-erro" id="rparcela-erro"></div>' +
-          '<div class="ncontrato-acoes">' +
-            '<button type="button" class="btn-conexao-secundario" id="rparcela-cancelar">Cancelar</button>' +
-            '<button type="button" class="btn-conexao" id="rparcela-salvar">Confirmar</button>' +
-          '</div>' +
-        '</div>' +
       '</div>';
 
     var htmlDespesasProcesso =
@@ -3209,7 +3195,7 @@
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
-      wireEditarParcelaModal(); wireReceberParcelaModal(); carregarParcelasAReceber();
+      wireEditarParcelaModal(); carregarParcelasAReceber();
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
       wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
@@ -4274,22 +4260,19 @@
           var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
           var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
           if (!itemReceber) { window.alert('Não encontrei essa parcela na lista carregada (id ' + idReceber + '). Atualize a página e tente de novo.'); return; }
-          // window.prompt em vez de modal customizado -- caixa nativa do navegador, sempre
-          // aparece na frente de tudo, sem depender de CSS/z-index/cache do resto da pagina.
-          var valorDigitadoReceber = window.prompt('Valor recebido de ' + itemReceber.nome_cliente + ' (R$)', fmtMoeda(itemReceber.saldo));
-          if (valorDigitadoReceber === null) return;
-          valorDigitadoReceber = valorDigitadoReceber.trim();
-          if (!valorDigitadoReceber) { window.alert('Informe um valor.'); return; }
-          var textoOriginalReceber = btnReceber.textContent;
-          btnReceber.disabled = true;
-          btnReceber.textContent = 'Registrando...';
-          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber, valor: valorDigitadoReceber })
-            .then(function () { carregarParcelasAReceber(); })
-            .catch(function (e) {
-              window.alert(e.message || 'Não foi possível registrar o recebimento agora.');
-              btnReceber.disabled = false;
-              btnReceber.textContent = textoOriginalReceber;
-            });
+          pedirValorRecebido(itemReceber).then(function (valorDigitadoReceber) {
+            if (valorDigitadoReceber === null) return;
+            var textoOriginalReceber = btnReceber.textContent;
+            btnReceber.disabled = true;
+            btnReceber.textContent = 'Registrando...';
+            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber, valor: valorDigitadoReceber })
+              .then(function () { carregarParcelasAReceber(); })
+              .catch(function (e) {
+                window.alert(e.message || 'Não foi possível registrar o recebimento agora.');
+                btnReceber.disabled = false;
+                btnReceber.textContent = textoOriginalReceber;
+              });
+          });
           return;
         }
 
@@ -4367,44 +4350,66 @@
   // Registrar recebimento de uma parcela -- pre-preenche com o saldo em aberto, mas deixa
   // editar (cliente as vezes manda so parte da parcela); manda pro mesmo
   // financeiro_parcela_receber, que ja aceita um valor customizado (default: saldo cheio).
-  function wireReceberParcelaModal() {
-    var modal = document.getElementById('modal-receber-parcela');
-    if (!modal) return;
-    var labelCliente = document.getElementById('rparcela-cliente-label');
-    var campoValor = document.getElementById('rparcela-valor');
-    var erroEl = document.getElementById('rparcela-erro');
-    var btnSalvar = document.getElementById('rparcela-salvar');
-    var idAtual = null;
-    aplicarMascaraMoeda(campoValor);
-
-    function fecharModal() { modal.classList.add('hidden'); }
-
-    window.abrirModalReceberParcela = function (item) {
-      idAtual = item.id;
+  // Cria o overlay direto no <body> (mesmo padrao de escolherTipoCobranca/confirmarDigitando)
+  // em vez de deixar o HTML dentro do conteudo da aba -- um modal embutido la dentro nao estava
+  // aparecendo (provavel ancestral com transform/contain quebrando o position:fixed).
+  function pedirValorRecebido(item) {
+    return new Promise(function (resolve) {
+      var overlay = document.getElementById('receber-valor-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'receber-valor-overlay';
+        overlay.className = 'modal-overlay hidden';
+        overlay.innerHTML =
+          '<div class="confirm-modal-caixa">' +
+            '<div class="confirm-modal-titulo" id="receber-valor-titulo"></div>' +
+            '<div class="ncontrato-campo" style="margin-top:14px; text-align:left;">' +
+              '<label for="receber-valor-input">Valor recebido (R$)</label>' +
+              '<input type="text" id="receber-valor-input" autocomplete="off">' +
+            '</div>' +
+            '<div class="ncontrato-erro" id="receber-valor-erro"></div>' +
+            '<div class="confirm-modal-acoes">' +
+              '<button type="button" class="btn-conexao-secundario" id="receber-valor-cancelar">Cancelar</button>' +
+              '<button type="button" class="btn-conexao" id="receber-valor-ok">Confirmar</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+        aplicarMascaraMoeda(document.getElementById('receber-valor-input'));
+      }
+      document.getElementById('receber-valor-titulo').textContent = 'Valor recebido de ' + item.nome_cliente;
+      var input = document.getElementById('receber-valor-input');
+      var erroEl = document.getElementById('receber-valor-erro');
+      var btnOk = document.getElementById('receber-valor-ok');
+      var btnCancelar = document.getElementById('receber-valor-cancelar');
       erroEl.textContent = '';
-      labelCliente.textContent = 'Valor recebido de ' + item.nome_cliente + ' (R$)';
-      campoValor.value = fmtMoeda(item.saldo);
-      modal.classList.remove('hidden');
-      campoValor.focus();
-      campoValor.select();
-    };
+      input.value = fmtMoeda(item.saldo);
 
-    document.getElementById('rparcela-fechar').addEventListener('click', fecharModal);
-    document.getElementById('rparcela-cancelar').addEventListener('click', fecharModal);
-    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+      function limpar(resultado) {
+        overlay.classList.add('hidden');
+        btnCancelar.removeEventListener('click', onCancelar);
+        btnOk.removeEventListener('click', onOk);
+        overlay.removeEventListener('click', onOverlay);
+        document.removeEventListener('keydown', onEsc);
+        input.removeEventListener('keydown', onEnter);
+        resolve(resultado);
+      }
+      function onCancelar() { limpar(null); }
+      function onOk() {
+        if (!input.value.trim()) { erroEl.textContent = 'Informe o valor recebido.'; return; }
+        limpar(input.value.trim());
+      }
+      function onOverlay(e) { if (e.target === overlay) limpar(null); }
+      function onEsc(e) { if (e.key === 'Escape') limpar(null); }
+      function onEnter(e) { if (e.key === 'Enter') onOk(); }
 
-    btnSalvar.addEventListener('click', function () {
-      erroEl.textContent = '';
-      if (!campoValor.value) { erroEl.textContent = 'Informe o valor recebido.'; return; }
-      btnSalvar.disabled = true;
-      btnSalvar.textContent = 'Registrando…';
-      apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idAtual, valor: campoValor.value })
-        .then(function () {
-          fecharModal();
-          carregarParcelasAReceber();
-        })
-        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível registrar o recebimento agora.'; })
-        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Confirmar'; });
+      btnCancelar.addEventListener('click', onCancelar);
+      btnOk.addEventListener('click', onOk);
+      overlay.addEventListener('click', onOverlay);
+      document.addEventListener('keydown', onEsc);
+      input.addEventListener('keydown', onEnter);
+      overlay.classList.remove('hidden');
+      input.focus();
+      input.select();
     });
   }
 
