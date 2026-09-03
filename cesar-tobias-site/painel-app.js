@@ -407,6 +407,22 @@
     return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  // Mascara de valor em R$ pra todo campo de dinheiro da plataforma -- o usuario so digita os
+  // numeros (ex: "225750") e o campo formata sozinho como "2.257,50" a cada tecla, tratando os
+  // dois ultimos digitos como centavos (padrao de caixa eletronico/maquininha, o mais comum em
+  // apps financeiros BR). Existe porque <input type="number"> nao aceita virgula em nenhum
+  // navegador (so ponto), e o back-end (valor_para_float) espera exatamente o formato BR --
+  // por isso o campo precisa ser type="text", nao type="number", pra poder mostrar "2.257,50".
+  function aplicarMascaraMoeda(input) {
+    if (!input) return;
+    input.setAttribute('inputmode', 'decimal');
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('input', function () {
+      var digitos = input.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      input.value = digitos ? (parseInt(digitos, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+    });
+  }
+
   var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   function esc(valor) {
     return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -2633,7 +2649,7 @@
           '</div>' +
           '<div class="ncontrato-campo" id="ncontrato-campo-valor">' +
             '<label for="ncontrato-valor">Valor base (R$)</label>' +
-            '<input type="number" step="0.01" min="0" id="ncontrato-valor" placeholder="0,00">' +
+            '<input type="text" id="ncontrato-valor" placeholder="0,00">' +
           '</div>' +
           '<div class="ncontrato-campo hidden" id="ncontrato-campo-percentual">' +
             '<label for="ncontrato-percentual">% de honorários de êxito</label>' +
@@ -2642,7 +2658,7 @@
           '<div class="ncontrato-linha2 hidden" id="ncontrato-linha-entrada">' +
             '<div class="ncontrato-campo">' +
               '<label for="ncontrato-valor-entrada">Valor de entrada (R$)</label>' +
-              '<input type="number" step="0.01" min="0" id="ncontrato-valor-entrada" placeholder="0,00">' +
+              '<input type="text" id="ncontrato-valor-entrada" placeholder="0,00">' +
             '</div>' +
             '<div class="ncontrato-campo">' +
               '<label for="ncontrato-data-entrada">Data de pagamento da entrada</label>' +
@@ -2699,7 +2715,7 @@
             '</div>' +
             '<div class="ncontrato-campo">' +
               '<label for="econtrato-valor-recebido">Valor recebido pelo cliente (R$)</label>' +
-              '<input type="number" step="0.01" min="0" id="econtrato-valor-recebido" placeholder="deixe em branco se ainda não recebeu">' +
+              '<input type="text" id="econtrato-valor-recebido" placeholder="deixe em branco se ainda não recebeu">' +
             '</div>' +
           '</div>' +
           '<div class="ncontrato-campo hidden" id="econtrato-campo-situacao">' +
@@ -2723,7 +2739,7 @@
           '<div class="ncontrato-linha2">' +
             '<div class="ncontrato-campo">' +
               '<label for="eparcela-valor">Valor da parcela (R$)</label>' +
-              '<input type="number" step="0.01" min="0" id="eparcela-valor">' +
+              '<input type="text" id="eparcela-valor">' +
             '</div>' +
             '<div class="ncontrato-campo">' +
               '<label for="eparcela-vencimento">Vencimento</label>' +
@@ -2797,7 +2813,7 @@
           '<div class="ncontrato-linha2">' +
             '<div class="ncontrato-campo">' +
               '<label for="ndespesa-valor">Valor (R$)</label>' +
-              '<input type="number" step="0.01" min="0" id="ndespesa-valor" placeholder="0,00">' +
+              '<input type="text" id="ndespesa-valor" placeholder="0,00">' +
             '</div>' +
             '<div class="ncontrato-campo">' +
               '<label for="ndespesa-data">Data</label>' +
@@ -2882,7 +2898,7 @@
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncpagar-valor">Valor (R$) *</label>' +
-            '<input type="number" step="0.01" min="0" id="ncpagar-valor">' +
+            '<input type="text" id="ncpagar-valor">' +
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncpagar-vencimento">Data vencimento *</label>' +
@@ -2907,7 +2923,7 @@
           '<h3>Registrar pagamento<button type="button" class="modal-drill-fechar" id="pcpagar-fechar">✕</button></h3>' +
           '<div class="ncontrato-campo">' +
             '<label for="pcpagar-valor">Valor pago (R$)</label>' +
-            '<input type="number" step="0.01" min="0" id="pcpagar-valor">' +
+            '<input type="text" id="pcpagar-valor">' +
           '</div>' +
           '<div class="ncontrato-erro" id="pcpagar-erro"></div>' +
           '<div class="ncontrato-acoes">' +
@@ -2956,7 +2972,7 @@
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncrec-valor">Valor (R$) *</label>' +
-            '<input type="number" step="0.01" min="0" id="ncrec-valor">' +
+            '<input type="text" id="ncrec-valor">' +
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncrec-periodicidade">Periodicidade *</label>' +
@@ -4298,6 +4314,7 @@
     var erroEl = document.getElementById('eparcela-erro');
     var btnSalvar = document.getElementById('eparcela-salvar');
     var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
 
     function fecharModal() { modal.classList.add('hidden'); }
 
@@ -4305,7 +4322,7 @@
       idAtual = item.id;
       erroEl.textContent = '';
       campoDescricao.value = item.tipo_servico || '';
-      campoValor.value = item.status === 'Paga' ? item.valor_parcela : item.saldo;
+      campoValor.value = fmtMoeda(item.status === 'Paga' ? item.valor_parcela : item.saldo);
       campoVencimento.value = item.data_vencimento ? item.data_vencimento.split('T')[0] : '';
       modal.classList.remove('hidden');
     };
@@ -4456,6 +4473,7 @@
     var btnSalvar = document.getElementById('ndespesa-salvar');
     var opcoesCarregadas = false;
     var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
 
     function carregarOpcoesProcesso() {
       if (opcoesCarregadas) return;
@@ -4490,7 +4508,7 @@
       selectProcesso.value = item.processo_numero || '';
       selectTipo.value = item.tipo || 'Outros';
       campoDescricao.value = item.descricao || '';
-      campoValor.value = item.valor || '';
+      campoValor.value = item.valor ? fmtMoeda(item.valor) : '';
       campoData.value = item.data ? item.data.split('T')[0] : '';
       campoReembolsavel.checked = !!item.reembolsavel;
       modal.classList.remove('hidden');
@@ -4688,6 +4706,7 @@
     var erroEl = document.getElementById('ncpagar-erro');
     var btnSalvar = document.getElementById('ncpagar-salvar');
     var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
 
     function abrirModalCriar() {
       idAtual = null;
@@ -4707,7 +4726,7 @@
       erroEl.textContent = '';
       campoDescricao.value = item.descricao || '';
       campoCategoria.value = item.categoria || '';
-      campoValor.value = item.valor || '';
+      campoValor.value = item.valor ? fmtMoeda(item.valor) : '';
       campoVencimento.value = item.vencimento ? item.vencimento.split('T')[0] : '';
       campoObservacoes.value = item.observacoes || '';
       modal.classList.remove('hidden');
@@ -4756,11 +4775,12 @@
     var erroEl = document.getElementById('pcpagar-erro');
     var btnSalvar = document.getElementById('pcpagar-salvar');
     var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
 
     window.abrirModalPagarConta = function (item) {
       idAtual = item.id;
       erroEl.textContent = '';
-      campoValor.value = Math.max((item.valor || 0) - (item.valor_pago || 0), 0);
+      campoValor.value = fmtMoeda(Math.max((item.valor || 0) - (item.valor_pago || 0), 0));
       modal.classList.remove('hidden');
     };
 
@@ -4898,6 +4918,7 @@
     var erroEl = document.getElementById('ncrec-erro');
     var btnSalvar = document.getElementById('ncrec-salvar');
     var idAtual = null;
+    aplicarMascaraMoeda(campoValor);
 
     function abrirModalCriar() {
       idAtual = null;
@@ -4921,7 +4942,7 @@
       erroEl.textContent = '';
       campoDescricao.value = item.descricao || '';
       campoCategoria.value = item.categoria || '';
-      campoValor.value = item.valor || '';
+      campoValor.value = item.valor ? fmtMoeda(item.valor) : '';
       selectPeriodicidade.value = item.periodicidade || 'Mensal';
       campoDiaVencimento.value = item.dia_vencimento || '';
       campoDataInicio.value = item.data_inicio ? item.data_inicio.split('T')[0] : '';
@@ -4992,6 +5013,8 @@
     var erroEl = document.getElementById('ncontrato-erro');
     var btnSalvar = document.getElementById('ncontrato-salvar');
     var opcoesCarregadas = false;
+    aplicarMascaraMoeda(document.getElementById('ncontrato-valor'));
+    aplicarMascaraMoeda(document.getElementById('ncontrato-valor-entrada'));
 
     function atualizarCamposPorTipo() {
       var tipo = selectTipo.value;
@@ -5101,6 +5124,7 @@
     var btnSalvar = document.getElementById('econtrato-salvar');
     var tipoRegistroAtual = null;
     var idAtual = null;
+    aplicarMascaraMoeda(campoValorRecebido);
 
     function fecharModal() { modal.classList.add('hidden'); }
 
