@@ -94,6 +94,19 @@
 
   .processo-cabecalho { padding: 14px 16px; cursor: pointer; border: none; background: none; width: 100%; text-align: left; font: inherit; color: inherit; display: block; }
   .processo-cabecalho:hover { background: var(--surface-sunken); }
+  .situacao-atual-card {
+    display: flex; flex-direction: column; gap: 2px; margin-top: 9px; padding: 10px 12px;
+    border-radius: 8px; border-left: 3px solid var(--ink-faint); background: var(--surface-sunken);
+  }
+  .situacao-atual-card.crit { border-left-color: var(--crit); background: var(--crit-soft); }
+  .situacao-atual-card.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .situacao-atual-card.good { border-left-color: var(--good); background: var(--good-soft); }
+  .situacao-atual-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+  .situacao-atual-card.crit .situacao-atual-label { color: var(--crit); }
+  .situacao-atual-card.warn .situacao-atual-label { color: var(--warn); }
+  .situacao-atual-card.good .situacao-atual-label { color: var(--good); }
+  .situacao-atual-texto { font-size: 14px; font-weight: 600; color: var(--ink); margin-top: 1px; }
+  .situacao-atual-data { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
   .processo-corpo { display: none; padding: 0 16px 16px; }
   .processo-corpo.aberto { display: block; }
   .timeline { border-left: 2px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
@@ -165,6 +178,15 @@
 
   function fmtMoeda(v) {
     return (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Mesma classificação usada no aviso de WhatsApp do escritório (pje.categorizar_comunicacao_pje)
+  // -- só reaplicada aqui pra colorir o card de "situação atual", não é uma regra nova.
+  function classeSituacaoAtual(status) {
+    var s = (status || '').toUpperCase();
+    if (/SENTENÇA|SENTENCA|ACÓRDÃO|ACORDAO|CITAÇÃO|CITACAO|DECISÃO|DECISAO/.test(s)) return 'crit';
+    if (/INTIMAÇÃO|INTIMACAO/.test(s)) return 'warn';
+    return 'good';
   }
 
   var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -321,7 +343,11 @@
 
           return '<button type="button" class="processo-cabecalho" data-toggle-processo="' + idx + '" aria-expanded="false" aria-controls="processo-corpo-' + idx + '">' +
             '<div class="item-titulo">' + esc(p.processo) + '</div>' +
-            '<div class="item-sub">' + esc(p.status_atual) + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div>' +
+            '<div class="situacao-atual-card ' + classeSituacaoAtual(p.status_atual) + '">' +
+              '<span class="situacao-atual-label">Situação atual</span>' +
+              '<span class="situacao-atual-texto">' + esc(p.status_atual) + '</span>' +
+              '<span class="situacao-atual-data">Atualizado em ' + esc(p.ultima_movimentacao) + '</span>' +
+            '</div>' +
             (p.proximo_prazo ? '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' : '') +
             (p.proxima_audiencia ? '<span class="chip crit" style="margin-left:6px;">Audiência ' + esc(p.proxima_audiencia) + '</span>' : '') +
           '</button>' +
