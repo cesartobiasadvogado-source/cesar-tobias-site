@@ -2493,6 +2493,85 @@
         '</div>' +
       '</div>';
 
+    var htmlDespesasProcesso =
+      '<div class="panel" style="margin-bottom:14px;">' +
+        '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
+        '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+          '<div style="min-width:200px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Processo</label>' +
+            '<select id="despfiltro-processo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os processos</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Tipo</label>' +
+            '<select id="despfiltro-tipo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os tipos</option>' +
+              '<option value="Custas">Custas</option>' +
+              '<option value="Honorários de terceiros">Honorários de terceiros</option>' +
+              '<option value="Outros">Outros</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:150px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Data de</label>' +
+            '<input type="date" id="despfiltro-data-de" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+          '</div>' +
+          '<div style="min-width:150px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Data até</label>' +
+            '<input type="date" id="despfiltro-data-ate" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+          '</div>' +
+          '<button type="button" class="btn-conexao" id="despfiltro-buscar">Buscar</button>' +
+          '<button type="button" class="btn-conexao-secundario" id="despfiltro-limpar">Limpar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Despesas do processo</span>' +
+          '<button type="button" class="btn-conexao" id="btn-nova-despesa">+ Nova despesa</button>' +
+        '</div>' +
+        '<div id="despesas-processo-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-nova-despesa">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3 id="ndespesa-titulo">Nova despesa<button type="button" class="modal-drill-fechar" id="ndespesa-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ndespesa-processo">Processo *</label>' +
+            '<select id="ndespesa-processo"><option value="">Selecione</option></select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ndespesa-tipo">Tipo</label>' +
+            '<select id="ndespesa-tipo">' +
+              '<option value="Custas">Custas</option>' +
+              '<option value="Honorários de terceiros">Honorários de terceiros</option>' +
+              '<option value="Outros">Outros</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ndespesa-descricao">Descrição</label>' +
+            '<input type="text" id="ndespesa-descricao">' +
+          '</div>' +
+          '<div class="ncontrato-linha2">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="ndespesa-valor">Valor (R$)</label>' +
+              '<input type="number" step="0.01" min="0" id="ndespesa-valor" placeholder="0,00">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label for="ndespesa-data">Data</label>' +
+              '<input type="date" id="ndespesa-data">' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label style="display:flex; align-items:center; gap:8px; font-weight:500;">' +
+              '<input type="checkbox" id="ndespesa-reembolsavel" checked style="width:auto;"> Reembolsável pelo cliente' +
+            '</label>' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="ndespesa-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="ndespesa-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="ndespesa-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
     var htmlFinanceiroNovo =
       '<section id="sec-financeiro-novo">' +
         '<p class="section-label">Financeiro</p>' +
@@ -2512,9 +2591,7 @@
             '<div id="financeiro-parcelas-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '</div>' +
         '</div>' +
-        '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' +
-          htmlFinEmBreve('Registro de custas, honorários de terceiros e outras despesas vinculadas a cada processo. Ainda não foi construído — avise se quiser priorizar.') +
-        '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' + htmlDespesasProcesso + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' +
           htmlFinEmBreve('Controle de contas do escritório a pagar, com vencimento e status. Ainda não foi construído — avise se quiser priorizar.') +
         '</div>' +
@@ -2612,6 +2689,7 @@
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
       wireEditarParcelaModal(); carregarParcelasAReceber();
+      wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3685,6 +3763,203 @@
         .then(function () {
           fecharModal();
           carregarParcelasAReceber();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
+  }
+
+  var despesasProcessoCache = [];
+
+  function lerFiltrosDespesas() {
+    var elProcesso = document.getElementById('despfiltro-processo');
+    var elTipo = document.getElementById('despfiltro-tipo');
+    var elDataDe = document.getElementById('despfiltro-data-de');
+    var elDataAte = document.getElementById('despfiltro-data-ate');
+    return {
+      processo: elProcesso ? elProcesso.value : '',
+      tipo: elTipo ? elTipo.value : '',
+      dataDe: elDataDe ? elDataDe.value : '',
+      dataAte: elDataAte ? elDataAte.value : '',
+    };
+  }
+
+  function despesaPassaFiltro(d, filtros) {
+    if (filtros.processo && d.processo_numero !== filtros.processo) return false;
+    if (filtros.tipo && d.tipo !== filtros.tipo) return false;
+    var dataDespesa = (d.data || '').split('T')[0];
+    if (filtros.dataDe && dataDespesa && dataDespesa < filtros.dataDe) return false;
+    if (filtros.dataAte && dataDespesa && dataDespesa > filtros.dataAte) return false;
+    return true;
+  }
+
+  function renderDespesasProcesso() {
+    var container = document.getElementById('despesas-processo-lista');
+    if (!container) return;
+    var filtros = lerFiltrosDespesas();
+    var despesas = despesasProcessoCache.filter(function (d) { return despesaPassaFiltro(d, filtros); });
+    if (despesas.length === 0) {
+      var temFiltroAtivo = filtros.processo || filtros.tipo || filtros.dataDe || filtros.dataAte;
+      container.innerHTML = '<div class="empty-state"><div class="msg">' +
+        (temFiltroAtivo ? 'Nenhuma despesa encontrada com esses filtros.' : 'Nenhuma despesa cadastrada ainda. Use "+ Nova despesa" pra adicionar.') +
+        '</div></div>';
+      return;
+    }
+    var linhas = despesas.map(function (d) {
+      return '<tr><td>' + esc(d.processo_numero) + '</td>' +
+        '<td>' + esc(d.tipo) + '</td>' +
+        '<td>' + esc(d.descricao || '—') + '</td>' +
+        '<td>' + (d.data ? fmtDataCurta(d.data) : '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(d.valor) + '</td>' +
+        '<td>' + (d.reembolsavel ? '<span class="chip neutral">Sim</span>' : '<span class="chip neutral">Não</span>') + '</td>' +
+        '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+          '<button type="button" class="btn-editar" data-editar-despesa-id="' + esc(d.id) + '">Editar</button>' +
+          '<button type="button" class="btn-remover" data-excluir-despesa-id="' + esc(d.id) + '">Excluir</button>' +
+        '</div></td></tr>';
+    }).join('');
+    container.innerHTML = '<div class="table-scroll"><table>' +
+      '<thead><tr><th>Processo</th><th>Tipo</th><th>Descrição</th><th>Data</th>' +
+      '<th style="text-align:right">Valor</th><th>Reemb.</th><th>Ações</th></tr></thead>' +
+      '<tbody>' + linhas + '</tbody></table></div>';
+
+    container.querySelectorAll('[data-editar-despesa-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = despesasProcessoCache.filter(function (d) { return String(d.id) === btn.getAttribute('data-editar-despesa-id'); })[0];
+        if (item && window.abrirModalDespesa) window.abrirModalDespesa(item);
+      });
+    });
+    container.querySelectorAll('[data-excluir-despesa-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idExcluir = btn.getAttribute('data-excluir-despesa-id');
+        confirmarModal('Excluir essa despesa? Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          btn.disabled = true;
+          apiPostJson('/api/painel?acao=executar', { tipo: 'despesa_processo_excluir', id: idExcluir })
+            .then(function () { carregarDespesasProcesso(); })
+            .catch(function (e) {
+              alert(e.message || 'Não foi possível excluir agora.');
+              btn.disabled = false;
+            });
+        });
+      });
+    });
+  }
+
+  function carregarDespesasProcesso() {
+    var container = document.getElementById('despesas-processo-lista');
+    if (!container) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'despesa_processo_listar' })
+      .then(function (dados) {
+        despesasProcessoCache = dados.despesas || [];
+        renderDespesasProcesso();
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as despesas agora.</div></div>';
+      });
+  }
+
+  function wireFiltroDespesas() {
+    var selectProcesso = document.getElementById('despfiltro-processo');
+    if (!selectProcesso) return;
+    apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) {
+      selectProcesso.innerHTML = '<option value="">Todos os processos</option>' +
+        (d.processos || []).map(function (p) {
+          return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
+        }).join('');
+    }).catch(function () {});
+    document.getElementById('despfiltro-buscar').addEventListener('click', renderDespesasProcesso);
+    document.getElementById('despfiltro-limpar').addEventListener('click', function () {
+      selectProcesso.value = '';
+      document.getElementById('despfiltro-tipo').value = '';
+      document.getElementById('despfiltro-data-de').value = '';
+      document.getElementById('despfiltro-data-ate').value = '';
+      renderDespesasProcesso();
+    });
+  }
+
+  // Modal unico de "Nova despesa" / "Editar despesa" -- idAtual null = criar, preenchido = editar
+  // (mesmo padrao de reaproveitar um so modal ja usado em wireEditarContratoModal).
+  function wireNovaDespesaModal() {
+    var btnAbrir = document.getElementById('btn-nova-despesa');
+    var modal = document.getElementById('modal-nova-despesa');
+    if (!btnAbrir || !modal) return;
+    var titulo = document.getElementById('ndespesa-titulo');
+    var selectProcesso = document.getElementById('ndespesa-processo');
+    var selectTipo = document.getElementById('ndespesa-tipo');
+    var campoDescricao = document.getElementById('ndespesa-descricao');
+    var campoValor = document.getElementById('ndespesa-valor');
+    var campoData = document.getElementById('ndespesa-data');
+    var campoReembolsavel = document.getElementById('ndespesa-reembolsavel');
+    var erroEl = document.getElementById('ndespesa-erro');
+    var btnSalvar = document.getElementById('ndespesa-salvar');
+    var opcoesCarregadas = false;
+    var idAtual = null;
+
+    function carregarOpcoesProcesso() {
+      if (opcoesCarregadas) return;
+      opcoesCarregadas = true;
+      apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) {
+        selectProcesso.innerHTML = '<option value="">Selecione</option>' +
+          (d.processos || []).map(function (p) {
+            return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
+          }).join('');
+      }).catch(function () {});
+    }
+
+    function abrirModalCriar() {
+      idAtual = null;
+      titulo.firstChild.textContent = 'Nova despesa';
+      erroEl.textContent = '';
+      carregarOpcoesProcesso();
+      selectProcesso.value = '';
+      selectTipo.value = 'Custas';
+      campoDescricao.value = '';
+      campoValor.value = '';
+      campoData.value = new Date().toISOString().slice(0, 10);
+      campoReembolsavel.checked = true;
+      modal.classList.remove('hidden');
+    }
+
+    window.abrirModalDespesa = function (item) {
+      idAtual = item.id;
+      titulo.firstChild.textContent = 'Editar despesa';
+      erroEl.textContent = '';
+      carregarOpcoesProcesso();
+      selectProcesso.value = item.processo_numero || '';
+      selectTipo.value = item.tipo || 'Outros';
+      campoDescricao.value = item.descricao || '';
+      campoValor.value = item.valor || '';
+      campoData.value = item.data ? item.data.split('T')[0] : '';
+      campoReembolsavel.checked = !!item.reembolsavel;
+      modal.classList.remove('hidden');
+    };
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    btnAbrir.addEventListener('click', abrirModalCriar);
+    document.getElementById('ndespesa-fechar').addEventListener('click', fecharModal);
+    document.getElementById('ndespesa-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      if (!selectProcesso.value) { erroEl.textContent = 'Selecione o processo.'; return; }
+      var corpo = {
+        tipo: idAtual ? 'despesa_processo_editar' : 'despesa_processo_criar',
+        processo_numero: selectProcesso.value,
+        tipo_despesa: selectTipo.value,
+        descricao: campoDescricao.value.trim(),
+        valor: campoValor.value,
+        data_despesa: campoData.value ? fmtDataCurta(campoData.value) : '',
+        reembolsavel: campoReembolsavel.checked ? 'true' : 'false',
+      };
+      if (idAtual) corpo.id = idAtual;
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function () {
+          fecharModal();
+          carregarDespesasProcesso();
         })
         .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
         .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });

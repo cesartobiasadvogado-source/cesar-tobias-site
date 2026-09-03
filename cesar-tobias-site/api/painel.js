@@ -261,7 +261,7 @@ module.exports = async (req, res) => {
       return;
     }
     var url2 = base + '?action=painel_acao&token=' + encodeURIComponent(tokenSessao) + segredoQS;
-    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento', 'entrada', 'parcelas', 'data_entrada', 'dia_vencimento', 'percentual_honorarios', 'percentual_recursal', 'campos_extra', 'linha_contrato', 'numero_parcela', 'prazo_dias', 'clausula_honorarios', 'descricao_debito', 'pdf_id', 'email', 'whatsapp', 'valor_total', 'valor_entrada', 'forma_pagamento', 'num_parcelas', 'data_inicio', 'data_primeira_parcela', 'mes', 'percentual_exito', 'valor_recebido_cliente', 'status', 'tipo_contrato', 'processo_numero', 'periodicidade', 'id', 'tipo_registro', 'usar_asaas'];
+    var camposPermitidos = ['tipo', 'nome', 'tipo_servico', 'descricao', 'endereco', 'etapa', 'origem', 'midia', 'campanha', 'resposta', 'valor', 'vencimento', 'entrada', 'parcelas', 'data_entrada', 'dia_vencimento', 'percentual_honorarios', 'percentual_recursal', 'campos_extra', 'linha_contrato', 'numero_parcela', 'prazo_dias', 'clausula_honorarios', 'descricao_debito', 'pdf_id', 'email', 'whatsapp', 'valor_total', 'valor_entrada', 'forma_pagamento', 'num_parcelas', 'data_inicio', 'data_primeira_parcela', 'mes', 'percentual_exito', 'valor_recebido_cliente', 'status', 'tipo_contrato', 'processo_numero', 'periodicidade', 'id', 'tipo_registro', 'usar_asaas', 'tipo_despesa', 'data_despesa', 'reembolsavel'];
     camposPermitidos.forEach(function (campo) {
       if (corpo[campo]) {
         url2 += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
