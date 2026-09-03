@@ -2586,6 +2586,102 @@
         '</div>' +
       '</div>';
 
+    var htmlContasPagar =
+      '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">' +
+        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-pendente" style="color:var(--warn);">0,00</div><div class="stat-label">Total pendente</div></div>' +
+        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-pago" style="color:var(--good);">0,00</div><div class="stat-label">Total pago</div></div>' +
+        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-atraso" style="color:var(--crit);">0,00</div><div class="stat-label">Total em atraso</div></div>' +
+      '</div>' +
+      '<div class="panel" style="margin-bottom:14px;">' +
+        '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
+        '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<select id="cpagarfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<option value="">Todos os status</option>' +
+              '<option value="Aberta">Aberta</option>' +
+              '<option value="Parcial">Parcial</option>' +
+              '<option value="Paga">Paga</option>' +
+              '<option value="Cancelada">Cancelada</option>' +
+              '<option value="Vencida">Vencidas</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="min-width:150px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Vencimento de</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="date" id="cpagarfiltro-data-de" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<button type="button" class="btn-conexao-secundario" id="cpagarfiltro-data-de-hoje" style="padding:4px 10px; font-size:12.5px;">Hoje</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="min-width:150px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Vencimento até</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="date" id="cpagarfiltro-data-ate" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+              '<button type="button" class="btn-conexao-secundario" id="cpagarfiltro-data-ate-hoje" style="padding:4px 10px; font-size:12.5px;">Hoje</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="min-width:160px;">' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Categoria</label>' +
+            '<input type="text" id="cpagarfiltro-categoria" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
+          '</div>' +
+          '<button type="button" class="btn-conexao" id="cpagarfiltro-buscar">Buscar</button>' +
+          '<button type="button" class="btn-conexao-secundario" id="cpagarfiltro-limpar">Limpar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Contas a pagar</span>' +
+          '<button type="button" class="btn-conexao" id="btn-nova-conta-pagar">+ Nova conta</button>' +
+        '</div>' +
+        '<div id="contas-pagar-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-nova-conta-pagar">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3 id="ncpagar-titulo">Nova conta a pagar<button type="button" class="modal-drill-fechar" id="ncpagar-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncpagar-descricao">Descrição *</label>' +
+            '<input type="text" id="ncpagar-descricao">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncpagar-categoria">Categoria</label>' +
+            '<input type="text" id="ncpagar-categoria" placeholder="ex: aluguel, internet, software">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncpagar-valor">Valor (R$) *</label>' +
+            '<input type="number" step="0.01" min="0" id="ncpagar-valor">' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncpagar-vencimento">Data vencimento *</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="date" id="ncpagar-vencimento" style="flex:1;">' +
+              '<button type="button" class="btn-conexao-secundario" id="ncpagar-vencimento-hoje" style="padding:4px 10px; font-size:12.5px;">Hoje</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncpagar-observacoes">Observações</label>' +
+            '<textarea id="ncpagar-observacoes" rows="3" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit; resize:vertical;"></textarea>' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="ncpagar-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="ncpagar-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="ncpagar-salvar">Salvar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-overlay hidden" id="modal-pagar-conta-pagar">' +
+        '<div class="ncontrato-modal-caixa">' +
+          '<h3>Registrar pagamento<button type="button" class="modal-drill-fechar" id="pcpagar-fechar">✕</button></h3>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="pcpagar-valor">Valor pago (R$)</label>' +
+            '<input type="number" step="0.01" min="0" id="pcpagar-valor">' +
+          '</div>' +
+          '<div class="ncontrato-erro" id="pcpagar-erro"></div>' +
+          '<div class="ncontrato-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" id="pcpagar-cancelar">Cancelar</button>' +
+            '<button type="button" class="btn-conexao" id="pcpagar-salvar">Confirmar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
     var htmlFinanceiroNovo =
       '<section id="sec-financeiro-novo">' +
         '<p class="section-label">Financeiro</p>' +
@@ -2606,9 +2702,7 @@
           '</div>' +
         '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' + htmlDespesasProcesso + '</div>' +
-        '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' +
-          htmlFinEmBreve('Controle de contas do escritório a pagar, com vencimento e status. Ainda não foi construído — avise se quiser priorizar.') +
-        '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' + htmlContasPagar + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' +
           htmlFinEmBreve('Lançamentos recorrentes automáticos (aluguel, softwares, folha etc). Ainda não foi construído — avise se quiser priorizar.') +
         '</div>' +
@@ -2704,6 +2798,7 @@
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
       wireEditarParcelaModal(); carregarParcelasAReceber();
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
+      wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
     }
     if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
@@ -3977,6 +4072,263 @@
         })
         .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
         .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
+  }
+
+  var contasPagarCache = [];
+
+  var CHIPS_STATUS_CONTA_PAGAR = {
+    Aberta: '<span class="chip neutral">Aberta</span>',
+    Parcial: '<span class="chip neutral">Parcial</span>',
+    Paga: '<span class="chip good">Paga</span>',
+    Cancelada: '<span class="chip neutral">Cancelada</span>',
+    Vencida: '<span class="chip crit">Vencida</span>',
+  };
+
+  function lerFiltrosContasPagar() {
+    var elStatus = document.getElementById('cpagarfiltro-status');
+    var elDataDe = document.getElementById('cpagarfiltro-data-de');
+    var elDataAte = document.getElementById('cpagarfiltro-data-ate');
+    var elCategoria = document.getElementById('cpagarfiltro-categoria');
+    return {
+      status: elStatus ? elStatus.value : '',
+      dataDe: elDataDe ? elDataDe.value : '',
+      dataAte: elDataAte ? elDataAte.value : '',
+      categoria: elCategoria ? elCategoria.value.toLowerCase().trim() : '',
+    };
+  }
+
+  function contaPagarPassaFiltro(c, filtros) {
+    if (filtros.status && c.status_exibicao !== filtros.status) return false;
+    var vencimento = (c.vencimento || '').split('T')[0];
+    if (filtros.dataDe && vencimento && vencimento < filtros.dataDe) return false;
+    if (filtros.dataAte && vencimento && vencimento > filtros.dataAte) return false;
+    if (filtros.categoria && (c.categoria || '').toLowerCase().indexOf(filtros.categoria) === -1) return false;
+    return true;
+  }
+
+  function atualizarTotaisContasPagar() {
+    var pendente = 0, pago = 0, atraso = 0;
+    contasPagarCache.forEach(function (c) {
+      if (c.status === 'Cancelada') return;
+      pago += c.valor_pago || 0;
+      var saldo = (c.valor || 0) - (c.valor_pago || 0);
+      if (c.status_exibicao === 'Vencida') atraso += saldo;
+      if (c.status !== 'Paga') pendente += saldo;
+    });
+    var elPendente = document.getElementById('cpagar-total-pendente');
+    var elPago = document.getElementById('cpagar-total-pago');
+    var elAtraso = document.getElementById('cpagar-total-atraso');
+    if (elPendente) elPendente.textContent = fmtMoeda(pendente);
+    if (elPago) elPago.textContent = fmtMoeda(pago);
+    if (elAtraso) elAtraso.textContent = fmtMoeda(atraso);
+  }
+
+  function renderContasPagar() {
+    var container = document.getElementById('contas-pagar-lista');
+    if (!container) return;
+    atualizarTotaisContasPagar();
+    var filtros = lerFiltrosContasPagar();
+    var contas = contasPagarCache.filter(function (c) { return contaPagarPassaFiltro(c, filtros); });
+    if (contas.length === 0) {
+      var temFiltroAtivo = filtros.status || filtros.dataDe || filtros.dataAte || filtros.categoria;
+      container.innerHTML = '<div class="empty-state"><div class="msg">' +
+        (temFiltroAtivo ? 'Nenhuma conta encontrada com esses filtros.' : 'Nenhuma conta a pagar cadastrada ainda. Use "+ Nova conta" pra adicionar.') +
+        '</div></div>';
+      return;
+    }
+    var linhas = contas.map(function (c) {
+      var podePagar = c.status !== 'Paga' && c.status !== 'Cancelada';
+      var acoes = '';
+      if (podePagar) {
+        acoes += '<button type="button" class="btn-conexao" data-pagar-conta-id="' + esc(c.id) + '" style="padding:4px 10px; font-size:12.5px;">Pagar</button>';
+      }
+      acoes +=
+        '<button type="button" class="btn-editar" data-editar-conta-id="' + esc(c.id) + '">Editar</button>' +
+        '<button type="button" class="btn-remover" data-excluir-conta-id="' + esc(c.id) + '">Excluir</button>';
+      return '<tr><td>' + esc(c.descricao) + '</td>' +
+        '<td>' + esc(c.categoria || '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.valor) + '</td>' +
+        '<td>' + (c.vencimento ? fmtDataCurta(c.vencimento) : '—') + '</td>' +
+        '<td class="num">R$ ' + fmtMoeda(c.valor_pago) + '</td>' +
+        '<td>' + (CHIPS_STATUS_CONTA_PAGAR[c.status_exibicao] || CHIPS_STATUS_CONTA_PAGAR.Aberta) + '</td>' +
+        '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoes + '</div></td></tr>';
+    }).join('');
+    container.innerHTML = '<div class="table-scroll"><table>' +
+      '<thead><tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Valor</th>' +
+      '<th>Vencimento</th><th style="text-align:right">Pago</th><th>Status</th><th>Ações</th></tr></thead>' +
+      '<tbody>' + linhas + '</tbody></table></div>';
+
+    container.querySelectorAll('[data-editar-conta-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = contasPagarCache.filter(function (c) { return String(c.id) === btn.getAttribute('data-editar-conta-id'); })[0];
+        if (item && window.abrirModalContaPagar) window.abrirModalContaPagar(item);
+      });
+    });
+    container.querySelectorAll('[data-pagar-conta-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = contasPagarCache.filter(function (c) { return String(c.id) === btn.getAttribute('data-pagar-conta-id'); })[0];
+        if (item && window.abrirModalPagarConta) window.abrirModalPagarConta(item);
+      });
+    });
+    container.querySelectorAll('[data-excluir-conta-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idExcluir = btn.getAttribute('data-excluir-conta-id');
+        confirmarModal('Excluir essa conta a pagar? Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          btn.disabled = true;
+          apiPostJson('/api/painel?acao=executar', { tipo: 'conta_pagar_excluir', id: idExcluir })
+            .then(function () { carregarContasPagar(); })
+            .catch(function (e) {
+              mostrarAviso(e.message || 'Não foi possível excluir agora.');
+              btn.disabled = false;
+            });
+        });
+      });
+    });
+  }
+
+  function carregarContasPagar() {
+    var container = document.getElementById('contas-pagar-lista');
+    if (!container) return;
+    apiPostJson('/api/painel?acao=executar', { tipo: 'conta_pagar_listar' })
+      .then(function (dados) {
+        contasPagarCache = dados.contas || [];
+        renderContasPagar();
+      })
+      .catch(function () {
+        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar as contas a pagar agora.</div></div>';
+      });
+  }
+
+  function wireFiltroContasPagar() {
+    var selectStatus = document.getElementById('cpagarfiltro-status');
+    if (!selectStatus) return;
+    document.getElementById('cpagarfiltro-data-de-hoje').addEventListener('click', function () {
+      document.getElementById('cpagarfiltro-data-de').value = new Date().toISOString().slice(0, 10);
+    });
+    document.getElementById('cpagarfiltro-data-ate-hoje').addEventListener('click', function () {
+      document.getElementById('cpagarfiltro-data-ate').value = new Date().toISOString().slice(0, 10);
+    });
+    document.getElementById('cpagarfiltro-buscar').addEventListener('click', renderContasPagar);
+    document.getElementById('cpagarfiltro-limpar').addEventListener('click', function () {
+      selectStatus.value = '';
+      document.getElementById('cpagarfiltro-data-de').value = '';
+      document.getElementById('cpagarfiltro-data-ate').value = '';
+      document.getElementById('cpagarfiltro-categoria').value = '';
+      renderContasPagar();
+    });
+  }
+
+  // Modal unico de "Nova conta a pagar" / "Editar" -- idAtual null = criar, preenchido = editar
+  // (mesmo padrao ja usado em wireNovaDespesaModal/wireEditarContratoModal).
+  function wireNovaContaPagarModal() {
+    var btnAbrir = document.getElementById('btn-nova-conta-pagar');
+    var modal = document.getElementById('modal-nova-conta-pagar');
+    if (!btnAbrir || !modal) return;
+    var titulo = document.getElementById('ncpagar-titulo');
+    var campoDescricao = document.getElementById('ncpagar-descricao');
+    var campoCategoria = document.getElementById('ncpagar-categoria');
+    var campoValor = document.getElementById('ncpagar-valor');
+    var campoVencimento = document.getElementById('ncpagar-vencimento');
+    var campoObservacoes = document.getElementById('ncpagar-observacoes');
+    var erroEl = document.getElementById('ncpagar-erro');
+    var btnSalvar = document.getElementById('ncpagar-salvar');
+    var idAtual = null;
+
+    function abrirModalCriar() {
+      idAtual = null;
+      titulo.firstChild.textContent = 'Nova conta a pagar';
+      erroEl.textContent = '';
+      campoDescricao.value = '';
+      campoCategoria.value = '';
+      campoValor.value = '';
+      campoVencimento.value = new Date().toISOString().slice(0, 10);
+      campoObservacoes.value = '';
+      modal.classList.remove('hidden');
+    }
+
+    window.abrirModalContaPagar = function (item) {
+      idAtual = item.id;
+      titulo.firstChild.textContent = 'Editar conta a pagar';
+      erroEl.textContent = '';
+      campoDescricao.value = item.descricao || '';
+      campoCategoria.value = item.categoria || '';
+      campoValor.value = item.valor || '';
+      campoVencimento.value = item.vencimento ? item.vencimento.split('T')[0] : '';
+      campoObservacoes.value = item.observacoes || '';
+      modal.classList.remove('hidden');
+    };
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    btnAbrir.addEventListener('click', abrirModalCriar);
+    document.getElementById('ncpagar-fechar').addEventListener('click', fecharModal);
+    document.getElementById('ncpagar-cancelar').addEventListener('click', fecharModal);
+    document.getElementById('ncpagar-vencimento-hoje').addEventListener('click', function () {
+      campoVencimento.value = new Date().toISOString().slice(0, 10);
+    });
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      if (!campoDescricao.value.trim()) { erroEl.textContent = 'Informe a descrição.'; return; }
+      if (!campoValor.value) { erroEl.textContent = 'Informe o valor.'; return; }
+      if (!campoVencimento.value) { erroEl.textContent = 'Informe o vencimento.'; return; }
+      var corpo = {
+        tipo: idAtual ? 'conta_pagar_editar' : 'conta_pagar_criar',
+        descricao: campoDescricao.value.trim(),
+        categoria: campoCategoria.value.trim(),
+        valor: campoValor.value,
+        vencimento: fmtDataCurta(campoVencimento.value),
+        observacoes: campoObservacoes.value.trim(),
+      };
+      if (idAtual) corpo.id = idAtual;
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function () {
+          fecharModal();
+          carregarContasPagar();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível salvar agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; });
+    });
+  }
+
+  function wirePagarContaPagarModal() {
+    var modal = document.getElementById('modal-pagar-conta-pagar');
+    if (!modal) return;
+    var campoValor = document.getElementById('pcpagar-valor');
+    var erroEl = document.getElementById('pcpagar-erro');
+    var btnSalvar = document.getElementById('pcpagar-salvar');
+    var idAtual = null;
+
+    window.abrirModalPagarConta = function (item) {
+      idAtual = item.id;
+      erroEl.textContent = '';
+      campoValor.value = Math.max((item.valor || 0) - (item.valor_pago || 0), 0);
+      modal.classList.remove('hidden');
+    };
+
+    function fecharModal() { modal.classList.add('hidden'); }
+
+    document.getElementById('pcpagar-fechar').addEventListener('click', fecharModal);
+    document.getElementById('pcpagar-cancelar').addEventListener('click', fecharModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
+
+    btnSalvar.addEventListener('click', function () {
+      erroEl.textContent = '';
+      if (!campoValor.value || Number(campoValor.value) <= 0) { erroEl.textContent = 'Informe um valor maior que zero.'; return; }
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Confirmando…';
+      apiPostJson('/api/painel?acao=executar', { tipo: 'conta_pagar_pagar', id: idAtual, valor: campoValor.value })
+        .then(function () {
+          fecharModal();
+          carregarContasPagar();
+        })
+        .catch(function (e) { erroEl.textContent = e.message || 'Não foi possível registrar o pagamento agora.'; })
+        .finally(function () { btnSalvar.disabled = false; btnSalvar.textContent = 'Confirmar'; });
     });
   }
 
