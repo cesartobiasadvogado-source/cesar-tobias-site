@@ -3069,7 +3069,12 @@
           '<button type="button" class="subtab-btn" data-fin-tab="pagar">Contas a pagar</button>' +
           '<button type="button" class="subtab-btn" data-fin-tab="recorrentes">Contas recorrentes</button>' +
         '</div>' +
-        '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlFinanceiro + htmlPainelExecutivo + htmlExito + '</div>' +
+        // htmlFinanceiro (Visao Financeira antiga: alerta de atraso, filtro de periodo, os 5
+        // cards e o Fluxo de Caixa em barras) NAO entra mais aqui -- o Painel Executivo cobre a
+        // mesma informacao (e mais) de um jeito melhor. Continua sendo calculado (variaveis
+        // como dadosPainelAtual/evolucaoMensalAtual sao compartilhadas com outras funcoes), so
+        // nao e mais renderizado.
+        '<div class="fin-tab-panel" data-fin-panel="dashboard">' + htmlPainelExecutivo + htmlExito + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="contratos">' + htmlHonorariosContratos + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="receber">' +
           '<div class="panel">' +
