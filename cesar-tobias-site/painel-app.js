@@ -7459,7 +7459,11 @@
       var selectCliente = '<select class="procoab-cliente-select" data-indice="' + indice + '">' +
         opcoesCliente.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') +
         '</select>';
-      return '<tr>' +
+      // data-busca junta tudo que aparece na linha (sem acento, minusculo) pra o filtro de texto
+      // achar por numero do processo, classe, tribunal ou nome de qualquer uma das partes.
+      var textoBusca = normalizarBusca([p.numero_cnj, p.classe_processual, p.tribunal, p.polo_ativo, p.polo_passivo]
+        .filter(Boolean).join(' '));
+      return '<tr data-busca="' + esc(textoBusca) + '">' +
         '<td><input type="checkbox" class="procoab-check" data-indice="' + indice + '" checked></td>' +
         '<td>' + esc(p.numero_cnj || '—') + '<div style="font-size:11px;color:var(--ink-faint);">' + esc(p.classe_processual || '') + '</div></td>' +
         '<td>' + esc(p.tribunal || '—') + '</td>' +
@@ -7490,7 +7494,16 @@
             return;
           }
           resultadoDiv.innerHTML =
-            '<div class="table-scroll" style="margin-top:14px;"><table><thead><tr>' +
+            '<div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+              '<input type="text" id="procoab-filtro" class="conexao-input" style="margin-bottom:0; max-width:280px;" ' +
+                'placeholder="Filtrar por processo, classe, tribunal ou parte...">' +
+              '<button type="button" id="procoab-marcar-visiveis" class="btn-conexao-secundario" style="padding:8px 12px; font-size:12.5px;">Marcar visíveis</button>' +
+              '<button type="button" id="procoab-desmarcar-visiveis" class="btn-conexao-secundario" style="padding:8px 12px; font-size:12.5px;">Desmarcar visíveis</button>' +
+              '<button type="button" id="procoab-marcar-todos" class="btn-conexao-secundario" style="padding:8px 12px; font-size:12.5px;">Marcar todos</button>' +
+              '<button type="button" id="procoab-desmarcar-todos" class="btn-conexao-secundario" style="padding:8px 12px; font-size:12.5px;">Desmarcar todos</button>' +
+              '<span id="procoab-contador" style="font-size:12.5px; color:var(--ink-soft); margin-left:auto;"></span>' +
+            '</div>' +
+            '<div class="table-scroll" style="margin-top:10px;"><table><thead><tr>' +
               '<th></th><th>Processo</th><th>Tribunal</th><th>Polo ativo</th><th>Polo passivo</th><th>Cliente (confirme)</th>' +
             '</tr></thead><tbody>' +
             processos.map(linhaResultado).join('') +
@@ -7498,6 +7511,52 @@
             '<div style="margin-top:12px;"><button id="procoab-btn-importar" style="padding:9px 16px;border:none;' +
               'border-radius:7px;background:var(--good);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Importar selecionados</button>' +
               '<span id="procoab-status-importar" style="margin-left:10px;font-size:12.5px;color:var(--ink-soft);"></span></div>';
+
+          var todasLinhas = Array.prototype.slice.call(resultadoDiv.querySelectorAll('tbody tr'));
+          var todosChecks = Array.prototype.slice.call(resultadoDiv.querySelectorAll('.procoab-check'));
+          var campoFiltro = document.getElementById('procoab-filtro');
+          var contadorEl = document.getElementById('procoab-contador');
+
+          function linhasVisiveis() {
+            return todasLinhas.filter(function (tr) { return !tr.classList.contains('hidden'); });
+          }
+          function checkDaLinha(tr) { return tr.querySelector('.procoab-check'); }
+          function atualizarContador() {
+            var marcados = todosChecks.filter(function (c) { return c.checked; }).length;
+            var visiveis = linhasVisiveis().length;
+            contadorEl.textContent = marcados + ' de ' + todosChecks.length + ' selecionado(s)' +
+              (visiveis < todasLinhas.length ? ' · ' + visiveis + ' visível(is) com o filtro' : '');
+          }
+
+          campoFiltro.addEventListener('input', function () {
+            var termo = normalizarBusca(campoFiltro.value.trim());
+            todasLinhas.forEach(function (tr) {
+              var bate = !termo || (tr.getAttribute('data-busca') || '').indexOf(termo) !== -1;
+              tr.classList.toggle('hidden', !bate);
+            });
+            atualizarContador();
+          });
+
+          document.getElementById('procoab-marcar-visiveis').addEventListener('click', function () {
+            linhasVisiveis().forEach(function (tr) { checkDaLinha(tr).checked = true; });
+            atualizarContador();
+          });
+          document.getElementById('procoab-desmarcar-visiveis').addEventListener('click', function () {
+            linhasVisiveis().forEach(function (tr) { checkDaLinha(tr).checked = false; });
+            atualizarContador();
+          });
+          document.getElementById('procoab-marcar-todos').addEventListener('click', function () {
+            todosChecks.forEach(function (c) { c.checked = true; });
+            atualizarContador();
+          });
+          document.getElementById('procoab-desmarcar-todos').addEventListener('click', function () {
+            todosChecks.forEach(function (c) { c.checked = false; });
+            atualizarContador();
+          });
+          resultadoDiv.addEventListener('change', function (ev) {
+            if (ev.target.classList.contains('procoab-check')) atualizarContador();
+          });
+          atualizarContador();
 
           document.getElementById('procoab-btn-importar').addEventListener('click', function () {
             var btnImportar = this;
