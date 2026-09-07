@@ -1299,8 +1299,6 @@
   }
 
   function renderPainel(dados) {
-    if (dados.nome_escritorio) document.getElementById('sidebar-nome').textContent = dados.nome_escritorio;
-    if (dados.nome_advogado) document.getElementById('sidebar-sub').textContent = dados.nome_advogado;
     var avisoTenant = document.getElementById('aviso-tenant-incompleto');
     if (avisoTenant) avisoTenant.remove();
     if (sessionStorage.getItem('painel_token') && sessionStorage.getItem('painel_token').indexOf(':') !== -1) {
@@ -3146,7 +3144,11 @@
 
     conteudo.innerHTML =
       '<header class="masthead">' +
-        '<div class="masthead-name">' + esc(dados.nome_escritorio || 'César Tobias Advocacia') + '<small>Painel do escritório</small></div>' +
+        '<div class="masthead-name">' +
+          '<img class="masthead-logo masthead-logo-dark" src="/logo-vero-juridico.png" alt="Vero Jurídico">' +
+          '<img class="masthead-logo masthead-logo-light" src="/logo-vero-juridico-branca.png" alt="Vero Jurídico">' +
+          '<small>Painel do escritório</small>' +
+        '</div>' +
         '<div class="masthead-meta">Logado como <strong>' + esc(dados.usuario_logado || '') + '</strong><br>' +
         'Gerado em <strong>' + fmtDataHora(dados.gerado_em) + '</strong> · Fuso America/Fortaleza</div>' +
       '</header>' +

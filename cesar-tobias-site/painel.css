@@ -271,6 +271,14 @@
   header.masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 32px; flex-wrap: wrap; }
   .masthead-name { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--brand); text-wrap: balance; }
   .masthead-name small { display: block; font-family: var(--font-body); font-size: 12.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-top: 4px; }
+  .masthead-logo { height: 30px; display: block; }
+  .masthead-logo-light { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .masthead-logo-dark { display: none; }
+    :root:not([data-theme="light"]) .masthead-logo-light { display: block; }
+  }
+  :root[data-theme="dark"] .masthead-logo-dark { display: none; }
+  :root[data-theme="dark"] .masthead-logo-light { display: block; }
   .masthead-meta { text-align: right; font-size: 13px; color: var(--ink-faint); line-height: 1.5; }
   .masthead-meta strong { color: var(--ink-soft); font-weight: 600; }
 
