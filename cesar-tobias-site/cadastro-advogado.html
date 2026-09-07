@@ -76,12 +76,12 @@
   }
   .campo-icone .btn-olho-senha svg { position: static; }
 
-  button.principal {
+  button.principal, a.principal {
     width: 100%; padding: 13px; border: none; border-radius: 9px; background: var(--brand);
     color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box;
   }
-  button.principal:hover { opacity: 0.92; }
+  button.principal:hover, a.principal:hover { opacity: 0.92; }
   button.principal:disabled { opacity: 0.55; cursor: not-allowed; }
   button.secundario {
     width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-sunken);
@@ -390,6 +390,10 @@
         return;
       }
       estado.usuario = usuario;
+      // pre-preenche o usuario na tela de login (painel.html ja le esse mesmo item do
+      // localStorage quando existe -- ver "usuarioLembrado" em painel-app.js), pra faltar
+      // so a senha quando a pessoa clicar no atalho "Entrar no painel" do Passo 7.
+      localStorage.setItem('painel_usuario_lembrado', usuario);
       salvarEstado();
       avancar();
     };
@@ -406,6 +410,9 @@
       '<b>Código do escritório:</b> ' + estado.tenant_id + '<br>' +
       '<b>Usuário:</b> ' + (estado.usuario || '') + '<br>' +
       '</div>' +
+      '<a class="principal" href="painel.html" style="margin-top:22px; text-decoration:none; display:inline-flex;">' +
+      '<span>Entrar no painel</span>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>' +
       '<div class="aviso espera" style="margin-top:18px;">' +
       'Seu login já funciona de verdade e foi testado agora. Uma observação importante: ' +
       'as telas do painel (clientes, financeiro, contratos) ainda estão sendo adaptadas pra mostrar ' +
