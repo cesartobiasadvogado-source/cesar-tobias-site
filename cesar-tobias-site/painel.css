@@ -56,6 +56,22 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
+  /* Barra de rolagem (vertical e horizontal) fina e no tom do tema, em vez do visual padrao
+     grosso/cinza do navegador -- vale pra pagina toda, tabelas com scroll horizontal
+     (.table-scroll, .procpage-tabela-wrap etc.) e qualquer outro elemento com overflow. */
+  * { scrollbar-width: thin; scrollbar-color: var(--ink-faint) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--ink-faint); border-radius: 999px; border: 2.5px solid transparent; background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover { background-color: var(--ink-soft); }
+  /* A sidebar (e qualquer coisa dentro do "mundo" navy fixo, ver --sidebar-*) e sempre escura
+     nos dois temas -- usa os tokens proprios dela, senao a barra ficaria clara-sobre-clara. */
+  .sidebar { scrollbar-color: var(--sidebar-ink-soft) transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background-color: var(--sidebar-ink-soft); }
+  .sidebar::-webkit-scrollbar-thumb:hover { background-color: var(--sidebar-ink); }
+
   .shell { display: flex; align-items: stretch; min-height: 100vh; }
   .sidebar {
     width: 232px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-ink);
