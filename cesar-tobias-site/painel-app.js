@@ -58,7 +58,7 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    inicio: 'Início', financeiro: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', processos: 'Processos',
+    inicio: 'Início', financeiro: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
@@ -3115,7 +3115,7 @@
       financeiro_novo: htmlFinanceiroNovo,
       pje: htmlPje,
       clientes: htmlClientes,
-      processos: htmlProcessos + htmlProcessoAdministrativo,
+      ficha_processos: htmlProcessos + htmlProcessoAdministrativo,
       importar_oab: htmlImportarOab,
       criar_processo: htmlCriarProcesso,
       novo_cliente: htmlNovoCliente,
@@ -3129,7 +3129,7 @@
       configuracoes: htmlConfiguracoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
-      financeiro: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', processos: 'processos',
+      financeiro: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       tarefas: 'agenda', agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
@@ -3203,7 +3203,7 @@
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
       carregarPainelExecutivo();
     }
-    if (PAGINA_ATUAL === 'processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
+    if (PAGINA_ATUAL === 'ficha_processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
