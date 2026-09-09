@@ -3910,7 +3910,12 @@
       // financeiro.html (antigo) e painel.html (novo, com abas) compartilham data-secao="financeiro"
       // pra permissao, mas sao paginas diferentes -- acende pelo arquivo de verdade, nao so pela secao,
       // senao os dois links do grupo "Financeiro" acendiam juntos (ou nenhum) na pagina errada.
-      item.classList.toggle('ativo', arquivoAlvo === arquivoAtual || (secao || 'admin') === PAGINA_ATUAL);
+      // nav-configuracoes e nav-admin sao os 2 unicos itens sem data-secao (nao tem permissao
+      // propria, so dados.usuario_admin) -- cada um precisa do seu proprio "apelido" aqui, senao
+      // os dois caem no mesmo fallback e acendem juntos sempre que PAGINA_ATUAL for "admin"
+      // (era o bug: clicar em "Escritórios" tambem acendia "Configurações").
+      var secaoParaAtivo = secao || (item.id === 'nav-admin' ? 'admin' : item.id === 'nav-configuracoes' ? 'configuracoes' : null);
+      item.classList.toggle('ativo', arquivoAlvo === arquivoAtual || secaoParaAtivo === PAGINA_ATUAL);
       if (ancora && arquivoAlvo === arquivoAtual) {
         // mesma pagina -- so rola suavemente ate a secao, em vez de recarregar
         item.addEventListener('click', function (e) {
