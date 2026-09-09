@@ -60,8 +60,21 @@
   .sidebar {
     width: 232px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-ink);
     display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    transition: width .15s ease, padding .15s ease;
   }
-  .sidebar-wordmark { padding: 6px 10px 18px; border-bottom: 1px solid var(--sidebar-line); margin-bottom: 12px; }
+  html[data-sidebar-recolhida="1"] .sidebar { width: 0; min-width: 0; padding: 0; overflow: hidden; border-right: none; }
+  .btn-recolher-menu, .btn-expandir-menu {
+    background: none; border: none; color: var(--sidebar-ink-soft); cursor: pointer; padding: 5px;
+    border-radius: 6px; display: flex; flex-shrink: 0;
+  }
+  .btn-recolher-menu:hover, .btn-expandir-menu:hover { background: rgba(255,255,255,0.08); color: var(--sidebar-ink); }
+  .btn-recolher-menu svg, .btn-expandir-menu svg { width: 16px; height: 16px; }
+  .btn-expandir-menu {
+    display: none; position: fixed; top: 16px; left: 16px; z-index: 25;
+    background: var(--sidebar-bg); border: 1px solid var(--sidebar-line); padding: 8px; border-radius: 8px;
+  }
+  html[data-sidebar-recolhida="1"] .btn-expandir-menu { display: flex; }
+  .sidebar-wordmark { padding: 6px 10px 18px; border-bottom: 1px solid var(--sidebar-line); margin-bottom: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .sidebar-wordmark .nome { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
   .sidebar-wordmark .sub { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sidebar-ink-soft); margin-top: 4px; }
   .nav-grupo { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
@@ -195,6 +208,11 @@
     .nav-grupo { flex-direction: column; }
     .sidebar-rodape { display: flex; }
     .page { padding: 20px 16px 48px; }
+    /* recolher menu e recurso de desktop -- no mobile o menu ja e um overlay que abre/fecha
+       por cima do conteudo (btn-menu-mobile), entao esconde os dois botoes e ignora a
+       preferencia salva, senao o menu mobile poderia ficar com largura 0 tambem. */
+    .btn-recolher-menu, .btn-expandir-menu { display: none !important; }
+    html[data-sidebar-recolhida="1"] .sidebar { width: min(280px, 84vw); padding: 20px 12px; overflow-y: auto; }
   }
 
   /* Password gate */

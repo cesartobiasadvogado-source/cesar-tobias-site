@@ -178,6 +178,17 @@
     btn.addEventListener('click', function () { aplicarTema(btn.getAttribute('data-hdr-tema')); });
   });
 
+  function aplicarRecolhimentoMenu(recolhida) {
+    if (recolhida) document.documentElement.setAttribute('data-sidebar-recolhida', '1');
+    else document.documentElement.removeAttribute('data-sidebar-recolhida');
+    localStorage.setItem('painel_sidebar_recolhida', recolhida ? '1' : '0');
+  }
+
+  var btnRecolherMenu = document.getElementById('btn-recolher-menu');
+  if (btnRecolherMenu) btnRecolherMenu.addEventListener('click', function () { aplicarRecolhimentoMenu(true); });
+  var btnExpandirMenu = document.getElementById('btn-expandir-menu');
+  if (btnExpandirMenu) btnExpandirMenu.addEventListener('click', function () { aplicarRecolhimentoMenu(false); });
+
   function sair() {
     sessionStorage.removeItem('painel_token');
     document.documentElement.removeAttribute('data-tem-sessao');
