@@ -255,7 +255,7 @@
   .gate-lembrar-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 18px; }
   .gate-lembrar-row input[type="checkbox"] { width: auto; margin: 0; }
   .gate button {
-    width: 100%; padding: 12px; border: none; border-radius: 9px; background: var(--brand);
+    width: 100%; padding: 12px; border: none; border-radius: 9px; background: var(--accent);
     color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
@@ -328,60 +328,58 @@
   .days-badge.neutral { background: var(--surface-sunken); color: var(--ink-faint); }
 
   /* Fluxo de Caixa -- redesenhado a partir do print Stitch "Vero Juridico dashboard redesign"
-     (DESIGN.md: Playfair Display nos titulos, IBM Plex Sans no corpo, fundo branco/pedra com
-     borda fina, cantos suaves, header-line navy no topo do card). Cartao sempre claro aqui,
-     igual o resto do dashboard -- diferente da versao anterior, que era um "mundo escuro"
-     proprio. "Despesas" do print nao existe na plataforma (nao ha controle de despesas ainda);
-     o par usado e Recebido/Vencido, que sao os dados reais equivalentes (dinheiro que entrou vs
-     dinheiro que passou do prazo).  */
+     (DESIGN.md: Playfair Display nos titulos, IBM Plex Sans no corpo, header-line navy no topo
+     do card). Ate 09/2026 era tema claro fixo (fiel ao print); revertido a pedido do usuario pra
+     usar os tokens de tema, igual o Painel Executivo abaixo. "Despesas" do print nao existe na
+     plataforma (nao ha controle de despesas ainda); o par usado e Recebido/Vencido, que sao os
+     dados reais equivalentes (dinheiro que entrou vs dinheiro que passou do prazo). */
   .fluxo-card {
-    background: #ffffff; border-radius: 8px; padding: 24px; margin-top: 14px;
-    border: 1px solid #c5c6ce; border-top: 2px solid #031632;
+    background: var(--surface); border-radius: 8px; padding: 24px; margin-top: 14px;
+    border: 1px solid var(--line); border-top: 2px solid var(--brand);
   }
   .fluxo-cabecalho { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-  .fluxo-titulo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: #1a1c1a; line-height: 1.25; }
-  .fluxo-subtitulo { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: #44474d; margin-top: 3px; }
+  .fluxo-titulo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+  .fluxo-subtitulo { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
   .fluxo-filtros { display: flex; gap: 6px; flex-wrap: wrap; }
   .fluxo-filtro-btn { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); cursor: pointer; font-family: inherit; }
   .fluxo-filtro-btn.ativo { background: var(--accent); color: #fff; border-color: var(--accent); }
   .periodo-filtro-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .periodo-filtro-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-right: 4px; }
   .fluxo-legenda { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
-  .fluxo-legenda-item { display: flex; align-items: center; gap: 7px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .03em; color: #44474d; }
+  .fluxo-legenda-item { display: flex; align-items: center; gap: 7px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--ink-soft); }
   .fluxo-legenda-swatch { width: 11px; height: 11px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
   .fluxo-svg-wrap { position: relative; width: 100%; overflow-x: auto; }
   .fluxo-bars-wrap { position: relative; height: 240px; min-width: 480px; padding: 6px 8px 32px 46px; box-sizing: border-box; }
   .fluxo-bars-eixo-y { position: absolute; left: 0; top: 6px; bottom: 32px; width: 42px; display: flex; flex-direction: column; justify-content: space-between; }
-  .fluxo-bars-eixo-y span { font-family: 'IBM Plex Sans', sans-serif; font-size: 10px; color: #75777e; text-align: right; }
+  .fluxo-bars-eixo-y span { font-family: 'IBM Plex Sans', sans-serif; font-size: 10px; color: var(--ink-faint); text-align: right; }
   .fluxo-bars-grade { position: absolute; left: 46px; right: 0; top: 6px; bottom: 32px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
-  .fluxo-bars-grade div { border-top: 1px dashed #dbdad7; height: 0; }
-  .fluxo-bars-grade div:last-child { border-top: 1px solid #c5c6ce; }
+  .fluxo-bars-grade div { border-top: 1px dashed var(--line); height: 0; }
+  .fluxo-bars-grade div:last-child { border-top: 1px solid var(--line); }
   .fluxo-bars-grupos { position: relative; height: 100%; display: flex; align-items: flex-end; justify-content: space-around; gap: 4px; }
   .fluxo-grupo { display: flex; align-items: flex-end; gap: 3px; height: 100%; flex: 1; max-width: 64px; justify-content: center; position: relative; }
   .fluxo-barra { width: 40%; max-width: 20px; border-radius: 3px 3px 0 0; min-height: 2px; cursor: pointer; transition: opacity .15s; }
   .fluxo-barra:hover { opacity: .75; }
-  .fluxo-barra-recebido { background: #dcfce7; border: 1px solid #166534; border-bottom: none; }
-  .fluxo-barra-vencido { background: #fee2e2; border: 1px solid #991b1b; border-bottom: none; }
-  .fluxo-bars-eixo-x { position: absolute; left: 46px; right: 0; bottom: 0; height: 26px; display: flex; justify-content: space-around; border-top: 1px solid #c5c6ce; padding-top: 6px; }
-  .fluxo-bars-eixo-x span { font-family: 'IBM Plex Sans', sans-serif; font-size: 10px; color: #44474d; text-align: center; flex: 1; max-width: 64px; }
-  .fluxo-bars-eixo-x span.atual { font-weight: 700; color: #031632; }
+  .fluxo-barra-recebido { background: var(--good-soft); border: 1px solid var(--good); border-bottom: none; }
+  .fluxo-barra-vencido { background: var(--crit-soft); border: 1px solid var(--crit); border-bottom: none; }
+  .fluxo-bars-eixo-x { position: absolute; left: 46px; right: 0; bottom: 0; height: 26px; display: flex; justify-content: space-around; border-top: 1px solid var(--line); padding-top: 6px; }
+  .fluxo-bars-eixo-x span { font-family: 'IBM Plex Sans', sans-serif; font-size: 10px; color: var(--ink-soft); text-align: center; flex: 1; max-width: 64px; }
+  .fluxo-bars-eixo-x span.atual { font-weight: 700; color: var(--brand); }
   .fluxo-tooltip {
-    position: absolute; pointer-events: none; background: #ffffff; color: #1a1c1a;
+    position: absolute; pointer-events: none; background: var(--surface); color: var(--ink);
     padding: 9px 12px; border-radius: 6px; font-size: 12px; line-height: 1.6;
-    box-shadow: 0 10px 30px rgba(26,43,72,0.14); border: 1px solid #c5c6ce;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.14); border: 1px solid var(--line);
     opacity: 0; transform: translate(-50%, -100%); transition: opacity .12s;
     white-space: nowrap; z-index: 5; top: 0; left: 0; font-family: 'IBM Plex Sans', sans-serif;
   }
   .fluxo-tooltip.visivel { opacity: 1; }
   .fluxo-tooltip b { font-variant-numeric: tabular-nums; }
   .fluxo-tabela-toggle { background: none; border: none; color: var(--accent); font-size: 12.5px; cursor: pointer; padding: 0; margin-top: 16px; text-decoration: underline; font-family: inherit; }
-  .fluxo-vazio { padding: 50px 0; text-align: center; color: #75777e; font-size: 13.5px; font-family: 'IBM Plex Sans', sans-serif; }
+  .fluxo-vazio { padding: 50px 0; text-align: center; color: var(--ink-faint); font-size: 13.5px; font-family: 'IBM Plex Sans', sans-serif; }
 
   /* Painel Executivo (Dashboard financeiro) -- receita x despesa, despesas por categoria e
      proximos vencimentos, cruzando Contratos/Parcelas com Despesas do Processo/Contas a
-     Pagar/Recorrentes. Ao contrario do Fluxo de Caixa acima (tema claro fixo, herdado do print
-     Stitch original), esta secao segue os tokens de tema (light/dark) como o resto das abas
-     novas do Financeiro construidas nesta sessao. */
+     Pagar/Recorrentes. Segue os tokens de tema (light/dark), igual o Fluxo de Caixa acima
+     (que tambem foi revertido pra tokens, ver comentario dele). */
   .exec-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; margin-top: 14px; }
   @media (max-width: 900px) { .exec-grid { grid-template-columns: 1fr; } }
   .exec-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
@@ -426,22 +424,24 @@
   .alerta-inadimplencia b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .alerta-inadimplencia-icone { font-size: 16px; flex-shrink: 0; }
 
-  /* Status das Parcelas (donut) -- mesmo mundo visual escuro do Fluxo de Caixa Vivo. */
-  .status-card { background: #0a0e17; border-radius: 16px; padding: 26px 26px 22px; margin-top: 14px;
-    border: 1px solid rgba(124,140,240,0.18); display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
+  /* Status das Parcelas (donut) -- tinha ficado escuro fixo, referenciando um "mundo visual
+     escuro" do Fluxo de Caixa que nem existe mais (esse ja usa tokens de tema ha tempos).
+     Corrigido pra tambem usar tokens, igual o resto do dashboard financeiro. */
+  .status-card { background: var(--surface); border-radius: 16px; padding: 26px 26px 22px; margin-top: 14px;
+    border: 1px solid var(--line); display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
   .status-donut-wrap { position: relative; flex-shrink: 0; width: 168px; height: 168px; }
   .status-donut-total { position: absolute; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; }
   .status-donut-total .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 26px; font-weight: 600; color: #e7eaf0; line-height: 1; }
-  .status-donut-total .lbl { font-size: 10px; color: #6b76a0; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+    font-size: 26px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .status-donut-total .lbl { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
   .status-legenda { display: flex; flex-direction: column; gap: 9px; flex: 1 1 220px; min-width: 200px; }
-  .status-legenda-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #a7b0d6; }
+  .status-legenda-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-soft); }
   .status-legenda-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-  .status-legenda-item b { margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: #e7eaf0; }
-  .status-legenda-pct { color: #6b76a0; font-size: 11.5px; min-width: 34px; text-align: right; }
+  .status-legenda-item b { margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .status-legenda-pct { color: var(--ink-faint); font-size: 11.5px; min-width: 34px; text-align: right; }
   .status-card-titulo { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
-    color: #8a95bd; width: 100%; margin-bottom: 4px; }
+    color: var(--ink-soft); width: 100%; margin-bottom: 4px; }
 
   .card-drill-link { margin-top: 8px; background: none; border: none; padding: 0; font-size: 12px;
     color: var(--accent); cursor: pointer; font-family: inherit; text-decoration: underline; }
@@ -688,41 +688,44 @@
   @media (max-width: 860px) { .automacoes-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .automacoes-grid { grid-template-columns: 1fr; } }
 
-  /* Página Início -- valores literais do design system "Vero Jurídico" gerado no Stitch
-     (DESIGN.md compartilhado pelos 5 exports): primary #031632, primary-container #1a2b48,
-     secondary (accent) #0051d5, raio 4px em componentes / 8px em containers, sem pill
-     (exceto avatar), sem sombra pesada -- tonal layering + micro-borda em vez disso. */
+  /* Página Início -- ate 09/2026 usava valores literais do design system gerado no Stitch (tema
+     fixo, sem tokens), por pedido explicito do usuario. Revertido a pedido dele mesmo: os
+     elementos "de pagina" (aviso de suporte, checklist) agora seguem os tokens de tema como o
+     resto da plataforma. O banner de boas-vindas (.inicio-banner e filhos) continua com a cor de
+     marca (navy) fixa nos dois temas de proposito -- reaproveita os tokens --sidebar-* (a mesma
+     "superficie de marca" que ja nao muda com o tema em nenhum outro lugar do painel, ver
+     .sidebar), entao nao e mais hexadecimal solto, so um uso deliberado de marca. */
   .inicio-suporte {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 18px;
-    background: #efeeeb; border-radius: 8px; margin-bottom: 20px; color: #1a1c1a; font-size: 13.5px;
+    background: var(--surface-sunken); border-radius: 8px; margin-bottom: 20px; color: var(--ink); font-size: 13.5px;
   }
   .inicio-suporte-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    background: #079455; color: #fff; font-size: 13px; font-weight: 500; padding: 6px 16px;
+    background: var(--good); color: #fff; font-size: 13px; font-weight: 500; padding: 6px 16px;
     border-radius: 4px; text-decoration: none; white-space: nowrap;
   }
   .inicio-suporte-btn:hover { opacity: 0.9; }
   .inicio-suporte-fechar {
-    margin-left: auto; background: none; border: none; color: #75777e; cursor: pointer;
+    margin-left: auto; background: none; border: none; color: var(--ink-faint); cursor: pointer;
     font-size: 14px; padding: 4px;
   }
-  .inicio-suporte-fechar:hover { color: #1a1c1a; }
+  .inicio-suporte-fechar:hover { color: var(--ink); }
 
   .inicio-banner {
-    background: linear-gradient(155deg, #1a2b48, #031632); border-radius: 8px; padding: 32px 30px;
-    position: relative; overflow: hidden; border: none;
+    background: linear-gradient(155deg, color-mix(in srgb, var(--sidebar-bg) 85%, white), var(--sidebar-bg));
+    border-radius: 8px; padding: 32px 30px; position: relative; overflow: hidden; border: none;
   }
   .inicio-banner > * { position: relative; z-index: 1; }
   .inicio-banner-eyebrow {
     display: inline-flex; font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-    color: #8293b5; margin: 0 0 14px; background: rgba(255,255,255,0.08); border: none;
+    color: var(--sidebar-ink-soft); margin: 0 0 14px; background: rgba(255,255,255,0.08); border: none;
     padding: 4px 10px; border-radius: 4px;
   }
   .inicio-banner-titulo {
     font-family: 'Playfair Display', var(--font-display); font-size: 24px; font-weight: 600;
-    color: #fff; margin: 0 0 10px; text-wrap: balance;
+    color: var(--sidebar-ink); margin: 0 0 10px; text-wrap: balance;
   }
-  .inicio-banner-sub { font-size: 14px; color: #dbe1ff; line-height: 1.6; margin: 0 0 24px; max-width: 62ch; }
+  .inicio-banner-sub { font-size: 14px; color: var(--sidebar-ink-soft); line-height: 1.6; margin: 0 0 24px; max-width: 62ch; }
 
   .inicio-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
   .inicio-tile {
@@ -731,37 +734,37 @@
   }
   .inicio-tile:hover { border-color: rgba(255,255,255,0.3); }
   .inicio-tile-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-  .inicio-tile-icone { width: 30px; height: 30px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: #dbe1ff; }
+  .inicio-tile-icone { width: 30px; height: 30px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; color: var(--sidebar-ink-soft); }
   .inicio-tile-icone svg { width: 16px; height: 16px; }
   .inicio-tile-badge {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #1a2b48;
-    background: #dbe1ff; padding: 3px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--sidebar-bg);
+    background: var(--sidebar-ink-soft); padding: 3px 8px; border-radius: 4px;
   }
-  .inicio-tile-titulo { font-family: 'Playfair Display', var(--font-display); font-size: 16px; font-weight: 600; color: #fff; }
-  .inicio-tile-desc { font-size: 12.5px; color: #b6c7eb; line-height: 1.5; }
-  .inicio-tile-link { font-size: 12.5px; font-weight: 600; color: #b4c5ff; margin-top: 4px; }
+  .inicio-tile-titulo { font-family: 'Playfair Display', var(--font-display); font-size: 16px; font-weight: 600; color: var(--sidebar-ink); }
+  .inicio-tile-desc { font-size: 12.5px; color: var(--sidebar-ink-soft); line-height: 1.5; }
+  .inicio-tile-link { font-size: 12.5px; font-weight: 600; color: var(--sidebar-accent); margin-top: 4px; }
 
   .inicio-lista-check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .inicio-lista-check li { font-size: 13px; color: #dbe1ff; padding-left: 22px; position: relative; }
+  .inicio-lista-check li { font-size: 13px; color: var(--sidebar-ink-soft); padding-left: 22px; position: relative; }
   .inicio-lista-check li::before {
-    content: '✓'; position: absolute; left: 0; top: 0; color: #b4c5ff; font-weight: 700;
+    content: '✓'; position: absolute; left: 0; top: 0; color: var(--sidebar-accent); font-weight: 700;
   }
 
   .inicio-checklist { padding: 6px 0; }
   .inicio-checklist-item {
-    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #e5e7eb;
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line);
   }
   .inicio-checklist-item:last-child { border-bottom: none; }
   .inicio-checklist-num {
-    width: 22px; height: 22px; border-radius: 50%; background: #efeeeb; color: #44474d;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--surface-sunken); color: var(--ink-soft);
     font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .inicio-checklist-texto { font-size: 13.5px; color: #1a1c1a; flex: 1; }
+  .inicio-checklist-texto { font-size: 13.5px; color: var(--ink); flex: 1; }
   .inicio-checklist-btn {
-    font-size: 12px; font-weight: 600; color: #0051d5; text-decoration: none; border: 1px solid #e5e7eb;
+    font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; border: 1px solid var(--line);
     padding: 5px 12px; border-radius: 4px; white-space: nowrap;
   }
-  .inicio-checklist-btn:hover { background: #dbe1ff; }
+  .inicio-checklist-btn:hover { background: var(--accent-soft); }
 
   @media (max-width: 640px) {
     .inicio-tiles { grid-template-columns: 1fr; }
@@ -791,101 +794,103 @@
   .procman-acoes-menu button.procman-acao-excluir { color: var(--crit); }
   .procman-acoes-menu button.procman-acao-excluir:hover { background: var(--crit-soft); }
 
-  /* Hub de Processos -- fiel ao print de referencia (tema escuro fixo, cores proprias, nao usa
-     var() de tema claro/escuro), mesmo criterio ja aplicado na Inicio. */
+  /* Hub de Processos -- ate 09/2026 era fiel ao print de referencia (tema escuro fixo, sem
+     var() de tema claro/escuro), por pedido explicito do usuario ([[feedback-seguir-dashboards-
+     literalmente]]). Revertido a pedido dele mesmo: agora usa os tokens de tema como o resto da
+     plataforma, pra nao ficar uma "ilha escura" fixa quando alguem usa o modo claro. */
   .procpage-dark {
-    background: #0b1220; color: #e7eaf0; border-radius: 10px; padding: 22px 24px 28px;
-    border: 1px solid #232d42;
+    background: var(--bg); color: var(--ink); border-radius: 10px; padding: 22px 24px 28px;
+    border: 1px solid var(--line);
   }
   .procpage-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
-  .procpage-titulo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: #e7eaf0; margin: 0; }
+  .procpage-titulo { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); margin: 0; }
   .procpage-acoes-topo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .procpage-btn {
     display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px;
-    font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #232d42;
-    background: #121a2c; color: #e7eaf0; font-family: inherit;
+    font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); font-family: inherit;
   }
-  .procpage-btn:hover { background: #1b2743; }
+  .procpage-btn:hover { background: var(--accent-soft); }
   .procpage-btn svg { width: 15px; height: 15px; }
-  .procpage-btn-primary { background: #2c5ce0; border-color: #2c5ce0; color: #fff; }
-  .procpage-btn-primary:hover { background: #3f6ce8; }
+  .procpage-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .procpage-btn-primary:hover { filter: brightness(1.1); }
 
   .procpage-filtros {
-    background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;
   }
-  .procpage-filtros-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #a7b0c2; margin: 0 0 12px; }
+  .procpage-filtros-titulo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 12px; }
   .procpage-filtros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
-  .procpage-filtros-grid label { display: block; font-size: 11px; color: #8293b5; margin-bottom: 5px; }
+  .procpage-filtros-grid label { display: block; font-size: 11px; color: var(--ink-faint); margin-bottom: 5px; }
   .procpage-filtros-grid input, .procpage-filtros-grid select {
-    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #232d42; border-radius: 6px;
-    font-size: 13px; background: #0b1220; color: #e7eaf0; font-family: inherit;
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit;
   }
   .procpage-filtros-botoes { display: flex; gap: 8px; }
 
   /* sem overflow:hidden de proposito -- cortava o menu de "mais opcoes" quando abria perto da
      borda (ex: ultima linha). O th tem so um overlay quase invisivel (0.02 de opacidade), entao
      nao ter o clipping nos cantos nao faz diferenca visual perceptivel. */
-  .procpage-tabela-wrap { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; }
+  .procpage-tabela-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
   .procpage-tabela-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .procpage-tabela-wrap th {
     text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-    color: #8293b5; padding: 10px 16px; border-bottom: 1px solid #232d42; background: rgba(255,255,255,0.02);
+    color: var(--ink-faint); padding: 10px 16px; border-bottom: 1px solid var(--line); background: rgba(127,127,127,0.04);
   }
-  .procpage-tabela-wrap td { padding: 12px 16px; border-bottom: 1px solid #1a2438; vertical-align: middle; }
+  .procpage-tabela-wrap td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   .procpage-tabela-wrap tr:last-child td { border-bottom: none; }
-  .procpage-numero-link { background: none; border: none; padding: 0; font: inherit; color: #e7eaf0; font-weight: 600; cursor: pointer; text-align: left; }
-  .procpage-numero-link:hover { color: #6c8cf0; text-decoration: underline; }
-  .procpage-sub { font-size: 11.5px; color: #8293b5; margin-top: 2px; }
-  .procpage-tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #1b2743; color: #a7b0c2; margin-left: 6px; }
+  .procpage-numero-link { background: none; border: none; padding: 0; font: inherit; color: var(--ink); font-weight: 600; cursor: pointer; text-align: left; }
+  .procpage-numero-link:hover { color: var(--accent); text-decoration: underline; }
+  .procpage-sub { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+  .procpage-tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--ink-soft); margin-left: 6px; }
   .procpage-acoes-icones { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
   .procpage-icone-btn {
-    background: none; border: none; padding: 7px; border-radius: 6px; color: #8293b5; cursor: pointer; display: flex;
+    background: none; border: none; padding: 7px; border-radius: 6px; color: var(--ink-faint); cursor: pointer; display: flex;
   }
-  .procpage-icone-btn:hover { background: #1b2743; color: #e7eaf0; }
+  .procpage-icone-btn:hover { background: var(--accent-soft); color: var(--ink); }
   .procpage-icone-btn svg { width: 16px; height: 16px; }
 
   /* Ficha do processo (detalhe) */
   .procficha-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   .procficha-titulo-wrap { display: flex; align-items: center; gap: 12px; }
   .procficha-voltar {
-    display: flex; align-items: center; gap: 6px; background: #121a2c; border: 1px solid #232d42;
-    color: #e7eaf0; cursor: pointer; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: inherit;
+    display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line);
+    color: var(--ink); cursor: pointer; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: inherit;
   }
-  .procficha-voltar:hover { background: #1b2743; border-color: #2c5ce0; }
+  .procficha-voltar:hover { background: var(--accent-soft); border-color: var(--accent); }
   .procficha-voltar svg { width: 16px; height: 16px; flex-shrink: 0; }
-  .procficha-numero { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: #e7eaf0; margin: 0; }
-  .procficha-tabs { display: flex; gap: 4px; border-bottom: 1px solid #232d42; margin-bottom: 18px; flex-wrap: wrap; }
+  .procficha-numero { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--ink); margin: 0; }
+  .procficha-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; flex-wrap: wrap; }
   .procficha-tab {
-    background: none; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #8293b5;
+    background: none; border: none; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--ink-faint);
     cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit;
   }
-  .procficha-tab:hover { color: #e7eaf0; }
-  .procficha-tab.ativo { color: #6c8cf0; border-bottom-color: #6c8cf0; }
+  .procficha-tab:hover { color: var(--ink); }
+  .procficha-tab.ativo { color: var(--accent); border-bottom-color: var(--accent); }
   .procficha-corpo { display: grid; grid-template-columns: 1fr 260px; gap: 18px; align-items: start; }
-  .procficha-painel { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 18px 20px; }
-  .procficha-painel-titulo { font-size: 13.5px; font-weight: 600; color: #e7eaf0; margin: 0 0 4px; }
-  .procficha-painel-sub { font-size: 12px; color: #8293b5; margin: 0 0 14px; }
+  .procficha-painel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .procficha-painel-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+  .procficha-painel-sub { font-size: 12px; color: var(--ink-faint); margin: 0 0 14px; }
   .procficha-campos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px; }
   .procficha-editar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-  .procficha-editar-grid label { display: block; font-size: 11px; color: #8293b5; margin-bottom: 5px; }
+  .procficha-editar-grid label { display: block; font-size: 11px; color: var(--ink-faint); margin-bottom: 5px; }
   .procficha-editar-grid input, .procficha-editar-grid select {
-    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #232d42; border-radius: 6px;
-    font-size: 13px; background: #0b1220; color: #e7eaf0; font-family: inherit;
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit;
   }
   .procficha-modelo-item {
     display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px;
-    border: 1px solid #232d42; border-bottom: none; background: #0b1220; font-size: 13px; color: #e7eaf0;
+    border: 1px solid var(--line); border-bottom: none; background: var(--bg); font-size: 13px; color: var(--ink);
   }
-  .procficha-modelo-item:last-child { border-bottom: 1px solid #232d42; border-radius: 0 0 8px 8px; }
+  .procficha-modelo-item:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 8px 8px; }
   .procficha-modelo-item:first-child { border-radius: 8px 8px 0 0; }
-  .procficha-campo-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8293b5; margin-bottom: 4px; }
-  .procficha-campo-valor { font-size: 13.5px; color: #e7eaf0; }
-  .procficha-resumo { background: #121a2c; border: 1px solid #232d42; border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-  .procficha-resumo-item-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8293b5; margin-bottom: 3px; }
-  .procficha-resumo-item-valor { font-size: 18px; font-weight: 700; color: #e7eaf0; }
-  .procficha-resumo-item-link { font-size: 12px; color: #6c8cf0; text-decoration: none; }
+  .procficha-campo-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
+  .procficha-campo-valor { font-size: 13.5px; color: var(--ink); }
+  .procficha-resumo { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .procficha-resumo-item-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 3px; }
+  .procficha-resumo-item-valor { font-size: 18px; font-weight: 700; color: var(--ink); }
+  .procficha-resumo-item-link { font-size: 12px; color: var(--accent); text-decoration: none; }
   .procficha-resumo-item-link:hover { text-decoration: underline; }
-  .procficha-resumo-divisor { height: 1px; background: #232d42; }
+  .procficha-resumo-divisor { height: 1px; background: var(--line); }
   .procficha-acoes-wrap { position: relative; }
   @media (max-width: 860px) {
     .procficha-corpo { grid-template-columns: 1fr; }
@@ -894,7 +899,7 @@
   .hidden { display: none !important; }
 
   .campo-label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
-  .campo-label input, .campo-label select { font: inherit; font-weight: 400; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--card-border, #e2e6ee); background: var(--card-bg, #fff); color: var(--ink); }
+  .campo-label input, .campo-label select { font: inherit; font-weight: 400; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
   @media (max-width: 640px) {
     #sec-configuracoes [style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
   }
