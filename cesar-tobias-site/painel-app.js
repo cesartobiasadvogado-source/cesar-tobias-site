@@ -60,7 +60,7 @@
   var TITULO_TOPBAR_POR_PAGINA = {
     inicio: 'Início', financeiro: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
-    tarefas: 'Tarefas', agenda: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
+    tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
 
@@ -3121,7 +3121,7 @@
       novo_cliente: htmlNovoCliente,
       prazos: htmlPrazos,
       tarefas: htmlTarefas,
-      agenda: htmlAgendaCompleta,
+      agenda_completa: htmlAgendaCompleta,
       automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
@@ -3131,7 +3131,7 @@
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
-      tarefas: 'agenda', agenda: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
+      tarefas: 'agenda', agenda_completa: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
@@ -3192,7 +3192,7 @@
 
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
-    if (PAGINA_ATUAL === 'agenda') { wireAgendaCompleta(); }
+    if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
