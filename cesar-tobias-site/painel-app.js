@@ -3901,14 +3901,17 @@
       // pagina diferente: deixa o navegador navegar normalmente pelo href (link de verdade)
     });
 
-    wireScrollSpyMenu(itensNav);
+    wireScrollSpyMenu(itensNav, arquivoAtual);
   }
 
-  function wireScrollSpyMenu(itensNav) {
-    // paginas com mais de uma sub-secao no menu (ex: Financeiro tem 4) -- acende so a que esta
-    // visivel na tela agora, em vez do grupo inteiro junto.
+  function wireScrollSpyMenu(itensNav, arquivoAtual) {
+    // paginas com mais de uma sub-secao no menu (ex: Financeiro e Ficha de processos/Processo
+    // Administrativo) -- acende so a que esta visivel na tela agora, em vez do grupo inteiro
+    // junto. Agrupa pelo ARQUIVO de destino (varios itens do menu podem apontar pro mesmo html,
+    // so mudando a ancora), nunca por data-secao -- esse e so o rotulo de permissao e pode ser
+    // compartilhado por itens de paginas diferentes (ex: "processos"), o que acendia o grupo errado.
     var itensDoGrupo = Array.prototype.filter.call(itensNav, function (item) {
-      return item.getAttribute('data-secao') === PAGINA_ATUAL;
+      return item.getAttribute('href').split('#')[0] === arquivoAtual;
     });
     if (itensDoGrupo.length < 2 || typeof IntersectionObserver === 'undefined') return;
 
