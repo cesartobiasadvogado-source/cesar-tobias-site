@@ -42,34 +42,19 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="painel.css">
 <style>
-  /* Estilo literal desta página, dessa vez inspirado num print da plataforma concorrente NEXOADV
-     (só o layout/tema escuro -- sem marca, sem logo, sem o banner de trial deles, sem itens de
-     menu fictícios: aqui usamos nossa navegação real de 10 páginas e conteúdo real). Tema escuro
-     na página inteira, não só no banner -- cores fixas, não usam var() de tema claro/escuro. */
-  body { background: #0b1220; }
-  .conteudo-area { background: #0b1220; }
-  .page { background: transparent; }
-
+  /* Estilo desta página -- ate 09/2026 fixava a pagina inteira em tema escuro (inspirado num
+     print da plataforma concorrente NEXOADV), reescrevendo por cima dos mesmos componentes
+     que o painel.css ja define. Revertido a pedido do usuario: essa pagina agora segue os
+     tokens de tema, igual o resto da plataforma -- so o botao "Novo Processo" (proprio desta
+     pagina) continua tokenizado aqui embaixo, sem sobrescrever mais nada do painel.css. */
   .inicio-lit-cta-wrap { padding: 0 16px 20px; }
   .inicio-lit-cta {
     display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-    background: #0051d5; color: #fff; padding: 10px 0; border-radius: 4px; text-decoration: none;
+    background: var(--accent); color: #fff; padding: 10px 0; border-radius: 4px; text-decoration: none;
     font-size: 13.5px; font-weight: 600; font-family: 'IBM Plex Sans', sans-serif;
   }
-  .inicio-lit-cta:hover { background: #316bf3; }
+  .inicio-lit-cta:hover { filter: brightness(1.1); }
   .inicio-lit-cta svg { width: 16px; height: 16px; }
-
-  /* "Primeiros passos" fica escuro nessa referência (não claro como na versão anterior) */
-  #conteudo .panel { background: #121a2c; border-color: #232d42; }
-  #conteudo .panel-header { border-color: #232d42; }
-  #conteudo .panel-title { color: #e7eaf0; }
-  .inicio-checklist-item { border-color: #232d42; }
-  .inicio-checklist-num { background: #1b2743; color: #a7b0c2; }
-  .inicio-checklist-texto { color: #e7eaf0; }
-  .inicio-checklist-btn { color: #6c8cf0; border-color: #232d42; }
-  .inicio-checklist-btn:hover { background: #1b2743; }
-
-
 </style>
 </head>
 <body>
