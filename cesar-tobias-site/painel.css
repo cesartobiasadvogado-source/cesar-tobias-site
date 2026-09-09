@@ -62,28 +62,34 @@
     display: flex; flex-direction: column; padding: 20px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
     transition: width .15s ease, padding .15s ease;
   }
-  html[data-sidebar-recolhida="1"] .sidebar { width: 0; min-width: 0; padding: 0; overflow: hidden; border-right: none; }
-  .btn-recolher-menu, .btn-expandir-menu {
-    background: none; border: none; color: var(--sidebar-ink-soft); cursor: pointer; padding: 5px;
-    border-radius: 6px; display: flex; flex-shrink: 0;
-  }
-  .btn-recolher-menu:hover, .btn-expandir-menu:hover { background: rgba(255,255,255,0.08); color: var(--sidebar-ink); }
-  .btn-recolher-menu svg, .btn-expandir-menu svg { width: 16px; height: 16px; }
-  .btn-expandir-menu {
-    display: none; position: fixed; top: 16px; left: 16px; z-index: 25;
-    background: var(--sidebar-bg); border: 1px solid var(--sidebar-line); padding: 8px; border-radius: 8px;
-  }
-  html[data-sidebar-recolhida="1"] .btn-expandir-menu { display: flex; }
-  .sidebar-wordmark { padding: 6px 10px 18px; border-bottom: 1px solid var(--sidebar-line); margin-bottom: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  /* Menu recolhido -- so esconde o TEXTO de cada item, o icone continua visivel (barra estreita
+     so de icones, nao a sidebar inteira desaparecendo). O botao que liga/desliga isso fica no
+     topo, ao lado da busca (#btn-recolher-menu em .hdr-topo), nao aqui dentro. */
+  html[data-sidebar-recolhida="1"] .sidebar { width: 60px; padding: 20px 10px; }
+  html[data-sidebar-recolhida="1"] .sidebar-wordmark { display: flex; justify-content: center; padding-left: 0; padding-right: 0; }
+  html[data-sidebar-recolhida="1"] .sidebar-logo-full { display: none !important; } /* tem display:block inline no proprio img, precisa do !important pra vencer */
+  html[data-sidebar-recolhida="1"] .sidebar-wordmark .sub,
+  html[data-sidebar-recolhida="1"] .nav-label,
+  html[data-sidebar-recolhida="1"] .tema-toggle span,
+  html[data-sidebar-recolhida="1"] .sidebar-rodape .quem,
+  html[data-sidebar-recolhida="1"] .sidebar-rodape .cargo,
+  html[data-sidebar-recolhida="1"] #btn-cor-reset,
+  html[data-sidebar-recolhida="1"] #btn-cor-fundo-reset { display: none; }
+  html[data-sidebar-recolhida="1"] .nav-item,
+  html[data-sidebar-recolhida="1"] .inicio-lit-cta { width: 32px; overflow: hidden; padding-left: 8px; padding-right: 0; }
+  html[data-sidebar-recolhida="1"] .sidebar-rodape { justify-content: center; padding: 10px 0; }
+  .sidebar-wordmark { padding: 6px 10px 18px; border-bottom: 1px solid var(--sidebar-line); margin-bottom: 12px; }
   .sidebar-wordmark .nome { font-family: var(--font-display); font-size: 18px; font-weight: 600; }
   .sidebar-wordmark .sub { display: block; font-family: var(--font-body); font-size: 10px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: var(--sidebar-ink-soft); margin-top: 4px; }
+  .sidebar-logo-icone { display: none; flex-shrink: 0; }
+  html[data-sidebar-recolhida="1"] .sidebar-logo-icone { display: block; }
   .nav-grupo { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
-  .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--sidebar-ink-soft); padding: 8px 10px 5px; }
+  .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--sidebar-ink-soft); padding: 8px 10px 5px; white-space: nowrap; }
   .nav-item {
     display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 7px;
     color: var(--sidebar-ink-soft); text-decoration: none; font-size: 13px; font-weight: 500;
     border-left: 2px solid transparent; background: none; border-top: none; border-right: none; border-bottom: none;
-    width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+    width: 100%; text-align: left; cursor: pointer; font-family: inherit; white-space: nowrap;
   }
   .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.85; }
   .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--sidebar-ink); }
@@ -91,7 +97,7 @@
   .tema-toggle {
     display: flex; align-items: center; gap: 9px; padding: 8px 10px; margin: 0 0 4px; border-radius: 7px;
     background: none; border: none; color: var(--sidebar-ink-soft); font-size: 13px; font-weight: 500;
-    width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+    width: 100%; text-align: left; cursor: pointer; font-family: inherit; white-space: nowrap;
   }
   .tema-toggle:hover { background: rgba(255, 255, 255, 0.05); color: var(--sidebar-ink); }
   .tema-toggle svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.85; }
@@ -209,10 +215,22 @@
     .sidebar-rodape { display: flex; }
     .page { padding: 20px 16px 48px; }
     /* recolher menu e recurso de desktop -- no mobile o menu ja e um overlay que abre/fecha
-       por cima do conteudo (btn-menu-mobile), entao esconde os dois botoes e ignora a
-       preferencia salva, senao o menu mobile poderia ficar com largura 0 tambem. */
-    .btn-recolher-menu, .btn-expandir-menu { display: none !important; }
+       por cima do conteudo (btn-menu-mobile). Esconde o botao e desfaz qualquer preferencia de
+       recolhimento salva, senao o menu mobile abriria estreito/so com icones sem nenhum jeito
+       de desfazer por la (o botao que liga isso e so do desktop). */
+    #btn-recolher-menu { display: none !important; }
     html[data-sidebar-recolhida="1"] .sidebar { width: min(280px, 84vw); padding: 20px 12px; overflow-y: auto; }
+    html[data-sidebar-recolhida="1"] .sidebar-wordmark { display: block; }
+    html[data-sidebar-recolhida="1"] .sidebar-logo-full { display: block !important; }
+    html[data-sidebar-recolhida="1"] .sidebar-logo-icone { display: none; }
+    html[data-sidebar-recolhida="1"] .sidebar-wordmark .sub,
+    html[data-sidebar-recolhida="1"] .nav-label,
+    html[data-sidebar-recolhida="1"] .tema-toggle span,
+    html[data-sidebar-recolhida="1"] .sidebar-rodape .quem,
+    html[data-sidebar-recolhida="1"] .sidebar-rodape .cargo,
+    html[data-sidebar-recolhida="1"] #btn-cor-reset,
+    html[data-sidebar-recolhida="1"] #btn-cor-fundo-reset { display: initial; }
+    html[data-sidebar-recolhida="1"] .sidebar-rodape { justify-content: flex-start; }
   }
 
   /* Password gate */

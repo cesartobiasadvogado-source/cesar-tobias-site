@@ -182,12 +182,28 @@
     if (recolhida) document.documentElement.setAttribute('data-sidebar-recolhida', '1');
     else document.documentElement.removeAttribute('data-sidebar-recolhida');
     localStorage.setItem('painel_sidebar_recolhida', recolhida ? '1' : '0');
+    var iconeFechar = document.getElementById('icone-recolher-fechar');
+    var iconeAbrir = document.getElementById('icone-recolher-abrir');
+    if (iconeFechar) iconeFechar.classList.toggle('hidden', recolhida);
+    if (iconeAbrir) iconeAbrir.classList.toggle('hidden', !recolhida);
   }
 
   var btnRecolherMenu = document.getElementById('btn-recolher-menu');
-  if (btnRecolherMenu) btnRecolherMenu.addEventListener('click', function () { aplicarRecolhimentoMenu(true); });
-  var btnExpandirMenu = document.getElementById('btn-expandir-menu');
-  if (btnExpandirMenu) btnExpandirMenu.addEventListener('click', function () { aplicarRecolhimentoMenu(false); });
+  if (btnRecolherMenu) {
+    // sincroniza os icones do botao com o estado ja aplicado (o atributo em <html> ja foi
+    // setado antes do body existir, ver script inline de cada pagina -- so os icones do
+    // botao que ainda nao sabem disso nesse primeiro instante).
+    aplicarRecolhimentoMenu(document.documentElement.getAttribute('data-sidebar-recolhida') === '1');
+    btnRecolherMenu.addEventListener('click', function () {
+      aplicarRecolhimentoMenu(document.documentElement.getAttribute('data-sidebar-recolhida') !== '1');
+    });
+  }
+
+  // titulo com o nome de cada item -- vira tooltip nativo do navegador quando o texto esta
+  // escondido (menu recolhido), sem precisar de nenhuma logica extra pra mostrar/escoder.
+  document.querySelectorAll('.nav-item, .inicio-lit-cta').forEach(function (el) {
+    if (!el.title) el.title = el.textContent.trim();
+  });
 
   function sair() {
     sessionStorage.removeItem('painel_token');

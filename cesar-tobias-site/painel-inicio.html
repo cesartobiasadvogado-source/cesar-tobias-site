@@ -114,9 +114,6 @@
   </div>
 
   <div id="shell" class="shell hidden">
-    <button type="button" id="btn-expandir-menu" class="btn-expandir-menu" title="Expandir menu" aria-label="Expandir menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"></path></svg>
-    </button>
     <div id="topbar-mobile" class="topbar-mobile">
       <button type="button" id="btn-menu-mobile" class="btn-menu-mobile" aria-label="Abrir menu" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -127,13 +124,9 @@
     <aside class="sidebar" id="sidebar">
       <button type="button" id="btn-fechar-menu-mobile" class="btn-fechar-menu-mobile" aria-label="Fechar menu">✕</button>
       <div class="sidebar-wordmark">
-        <div>
-          <img src="/logo-vero-juridico-branca.png" alt="Vero Jurídico" style="height:20px;display:block;">
-          <small class="sub">Plataforma jurídica</small>
-        </div>
-        <button type="button" id="btn-recolher-menu" class="btn-recolher-menu" title="Recolher menu" aria-label="Recolher menu">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 19l-7-7 7-7M20 19l-7-7 7-7"></path></svg>
-        </button>
+        <img src="/logo-vero-juridico-branca.png" alt="Vero Jurídico" class="sidebar-logo-full" style="height:20px;display:block;">
+        <img src="/logo-vj-icone-branco.png" alt="Vero Jurídico" class="sidebar-logo-icone" style="width:22px;height:22px;">
+        <small class="sub">Plataforma jurídica</small>
       </div>
 
       <div class="inicio-lit-cta-wrap">
@@ -285,6 +278,10 @@
 
     <div class="conteudo-area">
       <header class="hdr-topo">
+        <button type="button" id="btn-recolher-menu" class="hdr-icone-btn" title="Recolher menu" aria-label="Recolher menu">
+          <svg id="icone-recolher-fechar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 19l-7-7 7-7M20 19l-7-7 7-7"></path></svg>
+          <svg id="icone-recolher-abrir" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"></path></svg>
+        </button>
         <div class="hdr-busca" style="position:relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
           <input type="text" id="hdr-busca-input" placeholder="Buscar processo, cliente ou número..." autocomplete="off">
