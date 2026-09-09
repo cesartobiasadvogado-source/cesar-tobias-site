@@ -5416,35 +5416,7 @@
         var dadosPje = resp.dados;
         if (!dadosPje) { alvo.closest('.procficha-pje-secao').classList.add('hidden'); return; }
         alvo.closest('.procficha-pje-secao').classList.remove('hidden');
-        alvo.innerHTML =
-          (dadosPje.proxima_audiencia
-            ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + esc(fmtDataCurta(dadosPje.proxima_audiencia)) + '</div>'
-            : '') +
-          '<div class="procficha-pje-audiencia-form">' +
-            '<label style="font-size:11px;color:#8293b5;">Próxima audiência (manual -- use quando a detecção automática não achar sozinha)</label>' +
-            '<div style="display:flex;gap:8px;margin-top:4px;">' +
-              '<input type="date" id="procficha-pje-audiencia" value="' + esc(dadosPje.proxima_audiencia || '') + '">' +
-              '<button type="button" class="procpage-btn" id="procficha-pje-btn-salvar-audiencia">Salvar</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="timeline" style="margin-top:14px;">' + _htmlTimelinePje(dadosPje.timeline) + '</div>';
-
-        var btnSalvar = document.getElementById('procficha-pje-btn-salvar-audiencia');
-        if (btnSalvar) {
-          btnSalvar.addEventListener('click', function () {
-            var valor = document.getElementById('procficha-pje-audiencia').value;
-            btnSalvar.disabled = true;
-            btnSalvar.textContent = 'Salvando...';
-            apiPost('/api/painel?acao=processos', { op: 'salvar_meta', processo: dadosPje.processo, proxima_audiencia: valor })
-              .then(function (r) { return r.json(); })
-              .then(function () { carregarComunicacoesPjeDaFicha(processo); })
-              .catch(function () {
-                btnSalvar.disabled = false;
-                btnSalvar.textContent = 'Salvar';
-                mostrarAviso('Não foi possível salvar agora.');
-              });
-          });
-        }
+        alvo.innerHTML = '<div class="timeline">' + _htmlTimelinePje(dadosPje.timeline) + '</div>';
       })
       .catch(function () { alvo.closest('.procficha-pje-secao').classList.add('hidden'); });
   }
@@ -6917,6 +6889,17 @@
           '<div class="procficha-painel hidden" data-procficha-painel="andamentos">' +
             '<p class="procficha-painel-titulo">Andamentos</p>' +
             '<p class="procficha-painel-sub">Atos registrados pelo escritório e movimentações sincronizadas automaticamente do tribunal via DataJud/CNJ. A sincronização automática roda 1x por dia — use "Sincronizar agora" pra não esperar (ex: processo recém-importado).</p>' +
+
+            '<div style="background:#0b1220; border:1px solid #232d42; border-radius:8px; padding:14px 16px; margin-bottom:16px;">' +
+              '<label style="font-size:11px;color:#8293b5;">Próxima audiência</label>' +
+              '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center;">' +
+                '<input type="date" id="procficha-audiencia-input" value="' + esc(p.proxima_audiencia || '') + '">' +
+                '<button type="button" class="procpage-btn" id="procficha-btn-salvar-audiencia">Salvar</button>' +
+                (p.proxima_audiencia ? '<span class="chip warn">' + esc(fmtDataCurta(p.proxima_audiencia)) + '</span>' : '') +
+              '</div>' +
+              '<p class="procficha-painel-sub" style="margin:6px 0 0;">Preenchido automaticamente quando a detecção por IA acha uma audiência marcada numa comunicação do PJe ou andamento do tribunal -- edite aqui quando ela não conseguir achar sozinha.</p>' +
+            '</div>' +
+
             '<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">' +
               '<button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-novo-ato">+ Novo ato</button>' +
               '<button type="button" class="procpage-btn" id="procficha-btn-sincronizar-agora">Sincronizar agora</button>' +
@@ -7037,6 +7020,20 @@
           })
           .catch(function () { mostrarAviso('Não foi possível excluir o processo agora.'); });
       });
+    });
+
+    document.getElementById('procficha-btn-salvar-audiencia').addEventListener('click', function () {
+      var btn = this;
+      var valor = document.getElementById('procficha-audiencia-input').value;
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=processo_manual_audiencia_atualizar', { id: processo.id, proxima_audiencia: valor })
+        .then(function () { processo.proxima_audiencia = valor; abrirFichaProcesso(processo); })
+        .catch(function () {
+          btn.disabled = false;
+          btn.textContent = 'Salvar';
+          mostrarAviso('Não foi possível salvar agora.');
+        });
     });
 
     function _htmlListaAtosInline(atos) {
