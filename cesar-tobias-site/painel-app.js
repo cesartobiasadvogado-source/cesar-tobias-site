@@ -1884,6 +1884,8 @@
               '</div>' +
             '</div>' +
 
+            '<div id="procpage-aviso-nao-cadastrados"></div>' +
+
             '<div class="procpage-filtros">' +
               '<p class="procpage-filtros-titulo">Busca avançada</p>' +
               '<div class="procpage-filtros-grid">' +
@@ -1911,13 +1913,6 @@
           '</div>' +
 
           '<div id="procpage-view-ficha" class="hidden"></div>' +
-        '</div>' +
-
-        '<div style="margin-top:22px;">' +
-          '<p class="section-label">Comunicações do PJe (sincronização automática)</p>' +
-          '<div class="panel"><div class="panel-header"><span class="panel-title">Processos com comunicações recentes</span></div>' +
-            '<div id="processos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-          '</div>' +
         '</div>' +
       '</section>';
 
@@ -3203,7 +3198,7 @@
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
       carregarPainelExecutivo();
     }
-    if (PAGINA_ATUAL === 'ficha_processos') { carregarProcessos(); wireProcessosAdministrativos(); wireProcessosHub(); }
+    if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosAdministrativos(); wireProcessosHub(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
@@ -5395,93 +5390,63 @@
     });
   }
 
-  function carregarProcessos() {
-    apiGetJson('/api/painel?acao=processos&op=listar')
-      .then(function (dados) {
-        renderProcessos(dados.processos || []);
-      })
-      .catch(function () {
-        document.getElementById('processos-lista').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar os processos.</div></div>';
-      });
-  }
-
-  function renderProcessos(processos) {
-    var container = document.getElementById('processos-lista');
-    if (processos.length === 0) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum processo com comunicações registradas ainda.</div></div>';
-      return;
-    }
-
-    container.innerHTML = processos.map(function (p, idx) {
-      var timelineHtml = p.timeline.map(function (item) {
-        var classeAndamento = item.tipo_registro === 'andamento' ? ' timeline-item-andamento' : '';
-        return '<div class="timeline-item' + classeAndamento + '">' +
-          '<div class="timeline-item-data">' + esc(item.data) + (item.prazo ? ' · prazo ' + esc(item.prazo) : '') + '</div>' +
-          '<div class="timeline-item-tipo">' + esc(item.tipo) + (item.tribunal ? ' — ' + esc(item.tribunal) : '') + '</div>' +
-          (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
-          (item.resumo ? '<div class="timeline-item-resumo">' + esc(item.resumo) + '</div>' : '') +
-          (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a></div>' : '') +
-        '</div>';
-      }).join('');
-
-      var badges = '<span class="chip neutral">' + p.total_movimentacoes + ' movimentação(ões)</span>';
-      if (p.proximo_prazo) badges = '<span class="chip warn">Prazo ' + esc(p.proximo_prazo) + '</span>' + badges;
-
-      return '<div class="processo-card">' +
-        '<button type="button" class="processo-cabecalho" data-toggle-processo="' + idx + '" aria-expanded="false" aria-controls="processo-corpo-' + idx + '">' +
-          '<div><div class="processo-numero">' + esc(p.processo) + '</div>' +
-          (p.cliente ? '<div class="processo-cliente">' + esc(p.cliente) + '</div>' : '<div class="processo-cliente" style="color:var(--ink-faint);">Cliente não identificado</div>') +
-          '<div class="processo-meta">' + esc(p.tribunal) + (p.orgao_atual ? ' · ' + esc(p.orgao_atual) : '') + ' · última movimentação: ' + esc(p.ultima_movimentacao) + '</div></div>' +
-          '<div class="processo-badges">' + badges + '</div>' +
-        '</button>' +
-        '<div class="processo-corpo" id="processo-corpo-' + idx + '">' +
-          '<div class="processo-edit-form">' +
-            '<input type="text" placeholder="Cliente vinculado" id="processo-cliente-' + idx + '" value="' + esc(p.cliente || '') + '">' +
-            '<input type="date" placeholder="Próxima audiência" id="processo-audiencia-' + idx + '" value="' + esc(p.proxima_audiencia || '') + '">' +
-            '<button data-salvar-processo="' + idx + '">Salvar</button>' +
-            '<textarea placeholder="Observações internas" id="processo-obs-' + idx + '">' + esc(p.observacoes || '') + '</textarea>' +
-          '</div>' +
-          (p.proxima_audiencia ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + esc(fmtDataCurta(p.proxima_audiencia)) + '</div>' : '') +
-          '<div class="timeline">' + timelineHtml + '</div>' +
-        '</div>' +
+  function _htmlTimelinePje(timeline) {
+    return (timeline || []).map(function (item) {
+      var classeAndamento = item.tipo_registro === 'andamento' ? ' timeline-item-andamento' : '';
+      return '<div class="timeline-item' + classeAndamento + '">' +
+        '<div class="timeline-item-data">' + esc(item.data) + (item.prazo ? ' · prazo ' + esc(item.prazo) : '') + '</div>' +
+        '<div class="timeline-item-tipo">' + esc(item.tipo) + (item.tribunal ? ' — ' + esc(item.tribunal) : '') + '</div>' +
+        (item.orgao ? '<div class="prazo-orgao">' + esc(item.orgao) + '</div>' : '') +
+        (item.resumo ? '<div class="timeline-item-resumo">' + esc(item.resumo) + '</div>' : '') +
+        (item.link ? '<div style="margin-top:4px;"><a href="' + esc(item.link) + '" target="_blank" rel="noopener" class="link-original">Ver comunicação original</a></div>' : '') +
       '</div>';
     }).join('');
+  }
 
-    container.querySelectorAll('[data-toggle-processo]').forEach(function (el) {
-      el.addEventListener('click', function () {
-        var corpo = document.getElementById('processo-corpo-' + el.getAttribute('data-toggle-processo'));
-        var aberto = corpo.classList.toggle('aberto');
-        el.setAttribute('aria-expanded', aberto ? 'true' : 'false');
-      });
-    });
+  // Traz pra dentro da aba "Andamentos" da ficha a timeline completa de comunicações que a
+  // Comunica PJe tem pra este processo (com link "ver original") -- antes so existia numa lista
+  // solta, separada do cadastro oficial (painel-processos.html). Casa por numero CNJ (so
+  // digitos) no backend (processos_manuais.obter_dados_pje_processo); se nao achar nada (processo
+  // sem nenhuma comunicacao do PJe ainda), simplesmente nao mostra a secao.
+  function carregarComunicacoesPjeDaFicha(processo) {
+    var alvo = document.getElementById('procficha-pje-corpo');
+    if (!alvo || !processo.numero_cnj) return;
+    apiGetJson('/api/painel?acao=processo_manual_pje_dados&numero_cnj=' + encodeURIComponent(processo.numero_cnj))
+      .then(function (resp) {
+        var dadosPje = resp.dados;
+        if (!dadosPje) { alvo.closest('.procficha-pje-secao').classList.add('hidden'); return; }
+        alvo.closest('.procficha-pje-secao').classList.remove('hidden');
+        alvo.innerHTML =
+          (dadosPje.proxima_audiencia
+            ? '<div class="chip warn" style="margin-bottom:12px;">Próxima audiência: ' + esc(fmtDataCurta(dadosPje.proxima_audiencia)) + '</div>'
+            : '') +
+          '<div class="procficha-pje-audiencia-form">' +
+            '<label style="font-size:11px;color:#8293b5;">Próxima audiência (manual -- use quando a detecção automática não achar sozinha)</label>' +
+            '<div style="display:flex;gap:8px;margin-top:4px;">' +
+              '<input type="date" id="procficha-pje-audiencia" value="' + esc(dadosPje.proxima_audiencia || '') + '">' +
+              '<button type="button" class="procpage-btn" id="procficha-pje-btn-salvar-audiencia">Salvar</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="timeline" style="margin-top:14px;">' + _htmlTimelinePje(dadosPje.timeline) + '</div>';
 
-    container.querySelectorAll('[data-salvar-processo]').forEach(function (btn) {
-      btn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var idx = btn.getAttribute('data-salvar-processo');
-        var processo = processos[idx].processo;
-        var cliente = document.getElementById('processo-cliente-' + idx).value;
-        var audiencia = document.getElementById('processo-audiencia-' + idx).value;
-        var observacoes = document.getElementById('processo-obs-' + idx).value;
-        var textoOriginal = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Salvando...';
-        apiPost('/api/painel?acao=processos', {
-          op: 'salvar_meta',
-          processo: processo,
-          cliente: cliente,
-          proxima_audiencia: audiencia,
-          observacoes: observacoes
-        }).then(function (r) { return r.json(); }).then(function () {
-          carregarProcessos();
-        }).catch(function () {
-          btn.disabled = false;
-          btn.textContent = textoOriginal;
-          mostrarAviso('Não foi possível salvar agora.');
-        });
-      });
-    });
+        var btnSalvar = document.getElementById('procficha-pje-btn-salvar-audiencia');
+        if (btnSalvar) {
+          btnSalvar.addEventListener('click', function () {
+            var valor = document.getElementById('procficha-pje-audiencia').value;
+            btnSalvar.disabled = true;
+            btnSalvar.textContent = 'Salvando...';
+            apiPost('/api/painel?acao=processos', { op: 'salvar_meta', processo: dadosPje.processo, proxima_audiencia: valor })
+              .then(function (r) { return r.json(); })
+              .then(function () { carregarComunicacoesPjeDaFicha(processo); })
+              .catch(function () {
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = 'Salvar';
+                mostrarAviso('Não foi possível salvar agora.');
+              });
+          });
+        }
+      })
+      .catch(function () { alvo.closest('.procficha-pje-secao').classList.add('hidden'); });
   }
 
   function arquivoParaBase64ProcAdm(arquivo) {
@@ -6958,6 +6923,12 @@
               '<span id="procficha-sincronizar-status" style="font-size:12.5px; color:#8293b5; align-self:center;"></span>' +
             '</div>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+
+            '<div class="procficha-pje-secao hidden" style="margin-top:22px;">' +
+              '<p class="procficha-painel-titulo">Comunicações do PJe</p>' +
+              '<p class="procficha-painel-sub">Intimações e citações recebidas automaticamente pela Comunica PJe pra este processo.</p>' +
+              '<div id="procficha-pje-corpo"><div class="empty-state"><div class="msg" style="color:#8293b5;">Carregando…</div></div></div>' +
+            '</div>' +
           '</div>' +
 
           '<div class="procficha-painel hidden" data-procficha-painel="prazos">' +
@@ -7095,6 +7066,8 @@
       .catch(function () {
         document.getElementById('procficha-resumo-atos').textContent = '—';
       });
+
+    carregarComunicacoesPjeDaFicha(processo);
 
     function _htmlListaPrazosInline(prazos) {
       if (!prazos.length) return '<div class="empty-state"><div class="msg" style="color:#8293b5;">Nenhum prazo cadastrado.</div></div>';
@@ -7348,6 +7321,7 @@
     if (!lista) return;
 
     carregarProcessosManuais();
+    carregarAvisoProcessosPjeNaoCadastrados();
 
     var datalistFiltro = document.getElementById('procpage-clientes-lista');
     apiGetJson('/api/painel?acao=clientes')
@@ -7446,6 +7420,26 @@
         document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
       }
     });
+  }
+
+  function carregarAvisoProcessosPjeNaoCadastrados() {
+    var alvo = document.getElementById('procpage-aviso-nao-cadastrados');
+    if (!alvo) return;
+    apiGetJson('/api/painel?acao=processo_manual_pje_sem_cadastro')
+      .then(function (dados) {
+        var pendentes = dados.processos || [];
+        if (pendentes.length === 0) { alvo.innerHTML = ''; return; }
+        var lista = pendentes.slice(0, 5).map(function (p) {
+          return esc(p.processo) + (p.cliente ? ' — ' + esc(p.cliente) : '');
+        }).join('; ');
+        var resto = pendentes.length > 5 ? ' e mais ' + (pendentes.length - 5) + '...' : '';
+        alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px;">' +
+          '<strong>' + pendentes.length + ' processo(s) com comunicação do PJe ainda não cadastrado(s):</strong> ' +
+          lista + resto + ' — ' +
+          '<a href="painel-importar-oab.html#sec-importar-oab" style="font-weight:600;">Importar pela OAB</a>' +
+        '</div>';
+      })
+      .catch(function () { /* aviso e so um "plus" -- se falhar, nao atrapalha a lista principal */ });
   }
 
   function wireImportarOab(dados) {
