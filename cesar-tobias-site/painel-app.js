@@ -58,7 +58,7 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    inicio: 'Início', financeiro: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos',
+    inicio: 'Início', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
@@ -3102,7 +3102,7 @@
       '</section>';
 
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
-    // (painel.html = 'financeiro', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
+    // (painel-financeiro-antigo.html = 'financeiro_antigo', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
     // o que realmente entra na pagina.
     var MAPA_CONTEUDO_POR_PAGINA = {
@@ -3111,7 +3111,7 @@
       // versao melhor em painel.html (financeiro_novo, com Painel Executivo). Notificacao
       // Extrajudicial e Clientes da planilha continuam aqui, sao features proprias, nao parte
       // do dashboard antigo.
-      financeiro: htmlNotificacaoExtrajudicial + htmlCadastroCliente,
+      financeiro_antigo: htmlNotificacaoExtrajudicial + htmlCadastroCliente,
       financeiro_novo: htmlFinanceiroNovo,
       pje: htmlPje,
       clientes: htmlClientes,
@@ -3129,7 +3129,7 @@
       configuracoes: htmlConfiguracoes,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
-      financeiro: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
+      financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       tarefas: 'agenda', agenda_completa: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
@@ -3193,7 +3193,7 @@
     if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
-    if (PAGINA_ATUAL === 'financeiro') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
+    if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
