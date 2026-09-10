@@ -58,7 +58,8 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    inicio: 'Início', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos',
+    inicio: 'Início', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos Judiciais',
+    processo_administrativo: 'Processo Administrativo',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
@@ -1900,7 +1901,7 @@
         '<div class="procpage-dark">' +
           '<div id="procpage-view-lista">' +
             '<div class="procpage-topo">' +
-              '<h2 class="procpage-titulo">Processos</h2>' +
+              '<h2 class="procpage-titulo">Processos Judiciais</h2>' +
               '<div class="procpage-acoes-topo">' +
                 '<a class="procpage-btn" href="painel-importar-oab.html#sec-importar-oab">' +
                   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>' +
@@ -3137,7 +3138,8 @@
       financeiro_novo: htmlFinanceiroNovo,
       pje: htmlPje,
       clientes: htmlClientes,
-      ficha_processos: htmlProcessos + htmlProcessoAdministrativo,
+      ficha_processos: htmlProcessos,
+      processo_administrativo: htmlProcessoAdministrativo,
       importar_oab: htmlImportarOab,
       criar_processo: htmlCriarProcesso,
       novo_cliente: htmlNovoCliente,
@@ -3152,6 +3154,7 @@
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
+      processo_administrativo: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       tarefas: 'agenda', agenda_completa: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
@@ -3225,7 +3228,8 @@
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
       carregarPainelExecutivo();
     }
-    if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosAdministrativos(); wireProcessosHub(); }
+    if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosHub(); }
+    if (PAGINA_ATUAL === 'processo_administrativo') { wireProcessosAdministrativos(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
