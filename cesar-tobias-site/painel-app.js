@@ -256,6 +256,10 @@
 
     var clientesCache = null;
     var processosCache = null;
+    var processosAdmCache = null;
+    var tarefasCache = null;
+    var prazosCache = null;
+    var audienciasCache = null;
     var timerDebounce = null;
 
     function garantirDados() {
@@ -268,7 +272,29 @@
         processosCache = [];
         pendentes.push(apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) { processosCache = d.processos || []; }).catch(function () {}));
       }
+      if (processosAdmCache === null) {
+        processosAdmCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=processos_administrativos&op=listar').then(function (d) { processosAdmCache = d.processos || []; }).catch(function () {}));
+      }
+      if (tarefasCache === null) {
+        tarefasCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=tarefa_listar').then(function (d) { tarefasCache = d.tarefas || []; }).catch(function () {}));
+      }
+      if (prazosCache === null) {
+        prazosCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=prazo_listar').then(function (d) { prazosCache = d.prazos || []; }).catch(function () {}));
+      }
+      if (audienciasCache === null) {
+        audienciasCache = [];
+        pendentes.push(apiGetJson('/api/painel?acao=pauta_audiencias').then(function (d) { audienciasCache = d.pauta || []; }).catch(function () {}));
+      }
       return Promise.all(pendentes);
+    }
+
+    function _grupoBusca(rotulo, itens) {
+      if (!itens.length) return '';
+      return '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">' +
+        rotulo + '</div>' + itens.join('');
     }
 
     function renderResultados(termo) {
@@ -277,25 +303,49 @@
       var processosAchados = processosCache.filter(function (p) {
         return (p.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1 || (p.cliente_nome || '').toLowerCase().indexOf(termoLower) !== -1;
       }).slice(0, 5);
+      var processosAdmAchados = processosAdmCache.filter(function (p) {
+        return (p.cliente || '').toLowerCase().indexOf(termoLower) !== -1 || (p.numero_protocolo || '').toLowerCase().indexOf(termoLower) !== -1;
+      }).slice(0, 5);
+      var tarefasAchadas = tarefasCache.filter(function (t) {
+        return (t.titulo || '').toLowerCase().indexOf(termoLower) !== -1;
+      }).slice(0, 5);
+      var prazosAchados = prazosCache.filter(function (pz) {
+        return (pz.titulo || '').toLowerCase().indexOf(termoLower) !== -1 || (pz.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1;
+      }).slice(0, 5);
+      var audienciasAchadas = audienciasCache.filter(function (a) {
+        return (a.cliente || '').toLowerCase().indexOf(termoLower) !== -1 || (a.numero_processo || '').toLowerCase().indexOf(termoLower) !== -1;
+      }).slice(0, 5);
 
-      if (clientesAchados.length === 0 && processosAchados.length === 0) {
+      var total = clientesAchados.length + processosAchados.length + processosAdmAchados.length +
+        tarefasAchadas.length + prazosAchados.length + audienciasAchadas.length;
+      if (total === 0) {
         resultadosEl.innerHTML = '<div class="hdr-avisos-vazio">Nada encontrado para "' + esc(termo) + '".</div>';
         resultadosEl.classList.remove('hidden');
         return;
       }
+
       var html = '';
-      if (clientesAchados.length) {
-        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Clientes</div>';
-        html += clientesAchados.map(function (c) {
-          return '<a href="painel-clientes.html?cliente=' + encodeURIComponent(c.nome) + '">' + esc(c.nome) + '</a>';
-        }).join('');
-      }
-      if (processosAchados.length) {
-        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Processos</div>';
-        html += processosAchados.map(function (p) {
-          return '<a href="painel-processos.html?processo=' + p.id + '#sec-processos">' + esc(p.numero_cnj || p.cliente_nome) + '</a>';
-        }).join('');
-      }
+      html += _grupoBusca('Clientes', clientesAchados.map(function (c) {
+        return '<a href="painel-clientes.html?cliente=' + encodeURIComponent(c.nome) + '">' + esc(c.nome) + '</a>';
+      }));
+      html += _grupoBusca('Processos', processosAchados.map(function (p) {
+        return '<a href="painel-processos.html?processo=' + p.id + '#sec-processos">' + esc(p.numero_cnj || p.cliente_nome) + '</a>';
+      }));
+      html += _grupoBusca('Processo Administrativo', processosAdmAchados.map(function (p) {
+        return '<a href="painel-processo-administrativo.html#sec-processo-administrativo">' + esc(p.cliente) +
+          (p.numero_protocolo ? ' — ' + esc(p.numero_protocolo) : '') + '</a>';
+      }));
+      html += _grupoBusca('Tarefas', tarefasAchadas.map(function (t) {
+        return '<a href="painel-tarefas.html#sec-tarefas">' + esc(t.titulo) + '</a>';
+      }));
+      html += _grupoBusca('Prazos', prazosAchados.map(function (pz) {
+        return '<a href="painel-prazos.html#sec-prazos">' + esc(pz.titulo) + (pz.numero_cnj ? ' — ' + esc(pz.numero_cnj) : '') + '</a>';
+      }));
+      html += _grupoBusca('Audiências', audienciasAchadas.map(function (a) {
+        return '<a href="painel-audiencias.html#sec-audiencias">' + esc(a.cliente || a.tipo_audiencia || '—') +
+          (a.numero_processo ? ' — ' + esc(a.numero_processo) : '') + '</a>';
+      }));
+
       resultadosEl.innerHTML = html;
       resultadosEl.classList.remove('hidden');
     }
