@@ -304,7 +304,9 @@
         return (p.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1 || (p.cliente_nome || '').toLowerCase().indexOf(termoLower) !== -1;
       }).slice(0, 5);
       var processosAdmAchados = processosAdmCache.filter(function (p) {
-        return (p.cliente || '').toLowerCase().indexOf(termoLower) !== -1 || (p.numero_protocolo || '').toLowerCase().indexOf(termoLower) !== -1;
+        return (p.cliente || '').toLowerCase().indexOf(termoLower) !== -1 ||
+          (p.numero_protocolo || '').toLowerCase().indexOf(termoLower) !== -1 ||
+          (p.orgao || '').toLowerCase().indexOf(termoLower) !== -1;
       }).slice(0, 5);
       var tarefasAchadas = tarefasCache.filter(function (t) {
         return (t.titulo || '').toLowerCase().indexOf(termoLower) !== -1;
