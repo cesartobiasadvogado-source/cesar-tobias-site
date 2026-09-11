@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Vero Jurídico — Audiência</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    width: 300px; margin: 0; padding: 16px; font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    font-size: 13px; color: #1a2233; background: #ffffff;
+  }
+  h1 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h1 img { width: 20px; height: 20px; }
+  label { display: block; font-size: 11.5px; color: #5b6472; margin: 8px 0 4px; }
+  input[type="text"], input[type="password"] {
+    width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d7dbe3; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+  }
+  button {
+    width: 100%; margin-top: 12px; padding: 10px 14px; border: none; border-radius: 7px;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .btn-primaria { background: #3b4ee0; color: #fff; }
+  .btn-primaria:hover { filter: brightness(1.08); }
+  .btn-parar { background: #d3352f; color: #fff; }
+  .btn-secundaria { background: #eef0f4; color: #1a2233; }
+  button:disabled { opacity: .55; cursor: default; }
+  .status { margin-top: 10px; font-size: 12.5px; color: #5b6472; min-height: 16px; }
+  .status.erro { color: #d3352f; }
+  .status.ok { color: #1c8a4a; }
+  .gravando-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #d3352f;
+  }
+  .ponto-vermelho {
+    width: 8px; height: 8px; border-radius: 999px; background: #d3352f; animation: pulsar 1.2s infinite;
+  }
+  @keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  .rodape { margin-top: 14px; text-align: right; }
+  .rodape button { width: auto; margin-top: 0; padding: 4px 0; background: none; color: #8891a0; font-weight: 400; font-size: 11.5px; text-decoration: underline; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+  <h1><img src="icons/icon48.png" alt="">Transcrição de audiência</h1>
+
+  <div id="tela-login">
+    <label for="campo-usuario">Usuário do painel</label>
+    <input type="text" id="campo-usuario" autocomplete="username">
+    <label for="campo-senha">Senha</label>
+    <input type="password" id="campo-senha" autocomplete="current-password">
+    <button type="button" id="btn-entrar" class="btn-primaria">Entrar</button>
+  </div>
+
+  <div id="tela-principal" hidden>
+    <div id="bloco-parado">
+      <label for="campo-cliente">Nome do cliente</label>
+      <input type="text" id="campo-cliente" placeholder="Ex: Fulano de Tal">
+      <button type="button" id="btn-iniciar" class="btn-primaria">🎙️ Iniciar transcrição</button>
+    </div>
+    <div id="bloco-gravando" hidden>
+      <span class="gravando-badge"><span class="ponto-vermelho"></span> Gravando — <span id="cronometro">00:00</span></span>
+      <button type="button" id="btn-finalizar" class="btn-parar">Finalizar audiência</button>
+    </div>
+    <div class="rodape"><button type="button" id="btn-sair">Trocar de usuário</button></div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
