@@ -15,11 +15,14 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
 1. Entre na audiência normalmente pelo Zoom, no navegador (aba do Zoom aberta e em foco).
 2. Clique no ícone da extensão.
 3. Na primeira vez, entre com o mesmo usuário e senha que você usa no painel.
-4. Digite o nome do cliente e clique em **"Iniciar transcrição"** — o Chrome vai pedir permissão
+4. **Coloque o Zoom em "Visualização do orador"** (não Galeria) — é assim que a extensão consegue
+   identificar quem está falando e colocar o nome certo na transcrição. Sem isso, ainda funciona,
+   só que volta a sair "Locutor A/B" em vez do nome.
+5. Digite o nome do cliente e clique em **"Iniciar transcrição"** — o Chrome vai pedir permissão
    do microfone (autorize).
-5. Pode fechar essa janelinha da extensão — a gravação continua rodando sozinha. Só não feche a
+6. Pode fechar essa janelinha da extensão — a gravação continua rodando sozinha. Só não feche a
    aba do Zoom.
-6. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
+7. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
    O envio e a transcrição podem levar alguns minutos — pode fechar a janelinha, o resultado
    aparece na aba **Audiências** do painel, do mesmo jeito que já acontece hoje.
 
