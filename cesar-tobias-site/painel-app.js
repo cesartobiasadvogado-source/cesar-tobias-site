@@ -2311,6 +2311,16 @@
             '</div></div>' +
           '<div id="pauta-audiencias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '<div id="bloco-realizadas" class="hidden">' +
+            '<div class="audiencia-upload-area" style="margin-bottom:16px;">' +
+              '<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;">Transcrição ao vivo</p>' +
+              '<input type="text" id="audiencia-vivo-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
+              '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;">' +
+                '<button type="button" id="audiencia-vivo-iniciar" class="procpage-btn procpage-btn-primary">🎙️ Iniciar transcrição ao vivo</button>' +
+                '<button type="button" id="audiencia-vivo-finalizar" class="procpage-btn hidden">Finalizar audiência</button>' +
+                '<span id="audiencia-vivo-status" style="font-size:12.5px;color:var(--ink-soft);"></span>' +
+              '</div>' +
+              '<div id="audiencia-vivo-transcricao" class="hidden" style="margin-top:10px;max-height:220px;overflow-y:auto;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-sunken);font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--ink);"></div>' +
+            '</div>' +
             '<div class="audiencia-upload-area">' +
               '<input type="text" id="audiencia-upload-cliente" list="audiencia-upload-clientes-lista" placeholder="Nome do cliente">' +
               '<datalist id="audiencia-upload-clientes-lista"></datalist>' +
@@ -3288,7 +3298,7 @@
     if (PAGINA_ATUAL === 'prazos') { wireListaPrazos(); }
     if (PAGINA_ATUAL === 'clientes') { carregarClientes(); carregarClientesCadastrados(); }
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
-    if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); carregarAudiencias(); carregarPautaAudiencias(); }
+    if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); wireAudienciaAoVivo(); carregarAudiencias(); carregarPautaAudiencias(); }
     if (PAGINA_ATUAL === 'inicio') {
       var suporteInicio = document.getElementById('inicio-suporte');
       if (suporteInicio) {
@@ -3813,6 +3823,37 @@
     });
   }
 
+  // Compartilhadas entre wireUploadAudiencia (upload de arquivo ja gravado) e
+  // wireAudienciaAoVivo (grava na hora, pelo microfone, e manda o resultado por este mesmo
+  // caminho no final) -- o pedaco em si nao depende de nada do formulario, so dos argumentos.
+  function arrayBufferParaBase64(buffer) {
+    var binario = '';
+    var bytes = new Uint8Array(buffer);
+    for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
+    return btoa(binario);
+  }
+
+  function enviarPedacosAudiencia(arquivo, uploadId, tamanhoChunk, progressoEl) {
+    var offset = 0;
+    function proximoPedaco() {
+      if (offset >= arquivo.size) return Promise.resolve(uploadId);
+      var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
+      return pedaco.arrayBuffer().then(function (buffer) {
+        return apiPost('/api/painel?acao=audiencia_chunk', {
+          upload_id: uploadId, dados_base64: arrayBufferParaBase64(buffer)
+        }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+      }).then(function () {
+        offset += tamanhoChunk;
+        if (progressoEl) {
+          var pct = Math.min(100, Math.round((offset / arquivo.size) * 100));
+          progressoEl.textContent = pct + '% enviado';
+        }
+        return proximoPedaco();
+      });
+    }
+    return proximoPedaco();
+  }
+
   function wireUploadAudiencia() {
     var dropzone = document.getElementById('audiencia-upload-dropzone');
     var input = document.getElementById('audiencia-upload-input');
@@ -3850,13 +3891,6 @@
       if (arquivo) processarUploadAudiencia(arquivo);
     });
 
-    function arrayBufferParaBase64(buffer) {
-      var binario = '';
-      var bytes = new Uint8Array(buffer);
-      for (var i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
-      return btoa(binario);
-    }
-
     function processarUploadAudiencia(arquivo) {
       var nomeCliente = (campoCliente.value || '').trim();
       if (!nomeCliente) {
@@ -3873,7 +3907,7 @@
       })
         .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
         .then(function (dados) {
-          return enviarPedacos(arquivo, dados.upload_id, dados.tamanho_chunk, progressoEl);
+          return enviarPedacosAudiencia(arquivo, dados.upload_id, dados.tamanho_chunk, progressoEl);
         })
         .then(function (uploadId) {
           if (progressoEl) progressoEl.textContent = 'Transcrevendo (pode levar alguns minutos)…';
@@ -3896,27 +3930,138 @@
           mostrarAviso('Não foi possível processar o áudio: ' + (e.message || 'erro desconhecido'));
         });
     }
+  }
 
-    function enviarPedacos(arquivo, uploadId, tamanhoChunk, progressoEl) {
-      var offset = 0;
-      function proximoPedaco() {
-        if (offset >= arquivo.size) return Promise.resolve(uploadId);
-        var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
-        return pedaco.arrayBuffer().then(function (buffer) {
-          return apiPost('/api/painel?acao=audiencia_chunk', {
-            upload_id: uploadId, dados_base64: arrayBufferParaBase64(buffer)
-          }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
-        }).then(function () {
-          offset += tamanhoChunk;
-          if (progressoEl) {
-            var pct = Math.min(100, Math.round((offset / arquivo.size) * 100));
-            progressoEl.textContent = pct + '% enviado';
-          }
-          return proximoPedaco();
-        });
-      }
-      return proximoPedaco();
+  // Grava pelo microfone do navegador durante a audiência (em vez de subir um arquivo já
+  // pronto depois) -- vai transcrevendo pedaços curtos ao vivo, só como prévia na tela (essa
+  // transcrição rápida pode errar uma palavra aqui e ali, sem problema). Quando finaliza, junta
+  // tudo que foi gravado num único arquivo e manda pelo MESMO caminho de sempre
+  // (iniciar_upload_audiencia/audiencia_chunk/finalizar_upload_audiencia, via
+  // enviarPedacosAudiencia) -- é esse envio final, do áudio completo, que gera o resumo e o PDF
+  // definitivos (mais confiável que somar os pedaços da prévia, que podem cortar uma palavra no
+  // meio na fronteira entre um pedaço e outro).
+  function wireAudienciaAoVivo() {
+    var btnIniciar = document.getElementById('audiencia-vivo-iniciar');
+    var btnFinalizar = document.getElementById('audiencia-vivo-finalizar');
+    var campoCliente = document.getElementById('audiencia-vivo-cliente');
+    var statusEl = document.getElementById('audiencia-vivo-status');
+    var transcricaoEl = document.getElementById('audiencia-vivo-transcricao');
+    if (!btnIniciar) return;
+
+    var DURACAO_PEDACO_MS = 20000;
+    var mediaRecorder = null;
+    var streamAtual = null;
+    var todosPedacos = [];
+    var cronometroInterval = null;
+    var inicioGravacao = null;
+
+    function formatarDuracao(ms) {
+      var totalSeg = Math.floor(ms / 1000);
+      var m = Math.floor(totalSeg / 60);
+      var s = totalSeg % 60;
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     }
+
+    function transcreverPedacoAoVivo(blob) {
+      blob.arrayBuffer().then(function (buffer) {
+        return apiPost('/api/painel?acao=audiencia_pedaco_ao_vivo', {
+          dados_base64: arrayBufferParaBase64(buffer), mimetype: blob.type || 'audio/webm'
+        }).then(function (r) { return r.json(); });
+      }).then(function (dados) {
+        if (dados && dados.texto) {
+          transcricaoEl.textContent += (transcricaoEl.textContent ? '\n\n' : '') + dados.texto;
+          transcricaoEl.scrollTop = transcricaoEl.scrollHeight;
+        }
+      }).catch(function () {
+        // uma falha na previa de um pedaco nao pode travar a gravacao -- a transcricao
+        // definitiva, no final, reprocessa o audio completo de qualquer jeito.
+      });
+    }
+
+    function resetarControles() {
+      btnIniciar.classList.remove('hidden');
+      btnFinalizar.classList.add('hidden');
+      btnFinalizar.disabled = false;
+      campoCliente.disabled = false;
+      statusEl.textContent = '';
+    }
+
+    btnIniciar.addEventListener('click', function () {
+      var nomeCliente = (campoCliente.value || '').trim();
+      if (!nomeCliente) {
+        mostrarAviso('Informe o nome do cliente antes de iniciar.');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (streamCapturado) {
+        streamAtual = streamCapturado;
+        todosPedacos = [];
+        transcricaoEl.textContent = '';
+        transcricaoEl.classList.remove('hidden');
+        btnIniciar.classList.add('hidden');
+        btnFinalizar.classList.remove('hidden');
+        campoCliente.disabled = true;
+
+        mediaRecorder = new MediaRecorder(streamAtual);
+        mediaRecorder.addEventListener('dataavailable', function (ev) {
+          if (!ev.data || ev.data.size === 0) return;
+          todosPedacos.push(ev.data);
+          transcreverPedacoAoVivo(ev.data);
+        });
+        mediaRecorder.start(DURACAO_PEDACO_MS);
+
+        inicioGravacao = Date.now();
+        statusEl.textContent = '🔴 Gravando 00:00';
+        cronometroInterval = setInterval(function () {
+          statusEl.textContent = '🔴 Gravando ' + formatarDuracao(Date.now() - inicioGravacao);
+        }, 1000);
+      }).catch(function () {
+        mostrarAviso('Não consegui acessar o microfone -- verifique a permissão do navegador.');
+      });
+    });
+
+    btnFinalizar.addEventListener('click', function () {
+      if (!mediaRecorder) return;
+      btnFinalizar.disabled = true;
+      clearInterval(cronometroInterval);
+      statusEl.textContent = 'Finalizando gravação…';
+
+      mediaRecorder.addEventListener('stop', function () {
+        streamAtual.getTracks().forEach(function (t) { t.stop(); });
+        var mimeGravado = mediaRecorder.mimeType || 'audio/webm';
+        var blobCompleto = new Blob(todosPedacos, { type: mimeGravado });
+        var nomeCliente = (campoCliente.value || '').trim();
+        var extensao = mimeGravado.indexOf('mp4') !== -1 ? '.mp4' : '.webm';
+        var arquivo = new File([blobCompleto], 'Audiencia ao vivo - ' + nomeCliente + extensao, { type: mimeGravado });
+        mediaRecorder = null;
+        transcricaoEl.classList.add('hidden');
+
+        statusEl.textContent = 'Enviando gravação completa…';
+        apiPost('/api/painel?acao=audiencias', {
+          op: 'iniciar_upload_audiencia', cliente: nomeCliente,
+          nome_arquivo: arquivo.name, mimetype: arquivo.type, tamanho_total: arquivo.size
+        })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+          .then(function (dados) {
+            return enviarPedacosAudiencia(arquivo, dados.upload_id, dados.tamanho_chunk, statusEl);
+          })
+          .then(function (uploadId) {
+            statusEl.textContent = 'Transcrevendo (pode levar alguns minutos)…';
+            return apiPost('/api/painel?acao=audiencias', { op: 'finalizar_upload_audiencia', upload_id: uploadId })
+              .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); });
+          })
+          .then(function (dados) {
+            campoCliente.value = '';
+            resetarControles();
+            carregarAudiencias();
+            mostrarAviso(dados.resposta || 'Áudio processado.');
+          })
+          .catch(function (e) {
+            resetarControles();
+            mostrarAviso('Não foi possível processar a gravação: ' + (e.message || 'erro desconhecido'));
+          });
+      }, { once: true });
+      mediaRecorder.stop();
+    });
   }
 
   function wireAudienciasSubtabs() {

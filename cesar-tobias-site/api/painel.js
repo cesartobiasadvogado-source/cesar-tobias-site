@@ -1083,6 +1083,26 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'audiencia_pedaco_ao_vivo') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlPedacoAoVivo = base + '?action=painel_audiencia_pedaco_ao_vivo&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlPedacoAoVivo, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dados_base64: corpo.dados_base64, mimetype: corpo.mimetype })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao transcrever o pedaço ao vivo.' });
+    }
+    return;
+  }
+
   if (acao === 'pauta_audiencias') {
     var opPauta = (req.query && req.query.op) || corpo.op || 'listar';
     if (opPauta !== 'listar' && req.method !== 'POST') {
