@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Autorizar microfone</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif; max-width: 480px; margin: 60px auto;
+    padding: 0 20px; color: #1a2233;
+  }
+  h1 { font-size: 18px; }
+  p { font-size: 14px; line-height: 1.5; color: #444; }
+  button {
+    padding: 12px 20px; border: none; border-radius: 7px; background: #3b4ee0; color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  #status { margin-top: 14px; font-size: 14px; }
+  .ok { color: #1c8a4a; font-weight: 600; }
+  .erro { color: #d3352f; font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Autorizar o microfone pra extensão de audiência</h1>
+  <p>
+    Isso só precisa ser feito uma vez. O Chrome não deixa pedir essa permissão de dentro do
+    ícone da extensão -- precisa ser numa aba de verdade, como esta aqui.
+  </p>
+  <button type="button" id="btn-autorizar">Autorizar microfone</button>
+  <p id="status"></p>
+  <script src="permissoes.js"></script>
+</body>
+</html>

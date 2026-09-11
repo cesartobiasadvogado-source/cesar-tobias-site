@@ -52,6 +52,12 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         return;
       }
 
+      if (mensagem.tipo === 'abrir_permissao_microfone') {
+        await chrome.tabs.create({ url: chrome.runtime.getURL('permissoes.html') });
+        responder({ ok: true });
+        return;
+      }
+
       if (mensagem.tipo === 'obter_estado') {
         const armazenado = await chrome.storage.local.get(['token', 'nome', 'gravando', 'cliente', 'iniciadoEm']);
         responder({
@@ -95,7 +101,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         // so significa que a transcricao final sai sem nome, como sempre foi antes disto existir.
         chrome.tabs.sendMessage(aba.id, { tipo: 'gravacao_ativa', ativa: true }).catch(() => {});
 
-        responder({ ok: true });
+        responder({ ok: true, avisoMic: respostaOffscreen.avisoMic || null });
         return;
       }
 

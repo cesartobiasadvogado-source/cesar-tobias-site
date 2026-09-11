@@ -27,10 +27,16 @@ async function iniciarGravacao(streamId) {
     audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: streamId } },
   });
 
+  var avisoMic = null;
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    micStream = null; // segue só com o áudio da aba se o microfone não estiver disponível/permitido
+    // segue so com o audio da aba (sem a voz do proprio advogado) -- geralmente por falta da
+    // permissao de microfone, que so pode ser concedida numa aba visivel (ver permissoes.html),
+    // nao aqui dentro do offscreen document.
+    micStream = null;
+    avisoMic = 'Gravando sem o seu microfone (' + (e.message || e.name) + ') -- sua fala pode não aparecer na transcrição.';
+    console.warn('Falha ao capturar o microfone:', e);
   }
 
   audioContext = new AudioContext();
@@ -52,6 +58,7 @@ async function iniciarGravacao(streamId) {
     if (ev.data && ev.data.size > 0) todosPedacos.push(ev.data);
   });
   mediaRecorder.start(DURACAO_PEDACO_MS);
+  return avisoMic;
 }
 
 function pararMediaRecorder() {
@@ -126,7 +133,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
   if (mensagem.tipo === 'iniciar_gravacao') {
     iniciarGravacao(mensagem.streamId)
-      .then(() => responder({ ok: true }))
+      .then((avisoMic) => responder({ ok: true, avisoMic }))
       .catch((e) => responder({ ok: false, erro: e.message || String(e) }));
     return true;
   }

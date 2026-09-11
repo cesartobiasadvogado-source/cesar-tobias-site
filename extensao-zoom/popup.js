@@ -1,11 +1,13 @@
 const telaLogin = document.getElementById('tela-login');
 const telaPrincipal = document.getElementById('tela-principal');
+const blocoAutorizarMicrofone = document.getElementById('bloco-autorizar-microfone');
 const blocoParado = document.getElementById('bloco-parado');
 const blocoGravando = document.getElementById('bloco-gravando');
 const campoUsuario = document.getElementById('campo-usuario');
 const campoSenha = document.getElementById('campo-senha');
 const campoCliente = document.getElementById('campo-cliente');
 const btnEntrar = document.getElementById('btn-entrar');
+const btnAutorizarMicrofone = document.getElementById('btn-autorizar-microfone');
 const btnIniciar = document.getElementById('btn-iniciar');
 const btnFinalizar = document.getElementById('btn-finalizar');
 const btnSair = document.getElementById('btn-sair');
@@ -60,6 +62,16 @@ function renderizarEstado(estado) {
     blocoGravando.hidden = true;
     clearInterval(cronometroInterval);
   }
+
+  // Checagem de permissao do microfone -- so verifica o status, nao pede permissao aqui (o
+  // popup e um documento "invisivel" pro Chrome, nao consegue mostrar esse pedido -- ver
+  // permissoes.html). Nem todo navegador baseado em Chromium suporta consultar "microphone"
+  // (ex: alguns builds do Edge) -- nesse caso so deixa escondido, sem travar o resto da tela.
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({ name: 'microphone' })
+      .then((resultado) => { blocoAutorizarMicrofone.hidden = resultado.state === 'granted'; })
+      .catch(() => { blocoAutorizarMicrofone.hidden = true; });
+  }
 }
 
 function atualizarTela() {
@@ -81,6 +93,12 @@ btnEntrar.addEventListener('click', () => {
     .finally(() => { btnEntrar.disabled = false; });
 });
 
+btnAutorizarMicrofone.addEventListener('click', () => {
+  enviarComando({ tipo: 'abrir_permissao_microfone' })
+    .then(() => mostrarStatus('Autorize na aba que abriu e volte aqui.', 'ok'))
+    .catch((e) => mostrarStatus(e.message, 'erro'));
+});
+
 btnIniciar.addEventListener('click', () => {
   const cliente = campoCliente.value.trim();
   if (!cliente) {
@@ -88,9 +106,12 @@ btnIniciar.addEventListener('click', () => {
     return;
   }
   btnIniciar.disabled = true;
-  mostrarStatus('Iniciando gravação (autorize o microfone se o Chrome pedir)…');
+  mostrarStatus('Iniciando gravação…');
   enviarComando({ tipo: 'iniciar', cliente })
-    .then(() => { mostrarStatus(''); atualizarTela(); })
+    .then((resposta) => {
+      mostrarStatus(resposta.avisoMic || '', resposta.avisoMic ? 'erro' : '');
+      atualizarTela();
+    })
     .catch((e) => mostrarStatus(e.message, 'erro'))
     .finally(() => { btnIniciar.disabled = false; });
 });
