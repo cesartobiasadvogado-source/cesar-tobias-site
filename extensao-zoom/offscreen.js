@@ -93,7 +93,7 @@ async function enviarPedacosParaDrive(arquivo, uploadId, tamanhoChunk, token) {
   return uploadId;
 }
 
-async function finalizarEEnviar() {
+async function finalizarEEnviar(token, cliente) {
   await pararMediaRecorder();
   pararTudo();
 
@@ -101,7 +101,6 @@ async function finalizarEEnviar() {
   todosPedacos = [];
   if (blobCompleto.size === 0) throw new Error('Nada foi gravado.');
 
-  const { token, cliente } = await chrome.storage.local.get(['token', 'cliente']);
   if (!token) throw new Error('Sessão expirada -- entre de novo na extensão.');
 
   const nomeArquivo = 'Audiencia ao vivo (extensao) - ' + (cliente || 'cliente') + '.webm';
@@ -131,7 +130,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   }
 
   if (mensagem.tipo === 'finalizar_gravacao') {
-    finalizarEEnviar()
+    finalizarEEnviar(mensagem.token, mensagem.cliente)
       .then((resposta) => responder({ ok: true, resposta }))
       .catch((e) => { pararTudo(); responder({ ok: false, erro: e.message || String(e) }); });
     return true;

@@ -91,7 +91,10 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'finalizar') {
-        const respostaOffscreen = await chrome.runtime.sendMessage({ target: 'offscreen', tipo: 'finalizar_gravacao' });
+        const armazenado = await chrome.storage.local.get(['token', 'cliente']);
+        const respostaOffscreen = await chrome.runtime.sendMessage({
+          target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token, cliente: armazenado.cliente,
+        });
         await chrome.storage.local.set({ gravando: false, cliente: '', iniciadoEm: null });
         if (!respostaOffscreen || !respostaOffscreen.ok) {
           throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui processar a gravação.');
