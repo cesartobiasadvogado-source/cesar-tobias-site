@@ -1103,6 +1103,26 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'audiencia_finalizar_com_falantes') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlFinalizarFalantes = base + '?action=painel_audiencia_finalizar_com_falantes&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlFinalizarFalantes, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upload_id: corpo.upload_id, falantes_timeline: corpo.falantes_timeline })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao finalizar a audiência.' });
+    }
+    return;
+  }
+
   if (acao === 'pauta_audiencias') {
     var opPauta = (req.query && req.query.op) || corpo.op || 'listar';
     if (opPauta !== 'listar' && req.method !== 'POST') {

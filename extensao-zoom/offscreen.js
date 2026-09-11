@@ -93,7 +93,7 @@ async function enviarPedacosParaDrive(arquivo, uploadId, tamanhoChunk, token) {
   return uploadId;
 }
 
-async function finalizarEEnviar(token, cliente) {
+async function finalizarEEnviar(token, cliente, falantesTimeline) {
   await pararMediaRecorder();
   pararTudo();
 
@@ -112,8 +112,10 @@ async function finalizarEEnviar(token, cliente) {
 
   await enviarPedacosParaDrive(blobCompleto, iniciado.upload_id, iniciado.tamanho_chunk, token);
 
-  const finalizado = await apiPost('/api/painel?acao=audiencias', {
-    op: 'finalizar_upload_audiencia', upload_id: iniciado.upload_id,
+  // endpoint proprio (corpo em vez de query string) porque falantesTimeline pode ficar grande
+  // demais pra uma URL numa audiencia longa -- ver handle_painel_audiencia_finalizar_com_falantes.
+  const finalizado = await apiPost('/api/painel?acao=audiencia_finalizar_com_falantes', {
+    upload_id: iniciado.upload_id, falantes_timeline: falantesTimeline || [],
   }, token);
 
   return finalizado.resposta || 'Áudio processado.';
@@ -130,7 +132,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   }
 
   if (mensagem.tipo === 'finalizar_gravacao') {
-    finalizarEEnviar(mensagem.token, mensagem.cliente)
+    finalizarEEnviar(mensagem.token, mensagem.cliente, mensagem.falantesTimeline)
       .then((resposta) => responder({ ok: true, resposta }))
       .catch((e) => { pararTudo(); responder({ ok: false, erro: e.message || String(e) }); });
     return true;

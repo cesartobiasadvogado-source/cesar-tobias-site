@@ -77,7 +77,10 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         });
 
         await garantirOffscreen();
-        await chrome.storage.local.set({ gravando: true, cliente: mensagem.cliente, iniciadoEm: Date.now() });
+        await chrome.storage.local.set({
+          gravando: true, cliente: mensagem.cliente, iniciadoEm: Date.now(),
+          abaZoomId: aba.id, falantesTimeline: [],
+        });
 
         const respostaOffscreen = await chrome.runtime.sendMessage({
           target: 'offscreen', tipo: 'iniciar_gravacao', streamId,
@@ -86,16 +89,42 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
           await chrome.storage.local.set({ gravando: false });
           throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui iniciar a gravação.');
         }
+
+        // avisa o content script (roda dentro da aba do Zoom) pra comecar a observar quem esta
+        // em destaque -- falha em avisar nao pode travar a gravacao (o audio ja esta rodando),
+        // so significa que a transcricao final sai sem nome, como sempre foi antes disto existir.
+        chrome.tabs.sendMessage(aba.id, { tipo: 'gravacao_ativa', ativa: true }).catch(() => {});
+
+        responder({ ok: true });
+        return;
+      }
+
+      // Mensagem vinda do content script (content_zoom.js), avisando que o destaque de "falando
+      // agora" mudou de pessoa -- so acumula enquanto a gravacao desta extensao estiver de fato
+      // ativa (evita lixo de uma aba do Zoom que ficou aberta sem estar gravando).
+      if (mensagem.tipo === 'falante_mudou') {
+        const armazenado = await chrome.storage.local.get(['gravando', 'iniciadoEm', 'falantesTimeline']);
+        if (armazenado.gravando && armazenado.iniciadoEm) {
+          const timeline = armazenado.falantesTimeline || [];
+          timeline.push({ segundo: (mensagem.quando - armazenado.iniciadoEm) / 1000, nome: mensagem.nome });
+          await chrome.storage.local.set({ falantesTimeline: timeline });
+        }
         responder({ ok: true });
         return;
       }
 
       if (mensagem.tipo === 'finalizar') {
-        const armazenado = await chrome.storage.local.get(['token', 'cliente']);
+        const armazenado = await chrome.storage.local.get(['token', 'cliente', 'abaZoomId', 'falantesTimeline']);
+        if (armazenado.abaZoomId) {
+          chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'gravacao_ativa', ativa: false }).catch(() => {});
+        }
         const respostaOffscreen = await chrome.runtime.sendMessage({
           target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token, cliente: armazenado.cliente,
+          falantesTimeline: armazenado.falantesTimeline || [],
         });
-        await chrome.storage.local.set({ gravando: false, cliente: '', iniciadoEm: null });
+        await chrome.storage.local.set({
+          gravando: false, cliente: '', iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
+        });
         if (!respostaOffscreen || !respostaOffscreen.ok) {
           throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui processar a gravação.');
         }
