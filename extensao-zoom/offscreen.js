@@ -12,15 +12,24 @@ let tabStream = null;
 let micStream = null;
 let mediaRecorder = null;
 let todosPedacos = [];
+let tokenGravacaoAtual = null;
 
 function pararTudo() {
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
   if (micStream) micStream.getTracks().forEach((t) => t.stop());
   if (audioContext) audioContext.close().catch(() => {});
   tabStream = null; micStream = null; audioContext = null; mediaRecorder = null;
+  tokenGravacaoAtual = null;
 }
 
-async function iniciarGravacao(streamId) {
+async function iniciarGravacao(streamId, token) {
+  // trava contra chamar iniciar de novo enquanto ja esta gravando -- sem isso, um segundo
+  // "iniciar" (ex: clique duplo) sobrescrevia tudo por baixo do pano, silenciosamente.
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    throw new Error('Já existe uma gravação em andamento neste documento.');
+  }
+
+  tokenGravacaoAtual = token;
   todosPedacos = [];
 
   tabStream = await navigator.mediaDevices.getUserMedia({
@@ -55,7 +64,9 @@ async function iniciarGravacao(streamId) {
 
   mediaRecorder = new MediaRecorder(destino.stream, { mimeType: 'audio/webm;codecs=opus' });
   mediaRecorder.addEventListener('dataavailable', (ev) => {
-    if (ev.data && ev.data.size > 0) todosPedacos.push(ev.data);
+    if (!ev.data || ev.data.size === 0) return;
+    todosPedacos.push(ev.data);
+    enviarPreviaPedaco(ev.data); // legenda ao vivo -- best-effort, nunca trava a gravacao
   });
   mediaRecorder.start(DURACAO_PEDACO_MS);
   return avisoMic;
@@ -74,6 +85,26 @@ function arrayBufferParaBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   for (let i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
   return btoa(binario);
+}
+
+async function enviarPreviaPedaco(blob) {
+  // Legenda ao vivo (igual o Tactiq mostra por cima da chamada) -- reaproveita o MESMO endpoint
+  // sem estado que a transcricao ao vivo por microfone do painel ja usa
+  // (audiencia_pedaco_ao_vivo): so transcreve esse pedaco curto isolado e devolve o texto, sem
+  // guardar nada -- a transcricao definitiva sai depois, no finalizar, do audio completo.
+  if (!tokenGravacaoAtual) return;
+  try {
+    const buffer = await blob.arrayBuffer();
+    const dados = await apiPost('/api/painel?acao=audiencia_pedaco_ao_vivo', {
+      dados_base64: arrayBufferParaBase64(buffer), mimetype: blob.type || 'audio/webm',
+    }, tokenGravacaoAtual);
+    if (dados.texto) {
+      chrome.runtime.sendMessage({ tipo: 'previa_transcricao', texto: dados.texto }).catch(() => {});
+    }
+  } catch (e) {
+    // uma falha na previa nunca pode travar a gravacao -- so fica sem legenda nesse trecho.
+    console.warn('Falha ao gerar prévia da legenda ao vivo:', e);
+  }
 }
 
 async function apiPost(caminho, corpo, token) {
@@ -140,7 +171,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   if (mensagem.target !== 'offscreen') return false;
 
   if (mensagem.tipo === 'iniciar_gravacao') {
-    iniciarGravacao(mensagem.streamId)
+    iniciarGravacao(mensagem.streamId, mensagem.token)
       .then((avisoMic) => responder({ ok: true, avisoMic }))
       .catch((e) => responder({ ok: false, erro: e.message || String(e) }));
     return true;

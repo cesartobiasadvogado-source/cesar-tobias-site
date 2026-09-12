@@ -86,11 +86,17 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'iniciar') {
-        const { token: tokenAtual } = await chrome.storage.local.get(['token']);
+        const jaGravando = await chrome.storage.local.get(['token', 'gravando']);
+        // trava contra iniciar duas gravacoes ao mesmo tempo (ex: clicou duas vezes rapido, ou
+        // tem duas janelas do Chrome abertas) -- sem isso, a segunda chamada reaproveitava o
+        // mesmo offscreen document e sobrescrevia a gravacao em andamento silenciosamente.
+        if (jaGravando.gravando) {
+          throw new Error('Já existe uma gravação em andamento. Finalize-a antes de iniciar outra.');
+        }
         // checa a sessao ANTES de comecar a gravar (nao so no final, ao enviar) -- sem isso, uma
         // sessao expirada so aparecia depois de gravar a audiencia inteira, perdendo tudo (foi o
         // que aconteceu na pratica: sessao de 8h expirada, so descoberta ao finalizar).
-        if (!(await sessaoAindaValida(tokenAtual))) {
+        if (!(await sessaoAindaValida(jaGravando.token))) {
           throw new Error(MENSAGEM_SESSAO_EXPIRADA);
         }
 
@@ -111,7 +117,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         });
 
         const respostaOffscreen = await chrome.runtime.sendMessage({
-          target: 'offscreen', tipo: 'iniciar_gravacao', streamId,
+          target: 'offscreen', tipo: 'iniciar_gravacao', streamId, token: jaGravando.token,
         });
         if (!respostaOffscreen || !respostaOffscreen.ok) {
           await chrome.storage.local.set({ gravando: false });
@@ -119,8 +125,8 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         }
 
         // avisa o content script (roda dentro da aba do Zoom) pra comecar a observar quem esta
-        // em destaque -- falha em avisar nao pode travar a gravacao (o audio ja esta rodando),
-        // so significa que a transcricao final sai sem nome, como sempre foi antes disto existir.
+        // em destaque e mostrar a legenda ao vivo -- falha em avisar nao pode travar a gravacao
+        // (o audio ja esta rodando), so significa que fica sem nome/legenda, como era antes.
         chrome.tabs.sendMessage(aba.id, { tipo: 'gravacao_ativa', ativa: true }).catch(() => {});
 
         responder({ ok: true, avisoMic: respostaOffscreen.avisoMic || null });
@@ -141,6 +147,29 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         return;
       }
 
+      // Pergunta do content script logo que ele carrega (roda de novo sempre que a pagina do
+      // Zoom recarrega, ex: apos uma reconexao por internet instavel) -- sem isso, um reload no
+      // meio da audiencia deixava a deteccao de nomes e a legenda ao vivo mudas pelo resto da
+      // gravacao, ate clicar Finalizar/Iniciar de novo.
+      if (mensagem.tipo === 'content_script_carregado') {
+        const armazenado = await chrome.storage.local.get(['gravando', 'abaZoomId']);
+        const abaId = remetente && remetente.tab && remetente.tab.id;
+        responder({ ok: true, ativa: !!(armazenado.gravando && armazenado.abaZoomId === abaId) });
+        return;
+      }
+
+      // Previa de transcricao de um pedaco (vinda do offscreen) -- so repassa pra legenda ao
+      // vivo na aba do Zoom, sem guardar nada aqui (a transcricao definitiva vem depois, no
+      // finalizar, com o audio completo -- ver painel.py).
+      if (mensagem.tipo === 'previa_transcricao') {
+        const armazenado = await chrome.storage.local.get(['abaZoomId']);
+        if (armazenado.abaZoomId) {
+          chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'previa_transcricao', texto: mensagem.texto }).catch(() => {});
+        }
+        responder({ ok: true });
+        return;
+      }
+
       if (mensagem.tipo === 'finalizar') {
         const armazenado = await chrome.storage.local.get(['token', 'cliente', 'abaZoomId', 'falantesTimeline']);
         if (armazenado.abaZoomId) {
@@ -153,6 +182,9 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         await chrome.storage.local.set({
           gravando: false, cliente: '', iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
         });
+        // libera o offscreen document (nao precisa mais ficar de pe entre uma gravacao e outra --
+        // volta a ser criado do zero, do jeito que garantirOffscreen ja espera, na proxima vez).
+        chrome.offscreen.closeDocument().catch(() => {});
         if (!respostaOffscreen || !respostaOffscreen.ok) {
           throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui processar a gravação.');
         }
