@@ -83,7 +83,15 @@ async function apiPost(caminho, corpo, token) {
     body: JSON.stringify(corpo),
   });
   const dados = await resposta.json();
-  if (!resposta.ok) throw new Error(dados.erro || 'falha na requisição');
+  if (!resposta.ok) {
+    // "sessao_invalida" e o codigo cru que o backend devolve -- troca por uma mensagem que faz
+    // sentido pra quem esta vendo (ver tambem a checagem preventiva em background.js, que evita
+    // isso acontecer so aqui no final, depois de gravar a audiencia inteira).
+    if (dados.erro === 'sessao_invalida') {
+      throw new Error('Sua sessão expirou. Clique em "Trocar de usuário" e entre de novo -- a gravação desta vez não foi salva.');
+    }
+    throw new Error(dados.erro || 'falha na requisição');
+  }
   return dados;
 }
 

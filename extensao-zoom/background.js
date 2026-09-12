@@ -21,6 +21,20 @@ async function obterAbaAtiva() {
   return aba;
 }
 
+const MENSAGEM_SESSAO_EXPIRADA = 'Sua sessão expirou. Clique em "Trocar de usuário" e entre de novo.';
+
+async function sessaoAindaValida(token) {
+  if (!token) return false;
+  try {
+    const resposta = await fetch(API_BASE + '/api/painel?acao=clientes', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    return resposta.status !== 401;
+  } catch (e) {
+    return true; // falha de rede nao e "sessao invalida" -- deixa tentar gravar mesmo assim
+  }
+}
+
 async function fazerLogin(usuario, senha) {
   const resposta = await fetch(API_BASE + '/api/painel?acao=login', {
     method: 'POST',
@@ -72,6 +86,14 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'iniciar') {
+        const { token: tokenAtual } = await chrome.storage.local.get(['token']);
+        // checa a sessao ANTES de comecar a gravar (nao so no final, ao enviar) -- sem isso, uma
+        // sessao expirada so aparecia depois de gravar a audiencia inteira, perdendo tudo (foi o
+        // que aconteceu na pratica: sessao de 8h expirada, so descoberta ao finalizar).
+        if (!(await sessaoAindaValida(tokenAtual))) {
+          throw new Error(MENSAGEM_SESSAO_EXPIRADA);
+        }
+
         const aba = await obterAbaAtiva();
         if (!aba || !aba.id) throw new Error('Não encontrei a aba do Zoom em foco.');
 

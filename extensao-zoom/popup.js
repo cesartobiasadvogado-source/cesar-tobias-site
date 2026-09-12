@@ -125,7 +125,7 @@ btnFinalizar.addEventListener('click', () => {
       campoCliente.value = '';
       atualizarTela();
     })
-    .catch((e) => mostrarStatus(e.message, 'erro'))
+    .catch((e) => { mostrarStatus(e.message, 'erro'); atualizarTela(); })
     .finally(() => { btnFinalizar.disabled = false; });
 });
 
