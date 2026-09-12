@@ -1100,7 +1100,7 @@ module.exports = async (req, res) => {
       const resposta = await fetch(urlPedacoAoVivo, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dados_base64: corpo.dados_base64, mimetype: corpo.mimetype })
+        body: JSON.stringify({ dados_base64: corpo.dados_base64, mimetype: corpo.mimetype, idioma: corpo.idioma })
       });
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -1120,12 +1120,32 @@ module.exports = async (req, res) => {
       const resposta = await fetch(urlFinalizarFalantes, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ upload_id: corpo.upload_id, falantes_timeline: corpo.falantes_timeline })
+        body: JSON.stringify({ upload_id: corpo.upload_id, falantes_timeline: corpo.falantes_timeline, idioma: corpo.idioma })
       });
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
     } catch (e) {
       res.status(502).json({ erro: 'Erro de conexao ao finalizar a audiência.' });
+    }
+    return;
+  }
+
+  if (acao === 'audiencia_perguntar_ao_vivo') {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    var urlPerguntarAoVivo = base + '?action=painel_audiencia_perguntar_ao_vivo&token=' + encodeURIComponent(tokenSessao) + segredoQS;
+    try {
+      const resposta = await fetch(urlPerguntarAoVivo, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcricao_parcial: corpo.transcricao_parcial, pergunta: corpo.pergunta })
+      });
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao perguntar sobre a audiência.' });
     }
     return;
   }

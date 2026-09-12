@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'iniciar') {
-        const jaGravando = await chrome.storage.local.get(['token', 'gravando']);
+        const jaGravando = await chrome.storage.local.get(['token', 'gravando', 'idiomaAudiencia']);
         // trava contra iniciar duas gravacoes ao mesmo tempo (ex: clicou duas vezes rapido, ou
         // tem duas janelas do Chrome abertas) -- sem isso, a segunda chamada reaproveitava o
         // mesmo offscreen document e sobrescrevia a gravacao em andamento silenciosamente.
@@ -117,6 +117,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
         const respostaOffscreen = await chrome.runtime.sendMessage({
           target: 'offscreen', tipo: 'iniciar_gravacao', streamId, token: jaGravando.token,
+          idioma: jaGravando.idiomaAudiencia || 'pt',
         });
         if (!respostaOffscreen || !respostaOffscreen.ok) {
           await chrome.storage.local.set({ gravando: false });
@@ -166,6 +167,26 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
           chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'previa_transcricao', texto: mensagem.texto }).catch(() => {});
         }
         responder({ ok: true });
+        return;
+      }
+
+      // Pergunta feita na barra flutuante (durante a propria audiencia, ainda em andamento) --
+      // diferente da pergunta que ja existe na aba Audiencias do painel (essa so funciona DEPOIS
+      // que a audiencia termina e fica salva). O content script manda a transcricao parcial junto
+      // (o que ja apareceu na legenda ao vivo ate agora), porque so ele tem esse texto.
+      if (mensagem.tipo === 'perguntar_ao_vivo') {
+        const armazenado = await chrome.storage.local.get(['token']);
+        if (!armazenado.token) throw new Error('Você precisa estar logado na extensão.');
+        const resposta = await fetch(API_BASE + '/api/painel?acao=audiencia_perguntar_ao_vivo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + armazenado.token },
+          body: JSON.stringify({
+            transcricao_parcial: mensagem.transcricaoParcial || '', pergunta: mensagem.pergunta,
+          }),
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok) throw new Error(dados.erro || 'Não consegui responder agora.');
+        responder({ ok: true, resposta: dados.resposta });
         return;
       }
 

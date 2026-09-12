@@ -33,8 +33,16 @@
   var timerVerificar = null;
   var overlayHost = null;
   var overlayBody = null;
-  var overlayMinimizado = false;
   var avisouLegendaMeet = false;
+  var flyoutAberto = null; // null | 'legenda' | 'chat' | 'idioma'
+  var idiomaAtual = 'pt';
+
+  var IDIOMAS = [
+    { codigo: 'pt', rotulo: 'Português' },
+    { codigo: 'en', rotulo: 'English' },
+    { codigo: 'es', rotulo: 'Español' },
+    { codigo: 'auto', rotulo: 'Detecção automática' }
+  ];
 
   // ---------- deteccao de quem esta falando: Zoom ----------
 
@@ -118,51 +126,155 @@
 
   observer = new MutationObserver(verificarFalante);
 
-  // ---------- legenda flutuante (estilo Tactiq) ----------
+  // ---------- barra flutuante (estilo Tactiq): legenda, pergunta pra IA e idioma ----------
 
   function criarOverlay() {
     if (overlayHost) return;
     overlayHost = document.createElement('div');
-    overlayHost.style.cssText = 'position:fixed; top:16px; right:16px; z-index:2147483647; width:300px;';
+    overlayHost.style.cssText = 'position:fixed; top:16px; right:16px; z-index:2147483647;';
     document.documentElement.appendChild(overlayHost);
 
     var shadow = overlayHost.attachShadow({ mode: 'closed' });
     var estilo = document.createElement('style');
     estilo.textContent =
       ':host { all: initial; }' +
-      '.caixa { font-family: -apple-system, Arial, sans-serif; background: rgba(24,24,30,0.92); color: #f2f2f5;' +
-      '  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.4); overflow: hidden; }' +
-      '.cabecalho { display: flex; align-items: center; justify-content: space-between; cursor: move;' +
-      '  font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: #cfcfe0;' +
-      '  padding: 8px 10px; user-select: none; }' +
-      '.ponto { width: 7px; height: 7px; border-radius: 999px; background: #ff4d4f; display: inline-block;' +
-      '  margin-right: 6px; animation: pulsar 1.2s infinite; }' +
+      '* { box-sizing: border-box; font-family: -apple-system, Arial, sans-serif; }' +
+      '.contentor { position: relative; }' +
+      '.barra { display: flex; flex-direction: column; align-items: center; gap: 4px;' +
+      '  background: rgba(24,24,30,0.92); border-radius: 22px; padding: 8px 6px; box-shadow: 0 8px 28px rgba(0,0,0,.4); }' +
+      '.grip { width: 22px; height: 14px; cursor: move; display: flex; align-items: center; justify-content: center;' +
+      '  color: #8b8b96; font-size: 12px; user-select: none; }' +
+      '.botao-barra { width: 32px; height: 32px; border-radius: 999px; border: none; background: rgba(255,255,255,0.08);' +
+      '  color: #f2f2f5; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }' +
+      '.botao-barra:hover { background: rgba(255,255,255,0.18); }' +
+      '.botao-barra.ativo { background: #3b4ee0; }' +
+      '.ponto-gravando { width: 7px; height: 7px; border-radius: 999px; background: #ff4d4f; display: inline-block;' +
+      '  animation: pulsar 1.2s infinite; margin-top: 2px; }' +
       '@keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }' +
-      '.botoes button { cursor: pointer; background: none; border: none; color: inherit; opacity: .75; font-size: 13px; padding: 2px 4px; }' +
-      '.botoes button:hover { opacity: 1; }' +
-      '.corpo { font-size: 12.5px; line-height: 1.5; max-height: 200px; overflow-y: auto; padding: 0 10px 10px; }' +
-      '.corpo div { margin-bottom: 6px; white-space: pre-wrap; }' +
-      '.corpo.escondido { display: none; }';
+      '.painel { position: absolute; top: 0; right: 48px; width: 280px; background: rgba(24,24,30,0.95); color: #f2f2f5;' +
+      '  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.4); overflow: hidden; }' +
+      '.painel.escondido { display: none; }' +
+      '.painel-cabecalho { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;' +
+      '  color: #cfcfe0; padding: 10px 12px 6px; }' +
+      '.painel-corpo { font-size: 12.5px; line-height: 1.5; padding: 0 12px 12px; }' +
+      '.legenda-linhas { max-height: 200px; overflow-y: auto; }' +
+      '.legenda-linhas div { margin-bottom: 6px; white-space: pre-wrap; }' +
+      '.chat-resposta { white-space: pre-wrap; margin-bottom: 8px; max-height: 160px; overflow-y: auto; color: #dcdce6; }' +
+      '.chat-linha { display: flex; gap: 6px; }' +
+      '.chat-linha input { flex: 1; min-width: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);' +
+      '  background: rgba(255,255,255,0.06); color: #fff; padding: 6px 8px; font-size: 12.5px; }' +
+      '.chat-linha button { border: none; border-radius: 6px; background: #3b4ee0; color: #fff; padding: 0 10px; cursor: pointer; font-size: 12.5px; }' +
+      '.chat-linha button:disabled { opacity: .6; cursor: default; }' +
+      '.item-idioma { display: block; width: 100%; text-align: left; background: none; border: none; color: #f2f2f5;' +
+      '  padding: 6px 4px; font-size: 12.5px; cursor: pointer; border-radius: 6px; }' +
+      '.item-idioma:hover { background: rgba(255,255,255,0.1); }' +
+      '.item-idioma.selecionado { color: #8f9dff; font-weight: 600; }';
     shadow.appendChild(estilo);
 
-    var caixa = document.createElement('div');
-    caixa.className = 'caixa';
-    caixa.innerHTML =
-      '<div class="cabecalho"><span><span class="ponto"></span>Transcrevendo</span>' +
-      '<span class="botoes"><button type="button" data-acao="minimizar" title="Minimizar/expandir">—</button></span></div>' +
-      '<div class="corpo"></div>';
-    shadow.appendChild(caixa);
-    overlayBody = caixa.querySelector('.corpo');
+    var contentor = document.createElement('div');
+    contentor.className = 'contentor';
+    contentor.innerHTML =
+      '<div class="barra">' +
+        '<div class="grip" title="Arrastar">⠿</div>' +
+        '<span class="ponto-gravando"></span>' +
+        '<button type="button" class="botao-barra ativo" data-flyout="legenda" title="Mostrar/esconder legenda">💬</button>' +
+        '<button type="button" class="botao-barra" data-flyout="chat" title="Perguntar para a IA">✨</button>' +
+        '<button type="button" class="botao-barra" data-flyout="idioma" title="Idioma da transcrição">🌐</button>' +
+      '</div>' +
+      '<div class="painel painel-legenda" data-painel="legenda">' +
+        '<div class="painel-cabecalho">Transcrevendo</div>' +
+        '<div class="painel-corpo"><div class="legenda-linhas"></div></div>' +
+      '</div>' +
+      '<div class="painel escondido" data-painel="chat">' +
+        '<div class="painel-cabecalho">Perguntar à IA</div>' +
+        '<div class="painel-corpo">' +
+          '<div class="chat-resposta"></div>' +
+          '<div class="chat-linha">' +
+            '<input type="text" placeholder="Pergunte sobre a reunião...">' +
+            '<button type="button" data-acao="perguntar">Perguntar</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="painel escondido" data-painel="idioma">' +
+        '<div class="painel-cabecalho">Idioma da transcrição</div>' +
+        '<div class="painel-corpo">' +
+          IDIOMAS.map(function (i) {
+            return '<button type="button" class="item-idioma" data-idioma="' + i.codigo + '">' + i.rotulo + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    shadow.appendChild(contentor);
 
-    caixa.querySelector('[data-acao="minimizar"]').addEventListener('click', function () {
-      overlayMinimizado = !overlayMinimizado;
-      overlayBody.classList.toggle('escondido', overlayMinimizado);
+    overlayBody = contentor.querySelector('.legenda-linhas');
+    var painelLegenda = contentor.querySelector('[data-painel="legenda"]');
+    var painelChat = contentor.querySelector('[data-painel="chat"]');
+    var painelIdioma = contentor.querySelector('[data-painel="idioma"]');
+    var painelPorNome = { legenda: painelLegenda, chat: painelChat, idioma: painelIdioma };
+
+    function marcarIdiomaSelecionado() {
+      contentor.querySelectorAll('.item-idioma').forEach(function (btn) {
+        btn.classList.toggle('selecionado', btn.getAttribute('data-idioma') === idiomaAtual);
+      });
+    }
+    marcarIdiomaSelecionado();
+
+    function abrirFlyout(nome) {
+      flyoutAberto = (flyoutAberto === nome) ? null : nome;
+      Object.keys(painelPorNome).forEach(function (chave) {
+        painelPorNome[chave].classList.toggle('escondido', chave !== flyoutAberto);
+      });
+      contentor.querySelectorAll('[data-flyout]').forEach(function (btn) {
+        btn.classList.toggle('ativo', btn.getAttribute('data-flyout') === flyoutAberto);
+      });
+    }
+    // legenda comeca aberta (comportamento de antes, quando so existia a caixa de legenda)
+    contentor.querySelector('[data-flyout="legenda"]').classList.add('ativo');
+    flyoutAberto = 'legenda';
+
+    contentor.querySelectorAll('[data-flyout]').forEach(function (btn) {
+      btn.addEventListener('click', function () { abrirFlyout(btn.getAttribute('data-flyout')); });
     });
 
-    // arrastar pela barra de titulo
-    var cabecalho = caixa.querySelector('.cabecalho');
+    contentor.querySelectorAll('[data-idioma]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        idiomaAtual = btn.getAttribute('data-idioma');
+        marcarIdiomaSelecionado();
+        // guarda a escolha e avisa o offscreen na hora (se ja estiver gravando, passa a valer a
+        // partir do proximo pedaco/da finalizacao) -- sem precisar do popup pra isso.
+        chrome.storage.local.set({ idiomaAudiencia: idiomaAtual });
+        chrome.runtime.sendMessage({ target: 'offscreen', tipo: 'atualizar_idioma', idioma: idiomaAtual }).catch(function () {});
+      });
+    });
+
+    var campoChat = painelChat.querySelector('input');
+    var botaoPerguntar = painelChat.querySelector('[data-acao="perguntar"]');
+    var respostaChat = painelChat.querySelector('.chat-resposta');
+    function enviarPergunta() {
+      var pergunta = (campoChat.value || '').trim();
+      if (!pergunta) return;
+      var textoOriginal = botaoPerguntar.textContent;
+      botaoPerguntar.disabled = true;
+      botaoPerguntar.textContent = '...';
+      respostaChat.textContent = '';
+      chrome.runtime.sendMessage({
+        tipo: 'perguntar_ao_vivo', pergunta: pergunta, transcricaoParcial: overlayBody.innerText || ''
+      }).then(function (resp) {
+        if (!resp || !resp.ok) throw new Error((resp && resp.erro) || 'Não consegui responder agora.');
+        respostaChat.textContent = resp.resposta || '';
+      }).catch(function (e) {
+        respostaChat.textContent = 'Erro: ' + (e.message || e);
+      }).finally(function () {
+        botaoPerguntar.disabled = false;
+        botaoPerguntar.textContent = textoOriginal;
+      });
+    }
+    botaoPerguntar.addEventListener('click', enviarPergunta);
+    campoChat.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') enviarPergunta(); });
+
+    // arrastar pelo "grip" no topo da barra
+    var grip = contentor.querySelector('.grip');
     var arrastando = false, offX = 0, offY = 0;
-    cabecalho.addEventListener('mousedown', function (ev) {
+    grip.addEventListener('mousedown', function (ev) {
       arrastando = true;
       offX = ev.clientX - overlayHost.getBoundingClientRect().left;
       offY = ev.clientY - overlayHost.getBoundingClientRect().top;
@@ -181,6 +293,7 @@
     if (overlayHost && overlayHost.parentNode) overlayHost.parentNode.removeChild(overlayHost);
     overlayHost = null;
     overlayBody = null;
+    flyoutAberto = null;
   }
 
   function adicionarPreviaTexto(texto) {
@@ -198,7 +311,10 @@
     gravando = true;
     ultimoNome = null;
     avisouLegendaMeet = false;
-    criarOverlay();
+    chrome.storage.local.get(['idiomaAudiencia']).then(function (armazenado) {
+      idiomaAtual = armazenado.idiomaAudiencia || 'pt';
+      criarOverlay();
+    }).catch(function () { criarOverlay(); });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     verificarFalanteAgora();
   }

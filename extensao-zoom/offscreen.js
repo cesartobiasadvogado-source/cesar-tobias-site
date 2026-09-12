@@ -13,6 +13,7 @@ let micStream = null;
 let mediaRecorder = null;
 let todosPedacos = [];
 let tokenGravacaoAtual = null;
+let idiomaAtual = 'pt';
 
 function pararTudo() {
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
@@ -22,7 +23,7 @@ function pararTudo() {
   tokenGravacaoAtual = null;
 }
 
-async function iniciarGravacao(streamId, token) {
+async function iniciarGravacao(streamId, token, idioma) {
   // trava contra chamar iniciar de novo enquanto ja esta gravando -- sem isso, um segundo
   // "iniciar" (ex: clique duplo) sobrescrevia tudo por baixo do pano, silenciosamente.
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -30,6 +31,7 @@ async function iniciarGravacao(streamId, token) {
   }
 
   tokenGravacaoAtual = token;
+  idiomaAtual = idioma || 'pt';
   todosPedacos = [];
 
   tabStream = await navigator.mediaDevices.getUserMedia({
@@ -96,7 +98,7 @@ async function enviarPreviaPedaco(blob) {
   try {
     const buffer = await blob.arrayBuffer();
     const dados = await apiPost('/api/painel?acao=audiencia_pedaco_ao_vivo', {
-      dados_base64: arrayBufferParaBase64(buffer), mimetype: blob.type || 'audio/webm',
+      dados_base64: arrayBufferParaBase64(buffer), mimetype: blob.type || 'audio/webm', idioma: idiomaAtual,
     }, tokenGravacaoAtual);
     if (dados.texto) {
       chrome.runtime.sendMessage({ tipo: 'previa_transcricao', texto: dados.texto }).catch(() => {});
@@ -166,7 +168,7 @@ async function finalizarEEnviar(token, falantesTimeline) {
   // endpoint proprio (corpo em vez de query string) porque falantesTimeline pode ficar grande
   // demais pra uma URL numa audiencia longa -- ver handle_painel_audiencia_finalizar_com_falantes.
   const finalizado = await apiPost('/api/painel?acao=audiencia_finalizar_com_falantes', {
-    upload_id: iniciado.upload_id, falantes_timeline: falantesTimeline || [],
+    upload_id: iniciado.upload_id, falantes_timeline: falantesTimeline || [], idioma: idiomaAtual,
   }, token);
 
   return finalizado.resposta || 'Áudio processado.';
@@ -176,10 +178,18 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   if (mensagem.target !== 'offscreen') return false;
 
   if (mensagem.tipo === 'iniciar_gravacao') {
-    iniciarGravacao(mensagem.streamId, mensagem.token)
+    iniciarGravacao(mensagem.streamId, mensagem.token, mensagem.idioma)
       .then((avisoMic) => responder({ ok: true, avisoMic }))
       .catch((e) => responder({ ok: false, erro: e.message || String(e) }));
     return true;
+  }
+
+  // Idioma trocado na barra flutuante enquanto ja esta gravando -- vale a partir do proximo
+  // pedaco de previa e da finalizacao (o audio ja gravado nao muda, so como ele e transcrito).
+  if (mensagem.tipo === 'atualizar_idioma') {
+    idiomaAtual = mensagem.idioma || 'pt';
+    responder({ ok: true });
+    return false;
   }
 
   if (mensagem.tipo === 'finalizar_gravacao') {
