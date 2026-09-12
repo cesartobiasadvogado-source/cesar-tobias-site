@@ -9119,7 +9119,7 @@
       if (a.duracao_segundos || a.duracao_segundos === 0) chips += '<span class="audiencia-chip">' + esc(fmtDuracao(a.duracao_segundos)) + '</span>';
       if (a.total_falas) chips += '<span class="audiencia-chip">' + a.total_falas + ' fala' + (a.total_falas === 1 ? '' : 's') + '</span>';
       if (a.total_locutores) chips += '<span class="audiencia-chip">' + a.total_locutores + ' pessoa' + (a.total_locutores === 1 ? '' : 's') + '</span>';
-      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo)) + '">' +
+      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo)) + '" data-id-card="' + esc(a.id) + '">' +
         '<button type="button" class="processo-cabecalho" data-toggle-audiencia="' + idx + '" aria-expanded="false" aria-controls="audiencia-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(a.cliente) + '</div>' +
           '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + (chips ? ' · ' : '') + '</div>' +
@@ -9132,6 +9132,14 @@
             '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
             '<button data-excluir-audiencia="' + esc(a.id) + '" class="btn-remover">Excluir</button></div>' +
           '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
+          '<div class="audiencia-pergunta" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">' +
+            '<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">Perguntar sobre esta audiência</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+              '<input type="text" data-pergunta-input="' + idx + '" placeholder="Ex: qual foi o prazo concedido?" style="flex:1;min-width:200px;">' +
+              '<button type="button" data-pergunta-enviar="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Perguntar</button>' +
+            '</div>' +
+            '<div style="margin-top:8px;white-space:pre-wrap;" id="audiencia-resposta-' + idx + '"></div>' +
+          '</div>' +
         '</div></div>';
     }).join('');
 
@@ -9168,13 +9176,54 @@
     var buscaInput = document.getElementById('audiencias-busca-input');
     if (buscaInput && !buscaInput.dataset.wired) {
       buscaInput.dataset.wired = '1';
+      var timerBuscaAudiencia = null;
       buscaInput.addEventListener('input', function () {
-        var termo = normalizarBusca(buscaInput.value);
+        var valorDigitado = buscaInput.value;
+        var termo = normalizarBusca(valorDigitado);
+        // 1) reação instantânea, filtrando só pelo que já está na tela (cliente + resumo).
         document.querySelectorAll('[data-busca-audiencia]').forEach(function (card) {
-          card.style.display = card.getAttribute('data-busca-audiencia').indexOf(termo) === -1 ? 'none' : '';
+          card.style.display = !termo || card.getAttribute('data-busca-audiencia').indexOf(termo) === -1 ? 'none' : '';
         });
+        if (!termo) return;
+        // 2) depois de uma pausa, também pergunta pro backend (que vasculha a transcrição
+        // completa, não só o resumo) e revela os cards que só batem lá -- assim a busca acha
+        // coisas ditas durante a audiência mesmo que não apareçam no resumo.
+        clearTimeout(timerBuscaAudiencia);
+        timerBuscaAudiencia = setTimeout(function () {
+          if (normalizarBusca(buscaInput.value) !== termo) return; // usuário já digitou outra coisa
+          apiGetJson('/api/painel?acao=audiencias&op=buscar&q=' + encodeURIComponent(valorDigitado))
+            .then(function (dados) {
+              if (normalizarBusca(buscaInput.value) !== termo) return;
+              var idsAchados = dados.ids || [];
+              document.querySelectorAll('[data-id-card]').forEach(function (card) {
+                if (idsAchados.indexOf(card.getAttribute('data-id-card')) !== -1) card.style.display = '';
+              });
+            })
+            .catch(function () {});
+        }, 400);
       });
     }
+
+    container.querySelectorAll('[data-pergunta-enviar]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-pergunta-enviar');
+        var id = btn.getAttribute('data-id-audiencia');
+        var campo = container.querySelector('[data-pergunta-input="' + idx + '"]');
+        var alvo = document.getElementById('audiencia-resposta-' + idx);
+        var pergunta = (campo.value || '').trim();
+        if (!pergunta) { alvo.textContent = 'Digite uma pergunta primeiro.'; return; }
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Perguntando...';
+        alvo.textContent = '';
+        apiPost('/api/painel?acao=audiencias', { op: 'perguntar', id: id, pergunta: pergunta })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+          .then(function (dados) { alvo.textContent = dados.resposta || ''; })
+          .catch(function (err) { alvo.textContent = 'Não consegui responder agora (' + (err.message || 'erro') + ').'; })
+          .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
+      });
+    });
 
     container.querySelectorAll('[data-baixar-audiencia-pdf]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
