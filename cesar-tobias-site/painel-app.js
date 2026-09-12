@@ -9078,7 +9078,11 @@
 
   function parseTranscricaoDialogo(texto) {
     var linhas = texto.split('\n');
-    var regexFala = /^\[(\d{2}:\d{2}:\d{2})\]\s+Locutor\s+(\S+):\s*(.*)$/;
+    // O rotulo antes dos dois-pontos pode ser "Locutor A" (agrupamento por voz da AssemblyAI,
+    // sem nome) ou o nome de verdade (quando veio da extensao de Zoom, que sabe quem estava
+    // falando) -- captura o rotulo inteiro, verbatim, em vez de exigir literalmente a palavra
+    // "Locutor" (senao toda transcricao com nome de verdade caia no fallback generico abaixo).
+    var regexFala = /^\[(\d{2}:\d{2}:\d{2})\]\s+(.+?):\s*(.*)$/;
     var locutorCor = {}, proximaCor = 0;
     var partes = [], algumaFala = false;
     linhas.forEach(function (linha) {
@@ -9092,7 +9096,7 @@
       if (!(locutor in locutorCor)) { locutorCor[locutor] = proximaCor % 4; proximaCor++; }
       partes.push(
         '<div class="fala"><span class="fala-hora">' + esc(m[1]) + '</span>' +
-        '<span class="fala-locutor fala-locutor-' + locutorCor[locutor] + '">Locutor ' + esc(locutor) + '</span>' +
+        '<span class="fala-locutor fala-locutor-' + locutorCor[locutor] + '">' + esc(locutor) + '</span>' +
         '<span class="fala-texto">' + esc(m[3]) + '</span></div>'
       );
     });
