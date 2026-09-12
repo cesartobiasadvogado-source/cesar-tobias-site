@@ -42,6 +42,8 @@
   var avisouLegendaMeet = false;
   var flyoutAberto = null; // null | 'legenda' | 'chat' | 'idioma'
   var idiomaAtual = 'pt';
+  var refBotaoGravar = null;
+  var refBotoesSoGravando = []; // chat/print -- so fazem sentido com a gravacao ativa
 
   var PERGUNTAS_SUGERIDAS = [
     'Quais são os pontos principais até agora?',
@@ -164,9 +166,11 @@
       '  color: #f2f2f5; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }' +
       '.botao-barra:hover { background: rgba(255,255,255,0.18); }' +
       '.botao-barra.ativo { background: #3b4ee0; }' +
-      '.ponto-gravando { width: 7px; height: 7px; border-radius: 999px; background: #ff4d4f; display: inline-block;' +
-      '  animation: pulsar 1.2s infinite; margin-top: 2px; }' +
-      '@keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }' +
+      '.botao-barra:disabled { opacity: .3; cursor: not-allowed; }' +
+      '.botao-barra:disabled:hover { background: rgba(255,255,255,0.08); }' +
+      '.botao-gravar { color: #ff4d4f; font-size: 13px; }' +
+      '.botao-gravar.gravando { background: #ff4d4f; color: #fff; animation: pulsar 1.2s infinite; }' +
+      '@keyframes pulsar { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }' +
       '.painel { position: absolute; top: 0; right: 48px; width: 280px; background: rgba(24,24,30,0.95); color: #f2f2f5;' +
       '  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.4); overflow: hidden; }' +
       '.painel.escondido { display: none; }' +
@@ -228,13 +232,17 @@
     grip.className = 'grip';
     grip.title = 'Arrastar';
     grip.textContent = '⠿';
-    var pontoGravando = document.createElement('span');
-    pontoGravando.className = 'ponto-gravando';
+
+    var botaoGravar = document.createElement('button');
+    botaoGravar.type = 'button';
+    botaoGravar.className = 'botao-barra botao-gravar';
+    botaoGravar.title = 'Iniciar transcrição';
+    botaoGravar.textContent = '⏺';
 
     var barra = document.createElement('div');
     barra.className = 'barra';
     barra.appendChild(grip);
-    barra.appendChild(pontoGravando);
+    barra.appendChild(botaoGravar);
     barra.appendChild(criarBotaoIcone('💬', 'legenda', 'Mostrar/esconder legenda', true));
     barra.appendChild(criarBotaoIcone('✨', 'chat', 'Perguntar para a IA', false));
     barra.appendChild(criarBotaoIcone('🌐', 'idioma', 'Idioma da transcrição', false));
@@ -312,6 +320,9 @@
         btn.classList.toggle('ativo', btn.getAttribute('data-flyout') === flyoutAberto);
       });
     }
+    function garantirFlyoutAberto(nome) {
+      if (flyoutAberto !== nome) abrirFlyout(nome);
+    }
     // legenda comeca aberta (comportamento de antes, quando so existia a caixa de legenda)
     contentor.querySelector('[data-flyout="legenda"]').classList.add('ativo');
     flyoutAberto = 'legenda';
@@ -363,6 +374,32 @@
       });
     });
 
+    // botao de Iniciar/Parar direto na barra -- assim a pessoa nao precisa mais abrir o popup da
+    // extensao toda vez, so pra clicar em "Iniciar transcricao"/"Finalizar audiencia" (o popup
+    // continua existindo, pro login inicial e pra autorizar o microfone).
+    botaoGravar.addEventListener('click', function () {
+      botaoGravar.disabled = true;
+      var comando = gravando ? 'finalizar' : 'iniciar';
+      chrome.runtime.sendMessage({ tipo: comando }).then(function (resp) {
+        if (!resp || !resp.ok) throw new Error((resp && resp.erro) || 'Não consegui.');
+        if (comando === 'finalizar') {
+          adicionarPreviaTexto('✅ Áudio enviado! A transcrição continua em segundo plano -- um aviso chega quando estiver pronta.');
+        } else if (resp.avisoMic) {
+          garantirFlyoutAberto('legenda');
+          adicionarPreviaTexto('⚠️ ' + resp.avisoMic);
+        }
+      }).catch(function (e) {
+        garantirFlyoutAberto('legenda');
+        adicionarPreviaTexto('⚠️ ' + (e.message || e));
+      }).finally(function () {
+        botaoGravar.disabled = false;
+      });
+    });
+
+    refBotaoGravar = botaoGravar;
+    refBotoesSoGravando = [botaoPerguntarEl, botaoPrint];
+    atualizarUiGravando();
+
     botaoPrint.addEventListener('click', function () {
       var textoOriginal = botaoPrint.textContent;
       botaoPrint.disabled = true;
@@ -395,13 +432,6 @@
     document.addEventListener('mouseup', function () { arrastando = false; });
   }
 
-  function removerOverlay() {
-    if (overlayHost && overlayHost.parentNode) overlayHost.parentNode.removeChild(overlayHost);
-    overlayHost = null;
-    overlayBody = null;
-    flyoutAberto = null;
-  }
-
   function adicionarPreviaTexto(texto) {
     if (!overlayBody || !texto) return;
     var linha = document.createElement('div');
@@ -413,24 +443,27 @@
 
   // ---------- liga tudo ----------
 
+  function atualizarUiGravando() {
+    if (!refBotaoGravar) return; // so existe no frame de cima, onde a barra e criada
+    refBotaoGravar.classList.toggle('gravando', gravando);
+    refBotaoGravar.textContent = gravando ? '⏹' : '⏺';
+    refBotaoGravar.title = gravando ? 'Finalizar audiência' : 'Iniciar transcrição';
+    refBotoesSoGravando.forEach(function (btn) { btn.disabled = !gravando; });
+  }
+
   function ativar() {
     gravando = true;
     ultimoNome = null;
     avisouLegendaMeet = false;
-    if (ehFrameTopo) {
-      chrome.storage.local.get(['idiomaAudiencia']).then(function (armazenado) {
-        idiomaAtual = armazenado.idiomaAudiencia || 'pt';
-        criarOverlay();
-      }).catch(function () { criarOverlay(); });
-    }
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     verificarFalanteAgora();
+    atualizarUiGravando();
   }
 
   function desativar() {
     gravando = false;
     observer.disconnect();
-    if (ehFrameTopo) removerOverlay();
+    atualizarUiGravando();
   }
 
   chrome.runtime.onMessage.addListener(function (mensagem) {
@@ -442,9 +475,20 @@
     }
   });
 
-  // Pergunta ao background se essa aba deveria estar gravando -- cobre o caso da pagina recarregar
-  // no meio da audiencia (reconexao por internet instavel, por exemplo): sem isso, o content
-  // script recem-carregado nao saberia que precisa reativar a deteccao/legenda.
+  // A barra flutuante agora fica SEMPRE visivel em qualquer chamada do Zoom/Meet (nao so depois
+  // de iniciar uma gravacao) -- ela mesma tem o botao de Iniciar/Parar. So criada no frame de
+  // cima (ver ehFrameTopo), senao apareceria uma barra empilhada por iframe.
+  if (ehFrameTopo) {
+    chrome.storage.local.get(['idiomaAudiencia']).then(function (armazenado) {
+      idiomaAtual = armazenado.idiomaAudiencia || 'pt';
+      criarOverlay();
+    }).catch(function () { criarOverlay(); });
+  }
+
+  // Pergunta ao background se essa aba ja deveria estar gravando -- cobre o caso da pagina
+  // recarregar no meio da audiencia (reconexao por internet instavel, por exemplo, ou o F5 que a
+  // pessoa precisa dar depois de uma atualizacao da extensao): sem isso, o content script
+  // recem-carregado nao saberia que precisa reativar a deteccao/legenda/botao.
   chrome.runtime.sendMessage({ tipo: 'content_script_carregado' }).then(function (resposta) {
     if (resposta && resposta.ativa) ativar();
   }).catch(function () {});

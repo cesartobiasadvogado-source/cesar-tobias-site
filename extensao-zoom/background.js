@@ -92,6 +92,12 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         if (jaGravando.gravando) {
           throw new Error('Já existe uma gravação em andamento. Finalize-a antes de iniciar outra.');
         }
+        // agora que o botao de iniciar tambem existe direto na barra flutuante (sem precisar
+        // abrir o popup), o primeiro uso pode acontecer antes de qualquer login -- avisa isso
+        // com uma mensagem clara em vez de reaproveitar o texto de "sessao expirada".
+        if (!jaGravando.token) {
+          throw new Error('Você ainda não entrou na extensão. Clique no ícone dela na barra do Chrome e faça login primeiro.');
+        }
 
         const aba = await obterAbaAtiva();
         if (!aba || !aba.id) throw new Error('Não encontrei a aba da chamada (Zoom ou Meet) em foco.');
