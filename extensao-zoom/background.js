@@ -236,10 +236,22 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         // que de verdade demora, sem como acelerar) e avisa aqui quando terminar, atraves da
         // mensagem 'audiencia_pronta' mais abaixo. Assim a pessoa ja pode fechar a janela da
         // extensao logo que o audio termina de subir, sem precisar esperar a transcricao inteira.
-        const respostaOffscreen = await chrome.runtime.sendMessage({
-          target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token,
-          falantesTimeline: armazenado.falantesTimeline || [], capturas: armazenado.capturas || [],
-        });
+        let respostaOffscreen;
+        try {
+          respostaOffscreen = await chrome.runtime.sendMessage({
+            target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token,
+            falantesTimeline: armazenado.falantesTimeline || [], capturas: armazenado.capturas || [],
+          });
+        } catch (e) {
+          // o offscreen document nao existe mais -- normalmente porque a extensao ou a aba do
+          // Zoom/Meet foram recarregadas no meio da gravacao, o que destroi o processo que
+          // segurava o audio (sem jeito de recuperar). Sem isso, a tela ficava presa mostrando
+          // "Gravando" pra sempre, porque o reset do estado abaixo nunca era alcancado.
+          await chrome.storage.local.set({
+            gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [], capturas: [],
+          });
+          throw new Error('A gravação foi perdida (a extensão ou a aba foram recarregadas no meio dela). Inicie uma nova gravação.');
+        }
         await chrome.storage.local.set({
           gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [], capturas: [],
         });
