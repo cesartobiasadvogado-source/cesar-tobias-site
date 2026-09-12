@@ -1033,7 +1033,10 @@ module.exports = async (req, res) => {
 
   if (acao === 'audiencias') {
     var opAud = (req.query && req.query.op) || corpo.op || 'listar';
-    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia', 'excluir', 'perguntar', 'atualizar_tags', 'comparar', 'gerar_email', 'gerar_resumo_alternativo'];
+    var opsQueExigemPost = [
+      'iniciar_upload_audiencia', 'finalizar_upload_audiencia', 'excluir', 'perguntar', 'atualizar_tags',
+      'comparar', 'gerar_email', 'gerar_resumo_alternativo', 'adicionar_nota', 'remover_nota'
+    ];
     if (opsQueExigemPost.indexOf(opAud) !== -1 && req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
       return;
@@ -1074,6 +1077,15 @@ module.exports = async (req, res) => {
     if (opAud === 'gerar_resumo_alternativo') {
       if (corpo.id) urlAud += '&id=' + encodeURIComponent(corpo.id);
       if (corpo.template) urlAud += '&template=' + encodeURIComponent(corpo.template);
+    }
+    if (opAud === 'adicionar_nota') {
+      if (corpo.id) urlAud += '&id=' + encodeURIComponent(corpo.id);
+      if (corpo.texto) urlAud += '&texto=' + encodeURIComponent(corpo.texto);
+      if (corpo.segundo !== undefined) urlAud += '&segundo=' + encodeURIComponent(corpo.segundo);
+    }
+    if (opAud === 'remover_nota') {
+      if (corpo.id) urlAud += '&id=' + encodeURIComponent(corpo.id);
+      if (corpo.nota_id) urlAud += '&nota_id=' + encodeURIComponent(corpo.nota_id);
     }
     try {
       const resposta = await fetch(urlAud);

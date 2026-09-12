@@ -9076,7 +9076,14 @@
     return s + ' s';
   }
 
-  function parseTranscricaoDialogo(texto) {
+  function segundosDeMarca(marca) {
+    var partes = marca.split(':').map(Number);
+    return partes[0] * 3600 + partes[1] * 60 + partes[2];
+  }
+
+  function parseTranscricaoDialogo(texto, audienciaId, notas) {
+    notas = (notas || []).slice().sort(function (a, b) { return a.segundo - b.segundo; });
+    var indiceNota = 0;
     var linhas = texto.split('\n');
     // O rotulo antes dos dois-pontos pode ser "Locutor A" (agrupamento por voz da AssemblyAI,
     // sem nome) ou o nome de verdade (quando veio da extensao de Zoom, que sabe quem estava
@@ -9085,6 +9092,18 @@
     var regexFala = /^\[(\d{2}:\d{2}:\d{2})\]\s+(.+?):\s*(.*)$/;
     var locutorCor = {}, proximaCor = 0;
     var partes = [], algumaFala = false;
+
+    function inserirNotasAte(limiteSegundos) {
+      while (indiceNota < notas.length && notas[indiceNota].segundo <= limiteSegundos) {
+        var nota = notas[indiceNota];
+        indiceNota++;
+        partes.push(
+          '<div class="nota-manual">📝 ' + esc(nota.texto) +
+          ' <button type="button" data-remover-nota="' + esc(nota.id) + '" data-id-audiencia="' + esc(audienciaId) + '">remover</button></div>'
+        );
+      }
+    }
+
     linhas.forEach(function (linha) {
       var m = linha.match(regexFala);
       if (!m) {
@@ -9092,18 +9111,54 @@
         return;
       }
       algumaFala = true;
+      var segundoLinha = segundosDeMarca(m[1]);
+      inserirNotasAte(segundoLinha);
       var locutor = m[2];
       if (!(locutor in locutorCor)) { locutorCor[locutor] = proximaCor % 4; proximaCor++; }
       partes.push(
         '<div class="fala"><span class="fala-hora">' + esc(m[1]) + '</span>' +
         '<span class="fala-locutor fala-locutor-' + locutorCor[locutor] + '">' + esc(locutor) + '</span>' +
-        '<span class="fala-texto">' + esc(m[3]) + '</span></div>'
+        '<span class="fala-texto">' + esc(m[3]) + '</span>' +
+        '<button type="button" class="btn-add-nota" data-add-nota="' + segundoLinha + '" data-id-audiencia="' + esc(audienciaId) + '" title="Adicionar anotação aqui">📝+</button>' +
+        '</div>'
       );
     });
+    inserirNotasAte(Infinity);
     if (!algumaFala) {
       return '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(texto) + '</div>';
     }
     return '<div class="transcricao-dialogo">' + partes.join('') + '</div>';
+  }
+
+  function wireNotasTranscricao(alvo, audienciaId, idx) {
+    alvo.querySelectorAll('[data-add-nota]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var texto = window.prompt('Anotação (só você vê isso):');
+        if (!texto || !texto.trim()) return;
+        var segundo = btn.getAttribute('data-add-nota');
+        apiPost('/api/painel?acao=audiencias', { op: 'adicionar_nota', id: audienciaId, texto: texto.trim(), segundo: segundo })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () {
+            // recarrega so essa transcricao (com a nota nova ja no lugar certo) -- limpa o
+            // conteudo antes de clicar de novo, senao o clique so fecharia (o botao alterna
+            // entre mostrar/esconder quando ja tem algo renderizado ali).
+            document.getElementById('audiencia-transcricao-' + idx).innerHTML = '';
+            document.querySelector('[data-ver-transcricao="' + idx + '"]').click();
+          })
+          .catch(function () { mostrarAviso('Não foi possível salvar a anotação agora.'); });
+      });
+    });
+    alvo.querySelectorAll('[data-remover-nota]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var notaId = btn.getAttribute('data-remover-nota');
+        apiPost('/api/painel?acao=audiencias', { op: 'remover_nota', id: audienciaId, nota_id: notaId })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { btn.closest('.nota-manual').remove(); })
+          .catch(function () { mostrarAviso('Não foi possível remover a anotação agora.'); });
+      });
+    });
   }
 
   function renderAudiencias(audiencias) {
@@ -9184,7 +9239,9 @@
         apiGetJson('/api/painel?acao=audiencias&op=detalhe&id=' + encodeURIComponent(id))
           .then(function (dados) {
             var texto = (dados.audiencia && dados.audiencia.transcricao_completa) || '(vazio)';
-            alvo.innerHTML = parseTranscricaoDialogo(texto);
+            var notas = (dados.audiencia && dados.audiencia.notas) || [];
+            alvo.innerHTML = parseTranscricaoDialogo(texto, id, notas);
+            wireNotasTranscricao(alvo, id, idx);
             btn.textContent = textoOriginal;
           })
           .catch(function () {
