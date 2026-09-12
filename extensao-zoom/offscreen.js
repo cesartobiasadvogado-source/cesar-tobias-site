@@ -16,8 +16,13 @@ let tokenGravacaoAtual = null;
 let idiomaAtual = 'pt';
 let wsTranscricaoAoVivo = null;
 let processorAoVivo = null;
+let streamingAoVivoAtivo = false; // true entre iniciar a gravacao e finalizar de proposito
+let tentativasReconexaoStreaming = 0;
+let timerRenovacaoSessaoStreaming = null;
 
 function pararTudo() {
+  streamingAoVivoAtivo = false; // impede que o close do WS (logo abaixo) tente reconectar
+  clearTimeout(timerRenovacaoSessaoStreaming);
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
   if (micStream) micStream.getTracks().forEach((t) => t.stop());
   if (processorAoVivo) { processorAoVivo.disconnect(); processorAoVivo = null; }
@@ -99,15 +104,28 @@ async function iniciarGravacao(streamId, token, idioma) {
 // Isso e so pra legenda em tela, best-effort (se falhar, so fica sem legenda ao vivo). A
 // transcricao DEFINITIVA (que gera o resumo/PDF) continua vindo do audio completo gravado, no
 // finalizar, exatamente como sempre -- sem relacao nenhuma com esse streaming.
+// Sessoes de streaming da AssemblyAI duram no maximo 3h (pedido ao gerar o token, ver
+// handle_painel_audiencia_assemblyai_token) -- reconecta um pouco antes disso (2h50) pra nao
+// cair de surpresa no meio de uma audiencia longa. Se a conexao cair por qualquer outro motivo
+// (rede instavel etc.), reconecta tambem, com espera crescente entre tentativas (2s, 4s, 6s...).
+const LIMITE_SESSAO_STREAMING_MS = 170 * 60 * 1000;
+
 async function conectarTranscricaoAoVivo(streamMixado) {
+  streamingAoVivoAtivo = true;
+  tentativasReconexaoStreaming = 0;
+  await abrirConexaoStreaming(streamMixado);
+}
+
+async function abrirConexaoStreaming(streamMixado) {
   const dados = await apiGet('/api/painel?acao=audiencia_assemblyai_token', tokenGravacaoAtual);
 
-  wsTranscricaoAoVivo = new WebSocket(
+  const ws = new WebSocket(
     'wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&speech_model=universal-3-5-pro' +
     '&token=' + encodeURIComponent(dados.token)
   );
+  wsTranscricaoAoVivo = ws;
 
-  wsTranscricaoAoVivo.addEventListener('message', (ev) => {
+  ws.addEventListener('message', (ev) => {
     try {
       const msg = JSON.parse(ev.data);
       // so repassa quando a "fala" (turn) ja fechou -- os eventos intermediarios (parciais, ainda
@@ -121,10 +139,41 @@ async function conectarTranscricaoAoVivo(streamMixado) {
   });
 
   await new Promise((resolve, reject) => {
-    wsTranscricaoAoVivo.addEventListener('open', () => resolve(), { once: true });
-    wsTranscricaoAoVivo.addEventListener('error', () => reject(new Error('Falha ao conectar no streaming.')), { once: true });
+    ws.addEventListener('open', () => resolve(), { once: true });
+    ws.addEventListener('error', () => reject(new Error('Falha ao conectar no streaming.')), { once: true });
   });
 
+  tentativasReconexaoStreaming = 0; // conectou -- zera o contador de tentativas
+
+  ws.addEventListener('close', () => {
+    if (!streamingAoVivoAtivo || wsTranscricaoAoVivo !== ws) return; // fechado de proposito
+    reconectarStreamingComEspera(streamMixado);
+  });
+
+  // o processor (que capta o audio e manda pro WS) so precisa ser criado uma vez -- reconexoes
+  // so trocam o WS pro qual ele manda os dados (ver processorAoVivo.onaudioprocess acima).
+  if (!processorAoVivo) ligarCaptacaoDeAudioParaStreaming(streamMixado);
+
+  clearTimeout(timerRenovacaoSessaoStreaming);
+  timerRenovacaoSessaoStreaming = setTimeout(() => {
+    if (streamingAoVivoAtivo) reconectarStreamingComEspera(streamMixado);
+  }, LIMITE_SESSAO_STREAMING_MS);
+}
+
+function reconectarStreamingComEspera(streamMixado) {
+  if (!streamingAoVivoAtivo) return;
+  tentativasReconexaoStreaming++;
+  const espera = Math.min(30000, 2000 * tentativasReconexaoStreaming);
+  setTimeout(() => {
+    if (!streamingAoVivoAtivo) return;
+    abrirConexaoStreaming(streamMixado).catch((e) => {
+      console.warn('Falha ao reconectar a legenda ao vivo (tentativa ' + tentativasReconexaoStreaming + '):', e);
+      reconectarStreamingComEspera(streamMixado);
+    });
+  }, espera);
+}
+
+function ligarCaptacaoDeAudioParaStreaming(streamMixado) {
   const fonteMixada = audioContext.createMediaStreamSource(streamMixado);
   const taxaOriginal = audioContext.sampleRate;
   processorAoVivo = audioContext.createScriptProcessor(4096, 1, 1);
