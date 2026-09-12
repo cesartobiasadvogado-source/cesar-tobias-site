@@ -212,8 +212,22 @@
       '.painel-cabecalho { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;' +
       '  color: #cfcfe0; padding: 10px 12px 6px; }' +
       '.painel-corpo { font-size: 12.5px; line-height: 1.5; padding: 0 12px 12px; }' +
-      '.legenda-linhas { max-height: 200px; overflow-y: auto; }' +
-      '.legenda-linhas div { margin-bottom: 6px; white-space: pre-wrap; }' +
+      // Painel unificado (Transcrição + Perguntar à IA, com abas) -- bem mais alto que os
+      // flyouts pequenos de antes, pra parecer um painel lateral encaixado (estilo Tactiq), sem
+      // depender da API oficial de side panel do Chrome (que só abre por um clique direto, não a
+      // partir de um botão dentro da própria página -- não serviria pro nosso caso).
+      '.painel-unificado { position: absolute; top: 0; right: 48px; width: 300px; height: min(72vh, 560px);' +
+      '  background: rgba(20,20,26,0.97); color: #f2f2f5; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.45);' +
+      '  display: flex; flex-direction: column; overflow: hidden; }' +
+      '.painel-unificado.escondido { display: none; }' +
+      '.abas-cabecalho { display: flex; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }' +
+      '.aba-btn { flex: 1; background: none; border: none; color: #9a9aa6; font-size: 12.5px; font-weight: 600;' +
+      '  padding: 12px 8px; cursor: pointer; border-bottom: 2px solid transparent; }' +
+      '.aba-btn:hover { color: #dcdce6; }' +
+      '.aba-btn.ativo-aba { color: #fff; border-bottom-color: #3b4ee0; }' +
+      '.aba-conteudo { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }' +
+      '.aba-conteudo.escondido { display: none; }' +
+      '.legenda-linhas div { margin-bottom: 8px; white-space: pre-wrap; }' +
       '.chat-sugestoes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }' +
       '.chat-sugestao { text-align: left; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);' +
       '  color: #dcdce6; border-radius: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer; }' +
@@ -274,13 +288,17 @@
     botaoGravar.title = 'Iniciar transcrição';
     botaoGravar.textContent = '⏺';
 
+    var botaoLegenda = criarBotaoIcone('💬', 'legenda', 'Mostrar/esconder legenda', true);
+    var botaoChat = criarBotaoIcone('✨', 'chat', 'Perguntar para a IA', false);
+    var botaoIdioma = criarBotaoIcone('🌐', 'idioma', 'Idioma da transcrição', false);
+
     var barra = document.createElement('div');
     barra.className = 'barra';
     barra.appendChild(grip);
     barra.appendChild(botaoGravar);
-    barra.appendChild(criarBotaoIcone('💬', 'legenda', 'Mostrar/esconder legenda', true));
-    barra.appendChild(criarBotaoIcone('✨', 'chat', 'Perguntar para a IA', false));
-    barra.appendChild(criarBotaoIcone('🌐', 'idioma', 'Idioma da transcrição', false));
+    barra.appendChild(botaoLegenda);
+    barra.appendChild(botaoChat);
+    barra.appendChild(botaoIdioma);
     var botaoPrint = document.createElement('button');
     botaoPrint.type = 'button';
     botaoPrint.className = 'botao-barra';
@@ -288,9 +306,26 @@
     botaoPrint.textContent = '📷';
     barra.appendChild(botaoPrint);
 
+    // Painel unificado (Transcrição + Perguntar à IA, com abas) -- os botões 💬 e ✨ da barra
+    // abrem o MESMO painel, só trocando qual aba fica visível.
+    var abaBtnLegenda = document.createElement('button');
+    abaBtnLegenda.type = 'button';
+    abaBtnLegenda.className = 'aba-btn';
+    abaBtnLegenda.textContent = 'Transcrição';
+    var abaBtnChat = document.createElement('button');
+    abaBtnChat.type = 'button';
+    abaBtnChat.className = 'aba-btn';
+    abaBtnChat.textContent = 'Perguntar à IA';
+    var abasCabecalho = document.createElement('div');
+    abasCabecalho.className = 'abas-cabecalho';
+    abasCabecalho.appendChild(abaBtnLegenda);
+    abasCabecalho.appendChild(abaBtnChat);
+
     var corpoLegenda = document.createElement('div');
     corpoLegenda.className = 'legenda-linhas';
-    var painelLegenda = criarPainel('legenda', 'Transcrevendo', corpoLegenda, false);
+    var abaConteudoLegenda = document.createElement('div');
+    abaConteudoLegenda.className = 'aba-conteudo';
+    abaConteudoLegenda.appendChild(corpoLegenda);
 
     var corpoChat = document.createElement('div');
     var sugestoesChat = document.createElement('div');
@@ -317,7 +352,15 @@
     corpoChat.appendChild(sugestoesChat);
     corpoChat.appendChild(respostaChatEl);
     corpoChat.appendChild(linhaChat);
-    var painelChat = criarPainel('chat', 'Perguntar à IA', corpoChat, true);
+    var abaConteudoChat = document.createElement('div');
+    abaConteudoChat.className = 'aba-conteudo escondido';
+    abaConteudoChat.appendChild(corpoChat);
+
+    var painelUnificado = document.createElement('div');
+    painelUnificado.className = 'painel-unificado';
+    painelUnificado.appendChild(abasCabecalho);
+    painelUnificado.appendChild(abaConteudoLegenda);
+    painelUnificado.appendChild(abaConteudoChat);
 
     var corpoIdioma = document.createElement('div');
     IDIOMAS.forEach(function (i) {
@@ -331,13 +374,11 @@
     var painelIdioma = criarPainel('idioma', 'Idioma da transcrição', corpoIdioma, true);
 
     contentor.appendChild(barra);
-    contentor.appendChild(painelLegenda);
-    contentor.appendChild(painelChat);
+    contentor.appendChild(painelUnificado);
     contentor.appendChild(painelIdioma);
     shadow.appendChild(contentor);
 
     overlayBody = corpoLegenda;
-    var painelPorNome = { legenda: painelLegenda, chat: painelChat, idioma: painelIdioma };
 
     function marcarIdiomaSelecionado() {
       contentor.querySelectorAll('.item-idioma').forEach(function (btn) {
@@ -346,24 +387,54 @@
     }
     marcarIdiomaSelecionado();
 
-    function abrirFlyout(nome) {
-      flyoutAberto = (flyoutAberto === nome) ? null : nome;
-      Object.keys(painelPorNome).forEach(function (chave) {
-        painelPorNome[chave].classList.toggle('escondido', chave !== flyoutAberto);
-      });
-      contentor.querySelectorAll('[data-flyout]').forEach(function (btn) {
-        btn.classList.toggle('ativo', btn.getAttribute('data-flyout') === flyoutAberto);
-      });
-    }
-    function garantirFlyoutAberto(nome) {
-      if (flyoutAberto !== nome) abrirFlyout(nome);
-    }
-    // legenda comeca aberta (comportamento de antes, quando so existia a caixa de legenda)
-    contentor.querySelector('[data-flyout="legenda"]').classList.add('ativo');
-    flyoutAberto = 'legenda';
+    // flyoutAberto: null | 'painel' | 'idioma'. abaPainelAtiva: 'legenda' | 'chat' (so importa
+    // quando o painel unificado esta aberto).
+    var abaPainelAtiva = 'legenda';
+    flyoutAberto = 'painel'; // comeca aberto na aba Transcricao, igual era antes
 
-    contentor.querySelectorAll('[data-flyout]').forEach(function (btn) {
-      btn.addEventListener('click', function () { abrirFlyout(btn.getAttribute('data-flyout')); });
+    function sincronizarVisualFlyouts() {
+      painelUnificado.classList.toggle('escondido', flyoutAberto !== 'painel');
+      painelIdioma.classList.toggle('escondido', flyoutAberto !== 'idioma');
+      botaoLegenda.classList.toggle('ativo', flyoutAberto === 'painel' && abaPainelAtiva === 'legenda');
+      botaoChat.classList.toggle('ativo', flyoutAberto === 'painel' && abaPainelAtiva === 'chat');
+      botaoIdioma.classList.toggle('ativo', flyoutAberto === 'idioma');
+      abaConteudoLegenda.classList.toggle('escondido', abaPainelAtiva !== 'legenda');
+      abaConteudoChat.classList.toggle('escondido', abaPainelAtiva !== 'chat');
+      abaBtnLegenda.classList.toggle('ativo-aba', abaPainelAtiva === 'legenda');
+      abaBtnChat.classList.toggle('ativo-aba', abaPainelAtiva === 'chat');
+    }
+    sincronizarVisualFlyouts();
+
+    // clicar no icone da barra (💬 ou ✨): se o painel ja estiver aberto NESSA aba, fecha; senao
+    // abre (ou so troca de aba, se ja estiver aberto na outra).
+    function abrirPainelNaAba(aba) {
+      if (flyoutAberto === 'painel' && abaPainelAtiva === aba) {
+        flyoutAberto = null;
+      } else {
+        flyoutAberto = 'painel';
+        abaPainelAtiva = aba;
+      }
+      sincronizarVisualFlyouts();
+    }
+    // usado quando um erro/aviso precisa aparecer na legenda (ex: sessao expirada) -- garante que
+    // a aba Transcricao fique visivel, sem fechar se ja estiver aberta noutra aba por engano.
+    function garantirFlyoutAberto(nome) {
+      if (nome === 'idioma') {
+        flyoutAberto = 'idioma';
+      } else {
+        flyoutAberto = 'painel';
+        abaPainelAtiva = 'legenda';
+      }
+      sincronizarVisualFlyouts();
+    }
+
+    botaoLegenda.addEventListener('click', function () { abrirPainelNaAba('legenda'); });
+    botaoChat.addEventListener('click', function () { abrirPainelNaAba('chat'); });
+    abaBtnLegenda.addEventListener('click', function () { abaPainelAtiva = 'legenda'; sincronizarVisualFlyouts(); });
+    abaBtnChat.addEventListener('click', function () { abaPainelAtiva = 'chat'; sincronizarVisualFlyouts(); });
+    botaoIdioma.addEventListener('click', function () {
+      flyoutAberto = (flyoutAberto === 'idioma') ? 'painel' : 'idioma';
+      sincronizarVisualFlyouts();
     });
 
     contentor.querySelectorAll('[data-idioma]').forEach(function (btn) {

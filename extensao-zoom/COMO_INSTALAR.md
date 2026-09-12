@@ -23,11 +23,12 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
    Meet aberto, mesmo sem estar gravando ainda:
    - **⏺ Gravar**: clique pra começar a transcrição (não precisa digitar nada antes). Vira **⏹**
      enquanto grava -- clique de novo pra finalizar a audiência.
-   - **💬 Legenda**: mostra/esconde a caixa com o que está sendo transcrito em tempo real --
-     agora com uma conexão direta e contínua com o serviço de transcrição (bem mais rápido que
-     antes, o texto aparece poucos segundos depois de cada fala, igual ao Tactiq).
-   - **✨ Perguntar à IA**: pergunte algo sobre o que já foi dito na reunião até agora (ex: "já
-     foi concedido algum prazo?") e a IA responde na hora, com base no que já foi transcrito.
+   - **💬 Legenda** e **✨ Perguntar à IA** abrem o **mesmo painel**, num formato mais alto e
+     parecido com o do Tactiq, com duas abas:
+     - **Transcrição**: o que está sendo transcrito em tempo real (conexão direta e contínua com
+       o serviço de transcrição -- o texto aparece poucos segundos depois de cada fala).
+     - **Perguntar à IA**: pergunte algo sobre o que já foi dito até agora (ex: "já foi concedido
+       algum prazo?") e a IA responde na hora, com base no que já foi transcrito.
    - **🌐 Idioma**: escolha o idioma da transcrição (Português, English, Español ou Detecção
      automática) -- útil se a audiência for em outro idioma. Pode trocar a qualquer momento.
    - **📷 Print**: tira um print da tela da chamada naquele momento e salva junto da transcrição
