@@ -1042,7 +1042,7 @@ module.exports = async (req, res) => {
       '&token=' + encodeURIComponent(tokenSessao) + segredoQS;
     if (opAud === 'detalhe' && req.query && req.query.id) urlAud += '&id=' + encodeURIComponent(req.query.id);
     if (opAud === 'iniciar_upload_audiencia') {
-      var camposIniciar = ['cliente', 'nome_arquivo', 'mimetype', 'tamanho_total'];
+      var camposIniciar = ['cliente', 'nome_arquivo', 'mimetype', 'tamanho_total', 'pasta_compartilhada'];
       camposIniciar.forEach(function (campo) {
         if (corpo[campo] !== undefined) urlAud += '&' + campo + '=' + encodeURIComponent(corpo[campo]);
       });

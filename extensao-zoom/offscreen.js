@@ -139,7 +139,7 @@ async function enviarPedacosParaDrive(arquivo, uploadId, tamanhoChunk, token) {
   return uploadId;
 }
 
-async function finalizarEEnviar(token, cliente, falantesTimeline) {
+async function finalizarEEnviar(token, falantesTimeline) {
   await pararMediaRecorder();
   pararTudo();
 
@@ -149,10 +149,15 @@ async function finalizarEEnviar(token, cliente, falantesTimeline) {
 
   if (!token) throw new Error('Sessão expirada -- entre de novo na extensão.');
 
-  const nomeArquivo = 'Audiencia ao vivo (extensao) - ' + (cliente || 'cliente') + '.webm';
+  // sem nome de cliente (a extensao nao pede isso antes de gravar) -- o nome do arquivo usa so
+  // data/hora, e tudo cai na pasta compartilhada de transcricoes (pasta_compartilhada: true),
+  // nunca dentro da pasta de um cliente especifico.
+  const agora = new Date();
+  const carimbo = agora.toLocaleString('pt-BR').replace(/[\/,:]/g, '-').replace(/\s+/g, ' ');
+  const nomeArquivo = 'Audiencia ' + carimbo + '.webm';
 
   const iniciado = await apiPost('/api/painel?acao=audiencias', {
-    op: 'iniciar_upload_audiencia', cliente, nome_arquivo: nomeArquivo,
+    op: 'iniciar_upload_audiencia', pasta_compartilhada: true, nome_arquivo: nomeArquivo,
     mimetype: 'audio/webm', tamanho_total: blobCompleto.size,
   }, token);
 
@@ -178,7 +183,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   }
 
   if (mensagem.tipo === 'finalizar_gravacao') {
-    finalizarEEnviar(mensagem.token, mensagem.cliente, mensagem.falantesTimeline)
+    finalizarEEnviar(mensagem.token, mensagem.falantesTimeline)
       .then((resposta) => responder({ ok: true, resposta }))
       .catch((e) => { pararTudo(); responder({ ok: false, erro: e.message || String(e) }); });
     return true;

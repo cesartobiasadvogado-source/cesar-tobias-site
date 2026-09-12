@@ -23,14 +23,15 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
      inferior). Sem isso a extensão não tem como saber o nome de quem fala no Meet.
    - Em qualquer um dos dois, se você não fizer isso, a gravação continua funcionando normal,
      só que os nomes saem como "Locutor A/B" em vez do nome de verdade.
-4. Digite o nome do cliente e clique em **"Iniciar transcrição"**.
+4. Clique em **"Iniciar transcrição"** — não precisa digitar nada antes, é só clicar.
 5. Aparece uma legendinha flutuante na tela mostrando o que está sendo transcrito -- pode
    arrastar ela pra onde quiser, ou minimizar clicando no traço no canto.
 6. Pode fechar a janelinha da extensão — a gravação continua rodando sozinha. Só não feche a
    aba da chamada.
 7. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
    O envio e a transcrição podem levar alguns minutos — pode fechar a janelinha, o resultado
-   aparece na aba **Audiências** do painel, do mesmo jeito que já acontece hoje.
+   aparece na aba **Audiências** do painel, numa pasta única (**"Transcrições de Audiências
+   (extensão)"**), separada das pastas dos clientes.
 
 ## Se algo der errado
 

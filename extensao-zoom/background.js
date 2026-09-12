@@ -73,13 +73,12 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'obter_estado') {
-        const armazenado = await chrome.storage.local.get(['token', 'nome', 'gravando', 'cliente', 'iniciadoEm']);
+        const armazenado = await chrome.storage.local.get(['token', 'nome', 'gravando', 'iniciadoEm']);
         responder({
           ok: true,
           logado: !!armazenado.token,
           nome: armazenado.nome || '',
           gravando: !!armazenado.gravando,
-          cliente: armazenado.cliente || '',
           iniciadoEm: armazenado.iniciadoEm || null,
         });
         return;
@@ -112,7 +111,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
         await garantirOffscreen();
         await chrome.storage.local.set({
-          gravando: true, cliente: mensagem.cliente, iniciadoEm: Date.now(),
+          gravando: true, iniciadoEm: Date.now(),
           abaZoomId: aba.id, falantesTimeline: [],
         });
 
@@ -171,16 +170,16 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       if (mensagem.tipo === 'finalizar') {
-        const armazenado = await chrome.storage.local.get(['token', 'cliente', 'abaZoomId', 'falantesTimeline']);
+        const armazenado = await chrome.storage.local.get(['token', 'abaZoomId', 'falantesTimeline']);
         if (armazenado.abaZoomId) {
           chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'gravacao_ativa', ativa: false }).catch(() => {});
         }
         const respostaOffscreen = await chrome.runtime.sendMessage({
-          target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token, cliente: armazenado.cliente,
+          target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token,
           falantesTimeline: armazenado.falantesTimeline || [],
         });
         await chrome.storage.local.set({
-          gravando: false, cliente: '', iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
+          gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
         });
         // libera o offscreen document (nao precisa mais ficar de pe entre uma gravacao e outra --
         // volta a ser criado do zero, do jeito que garantirOffscreen ja espera, na proxima vez).

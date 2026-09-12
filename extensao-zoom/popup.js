@@ -5,7 +5,6 @@ const blocoParado = document.getElementById('bloco-parado');
 const blocoGravando = document.getElementById('bloco-gravando');
 const campoUsuario = document.getElementById('campo-usuario');
 const campoSenha = document.getElementById('campo-senha');
-const campoCliente = document.getElementById('campo-cliente');
 const btnEntrar = document.getElementById('btn-entrar');
 const btnAutorizarMicrofone = document.getElementById('btn-autorizar-microfone');
 const btnIniciar = document.getElementById('btn-iniciar');
@@ -100,14 +99,9 @@ btnAutorizarMicrofone.addEventListener('click', () => {
 });
 
 btnIniciar.addEventListener('click', () => {
-  const cliente = campoCliente.value.trim();
-  if (!cliente) {
-    mostrarStatus('Informe o nome do cliente antes de iniciar.', 'erro');
-    return;
-  }
   btnIniciar.disabled = true;
   mostrarStatus('Iniciando gravação…');
-  enviarComando({ tipo: 'iniciar', cliente })
+  enviarComando({ tipo: 'iniciar' })
     .then((resposta) => {
       mostrarStatus(resposta.avisoMic || '', resposta.avisoMic ? 'erro' : '');
       atualizarTela();
@@ -122,7 +116,6 @@ btnFinalizar.addEventListener('click', () => {
   enviarComando({ tipo: 'finalizar' })
     .then((resposta) => {
       mostrarStatus(resposta.resposta || 'Áudio processado.', 'ok');
-      campoCliente.value = '';
       atualizarTela();
     })
     .catch((e) => { mostrarStatus(e.message, 'erro'); atualizarTela(); })
