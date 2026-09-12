@@ -1033,7 +1033,7 @@ module.exports = async (req, res) => {
 
   if (acao === 'audiencias') {
     var opAud = (req.query && req.query.op) || corpo.op || 'listar';
-    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia', 'excluir', 'perguntar', 'atualizar_tags', 'comparar'];
+    var opsQueExigemPost = ['iniciar_upload_audiencia', 'finalizar_upload_audiencia', 'excluir', 'perguntar', 'atualizar_tags', 'comparar', 'gerar_email'];
     if (opsQueExigemPost.indexOf(opAud) !== -1 && req.method !== 'POST') {
       res.status(405).json({ erro: 'Metodo nao permitido.' });
       return;
@@ -1066,6 +1066,9 @@ module.exports = async (req, res) => {
       urlAud += '&tags=' + encodeURIComponent(tagsTexto);
     }
     if (opAud === 'comparar' && corpo.id) {
+      urlAud += '&id=' + encodeURIComponent(corpo.id);
+    }
+    if (opAud === 'gerar_email' && corpo.id) {
       urlAud += '&id=' + encodeURIComponent(corpo.id);
     }
     try {

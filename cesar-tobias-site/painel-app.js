@@ -9138,9 +9138,11 @@
             '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
             '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
             '<button data-comparar-audiencia="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Comparar com outras do mesmo processo</button>' +
+            '<button data-gerar-email="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Gerar e-mail pro cliente</button>' +
             '<button data-excluir-audiencia="' + esc(a.id) + '" class="btn-remover">Excluir</button></div>' +
           '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
           '<div style="margin-top:12px;white-space:pre-wrap;" id="audiencia-comparacao-' + idx + '"></div>' +
+          '<div style="margin-top:12px;" id="audiencia-email-' + idx + '"></div>' +
           '<div class="audiencia-pergunta" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">' +
             '<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">Perguntar sobre esta audiência</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
@@ -9227,6 +9229,41 @@
           .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
           .then(function (dados) { alvo.textContent = '📊 Comparação com ' + dados.total + ' audiências:\n\n' + dados.comparacao; })
           .catch(function (err) { alvo.textContent = 'Não foi possível comparar: ' + (err.message || 'erro'); })
+          .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
+      });
+    });
+
+    container.querySelectorAll('[data-gerar-email]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-gerar-email');
+        var id = btn.getAttribute('data-id-audiencia');
+        var alvo = document.getElementById('audiencia-email-' + idx);
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Gerando...';
+        alvo.innerHTML = '';
+        apiPost('/api/painel?acao=audiencias', { op: 'gerar_email', id: id })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+          .then(function (dados) {
+            var textarea = document.createElement('textarea');
+            textarea.value = dados.email || '';
+            textarea.rows = 8;
+            textarea.style.cssText = 'width:100%;font-family:inherit;font-size:13px;padding:8px;border:1px solid var(--line);border-radius:8px;';
+            var botaoCopiar = document.createElement('button');
+            botaoCopiar.type = 'button';
+            botaoCopiar.textContent = 'Copiar texto';
+            botaoCopiar.style.marginTop = '6px';
+            botaoCopiar.addEventListener('click', function () {
+              navigator.clipboard.writeText(textarea.value).then(function () {
+                botaoCopiar.textContent = 'Copiado!';
+                setTimeout(function () { botaoCopiar.textContent = 'Copiar texto'; }, 1500);
+              });
+            });
+            alvo.appendChild(textarea);
+            alvo.appendChild(botaoCopiar);
+          })
+          .catch(function (err) { alvo.textContent = 'Não foi possível gerar o e-mail: ' + (err.message || 'erro'); })
           .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
       });
     });
