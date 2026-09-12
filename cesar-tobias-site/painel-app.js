@@ -9115,11 +9115,13 @@
     container.innerHTML = audiencias.map(function (a, idx) {
       var avisos = (a.avisos && a.avisos.length)
         ? '<div class="chip warn" style="margin-bottom:10px;">' + esc(a.avisos.join(' | ')) + '</div>' : '';
+      var tags = a.tags || [];
       var chips = '';
       if (a.duracao_segundos || a.duracao_segundos === 0) chips += '<span class="audiencia-chip">' + esc(fmtDuracao(a.duracao_segundos)) + '</span>';
       if (a.total_falas) chips += '<span class="audiencia-chip">' + a.total_falas + ' fala' + (a.total_falas === 1 ? '' : 's') + '</span>';
       if (a.total_locutores) chips += '<span class="audiencia-chip">' + a.total_locutores + ' pessoa' + (a.total_locutores === 1 ? '' : 's') + '</span>';
-      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo)) + '" data-id-card="' + esc(a.id) + '">' +
+      tags.forEach(function (t) { chips += '<span class="audiencia-chip audiencia-chip-tag">🏷️ ' + esc(t) + '</span>'; });
+      return '<div class="processo-card" data-busca-audiencia="' + esc(normalizarBusca(a.cliente + ' ' + a.resumo + ' ' + tags.join(' '))) + '" data-id-card="' + esc(a.id) + '">' +
         '<button type="button" class="processo-cabecalho" data-toggle-audiencia="' + idx + '" aria-expanded="false" aria-controls="audiencia-corpo-' + idx + '">' +
           '<div><div class="processo-numero">' + esc(a.cliente) + '</div>' +
           '<div class="processo-meta">' + esc(fmtDataCurta(a.data_processamento)) + (chips ? ' · ' : '') + '</div>' +
@@ -9127,6 +9129,11 @@
         '</button>' +
         '<div class="processo-corpo" id="audiencia-corpo-' + idx + '">' + avisos +
           '<div class="timeline-item-resumo" style="white-space:pre-wrap;">' + esc(a.resumo) + '</div>' +
+          '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+            '<span style="font-size:12.5px;color:var(--ink-soft);">Tags (ex: número do processo):</span>' +
+            '<input type="text" data-tags-input="' + idx + '" value="' + esc(tags.join(', ')) + '" placeholder="processo-123, guarda" style="flex:1;min-width:160px;">' +
+            '<button type="button" data-tags-salvar="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Salvar tags</button>' +
+          '</div>' +
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
             '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
@@ -9203,6 +9210,26 @@
         }, 400);
       });
     }
+
+    container.querySelectorAll('[data-tags-salvar]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-tags-salvar');
+        var id = btn.getAttribute('data-id-audiencia');
+        var campo = container.querySelector('[data-tags-input="' + idx + '"]');
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Salvando...';
+        apiPost('/api/painel?acao=audiencias', { op: 'atualizar_tags', id: id, tags: campo.value })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); })
+          .then(function () { carregarAudiencias(); })
+          .catch(function () {
+            mostrarAviso('Não foi possível salvar as tags agora.');
+            btn.disabled = false;
+            btn.textContent = textoOriginal;
+          });
+      });
+    });
 
     container.querySelectorAll('[data-pergunta-enviar]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
