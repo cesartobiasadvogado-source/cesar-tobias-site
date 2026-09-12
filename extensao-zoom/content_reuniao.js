@@ -38,16 +38,40 @@
 
   // ---------- deteccao de quem esta falando: Zoom ----------
 
+  function nomeDoContainerZoom(container) {
+    if (!container) return null;
+    var elNome = container.querySelector('.video-avatar__avatar-name');
+    if (elNome && elNome.textContent.trim()) return elNome.textContent.trim();
+    var footer = container.querySelector('.video-avatar__avatar-footer');
+    if (footer && footer.textContent.trim()) return footer.textContent.trim();
+    return null;
+  }
+
   function extrairNomeZoom() {
+    // 1) Visualização do orador (confirmado ao vivo numa reunião de teste): o Zoom marca quem
+    // está em destaque com esse container próprio.
     var containers = document.querySelectorAll(
       '.speaker-active-container__wrap, .speaker-active-container__video-frame'
     );
     for (var i = 0; i < containers.length; i++) {
-      var container = containers[i];
-      var elNome = container.querySelector('.video-avatar__avatar-name');
-      if (elNome && elNome.textContent.trim()) return elNome.textContent.trim();
-      var footer = container.querySelector('.video-avatar__avatar-footer');
-      if (footer && footer.textContent.trim()) return footer.textContent.trim();
+      var nome = nomeDoContainerZoom(containers[i]);
+      if (nome) return nome;
+    }
+
+    // 2) Fallback pra outros modos (ex: Galeria) -- AINDA NÃO TESTADO AO VIVO (pra comparar de
+    // verdade precisaria de duas pessoas falando ao mesmo tempo numa reunião real, o que não dá
+    // pra simular sozinho numa sala de teste). A ideia: em qualquer layout, o Zoom sempre marca
+    // quem está falando agora com uma classe que contém "speaking"/"talking"/"active-speaker" --
+    // então procura por isso em vez de depender do container específico da Visualização do
+    // orador. Se não achar nada aqui, cai pro "Locutor A/B" de sempre (nada quebra).
+    var indicadores = document.querySelectorAll(
+      '[class*="speaking"], [class*="talking"], [class*="active-speaker"]'
+    );
+    for (var j = 0; j < indicadores.length; j++) {
+      var origem = indicadores[j].closest('[class*="video"], [class*="participant"], [class*="avatar"]')
+        || indicadores[j].parentElement;
+      var nome2 = nomeDoContainerZoom(origem);
+      if (nome2) return nome2;
     }
     return null;
   }
