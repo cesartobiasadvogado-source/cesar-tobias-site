@@ -9143,6 +9143,16 @@
           '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
           '<div style="margin-top:12px;white-space:pre-wrap;" id="audiencia-comparacao-' + idx + '"></div>' +
           '<div style="margin-top:12px;" id="audiencia-email-' + idx + '"></div>' +
+          '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+            '<span style="font-size:12.5px;color:var(--ink-soft);">Ver resumo em outro formato:</span>' +
+            '<select data-template-select="' + idx + '">' +
+              '<option value="curto">Curto (até 5 linhas)</option>' +
+              '<option value="detalhado">Detalhado</option>' +
+              '<option value="so_decisoes">Só decisões e acordos</option>' +
+            '</select>' +
+            '<button type="button" data-gerar-resumo-template="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Gerar</button>' +
+          '</div>' +
+          '<div style="margin-top:8px;white-space:pre-wrap;" id="audiencia-resumo-template-' + idx + '"></div>' +
           '<div class="audiencia-pergunta" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">' +
             '<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">Perguntar sobre esta audiência</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
@@ -9229,6 +9239,25 @@
           .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
           .then(function (dados) { alvo.textContent = '📊 Comparação com ' + dados.total + ' audiências:\n\n' + dados.comparacao; })
           .catch(function (err) { alvo.textContent = 'Não foi possível comparar: ' + (err.message || 'erro'); })
+          .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
+      });
+    });
+
+    container.querySelectorAll('[data-gerar-resumo-template]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-gerar-resumo-template');
+        var id = btn.getAttribute('data-id-audiencia');
+        var select = container.querySelector('[data-template-select="' + idx + '"]');
+        var alvo = document.getElementById('audiencia-resumo-template-' + idx);
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Gerando...';
+        alvo.textContent = '';
+        apiPost('/api/painel?acao=audiencias', { op: 'gerar_resumo_alternativo', id: id, template: select.value })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+          .then(function (dados) { alvo.textContent = dados.resumo || ''; })
+          .catch(function (err) { alvo.textContent = 'Não foi possível gerar agora: ' + (err.message || 'erro'); })
           .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
       });
     });
