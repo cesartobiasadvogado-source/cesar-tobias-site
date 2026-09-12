@@ -1120,7 +1120,10 @@ module.exports = async (req, res) => {
       const resposta = await fetch(urlFinalizarFalantes, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ upload_id: corpo.upload_id, falantes_timeline: corpo.falantes_timeline, idioma: corpo.idioma })
+        body: JSON.stringify({
+          upload_id: corpo.upload_id, falantes_timeline: corpo.falantes_timeline, idioma: corpo.idioma,
+          capturas: corpo.capturas,
+        })
       });
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);

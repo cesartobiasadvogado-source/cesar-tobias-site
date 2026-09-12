@@ -172,15 +172,17 @@ async function enviarAudioCompleto(token, falantesTimeline) {
   return { uploadId: iniciado.upload_id, idioma: idiomaAtual };
 }
 
-async function processarTranscricaoEmSegundoPlano(token, uploadId, falantesTimeline, idioma) {
+async function processarTranscricaoEmSegundoPlano(token, uploadId, falantesTimeline, idioma, capturas) {
   // Fase 2 -- roda depois de ja ter respondido o popup (ver o listener mais abaixo). Avisa o
   // background quando terminar (ou falhar), porque a essa altura o popup provavelmente ja foi
   // fechado -- o background transforma esse aviso numa notificacao do sistema.
   try {
-    // endpoint proprio (corpo em vez de query string) porque falantesTimeline pode ficar grande
-    // demais pra uma URL numa audiencia longa -- ver handle_painel_audiencia_finalizar_com_falantes.
+    // endpoint proprio (corpo em vez de query string) porque falantesTimeline/capturas podem
+    // ficar grandes demais pra uma URL numa audiencia longa -- ver
+    // handle_painel_audiencia_finalizar_com_falantes.
     const finalizado = await apiPost('/api/painel?acao=audiencia_finalizar_com_falantes', {
       upload_id: uploadId, falantes_timeline: falantesTimeline || [], idioma: idioma,
+      capturas: capturas || [],
     }, token);
     chrome.runtime.sendMessage({
       tipo: 'audiencia_pronta', ok: true, resposta: finalizado.resposta || 'Áudio processado.',
@@ -212,10 +214,11 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
   if (mensagem.tipo === 'finalizar_gravacao') {
     const falantesTimeline = mensagem.falantesTimeline;
+    const capturas = mensagem.capturas;
     enviarAudioCompleto(mensagem.token, falantesTimeline)
       .then((resultado) => {
         responder({ ok: true, uploadId: resultado.uploadId });
-        processarTranscricaoEmSegundoPlano(mensagem.token, resultado.uploadId, falantesTimeline, resultado.idioma);
+        processarTranscricaoEmSegundoPlano(mensagem.token, resultado.uploadId, falantesTimeline, resultado.idioma, capturas);
       })
       .catch((e) => { pararTudo(); responder({ ok: false, erro: e.message || String(e) }); });
     return true;

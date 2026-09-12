@@ -117,7 +117,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
         await chrome.storage.local.set({
           gravando: true, iniciadoEm: Date.now(),
-          abaZoomId: aba.id, falantesTimeline: [],
+          abaZoomId: aba.id, falantesTimeline: [], capturas: [],
         });
 
         const respostaOffscreen = await chrome.runtime.sendMessage({
@@ -195,8 +195,33 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         return;
       }
 
+      // Print de tela (barra flutuante, botao 📷) -- tira uma captura da propria aba da chamada
+      // e guarda com o horario (em segundos desde o inicio da gravacao), pra entrar no documento
+      // final da audiencia no lugar certo (ver _montar_docx_audiencia_com_capturas no backend).
+      if (mensagem.tipo === 'tirar_print') {
+        const armazenado = await chrome.storage.local.get(['gravando', 'iniciadoEm', 'abaZoomId', 'capturas']);
+        if (!armazenado.gravando || !armazenado.abaZoomId) {
+          throw new Error('Não tem gravação em andamento.');
+        }
+        const aba = await chrome.tabs.get(armazenado.abaZoomId);
+        const dataUrl = await new Promise((resolve, reject) => {
+          chrome.tabs.captureVisibleTab(aba.windowId, { format: 'jpeg', quality: 70 }, (url) => {
+            if (chrome.runtime.lastError || !url) reject(new Error(chrome.runtime.lastError?.message || 'Falha ao capturar a tela.'));
+            else resolve(url);
+          });
+        });
+        const capturas = armazenado.capturas || [];
+        capturas.push({
+          segundo: (Date.now() - armazenado.iniciadoEm) / 1000,
+          imagem_base64: dataUrl.split(',')[1] || '',
+        });
+        await chrome.storage.local.set({ capturas });
+        responder({ ok: true });
+        return;
+      }
+
       if (mensagem.tipo === 'finalizar') {
-        const armazenado = await chrome.storage.local.get(['token', 'abaZoomId', 'falantesTimeline']);
+        const armazenado = await chrome.storage.local.get(['token', 'abaZoomId', 'falantesTimeline', 'capturas']);
         if (armazenado.abaZoomId) {
           chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'gravacao_ativa', ativa: false }).catch(() => {});
         }
@@ -207,10 +232,10 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         // extensao logo que o audio termina de subir, sem precisar esperar a transcricao inteira.
         const respostaOffscreen = await chrome.runtime.sendMessage({
           target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token,
-          falantesTimeline: armazenado.falantesTimeline || [],
+          falantesTimeline: armazenado.falantesTimeline || [], capturas: armazenado.capturas || [],
         });
         await chrome.storage.local.set({
-          gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
+          gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [], capturas: [],
         });
         // NAO fecha o offscreen document aqui -- ele continua vivo processando a transcricao em
         // segundo plano. So fecha quando 'audiencia_pronta' avisar que a fase 2 terminou.

@@ -32,12 +32,16 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
    - **🌐 Idioma**: escolha o idioma da transcrição (Português, English, Español ou Detecção
      automática) -- útil se a audiência for em outro idioma. Pode trocar a qualquer momento
      durante a gravação.
+   - **📷 Print**: tira um print da tela da chamada naquele momento e salva junto da transcrição
+     -- útil pra guardar um documento ou slide que alguém mostrou na tela. O print aparece no
+     lugar certo dentro do documento final (na hora exata em que foi tirado).
 6. Pode fechar a janelinha da extensão (o popup) — a gravação continua rodando sozinha. Só não
    feche a aba da chamada.
 7. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
-   O envio e a transcrição podem levar alguns minutos — pode fechar a janelinha, o resultado
-   aparece na aba **Audiências** do painel, numa pasta única (**"Transcrições de Audiências
-   (extensão)"**), separada das pastas dos clientes.
+   Assim que aparecer "Áudio enviado!", já pode fechar a janelinha -- a transcrição pela IA
+   (que demora de verdade, sem como acelerar) continua sozinha, e um **aviso do Windows/Chrome**
+   chega quando estiver pronta. O resultado aparece na aba **Audiências** do painel, numa pasta
+   única (**"Transcrições de Audiências (extensão)"**), separada das pastas dos clientes.
 
 ## Se algo der errado
 
@@ -46,4 +50,6 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
   passo 6 da instalação ainda não foi dada -- clique no ícone da extensão, no botão "Autorizar
   microfone" que aparece, e tente iniciar de novo.
 - Depois de qualquer atualização desta extensão (arquivos trocados), volte em
-  `chrome://extensions` e clique no ícone de recarregar (↻) no card da extensão.
+  `chrome://extensions` e clique no ícone de recarregar (↻) no card da extensão -- **e também dê
+  F5 na aba do Zoom/Meet que já estava aberta** (recarregar só a extensão não atualiza uma aba que
+  já estava aberta antes).

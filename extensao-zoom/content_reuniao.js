@@ -238,6 +238,12 @@
     barra.appendChild(criarBotaoIcone('💬', 'legenda', 'Mostrar/esconder legenda', true));
     barra.appendChild(criarBotaoIcone('✨', 'chat', 'Perguntar para a IA', false));
     barra.appendChild(criarBotaoIcone('🌐', 'idioma', 'Idioma da transcrição', false));
+    var botaoPrint = document.createElement('button');
+    botaoPrint.type = 'button';
+    botaoPrint.className = 'botao-barra';
+    botaoPrint.title = 'Tirar print e salvar na transcrição';
+    botaoPrint.textContent = '📷';
+    barra.appendChild(botaoPrint);
 
     var corpoLegenda = document.createElement('div');
     corpoLegenda.className = 'legenda-linhas';
@@ -354,6 +360,20 @@
       chip.addEventListener('click', function () {
         campoChat.value = chip.textContent;
         enviarPergunta();
+      });
+    });
+
+    botaoPrint.addEventListener('click', function () {
+      var textoOriginal = botaoPrint.textContent;
+      botaoPrint.disabled = true;
+      botaoPrint.textContent = '…';
+      chrome.runtime.sendMessage({ tipo: 'tirar_print' }).then(function (resp) {
+        adicionarPreviaTexto(resp && resp.ok ? '📷 Print salvo na transcrição.' : '⚠️ Não consegui tirar o print (' + ((resp && resp.erro) || 'erro desconhecido') + ').');
+      }).catch(function () {
+        adicionarPreviaTexto('⚠️ Não consegui tirar o print agora.');
+      }).finally(function () {
+        botaoPrint.disabled = false;
+        botaoPrint.textContent = textoOriginal;
       });
     });
 
