@@ -9137,8 +9137,10 @@
           '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button data-ver-transcricao="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Ver transcrição completa</button>' +
             '<button data-baixar-audiencia-pdf="' + esc(a.pdf_file_id) + '">Baixar PDF</button>' +
+            '<button data-comparar-audiencia="' + idx + '" data-id-audiencia="' + esc(a.id) + '">Comparar com outras do mesmo processo</button>' +
             '<button data-excluir-audiencia="' + esc(a.id) + '" class="btn-remover">Excluir</button></div>' +
           '<div style="margin-top:12px;" id="audiencia-transcricao-' + idx + '"></div>' +
+          '<div style="margin-top:12px;white-space:pre-wrap;" id="audiencia-comparacao-' + idx + '"></div>' +
           '<div class="audiencia-pergunta" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">' +
             '<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">Perguntar sobre esta audiência</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
@@ -9210,6 +9212,24 @@
         }, 400);
       });
     }
+
+    container.querySelectorAll('[data-comparar-audiencia]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = btn.getAttribute('data-comparar-audiencia');
+        var id = btn.getAttribute('data-id-audiencia');
+        var alvo = document.getElementById('audiencia-comparacao-' + idx);
+        var textoOriginal = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Comparando...';
+        alvo.textContent = '';
+        apiPost('/api/painel?acao=audiencias', { op: 'comparar', id: id })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erro || 'falha'); return d; }); })
+          .then(function (dados) { alvo.textContent = '📊 Comparação com ' + dados.total + ' audiências:\n\n' + dados.comparacao; })
+          .catch(function (err) { alvo.textContent = 'Não foi possível comparar: ' + (err.message || 'erro'); })
+          .finally(function () { btn.disabled = false; btn.textContent = textoOriginal; });
+      });
+    });
 
     container.querySelectorAll('[data-tags-salvar]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
