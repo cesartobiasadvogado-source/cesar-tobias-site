@@ -62,10 +62,14 @@
   }
 
   function extrairNomeZoom() {
-    // 1) Visualização do orador (confirmado ao vivo numa reunião de teste): o Zoom marca quem
-    // está em destaque com esse container próprio.
+    // 1) Visualização do orador. Existem pelo menos DOIS nomes de classe diferentes pro mesmo
+    // container, dependendo do layout da chamada -- "speaker-active-container" foi confirmado
+    // numa reunião de teste (zoom.us/test) e "speaker-bar-container" numa reunião real (sala
+    // pessoal, sem câmera), diagnosticado ao vivo com o usuário via o Console do Chrome.
     var containers = document.querySelectorAll(
-      '.speaker-active-container__wrap, .speaker-active-container__video-frame'
+      '.speaker-active-container__wrap, .speaker-active-container__video-frame,' +
+      '.speaker-bar-container__wrap, .speaker-bar-container__video-frame,' +
+      '.speaker-bar-container__horizontal-view-wrap'
     );
     for (var i = 0; i < containers.length; i++) {
       var nome = nomeDoContainerZoom(containers[i]);
