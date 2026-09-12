@@ -43,6 +43,12 @@
   var flyoutAberto = null; // null | 'legenda' | 'chat' | 'idioma'
   var idiomaAtual = 'pt';
 
+  var PERGUNTAS_SUGERIDAS = [
+    'Quais são os pontos principais até agora?',
+    'Já foi concedido algum prazo?',
+    'Liste as tarefas combinadas até agora'
+  ];
+
   var IDIOMAS = [
     { codigo: 'pt', rotulo: 'Português' },
     { codigo: 'en', rotulo: 'English' },
@@ -169,6 +175,10 @@
       '.painel-corpo { font-size: 12.5px; line-height: 1.5; padding: 0 12px 12px; }' +
       '.legenda-linhas { max-height: 200px; overflow-y: auto; }' +
       '.legenda-linhas div { margin-bottom: 6px; white-space: pre-wrap; }' +
+      '.chat-sugestoes { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }' +
+      '.chat-sugestao { text-align: left; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);' +
+      '  color: #dcdce6; border-radius: 6px; padding: 6px 8px; font-size: 12px; cursor: pointer; }' +
+      '.chat-sugestao:hover { background: rgba(255,255,255,0.14); }' +
       '.chat-resposta { white-space: pre-wrap; margin-bottom: 8px; max-height: 160px; overflow-y: auto; color: #dcdce6; }' +
       '.chat-linha { display: flex; gap: 6px; }' +
       '.chat-linha input { flex: 1; min-width: 0; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);' +
@@ -234,6 +244,15 @@
     var painelLegenda = criarPainel('legenda', 'Transcrevendo', corpoLegenda, false);
 
     var corpoChat = document.createElement('div');
+    var sugestoesChat = document.createElement('div');
+    sugestoesChat.className = 'chat-sugestoes';
+    PERGUNTAS_SUGERIDAS.forEach(function (texto) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chat-sugestao';
+      chip.textContent = texto;
+      sugestoesChat.appendChild(chip);
+    });
     var respostaChatEl = document.createElement('div');
     respostaChatEl.className = 'chat-resposta';
     var linhaChat = document.createElement('div');
@@ -246,6 +265,7 @@
     botaoPerguntarEl.textContent = 'Perguntar';
     linhaChat.appendChild(campoChatEl);
     linhaChat.appendChild(botaoPerguntarEl);
+    corpoChat.appendChild(sugestoesChat);
     corpoChat.appendChild(respostaChatEl);
     corpoChat.appendChild(linhaChat);
     var painelChat = criarPainel('chat', 'Perguntar à IA', corpoChat, true);
@@ -329,6 +349,13 @@
     }
     botaoPerguntar.addEventListener('click', enviarPergunta);
     campoChat.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') enviarPergunta(); });
+
+    sugestoesChat.querySelectorAll('.chat-sugestao').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        campoChat.value = chip.textContent;
+        enviarPergunta();
+      });
+    });
 
     // arrastar pelo "grip" no topo da barra
     var grip = contentor.querySelector('.grip');

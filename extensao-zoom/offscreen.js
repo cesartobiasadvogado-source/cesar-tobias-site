@@ -141,7 +141,11 @@ async function enviarPedacosParaDrive(arquivo, uploadId, tamanhoChunk, token) {
   return uploadId;
 }
 
-async function finalizarEEnviar(token, falantesTimeline) {
+async function enviarAudioCompleto(token, falantesTimeline) {
+  // Fase 1 -- para a gravacao e sobe o audio inteiro pro Drive. So essa parte precisa terminar
+  // pra responder o popup; a fase 2 (processarTranscricaoEmSegundoPlano, a parte de verdade
+  // demorada, sem como acelerar -- a IA transcrevendo e gerando o resumo) roda sozinha depois,
+  // sem travar a pessoa esperando com a janela da extensao aberta.
   await pararMediaRecorder();
   pararTudo();
 
@@ -165,13 +169,27 @@ async function finalizarEEnviar(token, falantesTimeline) {
 
   await enviarPedacosParaDrive(blobCompleto, iniciado.upload_id, iniciado.tamanho_chunk, token);
 
-  // endpoint proprio (corpo em vez de query string) porque falantesTimeline pode ficar grande
-  // demais pra uma URL numa audiencia longa -- ver handle_painel_audiencia_finalizar_com_falantes.
-  const finalizado = await apiPost('/api/painel?acao=audiencia_finalizar_com_falantes', {
-    upload_id: iniciado.upload_id, falantes_timeline: falantesTimeline || [], idioma: idiomaAtual,
-  }, token);
+  return { uploadId: iniciado.upload_id, idioma: idiomaAtual };
+}
 
-  return finalizado.resposta || 'Áudio processado.';
+async function processarTranscricaoEmSegundoPlano(token, uploadId, falantesTimeline, idioma) {
+  // Fase 2 -- roda depois de ja ter respondido o popup (ver o listener mais abaixo). Avisa o
+  // background quando terminar (ou falhar), porque a essa altura o popup provavelmente ja foi
+  // fechado -- o background transforma esse aviso numa notificacao do sistema.
+  try {
+    // endpoint proprio (corpo em vez de query string) porque falantesTimeline pode ficar grande
+    // demais pra uma URL numa audiencia longa -- ver handle_painel_audiencia_finalizar_com_falantes.
+    const finalizado = await apiPost('/api/painel?acao=audiencia_finalizar_com_falantes', {
+      upload_id: uploadId, falantes_timeline: falantesTimeline || [], idioma: idioma,
+    }, token);
+    chrome.runtime.sendMessage({
+      tipo: 'audiencia_pronta', ok: true, resposta: finalizado.resposta || 'Áudio processado.',
+    }).catch(() => {});
+  } catch (e) {
+    chrome.runtime.sendMessage({
+      tipo: 'audiencia_pronta', ok: false, erro: e.message || String(e),
+    }).catch(() => {});
+  }
 }
 
 chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
@@ -193,8 +211,12 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   }
 
   if (mensagem.tipo === 'finalizar_gravacao') {
-    finalizarEEnviar(mensagem.token, mensagem.falantesTimeline)
-      .then((resposta) => responder({ ok: true, resposta }))
+    const falantesTimeline = mensagem.falantesTimeline;
+    enviarAudioCompleto(mensagem.token, falantesTimeline)
+      .then((resultado) => {
+        responder({ ok: true, uploadId: resultado.uploadId });
+        processarTranscricaoEmSegundoPlano(mensagem.token, resultado.uploadId, falantesTimeline, resultado.idioma);
+      })
       .catch((e) => { pararTudo(); responder({ ok: false, erro: e.message || String(e) }); });
     return true;
   }

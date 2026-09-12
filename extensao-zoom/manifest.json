@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vero Jurídico — Transcrição de Audiência",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "Grava o áudio da chamada (Zoom ou Google Meet) e envia pra plataforma Vero Jurídico gerar a transcrição e o resumo da audiência.",
   "icons": {
     "16": "icons/icon16.png",
@@ -19,7 +19,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["tabCapture", "offscreen", "storage", "activeTab"],
+  "permissions": ["tabCapture", "offscreen", "storage", "activeTab", "notifications"],
   "host_permissions": ["https://www.cesartobias.adv.br/*"],
   "content_scripts": [
     {

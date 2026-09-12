@@ -92,24 +92,29 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         if (jaGravando.gravando) {
           throw new Error('Já existe uma gravação em andamento. Finalize-a antes de iniciar outra.');
         }
-        // checa a sessao ANTES de comecar a gravar (nao so no final, ao enviar) -- sem isso, uma
-        // sessao expirada so aparecia depois de gravar a audiencia inteira, perdendo tudo (foi o
-        // que aconteceu na pratica: sessao de 8h expirada, so descoberta ao finalizar).
-        if (!(await sessaoAindaValida(jaGravando.token))) {
-          throw new Error(MENSAGEM_SESSAO_EXPIRADA);
-        }
 
         const aba = await obterAbaAtiva();
         if (!aba || !aba.id) throw new Error('Não encontrei a aba da chamada (Zoom ou Meet) em foco.');
 
-        const streamId = await new Promise((resolve, reject) => {
-          chrome.tabCapture.getMediaStreamId({ targetTabId: aba.id }, (id) => {
-            if (chrome.runtime.lastError || !id) reject(new Error(chrome.runtime.lastError?.message || 'Não consegui capturar o áudio da aba.'));
-            else resolve(id);
-          });
-        });
+        // A checagem de sessao (que depende do servidor "acordar", podendo levar varios
+        // segundos -- ver MENSAGEM_SESSAO_EXPIRADA) rodava ANTES de tudo, fazendo o botao
+        // "Iniciar" parecer travado esse tempo todo. Agora ela roda AO MESMO TEMPO que a captura
+        // de aba e a criacao do offscreen document -- ainda protege contra sessao expirada (so
+        // comeca a gravar de fato se a sessao vier valida), so nao faz mais o usuario esperar a
+        // soma dos dois tempos, e sim o maior deles.
+        const [streamId, sessaoValida] = await Promise.all([
+          new Promise((resolve, reject) => {
+            chrome.tabCapture.getMediaStreamId({ targetTabId: aba.id }, (id) => {
+              if (chrome.runtime.lastError || !id) reject(new Error(chrome.runtime.lastError?.message || 'Não consegui capturar o áudio da aba.'));
+              else resolve(id);
+            });
+          }),
+          sessaoAindaValida(jaGravando.token),
+          garantirOffscreen(),
+        ]);
 
-        await garantirOffscreen();
+        if (!sessaoValida) throw new Error(MENSAGEM_SESSAO_EXPIRADA);
+
         await chrome.storage.local.set({
           gravando: true, iniciadoEm: Date.now(),
           abaZoomId: aba.id, falantesTimeline: [],
@@ -195,6 +200,11 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         if (armazenado.abaZoomId) {
           chrome.tabs.sendMessage(armazenado.abaZoomId, { tipo: 'gravacao_ativa', ativa: false }).catch(() => {});
         }
+        // O offscreen agora responde em 2 etapas: primeiro so confirma que o audio ja subiu
+        // inteiro pro Drive (rapido) -- so DEPOIS disso, sozinho, ele transcreve pela IA (a parte
+        // que de verdade demora, sem como acelerar) e avisa aqui quando terminar, atraves da
+        // mensagem 'audiencia_pronta' mais abaixo. Assim a pessoa ja pode fechar a janela da
+        // extensao logo que o audio termina de subir, sem precisar esperar a transcricao inteira.
         const respostaOffscreen = await chrome.runtime.sendMessage({
           target: 'offscreen', tipo: 'finalizar_gravacao', token: armazenado.token,
           falantesTimeline: armazenado.falantesTimeline || [],
@@ -202,13 +212,37 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         await chrome.storage.local.set({
           gravando: false, iniciadoEm: null, abaZoomId: null, falantesTimeline: [],
         });
-        // libera o offscreen document (nao precisa mais ficar de pe entre uma gravacao e outra --
-        // volta a ser criado do zero, do jeito que garantirOffscreen ja espera, na proxima vez).
-        chrome.offscreen.closeDocument().catch(() => {});
+        // NAO fecha o offscreen document aqui -- ele continua vivo processando a transcricao em
+        // segundo plano. So fecha quando 'audiencia_pronta' avisar que a fase 2 terminou.
         if (!respostaOffscreen || !respostaOffscreen.ok) {
-          throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui processar a gravação.');
+          throw new Error((respostaOffscreen && respostaOffscreen.erro) || 'Não consegui enviar a gravação.');
         }
-        responder({ ok: true, resposta: respostaOffscreen.resposta });
+        responder({ ok: true, enviado: true });
+        return;
+      }
+
+      // Avisa que a fase 2 (transcricao pela IA, rodando sozinha no offscreen desde o
+      // 'finalizar_gravacao' acima) terminou -- ou falhou. A essa altura o popup provavelmente ja
+      // foi fechado (a pessoa nao precisa mais ficar esperando), entao o aviso vira uma
+      // notificacao do sistema em vez de uma resposta pro popup.
+      if (mensagem.tipo === 'audiencia_pronta') {
+        const armazenado = await chrome.storage.local.get(['gravando']);
+        // so fecha o offscreen se nao tiver uma gravacao NOVA rodando nele nesse meio-tempo
+        // (ex: a pessoa ja comecou outra audiencia enquanto essa ainda transcrevia).
+        if (!armazenado.gravando) chrome.offscreen.closeDocument().catch(() => {});
+
+        if (mensagem.ok) {
+          chrome.notifications.create('', {
+            type: 'basic', iconUrl: 'icons/icon128.png', title: 'Audiência pronta!',
+            message: (mensagem.resposta || 'Sua audiência foi transcrita.').slice(0, 250),
+          });
+        } else {
+          chrome.notifications.create('', {
+            type: 'basic', iconUrl: 'icons/icon128.png', title: 'Falha ao processar a audiência',
+            message: mensagem.erro || 'Não consegui terminar de processar. O áudio já está salvo no Drive.',
+          });
+        }
+        responder({ ok: true });
         return;
       }
 

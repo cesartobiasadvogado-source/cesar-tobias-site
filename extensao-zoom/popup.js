@@ -112,10 +112,12 @@ btnIniciar.addEventListener('click', () => {
 
 btnFinalizar.addEventListener('click', () => {
   btnFinalizar.disabled = true;
-  mostrarStatus('Enviando e transcrevendo (pode levar alguns minutos, pode fechar esta janela)…');
+  mostrarStatus('Enviando o áudio…');
   enviarComando({ tipo: 'finalizar' })
-    .then((resposta) => {
-      mostrarStatus(resposta.resposta || 'Áudio processado.', 'ok');
+    .then(() => {
+      // a partir daqui a transcricao (a parte de verdade demorada) roda sozinha, mesmo que essa
+      // janela seja fechada -- um aviso do sistema chega quando estiver pronto.
+      mostrarStatus('Áudio enviado! Pode fechar esta janela -- você recebe um aviso quando a transcrição estiver pronta.', 'ok');
       atualizarTela();
     })
     .catch((e) => { mostrarStatus(e.message, 'erro'); atualizarTela(); })
