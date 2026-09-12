@@ -485,11 +485,20 @@
     }).catch(function () { criarOverlay(); });
   }
 
-  // Pergunta ao background se essa aba ja deveria estar gravando -- cobre o caso da pagina
-  // recarregar no meio da audiencia (reconexao por internet instavel, por exemplo, ou o F5 que a
-  // pessoa precisa dar depois de uma atualizacao da extensao): sem isso, o content script
-  // recem-carregado nao saberia que precisa reativar a deteccao/legenda/botao.
-  chrome.runtime.sendMessage({ tipo: 'content_script_carregado' }).then(function (resposta) {
-    if (resposta && resposta.ativa) ativar();
-  }).catch(function () {});
+  // Pergunta ao background se essa aba ja deveria estar gravando, e repete isso a cada poucos
+  // segundos (nao so uma vez no carregamento) -- o Zoom, numa reuniao de verdade, cria a "sala"
+  // de dentro (um iframe) as vezes DEPOIS que a pagina de fora ja carregou, ou a recria numa
+  // reconexao; se isso acontecer bem na hora de iniciar a gravacao, uma pergunta unica poderia
+  // chegar cedo demais (o iframe daquele instante ainda nao existe) e a deteccao de nome ficaria
+  // muda pelo resto da audiencia. Perguntar de novo a cada 3s corrige isso sozinho, sem depender
+  // de acertar esse timing.
+  function sincronizarComBackground() {
+    chrome.runtime.sendMessage({ tipo: 'content_script_carregado' }).then(function (resposta) {
+      var deveEstarAtivo = !!(resposta && resposta.ativa);
+      if (deveEstarAtivo && !gravando) ativar();
+      else if (!deveEstarAtivo && gravando) desativar();
+    }).catch(function () {});
+  }
+  sincronizarComBackground();
+  setInterval(sincronizarComBackground, 3000);
 })();
