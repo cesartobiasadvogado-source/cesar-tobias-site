@@ -171,44 +171,93 @@
       '.item-idioma.selecionado { color: #8f9dff; font-weight: 600; }';
     shadow.appendChild(estilo);
 
+    // Monta tudo via createElement/textContent, nunca via innerHTML: o Google Meet (diferente do
+    // Zoom) ativa uma protecao do navegador chamada "Trusted Types", que BLOQUEIA silenciosamente
+    // qualquer "elemento.innerHTML = string" vindo de uma extensao -- foi por isso que a barra
+    // aparecia certinho no Zoom mas nunca aparecia no Meet (a criacao inteira do overlay parava
+    // no meio, sem erro visivel, na hora que tentava usar innerHTML).
+    function criarBotaoIcone(icone, flyout, titulo, ativoInicial) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'botao-barra' + (ativoInicial ? ' ativo' : '');
+      b.setAttribute('data-flyout', flyout);
+      b.title = titulo;
+      b.textContent = icone;
+      return b;
+    }
+
+    function criarPainel(nome, tituloTexto, corpoEl, escondidoInicial) {
+      var painel = document.createElement('div');
+      painel.className = 'painel' + (escondidoInicial ? ' escondido' : '');
+      painel.setAttribute('data-painel', nome);
+      var cabecalho = document.createElement('div');
+      cabecalho.className = 'painel-cabecalho';
+      cabecalho.textContent = tituloTexto;
+      var corpo = document.createElement('div');
+      corpo.className = 'painel-corpo';
+      corpo.appendChild(corpoEl);
+      painel.appendChild(cabecalho);
+      painel.appendChild(corpo);
+      return painel;
+    }
+
     var contentor = document.createElement('div');
     contentor.className = 'contentor';
-    contentor.innerHTML =
-      '<div class="barra">' +
-        '<div class="grip" title="Arrastar">⠿</div>' +
-        '<span class="ponto-gravando"></span>' +
-        '<button type="button" class="botao-barra ativo" data-flyout="legenda" title="Mostrar/esconder legenda">💬</button>' +
-        '<button type="button" class="botao-barra" data-flyout="chat" title="Perguntar para a IA">✨</button>' +
-        '<button type="button" class="botao-barra" data-flyout="idioma" title="Idioma da transcrição">🌐</button>' +
-      '</div>' +
-      '<div class="painel painel-legenda" data-painel="legenda">' +
-        '<div class="painel-cabecalho">Transcrevendo</div>' +
-        '<div class="painel-corpo"><div class="legenda-linhas"></div></div>' +
-      '</div>' +
-      '<div class="painel escondido" data-painel="chat">' +
-        '<div class="painel-cabecalho">Perguntar à IA</div>' +
-        '<div class="painel-corpo">' +
-          '<div class="chat-resposta"></div>' +
-          '<div class="chat-linha">' +
-            '<input type="text" placeholder="Pergunte sobre a reunião...">' +
-            '<button type="button" data-acao="perguntar">Perguntar</button>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="painel escondido" data-painel="idioma">' +
-        '<div class="painel-cabecalho">Idioma da transcrição</div>' +
-        '<div class="painel-corpo">' +
-          IDIOMAS.map(function (i) {
-            return '<button type="button" class="item-idioma" data-idioma="' + i.codigo + '">' + i.rotulo + '</button>';
-          }).join('') +
-        '</div>' +
-      '</div>';
+
+    var grip = document.createElement('div');
+    grip.className = 'grip';
+    grip.title = 'Arrastar';
+    grip.textContent = '⠿';
+    var pontoGravando = document.createElement('span');
+    pontoGravando.className = 'ponto-gravando';
+
+    var barra = document.createElement('div');
+    barra.className = 'barra';
+    barra.appendChild(grip);
+    barra.appendChild(pontoGravando);
+    barra.appendChild(criarBotaoIcone('💬', 'legenda', 'Mostrar/esconder legenda', true));
+    barra.appendChild(criarBotaoIcone('✨', 'chat', 'Perguntar para a IA', false));
+    barra.appendChild(criarBotaoIcone('🌐', 'idioma', 'Idioma da transcrição', false));
+
+    var corpoLegenda = document.createElement('div');
+    corpoLegenda.className = 'legenda-linhas';
+    var painelLegenda = criarPainel('legenda', 'Transcrevendo', corpoLegenda, false);
+
+    var corpoChat = document.createElement('div');
+    var respostaChatEl = document.createElement('div');
+    respostaChatEl.className = 'chat-resposta';
+    var linhaChat = document.createElement('div');
+    linhaChat.className = 'chat-linha';
+    var campoChatEl = document.createElement('input');
+    campoChatEl.type = 'text';
+    campoChatEl.placeholder = 'Pergunte sobre a reunião...';
+    var botaoPerguntarEl = document.createElement('button');
+    botaoPerguntarEl.type = 'button';
+    botaoPerguntarEl.textContent = 'Perguntar';
+    linhaChat.appendChild(campoChatEl);
+    linhaChat.appendChild(botaoPerguntarEl);
+    corpoChat.appendChild(respostaChatEl);
+    corpoChat.appendChild(linhaChat);
+    var painelChat = criarPainel('chat', 'Perguntar à IA', corpoChat, true);
+
+    var corpoIdioma = document.createElement('div');
+    IDIOMAS.forEach(function (i) {
+      var itemIdioma = document.createElement('button');
+      itemIdioma.type = 'button';
+      itemIdioma.className = 'item-idioma';
+      itemIdioma.setAttribute('data-idioma', i.codigo);
+      itemIdioma.textContent = i.rotulo;
+      corpoIdioma.appendChild(itemIdioma);
+    });
+    var painelIdioma = criarPainel('idioma', 'Idioma da transcrição', corpoIdioma, true);
+
+    contentor.appendChild(barra);
+    contentor.appendChild(painelLegenda);
+    contentor.appendChild(painelChat);
+    contentor.appendChild(painelIdioma);
     shadow.appendChild(contentor);
 
-    overlayBody = contentor.querySelector('.legenda-linhas');
-    var painelLegenda = contentor.querySelector('[data-painel="legenda"]');
-    var painelChat = contentor.querySelector('[data-painel="chat"]');
-    var painelIdioma = contentor.querySelector('[data-painel="idioma"]');
+    overlayBody = corpoLegenda;
     var painelPorNome = { legenda: painelLegenda, chat: painelChat, idioma: painelIdioma };
 
     function marcarIdiomaSelecionado() {
@@ -246,9 +295,9 @@
       });
     });
 
-    var campoChat = painelChat.querySelector('input');
-    var botaoPerguntar = painelChat.querySelector('[data-acao="perguntar"]');
-    var respostaChat = painelChat.querySelector('.chat-resposta');
+    var campoChat = campoChatEl;
+    var botaoPerguntar = botaoPerguntarEl;
+    var respostaChat = respostaChatEl;
     function enviarPergunta() {
       var pergunta = (campoChat.value || '').trim();
       if (!pergunta) return;
