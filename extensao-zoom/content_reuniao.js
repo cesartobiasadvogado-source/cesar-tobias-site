@@ -26,6 +26,12 @@
 
 (function () {
   var ehMeet = location.hostname.indexOf('meet.google.com') !== -1;
+  // O Zoom (fora do zoom.us/test) renderiza a reuniao de verdade DENTRO de um iframe -- por isso
+  // o content script agora roda em todos os frames da pagina (all_frames no manifest.json), pra
+  // conseguir enxergar o nome de quem fala ali dentro. Mas a barra flutuante em si (visual) so
+  // pode ser criada UMA vez, no frame de cima -- senao apareceria uma barra empilhada por cima da
+  // outra pra cada iframe (o iframe da reuniao, o do chat de IA do Zoom, paginas vazias etc.).
+  var ehFrameTopo = (window.top === window.self);
 
   var gravando = false;
   var ultimoNome = null;
@@ -360,10 +366,12 @@
     gravando = true;
     ultimoNome = null;
     avisouLegendaMeet = false;
-    chrome.storage.local.get(['idiomaAudiencia']).then(function (armazenado) {
-      idiomaAtual = armazenado.idiomaAudiencia || 'pt';
-      criarOverlay();
-    }).catch(function () { criarOverlay(); });
+    if (ehFrameTopo) {
+      chrome.storage.local.get(['idiomaAudiencia']).then(function (armazenado) {
+        idiomaAtual = armazenado.idiomaAudiencia || 'pt';
+        criarOverlay();
+      }).catch(function () { criarOverlay(); });
+    }
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     verificarFalanteAgora();
   }
@@ -371,7 +379,7 @@
   function desativar() {
     gravando = false;
     observer.disconnect();
-    removerOverlay();
+    if (ehFrameTopo) removerOverlay();
   }
 
   chrome.runtime.onMessage.addListener(function (mensagem) {
