@@ -13,12 +13,11 @@
 // layout, ".video-avatar__avatar-footer"), dentro de um container com a classe
 // "speaker-active-container" -- essa classe é o próprio Zoom quem usa pra marcar o orador ativo.
 //
-// MEET: usa a legenda ao vivo NATIVA do Google Meet (precisa estar ligada -- tecla "c" ou botão
-// "Ativar legendas"), que já vem com o nome de cada um. Baseado em vários projetos de código
-// aberto que fazem a mesma captura (não testado ao vivo por mim -- o Meet exige login numa conta
-// Google pra criar uma sala, o que eu não tenho aqui): a área de legendas é
-// `[role="region"][aria-label="Captions"]` (ou "Legendas" em português), e dentro de cada bloco
-// de fala o primeiro <span> é o nome de quem fala.
+// MEET: confirmado ao vivo com o usuário (via Console do Chrome): o indicador de volume/áudio de
+// cada participante usa a classe "IisKdb", que muda toda vez que há áudio detectado ali -- subindo
+// alguns níveis a partir dele, acha o nome dentro de ".XEazBc.adnwBd" (ou variações parecidas). Não
+// depende de nenhum recurso do Google que possa estar indisponível (diferente da legenda nativa do
+// Meet, que na prática às vezes fica "temporariamente indisponível" -- essa vira só um plano B).
 //
 // Os dois jeitos são inerentemente frágeis (dependem do HTML que a Zoom/Google decidem usar, que
 // pode mudar) -- se parar de detectar nomes, o pior caso é a transcrição voltar a sair como
@@ -102,9 +101,34 @@
     return null;
   }
 
-  // ---------- deteccao de quem esta falando: Google Meet (via legenda nativa) ----------
-
+  // ---------- deteccao de quem esta falando: Google Meet ----------
+  //
+  // 1) Indicador de volume/audio (classe "IisKdb", confirmado ao vivo com o usuario via Console
+  // do Chrome: essa classe muda toda vez que ha audio detectado naquele participante) -- nao
+  // depende de nenhum recurso do Google que possa estar indisponivel (diferente da legenda
+  // nativa, que na pratica costuma dar "temporariamente indisponivel").
+  // 2) Legenda nativa do Meet, como plano B (se a IA anterior nao achar nada) -- so funciona se a
+  // pessoa tiver ativado a legenda do proprio Meet (tecla "c").
   function extrairNomeMeet() {
+    var nomePorIndicador = extrairNomeMeetPorIndicadorDeAudio();
+    if (nomePorIndicador) return nomePorIndicador;
+    return extrairNomeMeetPorLegenda();
+  }
+
+  function extrairNomeMeetPorIndicadorDeAudio() {
+    var indicadores = document.querySelectorAll('[class*="IisKdb"]');
+    for (var i = 0; i < indicadores.length; i++) {
+      var container = indicadores[i];
+      for (var subida = 0; subida < 10 && container; subida++) {
+        var nomeEl = container.querySelector('.XEazBc.adnwBd, .zWGUib, .notranslate');
+        if (nomeEl && nomeEl.textContent.trim()) return nomeEl.textContent.trim();
+        container = container.parentElement;
+      }
+    }
+    return null;
+  }
+
+  function extrairNomeMeetPorLegenda() {
     var regiao = document.querySelector(
       '[role="region"][aria-label="Captions"], [role="region"][aria-label="Closed captions"], ' +
       '[role="region"][aria-label="Legendas"], [role="region"][aria-label="Legendas ocultas"]'
@@ -112,7 +136,7 @@
     if (!regiao) {
       if (gravando && !avisouLegendaMeet) {
         avisouLegendaMeet = true;
-        adicionarPreviaTexto('⚠️ Ative a legenda do Meet (tecla "c") pra eu saber o nome de quem fala.');
+        adicionarPreviaTexto('ℹ️ Dica: ativar a legenda do Meet (tecla "c") pode ajudar a identificar melhor quem fala.');
       }
       return null;
     }

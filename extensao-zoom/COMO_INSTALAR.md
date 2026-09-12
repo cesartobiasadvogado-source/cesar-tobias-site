@@ -34,10 +34,10 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
      -- útil pra guardar um documento ou slide que alguém mostrou na tela. O print aparece no
      lugar certo dentro do documento final (na hora exata em que foi tirado).
    - Os botões 💬✨📷 só funcionam depois de clicar em ⏺ Gravar (ficam apagados/desativados até lá).
-3. Pra identificar o nome de quem fala, cada plataforma precisa de uma coisa diferente ligada:
+3. Pra identificar o nome de quem fala:
    - **Zoom**: coloque em **"Visualização do orador"** (não Galeria).
-   - **Google Meet**: **ative a legenda** (tecla **"c"**, ou o botão de legenda na barra
-     inferior). Sem isso a extensão não tem como saber o nome de quem fala no Meet.
+   - **Google Meet**: funciona sozinho, não precisa ativar nada -- mas se puder, ativar a
+     legenda (tecla **"c"**) ajuda como reforço extra.
    - Em qualquer um dos dois, se você não fizer isso, a gravação continua funcionando normal,
      só que os nomes saem como "Locutor A/B" em vez do nome de verdade.
 4. Pode fechar a janelinha da extensão (o popup) — a gravação continua rodando sozinha. Só não
