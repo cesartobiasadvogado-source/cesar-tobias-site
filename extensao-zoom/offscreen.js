@@ -14,10 +14,14 @@ let mediaRecorder = null;
 let todosPedacos = [];
 let tokenGravacaoAtual = null;
 let idiomaAtual = 'pt';
+let wsTranscricaoAoVivo = null;
+let processorAoVivo = null;
 
 function pararTudo() {
   if (tabStream) tabStream.getTracks().forEach((t) => t.stop());
   if (micStream) micStream.getTracks().forEach((t) => t.stop());
+  if (processorAoVivo) { processorAoVivo.disconnect(); processorAoVivo = null; }
+  if (wsTranscricaoAoVivo) { wsTranscricaoAoVivo.close(); wsTranscricaoAoVivo = null; }
   if (audioContext) audioContext.close().catch(() => {});
   tabStream = null; micStream = null; audioContext = null; mediaRecorder = null;
   tokenGravacaoAtual = null;
@@ -68,10 +72,100 @@ async function iniciarGravacao(streamId, token, idioma) {
   mediaRecorder.addEventListener('dataavailable', (ev) => {
     if (!ev.data || ev.data.size === 0) return;
     todosPedacos.push(ev.data);
-    enviarPreviaPedaco(ev.data); // legenda ao vivo -- best-effort, nunca trava a gravacao
   });
   mediaRecorder.start(DURACAO_PEDACO_MS);
+
+  // Legenda ao vivo de verdade (streaming, igual o Tactiq) -- reaproveita o MESMO audio ja
+  // mixado (destino.stream) que alimenta a gravacao, sem gravar de novo. Best-effort: se falhar
+  // por qualquer motivo, so fica sem legenda ao vivo, a gravacao/transcricao definitiva nao
+  // depende disso em nada.
+  conectarTranscricaoAoVivo(destino.stream).catch((e) => {
+    console.warn('Falha ao conectar a legenda ao vivo (streaming):', e);
+  });
+
   return avisoMic;
+}
+
+// ---------- legenda ao vivo de verdade (streaming direto com a AssemblyAI, tipo Tactiq) ----------
+//
+// Antes, a legenda ao vivo funcionava gravando um pedaco de ~20s, mandando pro nosso backend, que
+// mandava pra AssemblyAI transcrever (upload + pedir + esperar terminar) -- um atraso real de
+// 25-35s+ entre falar e o texto aparecer. Isso troca esse esquema por uma conexao direta e
+// continua (WebSocket) com o servico de streaming da propria AssemblyAI, que responde em menos de
+// 1 segundo -- exatamente como ferramentas tipo Tactiq fazem. O NOSSO backend so entra pra emitir
+// um "token temporario" de uso unico (pra nunca expor a chave de API de verdade no navegador);
+// dali em diante a extensao fala direto com "streaming.assemblyai.com".
+//
+// Isso e so pra legenda em tela, best-effort (se falhar, so fica sem legenda ao vivo). A
+// transcricao DEFINITIVA (que gera o resumo/PDF) continua vindo do audio completo gravado, no
+// finalizar, exatamente como sempre -- sem relacao nenhuma com esse streaming.
+async function conectarTranscricaoAoVivo(streamMixado) {
+  const dados = await apiGet('/api/painel?acao=audiencia_assemblyai_token', tokenGravacaoAtual);
+
+  wsTranscricaoAoVivo = new WebSocket(
+    'wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&speech_model=universal-3-5-pro' +
+    '&token=' + encodeURIComponent(dados.token)
+  );
+
+  wsTranscricaoAoVivo.addEventListener('message', (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      // so repassa quando a "fala" (turn) ja fechou -- os eventos intermediarios (parciais, ainda
+      // sendo corrigidos pela IA) mudariam de texto toda hora, o que ficaria confuso na legenda.
+      if (msg.type === 'Turn' && msg.end_of_turn && msg.transcript) {
+        chrome.runtime.sendMessage({ tipo: 'previa_transcricao', texto: msg.transcript }).catch(() => {});
+      }
+    } catch (e) {
+      // mensagens que nao sao o JSON esperado (ex: eventos de controle) -- ignora.
+    }
+  });
+
+  await new Promise((resolve, reject) => {
+    wsTranscricaoAoVivo.addEventListener('open', () => resolve(), { once: true });
+    wsTranscricaoAoVivo.addEventListener('error', () => reject(new Error('Falha ao conectar no streaming.')), { once: true });
+  });
+
+  const fonteMixada = audioContext.createMediaStreamSource(streamMixado);
+  const taxaOriginal = audioContext.sampleRate;
+  processorAoVivo = audioContext.createScriptProcessor(4096, 1, 1);
+  processorAoVivo.onaudioprocess = (ev) => {
+    if (!wsTranscricaoAoVivo || wsTranscricaoAoVivo.readyState !== WebSocket.OPEN) return;
+    const entrada = ev.inputBuffer.getChannelData(0);
+    const inteiros = float32ParaInt16(downsamplePara16k(entrada, taxaOriginal));
+    wsTranscricaoAoVivo.send(inteiros.buffer);
+  };
+  fonteMixada.connect(processorAoVivo);
+  // ScriptProcessorNode so dispara o processamento se estiver ligado a algum destino -- conecta
+  // numa saida muda (ganho zero) pra nao duplicar o audio que o usuario ja esta ouvindo.
+  const saidaMuda = audioContext.createGain();
+  saidaMuda.gain.value = 0;
+  processorAoVivo.connect(saidaMuda);
+  saidaMuda.connect(audioContext.destination);
+}
+
+function downsamplePara16k(buffer, taxaOriginal) {
+  if (taxaOriginal <= 16000) return buffer;
+  const razao = taxaOriginal / 16000;
+  const novoTamanho = Math.floor(buffer.length / razao);
+  const resultado = new Float32Array(novoTamanho);
+  for (let i = 0; i < novoTamanho; i++) resultado[i] = buffer[Math.floor(i * razao)];
+  return resultado;
+}
+
+function float32ParaInt16(buffer) {
+  const inteiros = new Int16Array(buffer.length);
+  for (let i = 0; i < buffer.length; i++) {
+    const s = Math.max(-1, Math.min(1, buffer[i]));
+    inteiros[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return inteiros;
+}
+
+async function apiGet(caminho, token) {
+  const resposta = await fetch(API_BASE + caminho, { headers: { 'Authorization': 'Bearer ' + token } });
+  const dados = await resposta.json();
+  if (!resposta.ok) throw new Error(dados.erro || 'falha na requisição');
+  return dados;
 }
 
 function pararMediaRecorder() {
@@ -87,26 +181,6 @@ function arrayBufferParaBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   for (let i = 0; i < bytes.length; i++) binario += String.fromCharCode(bytes[i]);
   return btoa(binario);
-}
-
-async function enviarPreviaPedaco(blob) {
-  // Legenda ao vivo (igual o Tactiq mostra por cima da chamada) -- reaproveita o MESMO endpoint
-  // sem estado que a transcricao ao vivo por microfone do painel ja usa
-  // (audiencia_pedaco_ao_vivo): so transcreve esse pedaco curto isolado e devolve o texto, sem
-  // guardar nada -- a transcricao definitiva sai depois, no finalizar, do audio completo.
-  if (!tokenGravacaoAtual) return;
-  try {
-    const buffer = await blob.arrayBuffer();
-    const dados = await apiPost('/api/painel?acao=audiencia_pedaco_ao_vivo', {
-      dados_base64: arrayBufferParaBase64(buffer), mimetype: blob.type || 'audio/webm', idioma: idiomaAtual,
-    }, tokenGravacaoAtual);
-    if (dados.texto) {
-      chrome.runtime.sendMessage({ tipo: 'previa_transcricao', texto: dados.texto }).catch(() => {});
-    }
-  } catch (e) {
-    // uma falha na previa nunca pode travar a gravacao -- so fica sem legenda nesse trecho.
-    console.warn('Falha ao gerar prévia da legenda ao vivo:', e);
-  }
 }
 
 async function apiPost(caminho, corpo, token) {
@@ -204,8 +278,9 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
     return true;
   }
 
-  // Idioma trocado na barra flutuante enquanto ja esta gravando -- vale a partir do proximo
-  // pedaco de previa e da finalizacao (o audio ja gravado nao muda, so como ele e transcrito).
+  // Idioma trocado na barra flutuante enquanto ja esta gravando -- vale pra transcricao
+  // DEFINITIVA, no finalizar (a legenda ao vivo usa sempre o modelo multilingue da AssemblyAI,
+  // que reconhece varios idiomas sozinho, sem precisar saber qual foi escolhido aqui).
   if (mensagem.tipo === 'atualizar_idioma') {
     idiomaAtual = mensagem.idioma || 'pt';
     responder({ ok: true });

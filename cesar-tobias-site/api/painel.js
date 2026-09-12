@@ -1173,6 +1173,19 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'audiencia_assemblyai_token') {
+    try {
+      const resposta = await fetch(
+        base + '?action=painel_audiencia_assemblyai_token&token=' + encodeURIComponent(tokenSessao) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao obter token de transcrição ao vivo.' });
+    }
+    return;
+  }
+
   if (acao === 'audiencia_documento') {
     const idDocAud = (req.query && req.query.id) || '';
     try {
