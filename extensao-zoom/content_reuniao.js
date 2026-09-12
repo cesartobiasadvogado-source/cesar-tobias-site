@@ -115,13 +115,23 @@
     return extrairNomeMeetPorLegenda();
   }
 
+  function pareceNomeDeIcone(texto) {
+    // os icones do Google (Material Symbols) usam o proprio nome em snake_case como texto puro
+    // (ex: "keyboard_arrow_up", "mic_off") -- nunca e assim que um nome de pessoa aparece. Pegou
+    // um desses uma vez porque o seletor ".notranslate" era grande demais e incluia icones.
+    return /^[a-z]+(_[a-z]+)+$/.test(texto);
+  }
+
   function extrairNomeMeetPorIndicadorDeAudio() {
     var indicadores = document.querySelectorAll('[class*="IisKdb"]');
     for (var i = 0; i < indicadores.length; i++) {
       var container = indicadores[i];
       for (var subida = 0; subida < 10 && container; subida++) {
-        var nomeEl = container.querySelector('.XEazBc.adnwBd, .zWGUib, .notranslate');
-        if (nomeEl && nomeEl.textContent.trim()) return nomeEl.textContent.trim();
+        // confirmado ao vivo com o usuario -- deliberadamente especifico (nao um seletor
+        // generico tipo ".notranslate", que acaba pegando icones da interface tambem).
+        var nomeEl = container.querySelector('.XEazBc.adnwBd');
+        var texto = nomeEl && nomeEl.textContent.trim();
+        if (texto && !pareceNomeDeIcone(texto)) return texto;
         container = container.parentElement;
       }
     }
@@ -144,7 +154,8 @@
     if (!blocos.length) return null;
     var ultimoBloco = blocos[blocos.length - 1];
     var span = ultimoBloco.querySelector('span');
-    return span && span.textContent.trim() ? span.textContent.trim() : null;
+    var texto = span && span.textContent.trim();
+    return texto && !pareceNomeDeIcone(texto) ? texto : null;
   }
 
   function verificarFalanteAgora() {
