@@ -14,7 +14,7 @@ btn.addEventListener('click', function () {
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(function (stream) {
       stream.getTracks().forEach(function (t) { t.stop(); });
-      statusEl.textContent = 'Permissão concedida! Pode fechar esta aba e voltar pro Zoom.';
+      statusEl.textContent = 'Permissão concedida! Pode fechar esta aba e voltar pra chamada.';
       statusEl.className = 'ok';
     })
     .catch(function (e) {

@@ -1,19 +1,32 @@
-// Roda dentro da própria página do Zoom (client web). Duas coisas:
-// 1) Observa quem está em destaque como "falando agora" e manda pro background, com o horário,
-//    pra trocar "Locutor A/B" pelo nome de verdade na transcrição final. Baseado na estrutura
-//    REAL do Zoom (inspecionada ao vivo numa reunião de teste): quando alguém fica em destaque,
-//    o nome aparece dentro de um elemento ".video-avatar__avatar-name" (ou, em outro layout,
-//    ".video-avatar__avatar-footer"), dentro de um container com a classe
-//    "speaker-active-container" -- essa classe é o próprio Zoom quem usa pra marcar quem está em
-//    foco como orador ativo.
+// Roda dentro da própria página da chamada (Zoom ou Google Meet). Duas coisas, iguais nas duas
+// plataformas:
+// 1) Observa quem está falando/em destaque e manda pro background, com o horário, pra trocar
+//    "Locutor A/B" pelo nome de verdade na transcrição final.
 // 2) Mostra uma legenda flutuante (parecida com o Tactiq) por cima da chamada, com o texto
 //    aparecendo aos poucos conforme a transcrição prévia de cada pedaço chega do background.
 //
-// Isso é inerentemente frágil (depende do HTML que o Zoom decide usar, que pode mudar) -- se
-// parar de detectar nomes, o pior caso é a transcrição voltar a sair como "Locutor A/B", igual
-// já era antes desta extensão existir. Funciona melhor com o Zoom em "Visualização do orador".
+// O que muda entre as duas plataformas é só COMO acha o nome de quem fala agora (ver
+// verificarFalanteZoom/verificarFalanteMeet) -- o resto (legenda, mensagens) é comum.
+//
+// ZOOM: baseado na estrutura REAL do Zoom (inspecionada ao vivo numa reunião de teste): quando
+// alguém fica em destaque, o nome aparece dentro de ".video-avatar__avatar-name" (ou, em outro
+// layout, ".video-avatar__avatar-footer"), dentro de um container com a classe
+// "speaker-active-container" -- essa classe é o próprio Zoom quem usa pra marcar o orador ativo.
+//
+// MEET: usa a legenda ao vivo NATIVA do Google Meet (precisa estar ligada -- tecla "c" ou botão
+// "Ativar legendas"), que já vem com o nome de cada um. Baseado em vários projetos de código
+// aberto que fazem a mesma captura (não testado ao vivo por mim -- o Meet exige login numa conta
+// Google pra criar uma sala, o que eu não tenho aqui): a área de legendas é
+// `[role="region"][aria-label="Captions"]` (ou "Legendas" em português), e dentro de cada bloco
+// de fala o primeiro <span> é o nome de quem fala.
+//
+// Os dois jeitos são inerentemente frágeis (dependem do HTML que a Zoom/Google decidem usar, que
+// pode mudar) -- se parar de detectar nomes, o pior caso é a transcrição voltar a sair como
+// "Locutor A/B", igual já era antes desta extensão existir.
 
 (function () {
+  var ehMeet = location.hostname.indexOf('meet.google.com') !== -1;
+
   var gravando = false;
   var ultimoNome = null;
   var observer = null;
@@ -21,27 +34,48 @@
   var overlayHost = null;
   var overlayBody = null;
   var overlayMinimizado = false;
+  var avisouLegendaMeet = false;
 
-  // ---------- deteccao de quem esta falando ----------
+  // ---------- deteccao de quem esta falando: Zoom ----------
 
-  function extrairNomeDoContainer(container) {
-    if (!container) return null;
-    var elNome = container.querySelector('.video-avatar__avatar-name');
-    if (elNome && elNome.textContent.trim()) return elNome.textContent.trim();
-    var footer = container.querySelector('.video-avatar__avatar-footer');
-    if (footer && footer.textContent.trim()) return footer.textContent.trim();
+  function extrairNomeZoom() {
+    var containers = document.querySelectorAll(
+      '.speaker-active-container__wrap, .speaker-active-container__video-frame'
+    );
+    for (var i = 0; i < containers.length; i++) {
+      var container = containers[i];
+      var elNome = container.querySelector('.video-avatar__avatar-name');
+      if (elNome && elNome.textContent.trim()) return elNome.textContent.trim();
+      var footer = container.querySelector('.video-avatar__avatar-footer');
+      if (footer && footer.textContent.trim()) return footer.textContent.trim();
+    }
     return null;
+  }
+
+  // ---------- deteccao de quem esta falando: Google Meet (via legenda nativa) ----------
+
+  function extrairNomeMeet() {
+    var regiao = document.querySelector(
+      '[role="region"][aria-label="Captions"], [role="region"][aria-label="Closed captions"], ' +
+      '[role="region"][aria-label="Legendas"], [role="region"][aria-label="Legendas ocultas"]'
+    );
+    if (!regiao) {
+      if (gravando && !avisouLegendaMeet) {
+        avisouLegendaMeet = true;
+        adicionarPreviaTexto('⚠️ Ative a legenda do Meet (tecla "c") pra eu saber o nome de quem fala.');
+      }
+      return null;
+    }
+    var blocos = regiao.children;
+    if (!blocos.length) return null;
+    var ultimoBloco = blocos[blocos.length - 1];
+    var span = ultimoBloco.querySelector('span');
+    return span && span.textContent.trim() ? span.textContent.trim() : null;
   }
 
   function verificarFalanteAgora() {
     if (!gravando) return;
-    var containers = document.querySelectorAll(
-      '.speaker-active-container__wrap, .speaker-active-container__video-frame'
-    );
-    var nome = null;
-    for (var i = 0; i < containers.length && !nome; i++) {
-      nome = extrairNomeDoContainer(containers[i]);
-    }
+    var nome = ehMeet ? extrairNomeMeet() : extrairNomeZoom();
     if (nome && nome !== ultimoNome) {
       ultimoNome = nome;
       chrome.runtime.sendMessage({ tipo: 'falante_mudou', nome: nome, quando: Date.now() }).catch(function () {});
@@ -49,7 +83,7 @@
   }
 
   function verificarFalante() {
-    // debounce -- o Zoom muda o DOM o tempo todo (relogio, contadores, animacoes), e checar a
+    // debounce -- a pagina muda o DOM o tempo todo (relogio, contadores, animacoes), e checar a
     // cada mutacao sem pausa pesava desnecessariamente durante uma audiencia longa.
     if (timerVerificar) return;
     timerVerificar = setTimeout(function () {
@@ -139,6 +173,7 @@
   function ativar() {
     gravando = true;
     ultimoNome = null;
+    avisouLegendaMeet = false;
     criarOverlay();
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     verificarFalanteAgora();
@@ -159,9 +194,9 @@
     }
   });
 
-  // Pergunta ao background se essa aba deveria estar gravando -- cobre o caso do Zoom recarregar
-  // a propria pagina no meio da audiencia (reconexao por internet instavel, por exemplo): sem
-  // isso, o content script recem-carregado nao saberia que precisa reativar a deteccao/legenda.
+  // Pergunta ao background se essa aba deveria estar gravando -- cobre o caso da pagina recarregar
+  // no meio da audiencia (reconexao por internet instavel, por exemplo): sem isso, o content
+  // script recem-carregado nao saberia que precisa reativar a deteccao/legenda.
   chrome.runtime.sendMessage({ tipo: 'content_script_carregado' }).then(function (resposta) {
     if (resposta && resposta.ativa) ativar();
   }).catch(function () {});

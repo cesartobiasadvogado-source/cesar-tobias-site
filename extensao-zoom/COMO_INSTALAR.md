@@ -13,17 +13,22 @@ Essa extensão não está na loja do Chrome — é de uso pessoal seu, então a 
    microfone"** (aparece uma aba nova — clique em "Autorizar microfone" nela também, e autorize
    quando o Chrome pedir). Isso só precisa ser feito uma vez.
 
-## Como usar numa audiência por Zoom
+## Como usar numa audiência por Zoom ou Google Meet
 
-1. Entre na audiência normalmente pelo Zoom, no navegador (aba do Zoom aberta e em foco).
+1. Entre na audiência normalmente, no navegador (aba do Zoom ou do Meet aberta e em foco).
 2. Clique no ícone da extensão.
-3. **Coloque o Zoom em "Visualização do orador"** (não Galeria) — é assim que a extensão consegue
-   identificar quem está falando e colocar o nome certo na transcrição. Sem isso, ainda funciona,
-   só que volta a sair "Locutor A/B" em vez do nome.
+3. Pra identificar o nome de quem fala, cada plataforma precisa de uma coisa diferente ligada:
+   - **Zoom**: coloque em **"Visualização do orador"** (não Galeria).
+   - **Google Meet**: **ative a legenda** (tecla **"c"**, ou o botão de legenda na barra
+     inferior). Sem isso a extensão não tem como saber o nome de quem fala no Meet.
+   - Em qualquer um dos dois, se você não fizer isso, a gravação continua funcionando normal,
+     só que os nomes saem como "Locutor A/B" em vez do nome de verdade.
 4. Digite o nome do cliente e clique em **"Iniciar transcrição"**.
-5. Pode fechar essa janelinha da extensão — a gravação continua rodando sozinha. Só não feche a
-   aba do Zoom.
-6. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
+5. Aparece uma legendinha flutuante na tela mostrando o que está sendo transcrito -- pode
+   arrastar ela pra onde quiser, ou minimizar clicando no traço no canto.
+6. Pode fechar a janelinha da extensão — a gravação continua rodando sozinha. Só não feche a
+   aba da chamada.
+7. Quando a audiência acabar, clique de novo no ícone da extensão e em **"Finalizar audiência"**.
    O envio e a transcrição podem levar alguns minutos — pode fechar a janelinha, o resultado
    aparece na aba **Audiências** do painel, do mesmo jeito que já acontece hoje.
 

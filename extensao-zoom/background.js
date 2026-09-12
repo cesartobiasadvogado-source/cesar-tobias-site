@@ -101,7 +101,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         }
 
         const aba = await obterAbaAtiva();
-        if (!aba || !aba.id) throw new Error('Não encontrei a aba do Zoom em foco.');
+        if (!aba || !aba.id) throw new Error('Não encontrei a aba da chamada (Zoom ou Meet) em foco.');
 
         const streamId = await new Promise((resolve, reject) => {
           chrome.tabCapture.getMediaStreamId({ targetTabId: aba.id }, (id) => {
