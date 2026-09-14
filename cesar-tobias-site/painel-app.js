@@ -5311,6 +5311,7 @@
     var erroEl = document.getElementById('ncontrato-erro');
     var btnSalvar = document.getElementById('ncontrato-salvar');
     var opcoesCarregadas = false;
+    var clientePorProcesso = {}; // valor do <option> de processo -> nome do cliente (pra auto-selecionar)
     aplicarMascaraMoeda(document.getElementById('ncontrato-valor'));
     aplicarMascaraMoeda(document.getElementById('ncontrato-valor-entrada'));
 
@@ -5356,11 +5357,14 @@
         ]).then(function (resultados) {
           var judiciais = resultados[0].processos || [];
           var administrativos = resultados[1].processos || [];
+          clientePorProcesso = {};
           var optionsJudiciais = judiciais.map(function (p) {
+            if (p.cliente_nome) clientePorProcesso[p.numero_cnj] = p.cliente_nome;
             return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
           }).join('');
           var optionsAdministrativos = administrativos.map(function (p) {
             var rotulo = (p.numero_protocolo || '(sem protocolo)') + (p.orgao ? ' — ' + p.orgao : '') + (p.cliente ? ' — ' + p.cliente : '');
+            if (p.cliente) clientePorProcesso[rotulo] = p.cliente;
             return '<option value="' + esc(rotulo) + '">' + esc(rotulo) + '</option>';
           }).join('');
           selectProcesso.innerHTML = '<option value="">Nenhum (contrato consultivo/mensal)</option>' +
@@ -5378,6 +5382,14 @@
     modal.addEventListener('click', function (e) { if (e.target === modal) fecharModal(); });
     selectTipo.addEventListener('change', atualizarCamposPorTipo);
     inputParcelas.addEventListener('input', atualizarPeriodicidade);
+    selectProcesso.addEventListener('change', function () {
+      var nomeCliente = clientePorProcesso[selectProcesso.value];
+      if (!nomeCliente) return;
+      // so seleciona se o cliente do processo estiver mesmo na lista (evita deixar o campo
+      // apontando pra um nome que nao existe como <option>).
+      var existe = Array.prototype.some.call(selectCliente.options, function (o) { return o.value === nomeCliente; });
+      if (existe) selectCliente.value = nomeCliente;
+    });
 
     btnSalvar.addEventListener('click', function () {
       var nome = selectCliente.value;
