@@ -5350,11 +5350,22 @@
           selectCliente.innerHTML = '<option value="">Selecione o cliente</option>' +
             (d.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">' + esc(c.nome) + '</option>'; }).join('');
         }).catch(function () {});
-        apiGetJson('/api/painel?acao=processo_manual_listar').then(function (d) {
+        Promise.all([
+          apiGetJson('/api/painel?acao=processo_manual_listar').catch(function () { return { processos: [] }; }),
+          apiGetJson('/api/painel?acao=processos_administrativos&op=listar').catch(function () { return { processos: [] }; }),
+        ]).then(function (resultados) {
+          var judiciais = resultados[0].processos || [];
+          var administrativos = resultados[1].processos || [];
+          var optionsJudiciais = judiciais.map(function (p) {
+            return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
+          }).join('');
+          var optionsAdministrativos = administrativos.map(function (p) {
+            var rotulo = (p.numero_protocolo || '(sem protocolo)') + (p.orgao ? ' — ' + p.orgao : '') + (p.cliente ? ' — ' + p.cliente : '');
+            return '<option value="' + esc(rotulo) + '">' + esc(rotulo) + '</option>';
+          }).join('');
           selectProcesso.innerHTML = '<option value="">Nenhum (contrato consultivo/mensal)</option>' +
-            (d.processos || []).map(function (p) {
-              return '<option value="' + esc(p.numero_cnj) + '">' + esc(p.numero_cnj) + (p.cliente_nome ? ' — ' + esc(p.cliente_nome) : '') + '</option>';
-            }).join('');
+            (optionsJudiciais ? '<optgroup label="Processos judiciais">' + optionsJudiciais + '</optgroup>' : '') +
+            (optionsAdministrativos ? '<optgroup label="Processos administrativos">' + optionsAdministrativos + '</optgroup>' : '');
         }).catch(function () {});
       }
     }
