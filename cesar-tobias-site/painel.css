@@ -432,6 +432,17 @@
      proximos vencimentos, cruzando Contratos/Parcelas com Despesas do Processo/Contas a
      Pagar/Recorrentes. Segue os tokens de tema (light/dark), igual o Fluxo de Caixa acima
      (que tambem foi revertido pra tokens, ver comentario dele). */
+  .exec-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .exec-stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s ease, transform .15s ease; }
+  .exec-stat-card:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
+  @media (prefers-reduced-motion: reduce) { .exec-stat-card { transition: none; } .exec-stat-card:hover { transform: none; } }
+  .exec-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .exec-stat-label { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft); }
+  .exec-stat-icon { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+  .exec-stat-icon svg { width: 100%; height: 100%; display: block; }
+  .exec-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+  .exec-stat-value.money::before { content: 'R$ '; font-size: 14px; font-weight: 500; color: var(--ink-faint); }
+  .exec-stat-foot { font-size: 12px; color: var(--ink-soft); padding-top: 8px; border-top: 1px solid var(--line); }
   .exec-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; margin-top: 14px; }
   @media (max-width: 900px) { .exec-grid { grid-template-columns: 1fr; } }
   .exec-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
@@ -457,13 +468,27 @@
   }
   .exec-tooltip.visivel { opacity: 1; }
   .exec-tooltip b { font-variant-numeric: tabular-nums; }
-  .exec-catbar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
-  .exec-catbar-row:last-child { margin-bottom: 0; }
-  .exec-catbar-label { flex: 0 0 96px; font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .exec-catbar-track { flex: 1; height: 10px; background: var(--surface-sunken); border-radius: 5px; overflow: hidden; min-width: 0; }
-  .exec-catbar-fill { height: 100%; border-radius: 5px; }
-  .exec-catbar-valor { flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink); min-width: 74px; text-align: right; }
+  .exec-cat-donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .exec-cat-donut { position: relative; width: 150px; height: 150px; flex-shrink: 0; }
+  .exec-cat-donut svg { width: 100%; height: 100%; display: block; }
+  .exec-cat-donut svg circle { transition: stroke-dasharray .3s ease; }
+  .exec-cat-donut-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; pointer-events: none; }
+  .exec-cat-donut-label { font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-faint); }
+  .exec-cat-donut-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .exec-cat-legend { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+  .exec-cat-legend-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .exec-cat-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .exec-cat-legend-nome { flex: 1; min-width: 0; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exec-cat-legend-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+  .exec-cat-legend-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); width: 34px; text-align: right; flex-shrink: 0; }
   .exec-nota { margin-top: 14px; padding: 10px 13px; border-radius: 6px; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn); font-size: 12.5px; line-height: 1.5; }
+  .exec-insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
+  .exec-insight-card { background: var(--surface-sunken); border-radius: 12px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
+  .exec-insight-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--surface); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .exec-insight-icon svg { width: 18px; height: 18px; }
+  .exec-insight-corpo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .exec-insight-titulo { font-size: 12.5px; font-weight: 700; color: var(--ink); }
+  .exec-insight-texto { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
 
   /* Linha-resumo de um grupo de parcelas (Contas a receber) com seta pra expandir/recolher --
      as parcelas do contrato ficam escondidas ate clicar. */

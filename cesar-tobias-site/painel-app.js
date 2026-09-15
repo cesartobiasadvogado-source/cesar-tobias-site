@@ -1037,10 +1037,16 @@
       return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"' + (m.previsto ? ' opacity="0.6"' : '') + '/>';
     }).join('');
 
+    var xHoje = padL + idxPrimeiroPrevisto * larguraSlot;
+    var corredorPrevisto = idxPrimeiroPrevisto <= 0 ? '' : (
+      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH +
+      '" fill="var(--accent)" opacity="0.05"/>'
+    );
     var divisorHoje = idxPrimeiroPrevisto <= 0 ? '' : (
-      '<line x1="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) + '" x2="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) +
-      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="3 3"/>' +
-      '<text x="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) + '" y="' + (padT - 4) + '" text-anchor="middle" font-size="9" fill="var(--ink-faint)">hoje</text>'
+      '<line x1="' + xHoje.toFixed(1) + '" x2="' + xHoje.toFixed(1) +
+      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.6"/>' +
+      '<rect x="' + (xHoje - 20).toFixed(1) + '" y="' + (padT - 12) + '" width="40" height="15" rx="7.5" fill="var(--accent)"/>' +
+      '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 1.5) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">HOJE</text>'
     );
 
     var labelStep = n > 18 ? 3 : (n > 12 ? 2 : 1);
@@ -1055,7 +1061,7 @@
     }).join('');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      gridSvg + barrasSvg + divisorHoje +
+      gridSvg + corredorPrevisto + barrasSvg + divisorHoje +
       '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
@@ -1103,19 +1109,44 @@
     var container = document.getElementById('exec-categorias-lista');
     if (!container) return;
     if (!lista.length) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma despesa registrada nos últimos 12 meses.</div></div>';
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhuma despesa registrada no período.</div></div>';
       return;
     }
-    var maior = Math.max.apply(null, lista.map(function (c) { return c.valor; }).concat([1]));
-    container.innerHTML = lista.map(function (c, i) {
-      var pct = Math.max((c.valor / maior) * 100, 2);
+    var total = lista.reduce(function (acc, c) { return acc + c.valor; }, 0) || 1;
+    var raio = 38, circunferencia = 2 * Math.PI * raio;
+    var offsetAcumulado = 0;
+    var segmentosSvg = lista.map(function (c, i) {
       var cor = 'var(--chart-cat-' + ((i % 8) + 1) + ')';
-      return '<div class="exec-catbar-row">' +
-        '<div class="exec-catbar-label" title="' + esc(c.categoria) + '">' + esc(c.categoria) + '</div>' +
-        '<div class="exec-catbar-track"><div class="exec-catbar-fill" style="width:' + pct + '%; background:' + cor + ';"></div></div>' +
-        '<div class="exec-catbar-valor">R$ ' + fmtMoeda(c.valor) + '</div>' +
+      var dashLen = (c.valor / total) * circunferencia;
+      var segmento = '<circle cx="50" cy="50" r="' + raio + '" fill="none" stroke="' + cor + '" stroke-width="12" ' +
+        'stroke-dasharray="' + dashLen.toFixed(2) + ' ' + Math.max(circunferencia - dashLen, 0).toFixed(2) + '" ' +
+        'stroke-dashoffset="' + (-offsetAcumulado).toFixed(2) + '"/>';
+      offsetAcumulado += dashLen;
+      return segmento;
+    }).join('');
+
+    var legendaHtml = lista.map(function (c, i) {
+      var cor = 'var(--chart-cat-' + ((i % 8) + 1) + ')';
+      var pct = Math.round((c.valor / total) * 100);
+      return '<div class="exec-cat-legend-row">' +
+        '<span class="exec-cat-legend-dot" style="background:' + cor + ';"></span>' +
+        '<span class="exec-cat-legend-nome" title="' + esc(c.categoria) + '">' + esc(c.categoria) + '</span>' +
+        '<span class="exec-cat-legend-valor">R$ ' + fmtMoeda(c.valor) + '</span>' +
+        '<span class="exec-cat-legend-pct">' + pct + '%</span>' +
       '</div>';
     }).join('');
+
+    container.innerHTML =
+      '<div class="exec-cat-donut-wrap">' +
+        '<div class="exec-cat-donut">' +
+          '<svg viewBox="0 0 100 100" style="transform:rotate(-90deg);">' +
+            '<circle cx="50" cy="50" r="' + raio + '" fill="none" stroke="var(--surface-sunken)" stroke-width="12"/>' +
+            segmentosSvg +
+          '</svg>' +
+          '<div class="exec-cat-donut-centro"><span class="exec-cat-donut-label">Total</span><span class="exec-cat-donut-valor">R$ ' + fmtMoeda(total) + '</span></div>' +
+        '</div>' +
+        '<div class="exec-cat-legend">' + legendaHtml + '</div>' +
+      '</div>';
   }
 
   function renderExecProximos(lista) {
@@ -1136,6 +1167,74 @@
     container.innerHTML = '<div class="table-scroll"><table>' +
       '<thead><tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th>Status</th></tr></thead>' +
       '<tbody>' + linhas + '</tbody></table></div>';
+  }
+
+  var ICONE_INSIGHT_CATEGORIA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 3a8 8 0 1 0 8 8h-8z"></path><path d="M15 3.5A8 8 0 0 1 20.5 9H15z"></path></svg>';
+  var ICONE_INSIGHT_RECORRENTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 2 21 6 17 10"></path><path d="M3 12v-2a4 4 0 0 1 4-4h14"></path><path d="M7 22 3 18 7 14"></path><path d="M21 12v2a4 4 0 0 1-4 4H3"></path></svg>';
+  var ICONE_INSIGHT_ALERTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"></path><path d="M10.3 3.9 1.8 18a1.5 1.5 0 0 0 1.3 2.2h17.8a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path><path d="M12 16h.01"></path></svg>';
+  var ICONE_INSIGHT_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 3 3 5-6"></path></svg>';
+
+  function renderExecInsights(resumo) {
+    var container = document.getElementById('exec-insights');
+    if (!container) return;
+    var kpis = resumo.kpis || {};
+    var categorias = resumo.despesas_por_categoria || [];
+    var serie = resumo.receita_x_despesas || [];
+    var cartoes = [];
+
+    if (categorias.length) {
+      var totalDespesas = categorias.reduce(function (acc, c) { return acc + c.valor; }, 0) || 1;
+      var maior = categorias[0];
+      var pct = Math.round((maior.valor / totalDespesas) * 100);
+      cartoes.push({
+        icone: ICONE_INSIGHT_CATEGORIA, cor: 'var(--chart-cat-1)',
+        titulo: 'Maior gasto do período',
+        texto: esc(maior.categoria) + ' responde por <b>' + pct + '%</b> das despesas (R$ ' + fmtMoeda(maior.valor) + ').',
+      });
+    }
+
+    var mesesRealizados = serie.filter(function (m) { return !m.previsto; });
+    var receitaMediaMensal = mesesRealizados.length
+      ? mesesRealizados.reduce(function (acc, m) { return acc + m.receita; }, 0) / mesesRealizados.length
+      : 0;
+    if (receitaMediaMensal > 0) {
+      var pctComprometido = Math.round(((kpis.comprometido_mensal || 0) / receitaMediaMensal) * 100);
+      cartoes.push({
+        icone: ICONE_INSIGHT_RECORRENTE, cor: 'var(--accent)',
+        titulo: 'Comprometido com recorrentes',
+        texto: 'As contas recorrentes ativas comprometem <b>' + pctComprometido + '%</b> da receita média mensal realizada.',
+      });
+    }
+
+    var mesesPrevistos = serie.filter(function (m) { return m.previsto; });
+    if (mesesPrevistos.length) {
+      var piorMes = mesesPrevistos.reduce(function (pior, m) {
+        var saldo = m.receita - m.despesa;
+        return (!pior || saldo < pior.saldo) ? { mes: m.mes, saldo: saldo } : pior;
+      }, null);
+      if (piorMes && piorMes.saldo < 0) {
+        cartoes.push({
+          icone: ICONE_INSIGHT_ALERTA, cor: 'var(--crit)',
+          titulo: 'Saldo previsto negativo',
+          texto: esc(nomeMesExtenso(piorMes.mes)) + ' tem saldo previsto de <b style="color:var(--crit);">-R$ ' + fmtMoeda(Math.abs(piorMes.saldo)) + '</b>.',
+        });
+      } else {
+        cartoes.push({
+          icone: ICONE_INSIGHT_OK, cor: 'var(--good)',
+          titulo: 'Previsão de caixa positiva',
+          texto: 'Nenhum dos próximos meses previstos fecha no negativo, considerando o que já está agendado.',
+        });
+      }
+    }
+
+    if (!cartoes.length) { container.innerHTML = ''; return; }
+    container.innerHTML = cartoes.map(function (c) {
+      return '<div class="exec-insight-card">' +
+        '<div class="exec-insight-icon" style="color:' + c.cor + ';">' + c.icone + '</div>' +
+        '<div class="exec-insight-corpo"><span class="exec-insight-titulo">' + esc(c.titulo) + '</span>' +
+          '<p class="exec-insight-texto">' + c.texto + '</p></div>' +
+      '</div>';
+    }).join('');
   }
 
   function preencherExecKpisContratos() {
@@ -1170,6 +1269,7 @@
         renderExecAcumulado(r.receita_x_despesas || []);
         renderExecCategorias(r.despesas_por_categoria || []);
         renderExecProximos(r.proximos_vencimentos || []);
+        renderExecInsights(r);
 
         var elSaldo = document.getElementById('exec-kpi-saldo');
         if (elSaldo) {
@@ -3214,29 +3314,41 @@
         '</div>' +
       '</div>';
 
+    var ICONE_EXEC_SALDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M16 12h.01"></path><path d="M3 9h18"></path></svg>';
+    var ICONE_EXEC_A_PAGAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg>';
+    var ICONE_EXEC_RECORRENTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 2 21 6 17 10"></path><path d="M3 12v-2a4 4 0 0 1 4-4h14"></path><path d="M7 22 3 18 7 14"></path><path d="M21 12v2a4 4 0 0 1-4 4H3"></path></svg>';
+    var ICONE_EXEC_CONTRATO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M15 2v5h5"></path></svg>';
+    var ICONE_EXEC_RECEBIDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 3 3 5-6"></path></svg>';
+    var ICONE_EXEC_PENDENTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
+    var ICONE_EXEC_ATRASO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"></path><path d="M10.3 3.9 1.8 18a1.5 1.5 0 0 0 1.3 2.2h17.8a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path><path d="M12 16h.01"></path></svg>';
+    var ICONE_EXEC_ATIVOS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+    function execStatCard(opts) {
+      var corValor = opts.cor ? (' style="color:' + opts.cor + ';"') : '';
+      var money = opts.money !== false ? ' money' : '';
+      return '<div class="exec-stat-card">' +
+        '<div class="exec-stat-top"><span class="exec-stat-label">' + esc(opts.label) + '</span>' +
+          '<span class="exec-stat-icon">' + opts.icone + '</span></div>' +
+        '<div class="exec-stat-value' + money + '" id="' + opts.id + '"' + corValor + '>0,00</div>' +
+        '<div class="exec-stat-foot" id="' + opts.idSub + '">' + esc(opts.subInicial || '—') + '</div>' +
+      '</div>';
+    }
+
     var htmlPainelExecutivo =
       '<section id="sec-painel-executivo" style="margin-top:28px;">' +
         '<p class="section-label">Painel Executivo</p>' +
-        '<div class="stat-grid">' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-saldo">0,00</div>' +
-            '<div class="stat-label">Saldo do mês</div><div class="stat-sub" id="exec-kpi-saldo-sub">—</div></div>' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-a-pagar">0,00</div>' +
-            '<div class="stat-label">Total a pagar</div><div class="stat-sub" id="exec-kpi-vencido-sub">—</div></div>' +
-          '<div class="stat-card"><div class="stat-value" id="exec-kpi-recorrentes">0</div>' +
-            '<div class="stat-label">Contas recorrentes ativas</div><div class="stat-sub" id="exec-kpi-comprometido-sub">—</div></div>' +
+        '<div class="exec-stat-grid">' +
+          execStatCard({ id: 'exec-kpi-saldo', idSub: 'exec-kpi-saldo-sub', label: 'Saldo do mês', icone: ICONE_EXEC_SALDO }) +
+          execStatCard({ id: 'exec-kpi-a-pagar', idSub: 'exec-kpi-vencido-sub', label: 'Total a pagar', icone: ICONE_EXEC_A_PAGAR }) +
+          execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false }) +
         '</div>' +
         '<p class="exec-card-sub" style="margin:16px 0 8px;">Honorários e Contratos</p>' +
-        '<div class="stat-grid">' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-valor-total">0,00</div>' +
-            '<div class="stat-label">Valor total de contratos</div><div class="stat-sub">fechados até hoje</div></div>' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-recebido" style="color:var(--good);">0,00</div>' +
-            '<div class="stat-label">Total recebido</div><div class="stat-sub">entradas + parcelas pagas</div></div>' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-pendente">0,00</div>' +
-            '<div class="stat-label">Total pendente</div><div class="stat-sub">ainda a receber</div></div>' +
-          '<div class="stat-card"><div class="stat-value money" id="exec-kpi-atraso" style="color:var(--crit);">0,00</div>' +
-            '<div class="stat-label">Total em atraso</div><div class="stat-sub" id="exec-kpi-atraso-sub">—</div></div>' +
-          '<div class="stat-card"><div class="stat-value" id="exec-kpi-contratos-ativos">0</div>' +
-            '<div class="stat-label">Contratos ativos</div><div class="stat-sub">em andamento agora</div></div>' +
+        '<div class="exec-stat-grid">' +
+          execStatCard({ id: 'exec-kpi-valor-total', idSub: 'exec-kpi-valor-total-sub', label: 'Valor total de contratos', icone: ICONE_EXEC_CONTRATO, subInicial: 'fechados até hoje' }) +
+          execStatCard({ id: 'exec-kpi-recebido', idSub: 'exec-kpi-recebido-sub', label: 'Total recebido', icone: ICONE_EXEC_RECEBIDO, cor: 'var(--good)', subInicial: 'entradas + parcelas pagas' }) +
+          execStatCard({ id: 'exec-kpi-pendente', idSub: 'exec-kpi-pendente-sub', label: 'Total pendente', icone: ICONE_EXEC_PENDENTE, subInicial: 'ainda a receber' }) +
+          execStatCard({ id: 'exec-kpi-atraso', idSub: 'exec-kpi-atraso-sub', label: 'Total em atraso', icone: ICONE_EXEC_ATRASO, cor: 'var(--crit)' }) +
+          execStatCard({ id: 'exec-kpi-contratos-ativos', idSub: 'exec-kpi-contratos-ativos-sub', label: 'Contratos ativos', icone: ICONE_EXEC_ATIVOS, money: false, subInicial: 'em andamento agora' }) +
         '</div>' +
         '<div class="exec-grid">' +
           '<div class="exec-card">' +
@@ -3265,6 +3377,7 @@
             '<div id="exec-categorias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '</div>' +
         '</div>' +
+        '<div class="exec-insights-grid" id="exec-insights"></div>' +
         '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Próximos vencimentos</span></div>' +
           '<div id="exec-proximos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
