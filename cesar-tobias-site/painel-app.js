@@ -61,7 +61,7 @@
     inicio: 'Início', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos Judiciais',
     processo_administrativo: 'Processo Administrativo',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
-    tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes: 'Automações', padrao_operacional: 'Padrão Operacional',
+    tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
   };
 
@@ -3249,7 +3249,8 @@
       prazos: htmlPrazos,
       tarefas: htmlTarefas,
       agenda_completa: htmlAgendaCompleta,
-      automacoes: htmlPropostas + htmlContrato + htmlAutomacoes,
+      automacoes_gerais: htmlPropostas + htmlAutomacoes,
+      procuracao_contrato: htmlContrato,
       padrao_operacional: htmlPadraoOperacional,
       audiencias: htmlAudiencias,
       admin: htmlConexoes + htmlEscritoriosPlataforma,
@@ -3259,7 +3260,7 @@
       financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
       processo_administrativo: 'processos',
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
-      tarefas: 'agenda', agenda_completa: 'agenda', automacoes: 'automacoes', padrao_operacional: 'padrao_operacional',
+      tarefas: 'agenda', agenda_completa: 'agenda', automacoes_gerais: 'automacoes', procuracao_contrato: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
@@ -3318,7 +3319,8 @@
 
     if (!temAcessoPagina) return;
 
-    if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); wireAssinaturaDireta(); }
+    if (PAGINA_ATUAL === 'automacoes_gerais') { wireAutomacoes(); }
+    if (PAGINA_ATUAL === 'procuracao_contrato') { wireAutomacoes(); wireContrato(); wireAssinaturaDireta(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
