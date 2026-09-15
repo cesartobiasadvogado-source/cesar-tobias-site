@@ -1271,7 +1271,7 @@
               '<td>' + esc(d.vencimento) + '</td><td class="num">R$ ' + fmtMoeda(d.saldo) + '</td></tr>';
           }).join('');
           resultado.innerHTML =
-            '<div class="chip warn" style="margin-bottom:12px;">Total do mês: R$ ' + fmtMoeda(corpo.total_devedores) + '</div>' +
+            '<div class="chip warn" style="margin-bottom:12px;">Total a receber no mês: R$ ' + fmtMoeda(corpo.total_devedores) + '</div>' +
             '<div class="table-scroll"><table><thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th style="text-align:right">Valor</th></tr></thead>' +
             '<tbody>' + linhas + '</tbody></table></div>';
         })
