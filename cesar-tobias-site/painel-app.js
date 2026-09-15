@@ -3067,6 +3067,15 @@
           '</div>' +
         '</div>' +
       '</div>' +
+      '';
+
+    // Fica FORA de qualquer fin-tab-panel de proposito -- e disparado a partir da aba "Contas
+    // a receber", nao de "Honorarios e Contratos". Se ficasse dentro de um painel de aba
+    // (como estava antes), o modal abria de verdade mas continuava invisivel enquanto aquele
+    // painel estivesse com a classe "hidden" (display:none no ancestral esconde tudo dentro,
+    // mesmo remove o "hidden" do proprio modal) -- so aparecia depois de trocar de aba pra
+    // "Honorarios e Contratos" e o painel-pai ficar visivel (bug relatado pelo usuario).
+    var htmlModalEditarParcela =
       '<div class="modal-overlay hidden" id="modal-editar-parcela">' +
         '<div class="ncontrato-modal-caixa">' +
           '<h3>Editar parcela<button type="button" class="modal-drill-fechar" id="eparcela-fechar">✕</button></h3>' +
@@ -3471,6 +3480,7 @@
         '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' + htmlDespesasProcesso + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' + htmlContasPagar + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' + htmlContasRecorrentes + '</div>' +
+        htmlModalEditarParcela +
       '</section>';
 
     // cada pagina mostra so a area que e dela -- PAGINA_ATUAL e definido inline em cada HTML
