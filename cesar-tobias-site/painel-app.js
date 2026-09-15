@@ -4675,7 +4675,9 @@
       '<td' + (comIndentacao ? ' style="padding-left:34px; color:var(--ink-soft);"' : '') + '>' + esc(p.nome_cliente) + '</td>' +
       '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
       '<td>' + esc(descricao) + '</td>' +
-      '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
+      '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) +
+        (p.status !== 'Paga' && p.valor_pago > 0 ? '<div style="font-size:11px;color:var(--good);font-weight:400;">R$ ' + fmtMoeda(p.valor_pago) + ' já pago</div>' : '') +
+      '</td>' +
       '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
       '<td>' + (CHIPS_STATUS_PARCELA[p.status] || CHIPS_STATUS_PARCELA.Aberta) + '</td>' +
       '<td><div class="parcela-acoes-linha">' + acoesPrincipais + acoesMenu + '</div></td></tr>';
@@ -4708,12 +4710,15 @@
       var temVencida = g.itens.some(function (p) { return p.status === 'Vencida'; });
       var saldoAberto = g.itens.reduce(function (acc, p) { return acc + (p.status === 'Paga' ? 0 : p.saldo); }, 0);
       var valorTotalGrupo = g.itens.reduce(function (acc, p) { return acc + p.valor_parcela; }, 0);
+      var totalPagoGrupo = g.itens.reduce(function (acc, p) { return acc + (p.valor_pago || 0); }, 0);
       var proximaAberta = g.itens
         .filter(function (p) { return p.status !== 'Paga' && p.data_vencimento; })
         .sort(function (a, b) { return a.data_vencimento < b.data_vencimento ? -1 : 1; })[0];
       var chipResumo = pagas === g.itens.length
         ? '<span class="chip good">Paga (' + pagas + '/' + g.itens.length + ')</span>'
         : '<span class="chip ' + (temVencida ? 'crit' : 'neutral') + '">' + pagas + '/' + g.itens.length + ' pagas</span>';
+      var notaPago = '<div style="font-size:11px;color:var(--good);margin-top:3px;">' +
+        (totalPagoGrupo > 0 ? 'R$ ' + fmtMoeda(totalPagoGrupo) + ' já pago' : 'nada pago ainda') + '</div>';
 
       var idGrupo = esc(g.chave);
       var linhaGrupo = '<tr class="parcela-grupo-linha" data-grupo-linha="' + idGrupo + '">' +
@@ -4722,7 +4727,7 @@
         '<td>' + esc(descricaoBase) + ' (' + g.itens.length + 'x)</td>' +
         '<td class="num">R$ ' + fmtMoeda(saldoAberto > 0 ? saldoAberto : valorTotalGrupo) + '</td>' +
         '<td>' + (proximaAberta ? fmtDataCurta(proximaAberta.data_vencimento) : '—') + '</td>' +
-        '<td>' + chipResumo + '</td>' +
+        '<td>' + chipResumo + notaPago + '</td>' +
         '<td></td></tr>';
 
       var linhasFilhas = g.itens.map(function (p) {
