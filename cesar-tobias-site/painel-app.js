@@ -3039,6 +3039,16 @@
               '<input type="text" id="econtrato-valor-ganho-causa" placeholder="opcional">' +
             '</div>' +
           '</div>' +
+          '<div class="ncontrato-linha2 hidden" id="econtrato-linha-exito-estimativa">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-valor-estimado">Estimativa de ganho (R$)</label>' +
+              '<input type="text" id="econtrato-valor-estimado" placeholder="opcional, enquanto aguarda o resultado">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label>Honorário estimado</label>' +
+              '<div id="econtrato-honorario-estimado" style="padding:9px 10px; color:var(--ink-soft); font-size:13.5px;">—</div>' +
+            '</div>' +
+          '</div>' +
           '<div class="ncontrato-campo hidden" id="econtrato-campo-situacao">' +
             '<label for="econtrato-situacao">Situação</label>' +
             '<input type="text" id="econtrato-situacao" placeholder="ex: Aguardando resultado">' +
@@ -5792,10 +5802,13 @@
     var selectStatusContrato = document.getElementById('econtrato-status-contrato');
     var linhaExito = document.getElementById('econtrato-linha-exito');
     var linhaExitoCausa = document.getElementById('econtrato-linha-exito-causa');
+    var linhaExitoEstimativa = document.getElementById('econtrato-linha-exito-estimativa');
     var campoPercentual = document.getElementById('econtrato-percentual');
     var campoValorRecebido = document.getElementById('econtrato-valor-recebido');
     var campoValorCausaEditar = document.getElementById('econtrato-valor-causa');
     var campoValorGanhoCausa = document.getElementById('econtrato-valor-ganho-causa');
+    var campoValorEstimado = document.getElementById('econtrato-valor-estimado');
+    var elHonorarioEstimado = document.getElementById('econtrato-honorario-estimado');
     var campoSituacaoWrap = document.getElementById('econtrato-campo-situacao');
     var campoSituacao = document.getElementById('econtrato-situacao');
     var campoValoresWrap = document.getElementById('econtrato-campo-valores');
@@ -5816,10 +5829,21 @@
     aplicarMascaraMoeda(campoValorEntradaNovo);
     aplicarMascaraMoeda(campoValorCausaEditar);
     aplicarMascaraMoeda(campoValorGanhoCausa);
+    aplicarMascaraMoeda(campoValorEstimado);
 
     checkboxAlterarValores.addEventListener('change', function () {
       subcamposValores.classList.toggle('hidden', !checkboxAlterarValores.checked);
     });
+
+    function atualizarHonorarioEstimado() {
+      var percentual = parseFloat((campoPercentual.value || '').replace(',', '.'));
+      var estimativa = parseFloat((campoValorEstimado.value || '').replace(/\./g, '').replace(',', '.'));
+      if (!percentual || !estimativa) { elHonorarioEstimado.textContent = '—'; return; }
+      elHonorarioEstimado.textContent = 'R$ ' + fmtMoeda(estimativa * (percentual / 100));
+    }
+    campoPercentual.addEventListener('input', atualizarHonorarioEstimado);
+    campoValorEstimado.addEventListener('input', atualizarHonorarioEstimado);
+    campoValorEstimado.addEventListener('blur', atualizarHonorarioEstimado);
 
     function fecharModal() { modal.classList.add('hidden'); }
 
@@ -5833,6 +5857,7 @@
       campoStatusContratoWrap.classList.toggle('hidden', ehExito);
       linhaExito.classList.toggle('hidden', !ehExito);
       linhaExitoCausa.classList.toggle('hidden', !ehExito);
+      linhaExitoEstimativa.classList.toggle('hidden', !ehExito);
       campoSituacaoWrap.classList.toggle('hidden', !ehExito);
       campoValoresWrap.classList.toggle('hidden', ehExito);
       checkboxAlterarValores.checked = false;
@@ -5842,6 +5867,8 @@
         campoValorRecebido.value = '';
         campoValorCausaEditar.value = item.valor_causa ? fmtMoeda(item.valor_causa) : '';
         campoValorGanhoCausa.value = item.valor_ganho_causa ? fmtMoeda(item.valor_ganho_causa) : '';
+        campoValorEstimado.value = item.valor_estimado_ganho ? fmtMoeda(item.valor_estimado_ganho) : '';
+        atualizarHonorarioEstimado();
         campoSituacao.value = item.situacao || '';
       } else {
         selectStatusContrato.value = item.status_contrato === 'Cancelado' ? 'Cancelado' : 'Ativo';
@@ -5872,6 +5899,7 @@
         corpo.valor_recebido_cliente = campoValorRecebido.value;
         corpo.valor_causa = campoValorCausaEditar.value;
         corpo.valor_ganho_causa = campoValorGanhoCausa.value;
+        corpo.valor_estimado_ganho = campoValorEstimado.value;
         corpo.status = campoSituacao.value.trim();
       } else {
         corpo.status = selectStatusContrato.value;
