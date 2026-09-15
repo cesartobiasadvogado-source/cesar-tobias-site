@@ -2962,6 +2962,10 @@
             '<label for="ncontrato-percentual">% de honorários de êxito</label>' +
             '<input type="number" step="0.01" min="0" max="100" id="ncontrato-percentual" placeholder="ex: 30">' +
           '</div>' +
+          '<div class="ncontrato-campo hidden" id="ncontrato-campo-valor-causa">' +
+            '<label for="ncontrato-valor-causa">Valor da causa (R$) — opcional</label>' +
+            '<input type="text" id="ncontrato-valor-causa" placeholder="0,00">' +
+          '</div>' +
           '<div class="ncontrato-linha2 hidden" id="ncontrato-linha-entrada">' +
             '<div class="ncontrato-campo">' +
               '<label for="ncontrato-valor-entrada">Valor de entrada (R$)</label>' +
@@ -3023,6 +3027,16 @@
             '<div class="ncontrato-campo">' +
               '<label for="econtrato-valor-recebido">Valor recebido pelo cliente (R$)</label>' +
               '<input type="text" id="econtrato-valor-recebido" placeholder="deixe em branco se ainda não recebeu">' +
+            '</div>' +
+          '</div>' +
+          '<div class="ncontrato-linha2 hidden" id="econtrato-linha-exito-causa">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-valor-causa">Valor da causa (R$)</label>' +
+              '<input type="text" id="econtrato-valor-causa" placeholder="opcional">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-valor-ganho-causa">Valor ganho na causa (R$)</label>' +
+              '<input type="text" id="econtrato-valor-ganho-causa" placeholder="opcional">' +
             '</div>' +
           '</div>' +
           '<div class="ncontrato-campo hidden" id="econtrato-campo-situacao">' +
@@ -5638,6 +5652,7 @@
     var selectTipo = document.getElementById('ncontrato-tipo');
     var campoValor = document.getElementById('ncontrato-campo-valor');
     var campoPercentual = document.getElementById('ncontrato-campo-percentual');
+    var campoValorCausa = document.getElementById('ncontrato-campo-valor-causa');
     var linhaEntrada = document.getElementById('ncontrato-linha-entrada');
     var linhaParcelas = document.getElementById('ncontrato-linha-parcelas');
     var campoPeriodicidade = document.getElementById('ncontrato-campo-periodicidade');
@@ -5649,6 +5664,7 @@
     var clientePorProcesso = {}; // valor do <option> de processo -> nome do cliente (pra auto-selecionar)
     aplicarMascaraMoeda(document.getElementById('ncontrato-valor'));
     aplicarMascaraMoeda(document.getElementById('ncontrato-valor-entrada'));
+    aplicarMascaraMoeda(document.getElementById('ncontrato-valor-causa'));
 
     function atualizarCamposPorTipo() {
       var tipo = selectTipo.value;
@@ -5656,6 +5672,7 @@
       var temExito = tipo === 'exito' || tipo === 'valor_exito';
       campoValor.classList.toggle('hidden', !temValor);
       campoPercentual.classList.toggle('hidden', !temExito);
+      campoValorCausa.classList.toggle('hidden', !temExito);
       linhaEntrada.classList.toggle('hidden', !temValor);
       linhaParcelas.classList.toggle('hidden', !temValor);
     }
@@ -5670,6 +5687,7 @@
       selectTipo.value = 'fixo';
       document.getElementById('ncontrato-valor').value = '';
       document.getElementById('ncontrato-percentual').value = '';
+      document.getElementById('ncontrato-valor-causa').value = '';
       document.getElementById('ncontrato-valor-entrada').value = '';
       document.getElementById('ncontrato-data-entrada').value = '';
       inputParcelas.value = '1';
@@ -5736,6 +5754,7 @@
         processo_numero: selectProcesso.value,
         valor_total: document.getElementById('ncontrato-valor').value,
         percentual_exito: document.getElementById('ncontrato-percentual').value,
+        valor_causa: document.getElementById('ncontrato-valor-causa').value,
         valor_entrada: document.getElementById('ncontrato-valor-entrada').value,
         data_entrada: document.getElementById('ncontrato-data-entrada').value ? fmtDataCurta(document.getElementById('ncontrato-data-entrada').value) : '',
         data_inicio: inputDataInicio.value ? fmtDataCurta(inputDataInicio.value) : '',
@@ -5772,8 +5791,11 @@
     var campoStatusContratoWrap = document.getElementById('econtrato-campo-status-contrato');
     var selectStatusContrato = document.getElementById('econtrato-status-contrato');
     var linhaExito = document.getElementById('econtrato-linha-exito');
+    var linhaExitoCausa = document.getElementById('econtrato-linha-exito-causa');
     var campoPercentual = document.getElementById('econtrato-percentual');
     var campoValorRecebido = document.getElementById('econtrato-valor-recebido');
+    var campoValorCausaEditar = document.getElementById('econtrato-valor-causa');
+    var campoValorGanhoCausa = document.getElementById('econtrato-valor-ganho-causa');
     var campoSituacaoWrap = document.getElementById('econtrato-campo-situacao');
     var campoSituacao = document.getElementById('econtrato-situacao');
     var campoValoresWrap = document.getElementById('econtrato-campo-valores');
@@ -5792,6 +5814,8 @@
     aplicarMascaraMoeda(campoValorRecebido);
     aplicarMascaraMoeda(campoValorTotal);
     aplicarMascaraMoeda(campoValorEntradaNovo);
+    aplicarMascaraMoeda(campoValorCausaEditar);
+    aplicarMascaraMoeda(campoValorGanhoCausa);
 
     checkboxAlterarValores.addEventListener('change', function () {
       subcamposValores.classList.toggle('hidden', !checkboxAlterarValores.checked);
@@ -5808,6 +5832,7 @@
       campoServico.value = (ehExito ? item.servico : item.tipo_servico) || '';
       campoStatusContratoWrap.classList.toggle('hidden', ehExito);
       linhaExito.classList.toggle('hidden', !ehExito);
+      linhaExitoCausa.classList.toggle('hidden', !ehExito);
       campoSituacaoWrap.classList.toggle('hidden', !ehExito);
       campoValoresWrap.classList.toggle('hidden', ehExito);
       checkboxAlterarValores.checked = false;
@@ -5815,6 +5840,8 @@
       if (ehExito) {
         campoPercentual.value = item.percentual ? Math.round(item.percentual * 10000) / 100 : '';
         campoValorRecebido.value = '';
+        campoValorCausaEditar.value = item.valor_causa ? fmtMoeda(item.valor_causa) : '';
+        campoValorGanhoCausa.value = item.valor_ganho_causa ? fmtMoeda(item.valor_ganho_causa) : '';
         campoSituacao.value = item.situacao || '';
       } else {
         selectStatusContrato.value = item.status_contrato === 'Cancelado' ? 'Cancelado' : 'Ativo';
@@ -5843,6 +5870,8 @@
       if (tipoRegistroAtual === 'exito') {
         corpo.percentual_exito = campoPercentual.value;
         corpo.valor_recebido_cliente = campoValorRecebido.value;
+        corpo.valor_causa = campoValorCausaEditar.value;
+        corpo.valor_ganho_causa = campoValorGanhoCausa.value;
         corpo.status = campoSituacao.value.trim();
       } else {
         corpo.status = selectStatusContrato.value;
