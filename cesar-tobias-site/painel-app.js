@@ -4,6 +4,7 @@
   var conteudo = document.getElementById('conteudo');
   var evolucaoMensalAtual = [];
   var filtroGraficoAtual = '6';
+  var mesesGraficoExecAtual = 12;
   var dadosPainelAtual = null;
   var itensModalDrillAtual = [];
 
@@ -982,61 +983,68 @@
     var tooltipHtml = '<div class="exec-tooltip" id="exec-grafico-tooltip"></div>';
     var temDado = serie.some(function (m) { return m.receita > 0 || m.despesa > 0; });
     if (!serie.length || !temDado) {
-      wrap.innerHTML = '<div class="fluxo-vazio">Sem movimentação registrada nos últimos 12 meses.</div>' + tooltipHtml;
+      wrap.innerHTML = '<div class="fluxo-vazio">Sem movimentação registrada no período.</div>' + tooltipHtml;
       return;
     }
 
-    var W = 720, H = 260, padL = 50, padR = 54, padT = 14, padB = 28;
+    var W = 720, H = 280, padL = 54, padR = 20, padT = 16, padB = 28;
     var plotW = W - padL - padR, plotH = H - padT - padB;
+    var baselineY = padT + plotH / 2;
+    var meioAltura = plotH / 2;
     var maiorValor = Math.max.apply(null, serie.map(function (m) { return Math.max(m.receita, m.despesa); }).concat([1]));
     var maxEixo = arredondarEixoValor(maiorValor);
     var n = serie.length;
+    var larguraSlot = plotW / n;
+    var larguraBarra = Math.max(Math.min(larguraSlot * 0.5, 26), 3);
 
-    function xAt(i) { return padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW); }
-    function yAt(v) { return padT + plotH - (Math.max(v, 0) / maxEixo) * plotH; }
+    function xAt(i) { return padL + (i + 0.5) * larguraSlot; }
+    function yAtSigned(v) { return baselineY - (v / maxEixo) * meioAltura; }
 
-    var ticks = [0, 0.25, 0.5, 0.75, 1].map(function (f) { return f * maxEixo; });
+    var ticks = [-1, -0.5, 0, 0.5, 1].map(function (f) { return f * maxEixo; });
     var gridSvg = ticks.map(function (v) {
-      var y = yAt(v);
-      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-width="1"/>' +
-        '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="var(--ink-faint)">' + fmtValorEixo(v) + '</text>';
+      var y = yAtSigned(v);
+      var ehZero = Math.abs(v) < 0.0001;
+      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="' + (ehZero ? 'var(--ink-faint)' : 'var(--line)') + '" stroke-width="' + (ehZero ? 1.4 : 1) + '"/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y + 3.5) + '" text-anchor="end" font-size="10" fill="var(--ink-faint)">' + fmtValorEixo(Math.abs(v)) + '</text>';
     }).join('');
 
-    function pathLinha(campo) {
-      return serie.map(function (m, i) { return (i === 0 ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + yAt(m[campo]).toFixed(1); }).join(' ');
-    }
-    function pathArea(campo) {
-      return pathLinha(campo) + ' L' + xAt(n - 1).toFixed(1) + ',' + yAt(0).toFixed(1) + ' L' + xAt(0).toFixed(1) + ',' + yAt(0).toFixed(1) + ' Z';
-    }
-    function pontos(campo, cor) {
-      return serie.map(function (m, i) {
-        return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAt(m[campo]).toFixed(1) + '" r="4" fill="' + cor + '" stroke="var(--surface)" stroke-width="2"/>';
-      }).join('');
-    }
+    var barrasSvg = serie.map(function (m, i) {
+      var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
+      var yReceitaTopo = yAtSigned(m.receita);
+      var yDespesaBase = yAtSigned(-m.despesa);
+      var barraReceita = m.receita > 0
+        ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="var(--chart-receita)" rx="2"/>'
+        : '';
+      var barraDespesa = m.despesa > 0
+        ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"/>'
+        : '';
+      return barraReceita + barraDespesa;
+    }).join('');
 
-    var ultimo = serie[n - 1];
-    var labelReceita = '<text x="' + (xAt(n - 1) + 8).toFixed(1) + '" y="' + (yAt(ultimo.receita) + 4).toFixed(1) + '" font-size="11" font-weight="600" fill="var(--chart-receita)">' + fmtValorEixo(ultimo.receita) + '</text>';
-    var labelDespesa = '<text x="' + (xAt(n - 1) + 8).toFixed(1) + '" y="' + (yAt(ultimo.despesa) + 4).toFixed(1) + '" font-size="11" font-weight="600" fill="var(--chart-despesa)">' + fmtValorEixo(ultimo.despesa) + '</text>';
+    var pathSaldo = serie.map(function (m, i) {
+      return (i === 0 ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + yAtSigned(m.receita - m.despesa).toFixed(1);
+    }).join(' ');
+    var pontosSaldo = serie.map(function (m, i) {
+      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>';
+    }).join('');
 
+    var labelStep = n > 18 ? 3 : (n > 12 ? 2 : 1);
     var eixoX = serie.map(function (m, i) {
+      if (i % labelStep !== 0 && i !== n - 1) return '';
       return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)">' + esc(nomeMesAbrev(m.mes)) + '</text>';
     }).join('');
 
     var hoverCols = serie.map(function (m, i) {
-      var xCentro = xAt(i);
-      var xEsq = i === 0 ? padL : (xAt(i - 1) + xCentro) / 2;
-      var xDir = i === n - 1 ? (W - padR) : (xCentro + xAt(i + 1)) / 2;
-      return '<rect data-idx="' + i + '" x="' + xEsq.toFixed(1) + '" y="' + padT + '" width="' + Math.max(xDir - xEsq, 0).toFixed(1) + '" height="' + plotH + '" fill="transparent" style="cursor:crosshair;"/>';
+      var xEsq = padL + i * larguraSlot;
+      return '<rect data-idx="' + i + '" x="' + xEsq.toFixed(1) + '" y="' + padT + '" width="' + larguraSlot.toFixed(1) + '" height="' + plotH + '" fill="transparent" style="cursor:crosshair;"/>';
     }).join('');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      gridSvg +
-      '<path d="' + pathArea('receita') + '" fill="var(--chart-receita)" opacity="0.1" stroke="none"/>' +
-      '<path d="' + pathArea('despesa') + '" fill="var(--chart-despesa)" opacity="0.1" stroke="none"/>' +
-      '<path d="' + pathLinha('receita') + '" fill="none" stroke="var(--chart-receita)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
-      '<path d="' + pathLinha('despesa') + '" fill="none" stroke="var(--chart-despesa)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
-      pontos('receita', 'var(--chart-receita)') + pontos('despesa', 'var(--chart-despesa)') +
-      labelReceita + labelDespesa + eixoX +
+      gridSvg + barrasSvg +
+      '<path d="' + pathSaldo + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      pontosSaldo + eixoX +
       '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
       hoverCols +
       '</svg>';
@@ -1139,11 +1147,12 @@
     var wrap = document.getElementById('exec-grafico-svg');
     if (!wrap) return;
     preencherExecKpisContratos();
-    apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_resumo_executivo' })
+    apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_resumo_executivo', meses: mesesGraficoExecAtual })
       .then(function (dados) {
         var r = dados.resumo || {};
         var kpis = r.kpis || {};
         desenharReceitaDespesas(r.receita_x_despesas || []);
+        renderExecAcumulado(r.receita_x_despesas || []);
         renderExecCategorias(r.despesas_por_categoria || []);
         renderExecProximos(r.proximos_vencimentos || []);
 
@@ -1185,6 +1194,43 @@
       .catch(function () {
         wrap.innerHTML = '<div class="fluxo-vazio">Não foi possível carregar o painel executivo agora.</div>';
       });
+  }
+
+  var ROTULO_PERIODO_EXEC = { 3: 'Últimos 3 meses', 6: 'Últimos 6 meses', 12: 'Últimos 12 meses', 24: 'Últimos 24 meses' };
+
+  function wireExecPeriodoFiltros() {
+    var wrap = document.getElementById('exec-periodo-filtros');
+    if (!wrap) return;
+    wrap.querySelectorAll('.exec-periodo-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var meses = parseInt(btn.getAttribute('data-meses'), 10);
+        if (meses === mesesGraficoExecAtual) return;
+        mesesGraficoExecAtual = meses;
+        wrap.querySelectorAll('.exec-periodo-btn').forEach(function (b) { b.classList.toggle('ativo', b === btn); });
+        var label = document.getElementById('exec-grafico-periodo-label');
+        if (label) label.textContent = ROTULO_PERIODO_EXEC[meses] || ('Últimos ' + meses + ' meses');
+        var labelCategorias = document.getElementById('exec-categorias-periodo-label');
+        if (labelCategorias) labelCategorias.textContent = ROTULO_PERIODO_EXEC[meses] || ('Últimos ' + meses + ' meses');
+        carregarPainelExecutivo();
+      });
+    });
+  }
+
+  function renderExecAcumulado(serie) {
+    var container = document.getElementById('exec-acumulado');
+    if (!container) return;
+    if (!serie.length) { container.innerHTML = ''; return; }
+    var totalReceita = serie.reduce(function (acc, m) { return acc + (m.receita || 0); }, 0);
+    var totalDespesa = serie.reduce(function (acc, m) { return acc + (m.despesa || 0); }, 0);
+    var saldoTotal = totalReceita - totalDespesa;
+    container.innerHTML =
+      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Receita no período</span>' +
+        '<span class="exec-acumulado-valor" style="color:var(--chart-receita);">R$ ' + fmtMoeda(totalReceita) + '</span></div>' +
+      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Despesas no período</span>' +
+        '<span class="exec-acumulado-valor" style="color:var(--chart-despesa);">R$ ' + fmtMoeda(totalDespesa) + '</span></div>' +
+      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Saldo do período</span>' +
+        '<span class="exec-acumulado-valor" style="color:' + (saldoTotal >= 0 ? 'var(--good)' : 'var(--crit)') + ';">' +
+          (saldoTotal < 0 ? '-' : '') + 'R$ ' + fmtMoeda(Math.abs(saldoTotal)) + '</span></div>';
   }
 
   function aplicarFiltroGrafico(filtro) {
@@ -3178,18 +3224,28 @@
         '</div>' +
         '<div class="exec-grid">' +
           '<div class="exec-card">' +
-            '<div class="exec-card-titulo">Receita × Despesas</div>' +
-            '<div class="exec-card-sub">Últimos 12 meses</div>' +
+            '<div class="exec-card-titulo-row">' +
+              '<div><div class="exec-card-titulo">Receita × Despesas</div>' +
+                '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses</div></div>' +
+              '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
+                '<button type="button" class="exec-periodo-btn" data-meses="3">3M</button>' +
+                '<button type="button" class="exec-periodo-btn" data-meses="6">6M</button>' +
+                '<button type="button" class="exec-periodo-btn ativo" data-meses="12">12M</button>' +
+                '<button type="button" class="exec-periodo-btn" data-meses="24">24M</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="exec-acumulado" id="exec-acumulado"></div>' +
             '<div class="exec-legend">' +
               '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
               '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesas</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);width:14px;height:3px;border-radius:2px;"></span>Saldo</span>' +
             '</div>' +
             '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
             '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
           '</div>' +
           '<div class="exec-card">' +
             '<div class="exec-card-titulo">Despesas por categoria</div>' +
-            '<div class="exec-card-sub">Últimos 12 meses</div>' +
+            '<div class="exec-card-sub" id="exec-categorias-periodo-label">Últimos 12 meses</div>' +
             '<div id="exec-categorias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '</div>' +
         '</div>' +
@@ -3332,7 +3388,7 @@
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
       wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
       wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
-      carregarPainelExecutivo();
+      wireExecPeriodoFiltros(); carregarPainelExecutivo();
     }
     if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosHub(); }
     if (PAGINA_ATUAL === 'processo_administrativo') { wireProcessosAdministrativos(); }
