@@ -2141,6 +2141,16 @@
     var htmlContrato = perms.indexOf('automacoes') === -1 ? '' :
       '<section id="sec-contrato"><p class="section-label">Procuração e Contrato</p>' +
         '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">Verificar/extrair dados do cliente</span></div>' +
+          '<div class="automacao-desc" style="padding:0 20px;">Vasculha a pasta do cliente no Drive (fotos e PDFs de RG, CPF, comprovante etc.) e extrai os dados de acesso com IA -- útil quando o cliente já mandou os documentos, mas ninguém preencheu os dados ainda. Também confere se já existe contrato e procuração salvos.</div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" list="verificar-dados-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="verificar_dados_cliente">' +
+            '<datalist id="verificar-dados-clientes-lista"></datalist>' +
+            '<button data-tipo="verificar_dados_cliente" class="btn-automacao">Verificar/extrair dados</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="verificar_dados_cliente" aria-live="polite" style="white-space:pre-wrap;user-select:text;padding:0 20px 16px;"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Gerar contrato de honorários</span></div>' +
           '<div class="proposta-form">' +
             '<input type="text" list="contrato-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="gerar_contrato">' +
@@ -2206,15 +2216,6 @@
           '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="novo_cliente">' +
           '<button data-tipo="novo_cliente" class="btn-automacao">Cadastrar</button>' +
           '<div class="automacao-resultado" data-resultado="novo_cliente" aria-live="polite"></div>' +
-        '</div>' +
-
-        '<div class="automacao-card">' +
-          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M15 2v5h5"></path><path d="M9 13l2 2 4-4"></path></svg>Verificar dados do cliente</div>' +
-          '<div class="automacao-desc">Confere se já tem contrato e procuração na pasta, e mostra os dados de acesso (CPF, RG, endereço) prontos pra copiar.</div>' +
-          '<input type="text" list="verificar-dados-clientes-lista" placeholder="Nome do cliente" data-campo="nome" data-form="verificar_dados_cliente">' +
-          '<datalist id="verificar-dados-clientes-lista"></datalist>' +
-          '<button data-tipo="verificar_dados_cliente" class="btn-automacao">Verificar</button>' +
-          '<div class="automacao-resultado" data-resultado="verificar_dados_cliente" aria-live="polite" style="white-space:pre-wrap;user-select:text;"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
