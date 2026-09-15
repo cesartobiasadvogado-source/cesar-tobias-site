@@ -2933,6 +2933,15 @@
         '</div>' +
         '<div id="honorarios-contratos-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
       '</div>' +
+      '<div class="panel" style="margin-top:14px;">' +
+        '<div class="panel-header"><span class="panel-title">Honorários de Êxito — Estimativa × Realizado</span></div>' +
+        '<div class="exito-estimativa-resumo" id="exito-estimativa-resumo"></div>' +
+        '<div class="exito-estimativa-legend">' +
+          '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Estimado (em andamento)</span>' +
+          '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--good);"></span>Recebido</span>' +
+        '</div>' +
+        '<div id="exito-estimativa-grafico"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+      '</div>' +
       '<div class="modal-overlay hidden" id="modal-novo-contrato">' +
         '<div class="ncontrato-modal-caixa">' +
           '<h3>Novo contrato de honorários<button type="button" class="modal-drill-fechar" id="ncontrato-fechar">✕</button></h3>' +
@@ -4626,6 +4635,46 @@
     });
   }
 
+  function renderExitoEstimativaChart() {
+    var container = document.getElementById('exito-estimativa-grafico');
+    var resumoEl = document.getElementById('exito-estimativa-resumo');
+    if (!container) return;
+    var exitos = honorariosContratosCache.exitos || [];
+    var itens = exitos.map(function (e) {
+      var resolvido = (e.valor_recebido_cliente || 0) > 0;
+      var valor = resolvido ? (e.honorario || 0) : ((e.percentual || 0) * (e.valor_estimado_ganho || 0));
+      return { nome: e.nome_cliente, servico: e.servico || '', resolvido: resolvido, valor: valor };
+    }).filter(function (i) { return i.valor > 0.004; });
+
+    var totalEstimado = itens.filter(function (i) { return !i.resolvido; }).reduce(function (acc, i) { return acc + i.valor; }, 0);
+    var totalRecebido = itens.filter(function (i) { return i.resolvido; }).reduce(function (acc, i) { return acc + i.valor; }, 0);
+    if (resumoEl) {
+      resumoEl.innerHTML =
+        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Estimado em andamento</span>' +
+          '<span class="exito-estimativa-valor" style="color:var(--accent);">R$ ' + fmtMoeda(totalEstimado) + '</span></div>' +
+        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Já recebido de êxito</span>' +
+          '<span class="exito-estimativa-valor" style="color:var(--good);">R$ ' + fmtMoeda(totalRecebido) + '</span></div>';
+    }
+
+    if (!itens.length) {
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum honorário de êxito com estimativa (% + estimativa de ganho) ou já recebido ainda.</div></div>';
+      return;
+    }
+
+    itens.sort(function (a, b) { return b.valor - a.valor; });
+    var maior = Math.max.apply(null, itens.map(function (i) { return i.valor; }).concat([1]));
+    container.innerHTML = itens.map(function (i) {
+      var pct = Math.max((i.valor / maior) * 100, 2);
+      var cor = i.resolvido ? 'var(--good)' : 'var(--accent)';
+      return '<div class="exito-bar-row">' +
+        '<div class="exito-bar-label" title="' + esc(i.nome + (i.servico ? ' — ' + i.servico : '')) + '">' + esc(i.nome) + '</div>' +
+        '<div class="exito-bar-track"><div class="exito-bar-fill" style="width:' + pct + '%; background:' + cor + ';"></div></div>' +
+        '<div class="exito-bar-valor">R$ ' + fmtMoeda(i.valor) + '</div>' +
+        '<span class="chip ' + (i.resolvido ? 'good' : 'neutral') + '">' + (i.resolvido ? 'Recebido' : 'Estimado') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
   function carregarHonorariosContratos() {
     var container = document.getElementById('honorarios-contratos-lista');
     if (!container) return;
@@ -4634,6 +4683,7 @@
         honorariosContratosCache.contratos = dados.contratos || [];
         honorariosContratosCache.exitos = dados.honorarios_exito || [];
         renderHonorariosContratos();
+        renderExitoEstimativaChart();
         // se chamou depois de criar/excluir um contrato, recarrega Contas a receber tambem
         // (mesmos dados, aba diferente) -- assim o cadastro novo ja aparece la sem precisar
         // trocar de aba e voltar.
