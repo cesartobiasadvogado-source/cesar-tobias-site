@@ -1012,14 +1012,15 @@
       var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
-      var opacidade = m.previsto ? ' opacity="0.5"' : '';
+      var opacidadeDespesa = m.previsto ? ' opacity="0.55"' : '';
+      var corReceita = m.previsto ? 'var(--chart-receita-prevista)' : 'var(--chart-receita)';
       var barraReceita = m.receita > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="var(--chart-receita)" rx="2"' + opacidade + '/>'
+          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="' + corReceita + '" rx="2"/>'
         : '';
       var barraDespesa = m.despesa > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"' + opacidade + '/>'
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"' + opacidadeDespesa + '/>'
         : '';
       return barraReceita + barraDespesa;
     }).join('');
@@ -1071,6 +1072,13 @@
 
     wrap.innerHTML = svg + tooltipHtml;
     wireHoverExecGrafico(wrap, serie, xAt);
+
+    var elMarco = document.getElementById('exec-marco-linha');
+    if (elMarco) {
+      elMarco.innerHTML = idxPrimeiroPrevisto > 0
+        ? '<span>← Histórico efetivado</span><span style="color:var(--chart-receita-prevista);">Previsto →</span>'
+        : '';
+    }
   }
 
   function wireHoverExecGrafico(wrap, serie, xAtFn) {
@@ -1149,6 +1157,9 @@
       '</div>';
   }
 
+  var ICONE_VENCIMENTO_PADRAO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M3 9h18M8 2v4M16 2v4"></path></svg>';
+  var ICONE_VENCIMENTO_VENCIDA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"></path><path d="M10.3 3.9 1.8 18a1.5 1.5 0 0 0 1.3 2.2h17.8a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path><path d="M12 16h.01"></path></svg>';
+
   function renderExecProximos(lista) {
     var container = document.getElementById('exec-proximos-lista');
     if (!container) return;
@@ -1157,16 +1168,22 @@
       return;
     }
     var chips = { Vencida: '<span class="chip crit">Vencida</span>', Parcial: '<span class="chip neutral">Parcial</span>', Aberta: '<span class="chip neutral">Aberta</span>' };
-    var linhas = lista.map(function (c) {
-      return '<tr><td>' + esc(c.descricao) + '</td>' +
-        '<td>' + esc(c.categoria || '—') + '</td>' +
-        '<td class="num">R$ ' + fmtMoeda(c.saldo) + '</td>' +
-        '<td>' + (c.vencimento ? fmtDataCurta(c.vencimento) : '—') + '</td>' +
-        '<td>' + (chips[c.status_exibicao] || chips.Aberta) + '</td></tr>';
+    container.innerHTML = lista.map(function (c) {
+      var vencida = c.status_exibicao === 'Vencida';
+      return '<div class="exec-venc-card">' +
+        '<div class="exec-venc-icon" style="' + (vencida ? 'color:var(--crit);background:var(--crit-soft);' : 'color:var(--accent);background:var(--accent-soft);') + '">' +
+          (vencida ? ICONE_VENCIMENTO_VENCIDA : ICONE_VENCIMENTO_PADRAO) +
+        '</div>' +
+        '<div class="exec-venc-corpo">' +
+          '<span class="exec-venc-titulo">' + esc(c.descricao) + '</span>' +
+          '<span class="exec-venc-sub">' + esc(c.categoria || 'Sem categoria') + '</span>' +
+        '</div>' +
+        '<div class="exec-venc-lado">' +
+          '<span class="exec-venc-valor">R$ ' + fmtMoeda(c.saldo) + '</span>' +
+          '<span class="exec-venc-data">' + (chips[c.status_exibicao] || chips.Aberta) + (c.vencimento ? ' · ' + esc(fmtDataCurta(c.vencimento)) : '') + '</span>' +
+        '</div>' +
+      '</div>';
     }).join('');
-    container.innerHTML = '<div class="table-scroll"><table>' +
-      '<thead><tr><th>Descrição</th><th>Categoria</th><th style="text-align:right">Saldo</th><th>Vencimento</th><th>Status</th></tr></thead>' +
-      '<tbody>' + linhas + '</tbody></table></div>';
   }
 
   var ICONE_INSIGHT_CATEGORIA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 3a8 8 0 1 0 8 8h-8z"></path><path d="M15 3.5A8 8 0 0 1 20.5 9H15z"></path></svg>';
@@ -1237,6 +1254,27 @@
     }).join('');
   }
 
+  var ROTULO_HORIZONTE_DIAS = { 30: 'Próximos 30 dias', 60: 'Próximos 60 dias', 90: 'Próximos 90 dias', 180: 'Próximos 6 meses', 365: 'Próximos 12 meses' };
+
+  function renderExecHorizontes(horizontes) {
+    var container = document.getElementById('exec-horizontes');
+    if (!container) return;
+    if (!horizontes.length) { container.innerHTML = ''; return; }
+    container.innerHTML = horizontes.map(function (h) {
+      var saldoNegativo = h.saldo < 0;
+      return '<div class="exec-horizonte-card">' +
+        '<div class="exec-horizonte-titulo">' + esc(ROTULO_HORIZONTE_DIAS[h.dias] || (h.dias + ' dias')) + '</div>' +
+        '<div class="exec-horizonte-linhas">' +
+          '<div class="exec-horizonte-linha"><span>Receitas:</span><span class="exec-horizonte-valor">R$ ' + fmtMoeda(h.receita) + '</span></div>' +
+          '<div class="exec-horizonte-linha"><span>Despesas:</span><span class="exec-horizonte-valor" style="color:var(--crit);">R$ ' + fmtMoeda(h.despesa) + '</span></div>' +
+        '</div>' +
+        '<div class="exec-horizonte-rodape"><span>Saldo estimado:</span>' +
+          '<span class="exec-horizonte-saldo" style="color:' + (saldoNegativo ? 'var(--crit)' : 'var(--good)') + ';">' +
+            (saldoNegativo ? '-' : '+') + 'R$ ' + fmtMoeda(Math.abs(h.saldo)) + '</span></div>' +
+      '</div>';
+    }).join('');
+  }
+
   function preencherExecKpisContratos() {
     var f = dadosPainelAtual && dadosPainelAtual.financeiro;
     if (!f) return;
@@ -1270,6 +1308,19 @@
         renderExecCategorias(r.despesas_por_categoria || []);
         renderExecProximos(r.proximos_vencimentos || []);
         renderExecInsights(r);
+        renderExecHorizontes(r.horizontes || []);
+
+        var horizonte90 = (r.horizontes || []).filter(function (h) { return h.dias === 90; })[0];
+        var elProjetado = document.getElementById('exec-kpi-projetado-90d');
+        if (elProjetado && horizonte90) {
+          var saldoProjNegativo = horizonte90.saldo < 0;
+          elProjetado.textContent = (saldoProjNegativo ? '-' : '') + fmtMoeda(Math.abs(horizonte90.saldo));
+          elProjetado.style.color = saldoProjNegativo ? 'var(--crit)' : 'var(--good)';
+        }
+        var elProjetadoSub = document.getElementById('exec-kpi-projetado-90d-sub');
+        if (elProjetadoSub && horizonte90) {
+          elProjetadoSub.textContent = 'receita R$ ' + fmtMoeda(horizonte90.receita) + ' · despesas R$ ' + fmtMoeda(horizonte90.despesa);
+        }
 
         var elSaldo = document.getElementById('exec-kpi-saldo');
         if (elSaldo) {
@@ -3322,6 +3373,7 @@
     var ICONE_EXEC_PENDENTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg>';
     var ICONE_EXEC_ATRASO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"></path><path d="M10.3 3.9 1.8 18a1.5 1.5 0 0 0 1.3 2.2h17.8a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path><path d="M12 16h.01"></path></svg>';
     var ICONE_EXEC_ATIVOS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    var ICONE_EXEC_PROJETADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17 9 11 13 15 21 7"></path><path d="M15 7h6v6"></path></svg>';
 
     function execStatCard(opts) {
       var corValor = opts.cor ? (' style="color:' + opts.cor + ';"') : '';
@@ -3339,16 +3391,17 @@
         '<p class="section-label">Painel Executivo</p>' +
         '<div class="exec-stat-grid">' +
           execStatCard({ id: 'exec-kpi-saldo', idSub: 'exec-kpi-saldo-sub', label: 'Saldo do mês', icone: ICONE_EXEC_SALDO }) +
-          execStatCard({ id: 'exec-kpi-a-pagar', idSub: 'exec-kpi-vencido-sub', label: 'Total a pagar', icone: ICONE_EXEC_A_PAGAR }) +
-          execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false }) +
+          execStatCard({ id: 'exec-kpi-projetado-90d', idSub: 'exec-kpi-projetado-90d-sub', label: 'Previsto (90 dias)', icone: ICONE_EXEC_PROJETADO, cor: 'var(--accent)' }) +
+          execStatCard({ id: 'exec-kpi-pendente', idSub: 'exec-kpi-pendente-sub', label: 'A receber previsto', icone: ICONE_EXEC_PENDENTE, subInicial: 'pelo vencimento' }) +
+          execStatCard({ id: 'exec-kpi-a-pagar', idSub: 'exec-kpi-vencido-sub', label: 'A pagar previsto', icone: ICONE_EXEC_A_PAGAR }) +
+          execStatCard({ id: 'exec-kpi-atraso', idSub: 'exec-kpi-atraso-sub', label: 'Em atraso', icone: ICONE_EXEC_ATRASO, cor: 'var(--crit)' }) +
+          execStatCard({ id: 'exec-kpi-contratos-ativos', idSub: 'exec-kpi-contratos-ativos-sub', label: 'Contratos ativos', icone: ICONE_EXEC_ATIVOS, money: false, subInicial: 'em andamento agora' }) +
         '</div>' +
         '<p class="exec-card-sub" style="margin:16px 0 8px;">Honorários e Contratos</p>' +
-        '<div class="exec-stat-grid">' +
+        '<div class="exec-stat-grid exec-stat-grid-secundaria">' +
           execStatCard({ id: 'exec-kpi-valor-total', idSub: 'exec-kpi-valor-total-sub', label: 'Valor total de contratos', icone: ICONE_EXEC_CONTRATO, subInicial: 'fechados até hoje' }) +
           execStatCard({ id: 'exec-kpi-recebido', idSub: 'exec-kpi-recebido-sub', label: 'Total recebido', icone: ICONE_EXEC_RECEBIDO, cor: 'var(--good)', subInicial: 'entradas + parcelas pagas' }) +
-          execStatCard({ id: 'exec-kpi-pendente', idSub: 'exec-kpi-pendente-sub', label: 'Total pendente', icone: ICONE_EXEC_PENDENTE, subInicial: 'ainda a receber' }) +
-          execStatCard({ id: 'exec-kpi-atraso', idSub: 'exec-kpi-atraso-sub', label: 'Total em atraso', icone: ICONE_EXEC_ATRASO, cor: 'var(--crit)' }) +
-          execStatCard({ id: 'exec-kpi-contratos-ativos', idSub: 'exec-kpi-contratos-ativos-sub', label: 'Contratos ativos', icone: ICONE_EXEC_ATIVOS, money: false, subInicial: 'em andamento agora' }) +
+          execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false }) +
         '</div>' +
         '<div class="exec-grid">' +
           '<div class="exec-card">' +
@@ -3364,10 +3417,12 @@
             '</div>' +
             '<div class="exec-acumulado" id="exec-acumulado"></div>' +
             '<div class="exec-legend">' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita realizada</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita-prevista);"></span>Receita prevista</span>' +
               '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesas</span>' +
               '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);width:14px;height:3px;border-radius:2px;"></span>Saldo</span>' +
             '</div>' +
+            '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
             '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
             '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
           '</div>' +
@@ -3377,6 +3432,11 @@
             '<div id="exec-categorias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
           '</div>' +
         '</div>' +
+        '<div class="exec-horizontes-cabecalho" style="margin-top:20px;">' +
+          '<p class="section-label" style="margin-bottom:2px;">Horizontes estratégicos de fluxo de caixa</p>' +
+          '<span class="exec-card-sub">Baseado no que já está agendado -- contas a pagar e parcelas a receber pelo vencimento</span>' +
+        '</div>' +
+        '<div class="exec-horizontes-grid" id="exec-horizontes"></div>' +
         '<div class="exec-insights-grid" id="exec-insights"></div>' +
         '<div class="panel" style="margin-top:16px;">' +
           '<div class="panel-header"><span class="panel-title">Próximos vencimentos</span></div>' +

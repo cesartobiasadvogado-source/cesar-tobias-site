@@ -23,7 +23,7 @@
     --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
-    --chart-receita: #2a78d6; --chart-despesa: #eb6834;
+    --chart-receita: #2a78d6; --chart-despesa: #eb6834; --chart-receita-prevista: #0aa3c2;
     --chart-cat-1: #2a78d6; --chart-cat-2: #eb6834; --chart-cat-3: #1baf7a; --chart-cat-4: #eda100;
     --chart-cat-5: #e87ba4; --chart-cat-6: #008300; --chart-cat-7: #4a3aa7; --chart-cat-8: #e34948;
   }
@@ -36,7 +36,7 @@
       --warn: #9c7a16; --warn-soft: #2a2312;
       --crit: #e23a2e; --crit-soft: #2c1614;
       --sidebar-line: rgba(255, 255, 255, 0.07);
-      --chart-receita: #3987e5; --chart-despesa: #d95926;
+      --chart-receita: #3987e5; --chart-despesa: #d95926; --chart-receita-prevista: #4cd7f6;
       --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
       --chart-cat-5: #d55181; --chart-cat-6: #008300; --chart-cat-7: #9085e9; --chart-cat-8: #e66767;
     }
@@ -49,7 +49,7 @@
     --warn: #9c7a16; --warn-soft: #2a2312;
     --crit: #e23a2e; --crit-soft: #2c1614;
     --sidebar-line: rgba(255, 255, 255, 0.07);
-    --chart-receita: #3987e5; --chart-despesa: #d95926;
+    --chart-receita: #3987e5; --chart-despesa: #d95926; --chart-receita-prevista: #4cd7f6;
     --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
     --chart-cat-5: #d55181; --chart-cat-6: #008300; --chart-cat-7: #9085e9; --chart-cat-8: #e66767;
   }
@@ -443,6 +443,8 @@
   .exec-stat-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; color: var(--ink); line-height: 1.15; }
   .exec-stat-value.money::before { content: 'R$ '; font-size: 14px; font-weight: 500; color: var(--ink-faint); }
   .exec-stat-foot { font-size: 12px; color: var(--ink-soft); padding-top: 8px; border-top: 1px solid var(--line); }
+  .exec-stat-grid-secundaria .exec-stat-card { padding: 12px 16px; }
+  .exec-stat-grid-secundaria .exec-stat-value { font-size: 19px; }
   .exec-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; margin-top: 14px; }
   @media (max-width: 900px) { .exec-grid { grid-template-columns: 1fr; } }
   .exec-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
@@ -458,6 +460,7 @@
   .exec-legend { display: flex; gap: 18px; margin-bottom: 14px; flex-wrap: wrap; }
   .exec-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
   .exec-legend-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .exec-marco-linha { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); padding: 0 2px 2px; }
   .exec-svg-wrap { position: relative; width: 100%; }
   .exec-tooltip {
     position: absolute; pointer-events: none; background: var(--surface); color: var(--ink);
@@ -482,6 +485,15 @@
   .exec-cat-legend-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
   .exec-cat-legend-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); width: 34px; text-align: right; flex-shrink: 0; }
   .exec-nota { margin-top: 14px; padding: 10px 13px; border-radius: 6px; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn); font-size: 12.5px; line-height: 1.5; }
+  .exec-horizontes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 10px; }
+  .exec-horizonte-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s ease, transform .15s ease; }
+  .exec-horizonte-card:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
+  .exec-horizonte-titulo { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--ink); }
+  .exec-horizonte-linhas { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+  .exec-horizonte-linha { display: flex; justify-content: space-between; }
+  .exec-horizonte-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 500; }
+  .exec-horizonte-rodape { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-soft); }
+  .exec-horizonte-saldo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; }
   .exec-insights-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
   .exec-insight-card { background: var(--surface-sunken); border-radius: 12px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; }
   .exec-insight-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--surface); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -489,6 +501,17 @@
   .exec-insight-corpo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .exec-insight-titulo { font-size: 12.5px; font-weight: 700; color: var(--ink); }
   .exec-insight-texto { margin: 0; font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+  .exec-venc-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; transition: background .12s ease; }
+  .exec-venc-card:hover { background: var(--surface-sunken); }
+  .exec-venc-card + .exec-venc-card { margin-top: 4px; }
+  .exec-venc-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .exec-venc-icon svg { width: 18px; height: 18px; }
+  .exec-venc-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .exec-venc-titulo { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exec-venc-sub { font-size: 12px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exec-venc-lado { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; text-align: right; }
+  .exec-venc-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .exec-venc-data { font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: center; gap: 4px; }
 
   /* Linha-resumo de um grupo de parcelas (Contas a receber) com seta pra expandir/recolher --
      as parcelas do contrato ficam escondidas ate clicar. */
