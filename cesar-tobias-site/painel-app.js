@@ -2805,6 +2805,33 @@
             '<label for="econtrato-situacao">Situação</label>' +
             '<input type="text" id="econtrato-situacao" placeholder="ex: Aguardando resultado">' +
           '</div>' +
+          '<div class="ncontrato-campo hidden" id="econtrato-campo-valores">' +
+            '<label style="display:flex;align-items:center;gap:6px;font-weight:400;">' +
+              '<input type="checkbox" id="econtrato-alterar-valores" style="width:auto;"> ' +
+              'Também alterar valor total, entrada ou parcelas' +
+            '</label>' +
+            '<div class="ncontrato-aviso-valores" id="econtrato-aviso-sem-pagamento">' +
+              'Só funciona se o contrato ainda não recebeu nada (nem entrada, nem parcela) -- ' +
+              'senão os números ficariam desencontrados com o que já foi pago.' +
+            '</div>' +
+            '<div class="hidden" id="econtrato-subcampos-valores" style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">' +
+              '<div class="ncontrato-linha2">' +
+                '<div class="ncontrato-campo"><label for="econtrato-valor-total">Valor total (R$)</label>' +
+                  '<input type="text" id="econtrato-valor-total"></div>' +
+                '<div class="ncontrato-campo"><label for="econtrato-valor-entrada">Entrada (R$)</label>' +
+                  '<input type="text" id="econtrato-valor-entrada"></div>' +
+              '</div>' +
+              '<div class="ncontrato-linha2">' +
+                '<div class="ncontrato-campo"><label for="econtrato-num-parcelas">Nº de parcelas</label>' +
+                  '<input type="number" min="1" id="econtrato-num-parcelas"></div>' +
+                '<div class="ncontrato-campo"><label for="econtrato-periodicidade">Periodicidade</label>' +
+                  '<select id="econtrato-periodicidade"><option value="Mensal">Mensal</option>' +
+                  '<option value="Quinzenal">Quinzenal</option><option value="Semanal">Semanal</option></select></div>' +
+              '</div>' +
+              '<div class="ncontrato-campo"><label for="econtrato-data-inicio">Data de início (1ª parcela)</label>' +
+                '<input type="date" id="econtrato-data-inicio"></div>' +
+            '</div>' +
+          '</div>' +
           '<div class="ncontrato-erro" id="econtrato-erro"></div>' +
           '<div class="ncontrato-acoes">' +
             '<button type="button" class="btn-conexao-secundario" id="econtrato-cancelar">Cancelar</button>' +
@@ -5441,11 +5468,25 @@
     var campoValorRecebido = document.getElementById('econtrato-valor-recebido');
     var campoSituacaoWrap = document.getElementById('econtrato-campo-situacao');
     var campoSituacao = document.getElementById('econtrato-situacao');
+    var campoValoresWrap = document.getElementById('econtrato-campo-valores');
+    var checkboxAlterarValores = document.getElementById('econtrato-alterar-valores');
+    var subcamposValores = document.getElementById('econtrato-subcampos-valores');
+    var campoValorTotal = document.getElementById('econtrato-valor-total');
+    var campoValorEntradaNovo = document.getElementById('econtrato-valor-entrada');
+    var campoNumParcelas = document.getElementById('econtrato-num-parcelas');
+    var selectPeriodicidade = document.getElementById('econtrato-periodicidade');
+    var campoDataInicio = document.getElementById('econtrato-data-inicio');
     var erroEl = document.getElementById('econtrato-erro');
     var btnSalvar = document.getElementById('econtrato-salvar');
     var tipoRegistroAtual = null;
     var idAtual = null;
     aplicarMascaraMoeda(campoValorRecebido);
+    aplicarMascaraMoeda(campoValorTotal);
+    aplicarMascaraMoeda(campoValorEntradaNovo);
+
+    checkboxAlterarValores.addEventListener('change', function () {
+      subcamposValores.classList.toggle('hidden', !checkboxAlterarValores.checked);
+    });
 
     function fecharModal() { modal.classList.add('hidden'); }
 
@@ -5459,12 +5500,20 @@
       campoStatusContratoWrap.classList.toggle('hidden', ehExito);
       linhaExito.classList.toggle('hidden', !ehExito);
       campoSituacaoWrap.classList.toggle('hidden', !ehExito);
+      campoValoresWrap.classList.toggle('hidden', ehExito);
+      checkboxAlterarValores.checked = false;
+      subcamposValores.classList.add('hidden');
       if (ehExito) {
         campoPercentual.value = item.percentual ? Math.round(item.percentual * 10000) / 100 : '';
         campoValorRecebido.value = '';
         campoSituacao.value = item.situacao || '';
       } else {
         selectStatusContrato.value = item.status_contrato === 'Cancelado' ? 'Cancelado' : 'Ativo';
+        campoValorTotal.value = item.valor_total ? fmtMoeda(item.valor_total) : '';
+        campoValorEntradaNovo.value = item.valor_entrada ? fmtMoeda(item.valor_entrada) : '';
+        campoNumParcelas.value = item.num_parcelas || 1;
+        selectPeriodicidade.value = 'Mensal';
+        campoDataInicio.value = item.data_inicio ? String(item.data_inicio).slice(0, 10) : '';
       }
       modal.classList.remove('hidden');
     };
@@ -5487,6 +5536,13 @@
         corpo.status = campoSituacao.value.trim();
       } else {
         corpo.status = selectStatusContrato.value;
+        if (checkboxAlterarValores.checked) {
+          corpo.valor_total = campoValorTotal.value;
+          corpo.valor_entrada = campoValorEntradaNovo.value;
+          corpo.num_parcelas = campoNumParcelas.value;
+          corpo.periodicidade = selectPeriodicidade.value;
+          corpo.data_inicio = campoDataInicio.value ? fmtDataCurta(campoDataInicio.value) : '';
+        }
       }
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Salvando…';
