@@ -4657,15 +4657,20 @@
     var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
     if (p.numero_parcela === 0) descricao += ' (Entrada)';
     else if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
-    var acoes = '';
+    var acoesPrincipais = '';
     if (p.status !== 'Paga') {
-      acoes +=
-        '<button type="button" class="btn-conexao" data-receber-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> ' +
-        '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button> ';
+      acoesPrincipais +=
+        '<button type="button" class="btn-conexao" data-receber-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Receber</button>' +
+        '<button type="button" class="btn-conexao-secundario" data-cobrar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Cobrar</button>';
     }
-    acoes +=
-      '<button type="button" class="btn-editar" data-editar-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Editar</button> ' +
-      '<button type="button" class="btn-remover" data-excluir-parcela-id="' + esc(p.id) + '" style="padding:4px 10px; font-size:12.5px;">Excluir</button>';
+    var acoesMenu =
+      '<span class="procman-acoes-wrap">' +
+        '<button type="button" class="parcela-btn-mais" data-parcela-mais="' + esc(p.id) + '" aria-label="Mais opções" title="Mais opções">⋮</button>' +
+        '<div class="procman-acoes-menu hidden" data-parcela-menu="' + esc(p.id) + '">' +
+          '<button type="button" data-editar-parcela-id="' + esc(p.id) + '">Editar</button>' +
+          '<button type="button" class="procman-acao-excluir" data-excluir-parcela-id="' + esc(p.id) + '">Excluir</button>' +
+        '</div>' +
+      '</span>';
     return '<tr>' +
       '<td' + (comIndentacao ? ' style="padding-left:34px; color:var(--ink-soft);"' : '') + '>' + esc(p.nome_cliente) + '</td>' +
       '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
@@ -4673,7 +4678,7 @@
       '<td class="num">R$ ' + fmtMoeda(p.status === 'Paga' ? p.valor_parcela : p.saldo) + '</td>' +
       '<td>' + (p.data_vencimento ? fmtDataCurta(p.data_vencimento) : '—') + '</td>' +
       '<td>' + (CHIPS_STATUS_PARCELA[p.status] || CHIPS_STATUS_PARCELA.Aberta) + '</td>' +
-      '<td><div style="display:flex; flex-wrap:wrap; gap:6px;">' + acoes + '</div></td></tr>';
+      '<td><div class="parcela-acoes-linha">' + acoesPrincipais + acoesMenu + '</div></td></tr>';
   }
 
   // Agrupa por contrato (mesmo contrato = mesmas parcelas de um unico lancamento) -- clientes
@@ -4809,8 +4814,22 @@
           return;
         }
 
+        var btnMaisParcela = ev.target.closest('[data-parcela-mais]');
+        if (btnMaisParcela) {
+          var menuParcelaAlvo = container.querySelector('[data-parcela-menu="' + btnMaisParcela.getAttribute('data-parcela-mais') + '"]');
+          var parcelaMenuJaAberto = menuParcelaAlvo && !menuParcelaAlvo.classList.contains('hidden');
+          container.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); m.classList.remove('abre-para-cima'); });
+          if (menuParcelaAlvo && !parcelaMenuJaAberto) {
+            menuParcelaAlvo.classList.remove('hidden');
+            var retanguloParcela = menuParcelaAlvo.getBoundingClientRect();
+            if (retanguloParcela.bottom > window.innerHeight) menuParcelaAlvo.classList.add('abre-para-cima');
+          }
+          return;
+        }
+
         var btnEditar = ev.target.closest('[data-editar-parcela-id]');
         if (btnEditar) {
+          container.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
           var itemEditar = parcelasAReceberCache.filter(function (p) { return String(p.id) === btnEditar.getAttribute('data-editar-parcela-id'); })[0];
           if (itemEditar && window.abrirModalEditarParcela) window.abrirModalEditarParcela(itemEditar);
           return;
@@ -4818,6 +4837,7 @@
 
         var btnExcluir = ev.target.closest('[data-excluir-parcela-id]');
         if (btnExcluir) {
+          container.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
           var idExcluir = btnExcluir.getAttribute('data-excluir-parcela-id');
           confirmarModal('Excluir essa parcela? Essa ação não pode ser desfeita.').then(function (ok) {
             if (!ok) return;
@@ -4829,6 +4849,16 @@
                 btnExcluir.disabled = false;
               });
           });
+          return;
+        }
+
+        if (!ev.target.closest('.procman-acoes-wrap')) {
+          container.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        }
+      });
+      document.addEventListener('click', function (ev) {
+        if (!ev.target.closest('.procman-acoes-wrap')) {
+          container.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
         }
       });
     }

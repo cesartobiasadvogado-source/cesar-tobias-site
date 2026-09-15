@@ -910,6 +910,16 @@
   .procman-acoes-menu button.procman-acao-excluir { color: var(--crit); }
   .procman-acoes-menu button.procman-acao-excluir:hover { background: var(--crit-soft); }
 
+  /* Acoes de uma linha de parcela (Contas a receber) -- so os 2 botoes principais (Receber/
+     Cobrar) ficam sempre visiveis; Editar/Excluir vao pro menu "⋮" pra nao empilhar em 2 linhas
+     numa celula estreita (visual "horrivel" relatado pelo usuario com os 4 botoes quebrando). */
+  .parcela-acoes-linha { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+  .parcela-btn-mais {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0;
+  }
+  .parcela-btn-mais:hover { background: var(--surface-sunken); color: var(--ink); }
+
   /* Hub de Processos -- ate 09/2026 era fiel ao print de referencia (tema escuro fixo, sem
      var() de tema claro/escuro), por pedido explicito do usuario ([[feedback-seguir-dashboards-
      literalmente]]). Revertido a pedido dele mesmo: agora usa os tokens de tema como o resto da
