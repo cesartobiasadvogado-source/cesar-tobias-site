@@ -4642,7 +4642,13 @@
     var exitos = honorariosContratosCache.exitos || [];
     var itens = exitos.map(function (e) {
       var resolvido = (e.valor_recebido_cliente || 0) > 0;
-      var valor = resolvido ? (e.honorario || 0) : ((e.percentual || 0) * (e.valor_estimado_ganho || 0));
+      // sem estimativa propria salva ainda, usa o valor da causa como base -- mesmo padrao
+      // "assume que, sem outra informacao, o ganho esperado e o valor total pedido" usado no
+      // preenchimento automatico do modal de Editar (antes esse gráfico ficava zerado pra
+      // qualquer contrato que so tivesse valor_causa preenchido, sem alguem abrir e salvar o
+      // modal de novo so pra gerar o valor_estimado_ganho).
+      var baseEstimativa = e.valor_estimado_ganho != null ? e.valor_estimado_ganho : (e.valor_causa || 0);
+      var valor = resolvido ? (e.honorario || 0) : ((e.percentual || 0) * baseEstimativa);
       return { nome: e.nome_cliente, servico: e.servico || '', resolvido: resolvido, valor: valor };
     }).filter(function (i) { return i.valor > 0.004; });
 
