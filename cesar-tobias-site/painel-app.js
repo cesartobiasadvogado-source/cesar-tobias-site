@@ -1012,28 +1012,41 @@
       var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
+      var opacidade = m.previsto ? ' opacity="0.5"' : '';
       var barraReceita = m.receita > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="var(--chart-receita)" rx="2"/>'
+          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="var(--chart-receita)" rx="2"' + opacidade + '/>'
         : '';
       var barraDespesa = m.despesa > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"/>'
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"' + opacidade + '/>'
         : '';
       return barraReceita + barraDespesa;
     }).join('');
 
-    var pathSaldo = serie.map(function (m, i) {
-      return (i === 0 ? 'M' : 'L') + xAt(i).toFixed(1) + ',' + yAtSigned(m.receita - m.despesa).toFixed(1);
+    var idxPrimeiroPrevisto = serie.findIndex(function (m) { return m.previsto; });
+    function pontoSaldo(i) { return xAt(i).toFixed(1) + ',' + yAtSigned(serie[i].receita - serie[i].despesa).toFixed(1); }
+    var fimRealizado = idxPrimeiroPrevisto === -1 ? n - 1 : idxPrimeiroPrevisto;
+    var pathSaldoRealizado = serie.slice(0, fimRealizado + 1).map(function (m, i) {
+      return (i === 0 ? 'M' : 'L') + pontoSaldo(i);
+    }).join(' ');
+    var pathSaldoPrevisto = idxPrimeiroPrevisto === -1 ? '' : serie.slice(fimRealizado).map(function (m, i) {
+      return (i === 0 ? 'M' : 'L') + pontoSaldo(fimRealizado + i);
     }).join(' ');
     var pontosSaldo = serie.map(function (m, i) {
-      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>';
+      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"' + (m.previsto ? ' opacity="0.6"' : '') + '/>';
     }).join('');
+
+    var divisorHoje = idxPrimeiroPrevisto <= 0 ? '' : (
+      '<line x1="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) + '" x2="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) +
+      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="3 3"/>' +
+      '<text x="' + (padL + idxPrimeiroPrevisto * larguraSlot).toFixed(1) + '" y="' + (padT - 4) + '" text-anchor="middle" font-size="9" fill="var(--ink-faint)">hoje</text>'
+    );
 
     var labelStep = n > 18 ? 3 : (n > 12 ? 2 : 1);
     var eixoX = serie.map(function (m, i) {
       if (i % labelStep !== 0 && i !== n - 1) return '';
-      return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)">' + esc(nomeMesAbrev(m.mes)) + '</text>';
+      return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)"' + (m.previsto ? ' font-style="italic"' : '') + '>' + esc(nomeMesAbrev(m.mes)) + '</text>';
     }).join('');
 
     var hoverCols = serie.map(function (m, i) {
@@ -1042,8 +1055,9 @@
     }).join('');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      gridSvg + barrasSvg +
-      '<path d="' + pathSaldo + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      gridSvg + barrasSvg + divisorHoje +
+      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
       '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
       hoverCols +
@@ -1062,7 +1076,8 @@
         var idx = parseInt(rect.getAttribute('data-idx'), 10);
         var m = serie[idx];
         var saldo = m.receita - m.despesa;
-        tooltip.innerHTML = '<div style="font-weight:600; margin-bottom:4px;">' + esc(nomeMesExtenso(m.mes)) + '</div>' +
+        var tituloMes = esc(nomeMesExtenso(m.mes)) + (m.previsto ? ' <span style="font-weight:400;color:var(--ink-faint);">(previsão)</span>' : '');
+        tooltip.innerHTML = '<div style="font-weight:600; margin-bottom:4px;">' + tituloMes + '</div>' +
           '<span style="color:var(--chart-receita);">●</span> Receita: <b>R$ ' + fmtMoeda(m.receita) + '</b><br>' +
           '<span style="color:var(--chart-despesa);">●</span> Despesas: <b>R$ ' + fmtMoeda(m.despesa) + '</b><br>' +
           'Saldo: <b style="color:' + (saldo >= 0 ? 'var(--good)' : 'var(--crit)') + ';">R$ ' + fmtMoeda(saldo) + '</b>';
@@ -1207,10 +1222,11 @@
         if (meses === mesesGraficoExecAtual) return;
         mesesGraficoExecAtual = meses;
         wrap.querySelectorAll('.exec-periodo-btn').forEach(function (b) { b.classList.toggle('ativo', b === btn); });
+        var rotuloBase = ROTULO_PERIODO_EXEC[meses] || ('Últimos ' + meses + ' meses');
         var label = document.getElementById('exec-grafico-periodo-label');
-        if (label) label.textContent = ROTULO_PERIODO_EXEC[meses] || ('Últimos ' + meses + ' meses');
+        if (label) label.textContent = rotuloBase + ' + próximos 6 (previsão)';
         var labelCategorias = document.getElementById('exec-categorias-periodo-label');
-        if (labelCategorias) labelCategorias.textContent = ROTULO_PERIODO_EXEC[meses] || ('Últimos ' + meses + ' meses');
+        if (labelCategorias) labelCategorias.textContent = rotuloBase;
         carregarPainelExecutivo();
       });
     });
@@ -3226,7 +3242,7 @@
           '<div class="exec-card">' +
             '<div class="exec-card-titulo-row">' +
               '<div><div class="exec-card-titulo">Receita × Despesas</div>' +
-                '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses</div></div>' +
+                '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses + próximos 6 (previsão)</div></div>' +
               '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
                 '<button type="button" class="exec-periodo-btn" data-meses="3">3M</button>' +
                 '<button type="button" class="exec-periodo-btn" data-meses="6">6M</button>' +
