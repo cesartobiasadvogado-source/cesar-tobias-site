@@ -2938,7 +2938,8 @@
         '<div class="exito-estimativa-resumo" id="exito-estimativa-resumo"></div>' +
         '<div class="exito-estimativa-legend">' +
           '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Estimado (em andamento)</span>' +
-          '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--good);"></span>Recebido</span>' +
+          '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--warn);"></span>Apurado, a receber</span>' +
+          '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--good);"></span>Já recebido</span>' +
         '</div>' +
         '<div id="exito-estimativa-grafico"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
       '</div>' +
@@ -4577,11 +4578,15 @@
         '</td></tr>';
     }).join('');
     var linhasExito = exitos.map(function (e) {
+      var btnReceberExito = (e.a_receber || 0) > 0
+        ? '<button type="button" class="btn-conexao" data-receber-exito-id="' + e.id + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> '
+        : '';
       return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
         '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
         '<td class="num">—</td><td>Êxito</td>' +
         '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
         '<td>' +
+          btnReceberExito +
           '<button type="button" class="btn-editar" data-editar-exito="' + e.id + '">Editar</button> ' +
           '<button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button>' +
         '</td></tr>';
@@ -4633,7 +4638,33 @@
         if (item && window.abrirModalEditarContrato) window.abrirModalEditarContrato('exito', item);
       });
     });
+    container.querySelectorAll('[data-receber-exito-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idReceberExito = btn.getAttribute('data-receber-exito-id');
+        var itemExito = honorariosContratosCache.exitos.filter(function (e) { return String(e.id) === idReceberExito; })[0];
+        if (!itemExito) return;
+        pedirValorRecebido({ nome_cliente: itemExito.nome_cliente, saldo: itemExito.a_receber }).then(function (valorDigitado) {
+          if (valorDigitado === null) return;
+          var textoOriginal = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Registrando...';
+          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_exito_receber', id: idReceberExito, valor: valorDigitado })
+            .then(function () { carregarHonorariosContratos(); })
+            .catch(function (e) {
+              mostrarAviso(e.message || 'Não foi possível registrar o recebimento agora.');
+              btn.disabled = false;
+              btn.textContent = textoOriginal;
+            });
+        });
+      });
+    });
   }
+
+  var EXITO_ESTADO_INFO = {
+    estimado: { cor: 'var(--accent)', rotulo: 'Estimado', chip: 'neutral' },
+    a_receber: { cor: 'var(--warn)', rotulo: 'A receber', chip: 'warn' },
+    recebido: { cor: 'var(--good)', rotulo: 'Recebido', chip: 'good' },
+  };
 
   function renderExitoEstimativaChart() {
     var container = document.getElementById('exito-estimativa-grafico');
@@ -4641,29 +4672,44 @@
     if (!container) return;
     var exitos = honorariosContratosCache.exitos || [];
     var itens = exitos.map(function (e) {
-      var resolvido = (e.valor_recebido_cliente || 0) > 0;
-      // sem estimativa propria salva ainda, usa o valor da causa como base -- mesmo padrao
-      // "assume que, sem outra informacao, o ganho esperado e o valor total pedido" usado no
-      // preenchimento automatico do modal de Editar (antes esse gráfico ficava zerado pra
-      // qualquer contrato que so tivesse valor_causa preenchido, sem alguem abrir e salvar o
-      // modal de novo so pra gerar o valor_estimado_ganho).
-      var baseEstimativa = e.valor_estimado_ganho != null ? e.valor_estimado_ganho : (e.valor_causa || 0);
-      var valor = resolvido ? (e.honorario || 0) : ((e.percentual || 0) * baseEstimativa);
-      return { nome: e.nome_cliente, servico: e.servico || '', resolvido: resolvido, valor: valor };
+      var apurado = (e.honorario || 0) > 0; // ja tem valor_recebido_cliente informado -- honorario calculado de verdade
+      var estado;
+      var valor;
+      if (!apurado) {
+        // ainda sem resultado -- so a estimativa (% x estimativa de ganho, ou valor da causa
+        // se ninguem salvou uma estimativa propria ainda).
+        estado = 'estimado';
+        var baseEstimativa = e.valor_estimado_ganho != null ? e.valor_estimado_ganho : (e.valor_causa || 0);
+        valor = (e.percentual || 0) * baseEstimativa;
+      } else if ((e.a_receber || 0) > 0.004) {
+        // resultado ja saiu e o honorario ja foi apurado, mas o advogado ainda nao recebeu
+        // (nem tudo, nem parte) -- diferente de "valor_recebido_cliente", que e so o que o
+        // CLIENTE ganhou na causa, base pra calcular o honorario (relatado pelo usuario: um
+        // honorario apurado aparecia como "Recebido" so por ja ter esse valor informado,
+        // mesmo sem o advogado ter visto um centavo ainda).
+        estado = 'a_receber';
+        valor = e.honorario || 0;
+      } else {
+        estado = 'recebido';
+        valor = e.honorario || 0;
+      }
+      return { nome: e.nome_cliente, servico: e.servico || '', estado: estado, valor: valor };
     }).filter(function (i) { return i.valor > 0.004; });
 
-    var totalEstimado = itens.filter(function (i) { return !i.resolvido; }).reduce(function (acc, i) { return acc + i.valor; }, 0);
-    var totalRecebido = itens.filter(function (i) { return i.resolvido; }).reduce(function (acc, i) { return acc + i.valor; }, 0);
+    var totais = { estimado: 0, a_receber: 0, recebido: 0 };
+    itens.forEach(function (i) { totais[i.estado] += i.valor; });
     if (resumoEl) {
       resumoEl.innerHTML =
         '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Estimado em andamento</span>' +
-          '<span class="exito-estimativa-valor" style="color:var(--accent);">R$ ' + fmtMoeda(totalEstimado) + '</span></div>' +
-        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Já recebido de êxito</span>' +
-          '<span class="exito-estimativa-valor" style="color:var(--good);">R$ ' + fmtMoeda(totalRecebido) + '</span></div>';
+          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.estimado.cor + ';">R$ ' + fmtMoeda(totais.estimado) + '</span></div>' +
+        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">A receber (já apurado)</span>' +
+          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.a_receber.cor + ';">R$ ' + fmtMoeda(totais.a_receber) + '</span></div>' +
+        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Já recebido</span>' +
+          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.recebido.cor + ';">R$ ' + fmtMoeda(totais.recebido) + '</span></div>';
     }
 
     if (!itens.length) {
-      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum honorário de êxito com estimativa (% + estimativa de ganho) ou já recebido ainda.</div></div>';
+      container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum honorário de êxito com estimativa (% + estimativa de ganho) ou já apurado ainda.</div></div>';
       return;
     }
 
@@ -4671,12 +4717,12 @@
     var maior = Math.max.apply(null, itens.map(function (i) { return i.valor; }).concat([1]));
     container.innerHTML = itens.map(function (i) {
       var pct = Math.max((i.valor / maior) * 100, 2);
-      var cor = i.resolvido ? 'var(--good)' : 'var(--accent)';
+      var info = EXITO_ESTADO_INFO[i.estado];
       return '<div class="exito-bar-row">' +
         '<div class="exito-bar-label" title="' + esc(i.nome + (i.servico ? ' — ' + i.servico : '')) + '">' + esc(i.nome) + '</div>' +
-        '<div class="exito-bar-track"><div class="exito-bar-fill" style="width:' + pct + '%; background:' + cor + ';"></div></div>' +
+        '<div class="exito-bar-track"><div class="exito-bar-fill" style="width:' + pct + '%; background:' + info.cor + ';"></div></div>' +
         '<div class="exito-bar-valor">R$ ' + fmtMoeda(i.valor) + '</div>' +
-        '<span class="chip ' + (i.resolvido ? 'good' : 'neutral') + '">' + (i.resolvido ? 'Recebido' : 'Estimado') + '</span>' +
+        '<span class="chip ' + info.chip + '">' + info.rotulo + '</span>' +
       '</div>';
     }).join('');
   }
