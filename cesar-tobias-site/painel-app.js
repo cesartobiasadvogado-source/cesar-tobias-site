@@ -4383,7 +4383,8 @@
   function linhaParcelaHtml(p, comIndentacao) {
     var matchProcesso = /Processo (\S+)/.exec(p.tipo_servico || '');
     var descricao = (p.tipo_servico || 'Honorários').replace(/\s*—\s*Processo \S+/, '');
-    if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
+    if (p.numero_parcela === 0) descricao += ' (Entrada)';
+    else if (p.total_parcelas && p.total_parcelas > 1) descricao += ' (' + p.numero_parcela + '/' + p.total_parcelas + ')';
     var acoes = '';
     if (p.status !== 'Paga') {
       acoes +=
