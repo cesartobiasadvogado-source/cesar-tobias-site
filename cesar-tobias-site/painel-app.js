@@ -2139,7 +2139,7 @@
       '</section>';
 
     var htmlContrato = perms.indexOf('automacoes') === -1 ? '' :
-      '<section id="sec-contrato"><p class="section-label">Contrato</p>' +
+      '<section id="sec-contrato"><p class="section-label">Procuração e Contrato</p>' +
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Gerar contrato de honorários</span></div>' +
           '<div class="proposta-form">' +
@@ -2161,6 +2161,23 @@
           '</div>' +
           '<div class="automacao-resultado" data-resultado="gerar_contrato" aria-live="polite" style="padding:0 20px 16px;"></div>' +
           '<div id="contrato-preview"></div>' +
+        '</div>' +
+        '<div class="panel" style="margin-top:16px;" id="card-assinatura">' +
+          '<div class="panel-header"><span class="panel-title">Enviar procuração/contrato para assinatura</span></div>' +
+          '<div class="automacao-desc" style="padding:0 20px;">Manda o PDF (procuração, contrato ou outro documento da pasta de honorários) direto pro cliente assinar pela Autentique, sem precisar do WhatsApp.</div>' +
+          '<div class="proposta-form">' +
+            '<input type="text" placeholder="Nome do cliente" id="assinatura-nome">' +
+            '<button type="button" id="assinatura-buscar" class="btn-automacao">Buscar documentos</button>' +
+          '</div>' +
+          '<div id="assinatura-passo2" class="hidden" style="margin:0 20px 16px;display:flex;flex-direction:column;gap:8px;">' +
+            '<div class="hidden" id="assinatura-campo-telefone" style="display:flex;flex-direction:column;gap:4px;">' +
+              '<label for="assinatura-telefone" style="font-size:13px;color:var(--ink-soft);">Não achei telefone cadastrado -- informe (com DDD):</label>' +
+              '<input type="text" id="assinatura-telefone" placeholder="Ex: 5599999999999">' +
+            '</div>' +
+            '<div id="assinatura-lista-docs"></div>' +
+            '<button type="button" id="assinatura-enviar" class="btn-automacao">Enviar para assinatura</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="enviar_assinatura" id="assinatura-resultado" aria-live="polite" style="padding:0 20px 16px;"></div>' +
         '</div>' +
       '</section>';
 
@@ -2254,22 +2271,6 @@
           '<button data-tipo="relatorio_fechamento" class="btn-automacao">Ver relatório</button>' +
           '<div class="automacao-resultado" data-resultado="relatorio_fechamento" aria-live="polite"></div>' +
         '</div>') +
-
-        '<div class="automacao-card" id="card-assinatura">' +
-          '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Enviar assinatura</div>' +
-          '<div class="automacao-desc">Manda a procuração (ou outro PDF da pasta de honorários) direto pro cliente assinar, sem precisar do WhatsApp.</div>' +
-          '<input type="text" placeholder="Nome do cliente" id="assinatura-nome">' +
-          '<button type="button" id="assinatura-buscar" class="btn-automacao">Buscar documentos</button>' +
-          '<div id="assinatura-passo2" class="hidden" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">' +
-            '<div class="hidden" id="assinatura-campo-telefone" style="display:flex;flex-direction:column;gap:4px;">' +
-              '<label for="assinatura-telefone" style="font-size:13px;color:var(--ink-soft);">Não achei telefone cadastrado -- informe (com DDD):</label>' +
-              '<input type="text" id="assinatura-telefone" placeholder="Ex: 5599999999999">' +
-            '</div>' +
-            '<div id="assinatura-lista-docs"></div>' +
-            '<button type="button" id="assinatura-enviar" class="btn-automacao">Enviar para assinatura</button>' +
-          '</div>' +
-          '<div class="automacao-resultado" data-resultado="enviar_assinatura" id="assinatura-resultado" aria-live="polite"></div>' +
-        '</div>' +
 
         '<div class="automacao-card">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>Gerar link com UTM</div>' +
