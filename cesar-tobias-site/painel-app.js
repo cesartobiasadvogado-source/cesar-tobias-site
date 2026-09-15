@@ -2255,11 +2255,20 @@
           '<div class="automacao-resultado" data-resultado="relatorio_fechamento" aria-live="polite"></div>' +
         '</div>') +
 
-        '<div class="automacao-card">' +
+        '<div class="automacao-card" id="card-assinatura">' +
           '<div class="automacao-titulo"><svg class="automacao-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13"></path><path d="M22 2 15 22 11 13 2 9 22 2z"></path></svg>Enviar assinatura</div>' +
-          '<input type="text" placeholder="Nome do cliente" data-campo="nome" data-form="enviar_assinatura">' +
-          '<button data-tipo="enviar_assinatura" class="btn-automacao">Enviar</button>' +
-          '<div class="automacao-resultado" data-resultado="enviar_assinatura" aria-live="polite"></div>' +
+          '<div class="automacao-desc">Manda a procuração (ou outro PDF da pasta de honorários) direto pro cliente assinar, sem precisar do WhatsApp.</div>' +
+          '<input type="text" placeholder="Nome do cliente" id="assinatura-nome">' +
+          '<button type="button" id="assinatura-buscar" class="btn-automacao">Buscar documentos</button>' +
+          '<div id="assinatura-passo2" class="hidden" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">' +
+            '<div class="hidden" id="assinatura-campo-telefone" style="display:flex;flex-direction:column;gap:4px;">' +
+              '<label for="assinatura-telefone" style="font-size:13px;color:var(--ink-soft);">Não achei telefone cadastrado -- informe (com DDD):</label>' +
+              '<input type="text" id="assinatura-telefone" placeholder="Ex: 5599999999999">' +
+            '</div>' +
+            '<div id="assinatura-lista-docs"></div>' +
+            '<button type="button" id="assinatura-enviar" class="btn-automacao">Enviar para assinatura</button>' +
+          '</div>' +
+          '<div class="automacao-resultado" data-resultado="enviar_assinatura" id="assinatura-resultado" aria-live="polite"></div>' +
         '</div>' +
 
         '<div class="automacao-card">' +
@@ -3308,7 +3317,7 @@
 
     if (!temAcessoPagina) return;
 
-    if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); }
+    if (PAGINA_ATUAL === 'automacoes') { wireAutomacoes(); wireContrato(); wireAssinaturaDireta(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
@@ -8905,11 +8914,107 @@
     }).observe(document.body, { childList: true, subtree: true });
   })();
 
+  function wireAssinaturaDireta() {
+    var card = document.getElementById('card-assinatura');
+    if (!card) return;
+    var campoNome = document.getElementById('assinatura-nome');
+    var btnBuscar = document.getElementById('assinatura-buscar');
+    var passo2 = document.getElementById('assinatura-passo2');
+    var campoTelefoneWrap = document.getElementById('assinatura-campo-telefone');
+    var campoTelefone = document.getElementById('assinatura-telefone');
+    var listaDocs = document.getElementById('assinatura-lista-docs');
+    var btnEnviar = document.getElementById('assinatura-enviar');
+    var resultadoEl = document.getElementById('assinatura-resultado');
+    var nomePastaAtual = '';
+
+    function esconderPasso2() {
+      passo2.classList.add('hidden');
+      listaDocs.innerHTML = '';
+    }
+
+    function buscar() {
+      var nome = campoNome.value.trim();
+      resultadoEl.textContent = '';
+      if (!nome) { resultadoEl.textContent = 'Informe o nome do cliente.'; return; }
+      esconderPasso2();
+      btnBuscar.disabled = true;
+      btnBuscar.textContent = 'Buscando...';
+      var corpo = { tipo: 'assinatura_listar_documentos', nome: nome };
+      if (campoTelefone.value.trim()) corpo.telefone = campoTelefone.value.trim();
+      apiPostJson('/api/painel?acao=executar', corpo)
+        .then(function (dados) {
+          nomePastaAtual = dados.nome_pasta || nome;
+          if (dados.precisa_telefone) {
+            campoTelefoneWrap.classList.remove('hidden');
+            passo2.classList.remove('hidden');
+            resultadoEl.textContent = 'Não achei telefone cadastrado pra ' + nomePastaAtual + '. Informe abaixo e busque de novo.';
+            return;
+          }
+          campoTelefoneWrap.classList.add('hidden');
+          var opcoes = dados.opcoes || [];
+          if (!opcoes.length) {
+            resultadoEl.textContent = 'Nenhum PDF encontrado na pasta de honorários de ' + nomePastaAtual + '.';
+            return;
+          }
+          listaDocs.innerHTML =
+            '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px;">Documentos de ' + esc(nomePastaAtual) +
+            ' (telefone: ' + esc(dados.telefone || '') + '):</div>' +
+            opcoes.map(function (o, i) {
+              return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-weight:400;">' +
+                '<input type="checkbox" class="assinatura-doc-check" data-id="' + esc(o.id) + '" data-nome="' + esc(o.nome) + '"' + (i === 0 ? ' checked' : '') + '> ' +
+                esc(o.nome) + '</label>';
+            }).join('');
+          btnEnviar.dataset.telefone = dados.telefone || campoTelefone.value.trim();
+          passo2.classList.remove('hidden');
+        })
+        .catch(function (e) { resultadoEl.textContent = e.message || 'Não foi possível buscar agora.'; })
+        .finally(function () {
+          btnBuscar.disabled = false;
+          btnBuscar.textContent = 'Buscar documentos';
+        });
+    }
+
+    btnBuscar.addEventListener('click', buscar);
+
+    btnEnviar.addEventListener('click', function () {
+      var marcados = listaDocs.querySelectorAll('.assinatura-doc-check:checked');
+      if (!marcados.length) { resultadoEl.textContent = 'Marque pelo menos um documento.'; return; }
+      var telefone = btnEnviar.dataset.telefone || campoTelefone.value.trim();
+      if (!telefone) { resultadoEl.textContent = 'Informe o telefone do cliente.'; return; }
+      var ids = [], nomes = [];
+      marcados.forEach(function (chk) { ids.push(chk.getAttribute('data-id')); nomes.push(chk.getAttribute('data-nome')); });
+
+      btnEnviar.disabled = true;
+      var textoOriginal = btnEnviar.textContent;
+      btnEnviar.textContent = 'Enviando...';
+      resultadoEl.textContent = '';
+      apiPostJson('/api/painel?acao=executar', {
+        tipo: 'assinatura_enviar_documentos', telefone: telefone, ids: ids.join(','), nomes: nomes.join('||'),
+      })
+        .then(function (dados) {
+          var partes = [];
+          if (dados.enviados && dados.enviados.length) partes.push('Enviados: ' + dados.enviados.join(', '));
+          if (dados.falhas && dados.falhas.length) partes.push('Falharam: ' + dados.falhas.join(', '));
+          resultadoEl.textContent = partes.length ? partes.join(' — ') : 'Concluído.';
+          if (dados.enviados && dados.enviados.length && (!dados.falhas || !dados.falhas.length)) {
+            esconderPasso2();
+            campoNome.value = '';
+          }
+        })
+        .catch(function (e) { resultadoEl.textContent = e.message || 'Não foi possível enviar agora.'; })
+        .finally(function () {
+          btnEnviar.disabled = false;
+          btnEnviar.textContent = textoOriginal;
+        });
+    });
+  }
+
   function wireAutomacoes() {
     var botoes = document.querySelectorAll('.btn-automacao');
     for (var i = 0; i < botoes.length; i++) {
       botoes[i].addEventListener('click', function (e) {
         var tipoBotao = e.target.getAttribute('data-tipo');
+        if (!tipoBotao) return; // botoes com fluxo proprio (ex: assinatura direta) sao wireados a parte
         if (tipoBotao === 'remover_cliente_financeiro') {
           var nomeCampo = document.querySelector('[data-form="remover_cliente_financeiro"][data-campo="nome"]');
           var nomeDigitado = nomeCampo ? nomeCampo.value.trim() : '';
