@@ -2828,8 +2828,12 @@
                   '<select id="econtrato-periodicidade"><option value="Mensal">Mensal</option>' +
                   '<option value="Quinzenal">Quinzenal</option><option value="Semanal">Semanal</option></select></div>' +
               '</div>' +
-              '<div class="ncontrato-campo"><label for="econtrato-data-inicio">Data de início (1ª parcela)</label>' +
-                '<input type="date" id="econtrato-data-inicio"></div>' +
+              '<div class="ncontrato-linha2">' +
+                '<div class="ncontrato-campo"><label for="econtrato-data-inicio">Data de início do contrato</label>' +
+                  '<input type="date" id="econtrato-data-inicio"></div>' +
+                '<div class="ncontrato-campo"><label for="econtrato-data-entrada">Data de pagamento da entrada</label>' +
+                  '<input type="date" id="econtrato-data-entrada"></div>' +
+              '</div>' +
             '</div>' +
           '</div>' +
           '<div class="ncontrato-erro" id="econtrato-erro"></div>' +
@@ -5477,6 +5481,7 @@
     var campoNumParcelas = document.getElementById('econtrato-num-parcelas');
     var selectPeriodicidade = document.getElementById('econtrato-periodicidade');
     var campoDataInicio = document.getElementById('econtrato-data-inicio');
+    var campoDataEntrada = document.getElementById('econtrato-data-entrada');
     var erroEl = document.getElementById('econtrato-erro');
     var btnSalvar = document.getElementById('econtrato-salvar');
     var tipoRegistroAtual = null;
@@ -5515,6 +5520,7 @@
         campoNumParcelas.value = item.num_parcelas || 1;
         selectPeriodicidade.value = 'Mensal';
         campoDataInicio.value = item.data_inicio ? String(item.data_inicio).slice(0, 10) : '';
+        campoDataEntrada.value = item.data_vencimento_entrada ? String(item.data_vencimento_entrada).slice(0, 10) : '';
       }
       modal.classList.remove('hidden');
     };
@@ -5543,6 +5549,7 @@
           corpo.num_parcelas = campoNumParcelas.value;
           corpo.periodicidade = selectPeriodicidade.value;
           corpo.data_inicio = campoDataInicio.value ? fmtDataCurta(campoDataInicio.value) : '';
+          corpo.data_entrada = campoDataEntrada.value ? fmtDataCurta(campoDataEntrada.value) : '';
         }
       }
       btnSalvar.disabled = true;
