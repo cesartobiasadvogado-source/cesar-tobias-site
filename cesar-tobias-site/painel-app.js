@@ -5835,6 +5835,8 @@
       subcamposValores.classList.toggle('hidden', !checkboxAlterarValores.checked);
     });
 
+    var estimativaEditadaManualmente = false;
+
     function atualizarHonorarioEstimado() {
       var percentual = parseFloat((campoPercentual.value || '').replace(',', '.'));
       var estimativa = parseFloat((campoValorEstimado.value || '').replace(/\./g, '').replace(',', '.'));
@@ -5842,8 +5844,22 @@
       elHonorarioEstimado.textContent = 'R$ ' + fmtMoeda(estimativa * (percentual / 100));
     }
     campoPercentual.addEventListener('input', atualizarHonorarioEstimado);
-    campoValorEstimado.addEventListener('input', atualizarHonorarioEstimado);
+    campoValorEstimado.addEventListener('input', function () {
+      // usuario digitou a propria estimativa -- para de preencher sozinho a partir do valor da
+      // causa, senao apagaria o que ele acabou de escrever.
+      estimativaEditadaManualmente = true;
+      atualizarHonorarioEstimado();
+    });
     campoValorEstimado.addEventListener('blur', atualizarHonorarioEstimado);
+    // enquanto o usuario nao digitar a propria estimativa, ela acompanha o valor da causa
+    // automaticamente (pedido do usuario: preencher % + valor da causa ja calcula sozinho) --
+    // assume que, sem outra informacao, o ganho esperado e o valor total pedido na causa.
+    campoValorCausaEditar.addEventListener('input', function () {
+      if (!estimativaEditadaManualmente) {
+        campoValorEstimado.value = campoValorCausaEditar.value;
+        atualizarHonorarioEstimado();
+      }
+    });
 
     function fecharModal() { modal.classList.add('hidden'); }
 
@@ -5867,7 +5883,17 @@
         campoValorRecebido.value = '';
         campoValorCausaEditar.value = item.valor_causa ? fmtMoeda(item.valor_causa) : '';
         campoValorGanhoCausa.value = item.valor_ganho_causa ? fmtMoeda(item.valor_ganho_causa) : '';
-        campoValorEstimado.value = item.valor_estimado_ganho ? fmtMoeda(item.valor_estimado_ganho) : '';
+        if (item.valor_estimado_ganho) {
+          // ja tem uma estimativa propria salva (diferente do valor da causa) -- respeita ela,
+          // nao sobrescreve automaticamente se o usuario mexer no valor da causa de novo.
+          campoValorEstimado.value = fmtMoeda(item.valor_estimado_ganho);
+          estimativaEditadaManualmente = true;
+        } else {
+          // sem estimativa propria ainda -- comeca igual ao valor da causa (pedido do usuario:
+          // preencher % + valor da causa ja calcula o honorário estimado sozinho).
+          campoValorEstimado.value = campoValorCausaEditar.value;
+          estimativaEditadaManualmente = false;
+        }
         atualizarHonorarioEstimado();
         campoSituacao.value = item.situacao || '';
       } else {
