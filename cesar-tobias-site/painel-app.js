@@ -1152,6 +1152,14 @@
     var idxPrimeiroPrevisto = serie.findIndex(function (m) { return m.previsto; });
     var xHoje = padL + idxPrimeiroPrevisto * larguraSlot;
 
+    // Calculado cedo (nao so na hora de desenhar as torres) pra tambem alimentar o foco de
+    // energia da plataforma holografica, que se concentra perto da torre de maior valor.
+    var idxTorreMax = -1, alturaTorreMax = -1;
+    serie.forEach(function (m, i) {
+      if (m.previsto) return;
+      if (m.receita > alturaTorreMax) { alturaTorreMax = m.receita; idxTorreMax = i; }
+    });
+
     // Gradientes: dao uma sensacao sutil de profundidade nas barras (mais cheias perto da base,
     // esmaecendo pra ponta) e fazem a transicao historico -> previsto parecer uma "revelacao"
     // em vez de um corte seco -- o detalhe que o usuario pediu pra essa fronteira.
@@ -1215,6 +1223,23 @@
       '<filter id="filtroBloomPico" x="-150%" y="-150%" width="400%" height="400%">' +
         '<feGaussianBlur stdDeviation="5"/>' +
       '</filter>' +
+      // Glow dos aneis da plataforma -- blur moderado, reaproveitado em cada anel (mais forte
+      // nos internos, mais suave nos externos, controlado pela opacidade de cada um).
+      '<filter id="filtroGlowAnel" x="-80%" y="-200%" width="260%" height="500%">' +
+        '<feGaussianBlur stdDeviation="2.2"/>' +
+      '</filter>' +
+      // Nucleo de luz azul/ciano no centro da plataforma, desaparecendo aos poucos pra fora --
+      // "luz volumetrica" (Neon/Outer Glow combinados num unico gradiente).
+      '<radialGradient id="gradNucleoPlataforma" cx="0.5" cy="0.5" r="0.5">' +
+        '<stop offset="0%" stop-color="color-mix(in srgb, var(--accent) 55%, white)" stop-opacity="0.4"/>' +
+        '<stop offset="40%" stop-color="var(--accent)" stop-opacity="0.16"/>' +
+        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '</radialGradient>' +
+      // Reflexo no piso, abaixo da plataforma -- a luz dos aneis "batendo" numa superficie escura.
+      '<radialGradient id="gradReflexoPiso" cx="0.5" cy="0" r="0.7">' +
+        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.12"/>' +
+        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '</radialGradient>' +
     '</defs>';
 
     // Nucleo claro dos pontos de dado (Data Point Glow: halo azul + nucleo branco/ciano) --
@@ -1245,11 +1270,33 @@
       { f: 0.52, opacidade: 0.30, largura: 1, dash: '' },
       { f: 0.30, opacidade: 0.22, largura: 0.75, dash: '1 3' },
     ];
+    // Cada anel ganha uma copia borrada por baixo (Neon/Outer Glow) alem do traco nitido --
+    // os aneis mais internos (f menor) brilham mais forte, os externos ficam mais suaves,
+    // como pedido ("nucleo mais intenso, halo desaparecendo aos poucos pra fora").
     var aneisSvg = ANEIS_PLATAFORMA.map(function (a) {
-      return '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
+      var glowOpacidade = 0.14 + (1 - a.f) * 0.26;
+      var glow = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
+        '" fill="none" stroke="var(--accent)" stroke-width="' + (a.largura * 2.4) + '" opacity="' + glowOpacidade.toFixed(2) +
+        '" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
+      var nitido = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
         '" fill="none" stroke="var(--accent)" stroke-width="' + a.largura + '" opacity="' + a.opacidade + '"' +
         (a.dash ? ' stroke-dasharray="' + a.dash + '"' : '') + ' aria-hidden="true"/>';
+      return glow + nitido;
     }).join('');
+
+    // Reflexo no piso, projetado abaixo da plataforma -- luz "batendo" numa superficie escura,
+    // completando a sequencia anel -> luz intensa -> halo difuso -> reflexo no piso.
+    var reflexoPisoSvg = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + (anelCy + anelRy * 0.4).toFixed(1) +
+      '" rx="' + (anelRx * 0.9).toFixed(1) + '" ry="' + (anelRy * 1.8).toFixed(1) + '" fill="url(#gradReflexoPiso)" aria-hidden="true"/>';
+
+    // Foco de energia concentrado perto da torre de maior valor do periodo -- o mesmo ponto por
+    // onde o "feixe" daquela torre atravessa a plataforma.
+    var focoTorreMaxSvg = idxTorreMax === -1 ? '' : (function () {
+      var xFoco = xAt(idxTorreMax);
+      return '<ellipse cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (larguraBarra * 1.8).toFixed(1) + '" ry="' + (anelRy * 0.7).toFixed(1) +
+          '" fill="var(--accent)" opacity="0.3" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
+        '<circle cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2" fill="' + corNucleoPonto + '" opacity="0.85" style="filter:drop-shadow(0 0 3px var(--accent));" aria-hidden="true"/>';
+    })();
 
     // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" saindo do centro).
     var conectoresSvg = [30, 100, 170, 260, 330].map(function (ang) {
@@ -1288,9 +1335,12 @@
     }).join('');
 
     var anelDecorativo =
+      reflexoPisoSvg +
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
         '" rx="' + (anelRx * 1.05).toFixed(1) + '" ry="' + (anelRy * 1.05).toFixed(1) + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
-      conectoresSvg + aneisSvg + pontosOrbitaSvg;
+      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
+        '" rx="' + (anelRx * 0.7).toFixed(1) + '" ry="' + (anelRy * 0.7).toFixed(1) + '" fill="url(#gradNucleoPlataforma)" aria-hidden="true"/>' +
+      conectoresSvg + aneisSvg + focoTorreMaxSvg + pontosOrbitaSvg;
 
     var feixesSvg = serie.map(function (m, i) {
       if (m.previsto) return '';
@@ -1322,12 +1372,6 @@
       ].map(function (pt) { return pt[0].toFixed(1) + ',' + pt[1].toFixed(1); }).join(' ');
       return '<polygon points="' + p + '" fill="' + cor + '" opacity="' + opacidade + '" aria-hidden="true"/>';
     }
-
-    var idxTorreMax = -1, alturaTorreMax = -1;
-    serie.forEach(function (m, i) {
-      if (m.previsto) return;
-      if (m.receita > alturaTorreMax) { alturaTorreMax = m.receita; idxTorreMax = i; }
-    });
 
     var barrasSvg = serie.map(function (m, i) {
       var xEsqNum = xAt(i) - larguraBarra / 2;
