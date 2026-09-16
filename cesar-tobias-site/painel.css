@@ -470,6 +470,16 @@
   .exec-acumulado-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
   .exec-marco-linha { display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); padding: 0 2px 4px; opacity: .8; }
   .exec-svg-wrap { position: relative; width: 100%; }
+  /* Pulso de radar no marcador "HOJE" -- anel que expande e esmaece, ecoando telemetria/sonar em
+     vez de um ponto estatico (pedido do usuario: ir mais fundo na direcao "instrumento/HUD"). */
+  .exec-hoje-pulso { transform-origin: center; transform-box: fill-box; animation: exec-radar-pulso 2.2s ease-out infinite; }
+  @keyframes exec-radar-pulso {
+    0% { transform: scale(0.4); opacity: 0.55; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .exec-hoje-pulso { animation: none; opacity: 0.25; transform: scale(1.6); }
+  }
   .exec-tooltip {
     position: absolute; pointer-events: none; background: var(--surface); color: var(--ink);
     border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: 4px; padding: 9px 13px;

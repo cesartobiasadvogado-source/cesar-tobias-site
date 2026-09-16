@@ -1175,6 +1175,16 @@
         '<stop offset="0.5" stop-color="var(--accent)" stop-opacity="0"/>' +
         '<stop offset="1" stop-color="var(--accent)" stop-opacity="0.16"/>' +
       '</linearGradient>' +
+      // Brilho ao longo do traçado do saldo (filtro reaproveitado, desenhado uma vez por baixo
+      // da linha nitida) -- em vez de so um ponto de brilho fixo no "hoje".
+      '<filter id="glowSaldo" x="-50%" y="-50%" width="200%" height="200%">' +
+        '<feGaussianBlur stdDeviation="2.4" result="blur"/>' +
+      '</filter>' +
+      // Textura de scan-line bem discreta sobre a area prevista -- reforca "isso ainda nao
+      // aconteceu de verdade" sem virar ruido visual.
+      '<pattern id="scanlinesPrevisto" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+        '<line x1="0" y1="0" x2="0" y2="5" stroke="var(--accent)" stroke-width="1" opacity="0.5"/>' +
+      '</pattern>' +
     '</defs>';
 
     var barrasSvg = serie.map(function (m, i) {
@@ -1225,11 +1235,13 @@
     }).join('');
 
     var corredorPrevisto = idxPrimeiroPrevisto <= 0 ? '' : (
-      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH + '" fill="url(#gradCorredor)"/>'
+      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH + '" fill="url(#gradCorredor)"/>' +
+      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH + '" fill="url(#scanlinesPrevisto)" opacity="0.06"/>'
     );
     var divisorHoje = idxPrimeiroPrevisto <= 0 ? '' : (
       '<line x1="' + xHoje.toFixed(1) + '" x2="' + xHoje.toFixed(1) +
       '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="1 3" opacity="0.55"/>' +
+      '<circle class="exec-hoje-pulso" cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="3" fill="none" stroke="var(--accent)" stroke-width="1"/>' +
       '<circle cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="2.5" fill="var(--accent)" style="filter:drop-shadow(0 0 3px var(--accent));"/>' +
       '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 12) + '" text-anchor="middle" font-size="8" font-weight="600" letter-spacing="0.08em" fill="var(--accent)">HOJE</text>'
     );
@@ -1245,8 +1257,12 @@
       return '<rect data-idx="' + i + '" x="' + xEsq.toFixed(1) + '" y="' + padT + '" width="' + larguraSlot.toFixed(1) + '" height="' + plotH + '" fill="transparent" style="cursor:crosshair;"/>';
     }).join('');
 
+    var glowSaldoSvg =
+      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.35" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' +
+      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
+
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      defsSvg + gridSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje +
+      defsSvg + gridSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
       '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
