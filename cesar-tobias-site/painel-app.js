@@ -4772,6 +4772,9 @@
   }
 
   var parcelasAReceberCache = [];
+  var gruposParcelasExpandidos = {}; // lembra quais grupos (ex: parcelamento de um contrato)
+  // o usuario deixou abertos, pra nao fechar tudo de novo a cada "Receber"/"Cobrar" (o
+  // carregarParcelasAReceber recria a tabela inteira do zero a cada chamada).
 
   var CHIPS_STATUS_PARCELA = {
     Paga: '<span class="chip good">Paga</span>',
@@ -4848,8 +4851,9 @@
         (totalPagoGrupo > 0 ? 'R$ ' + fmtMoeda(totalPagoGrupo) + ' já pago' : 'nada pago ainda') + '</div>';
 
       var idGrupo = esc(g.chave);
+      var estaAberto = !!gruposParcelasExpandidos[idGrupo];
       var linhaGrupo = '<tr class="parcela-grupo-linha" data-grupo-linha="' + idGrupo + '">' +
-        '<td><button type="button" class="parcela-grupo-seta" data-grupo-seta="' + idGrupo + '" aria-expanded="false" aria-label="Ver parcelas de ' + esc(g.nome_cliente) + '">▸</button> ' + esc(g.nome_cliente) + '</td>' +
+        '<td><button type="button" class="parcela-grupo-seta" data-grupo-seta="' + idGrupo + '" aria-expanded="' + (estaAberto ? 'true' : 'false') + '" aria-label="Ver parcelas de ' + esc(g.nome_cliente) + '">' + (estaAberto ? '▾' : '▸') + '</button> ' + esc(g.nome_cliente) + '</td>' +
         '<td>' + (matchProcesso ? esc(matchProcesso[1]) : '—') + '</td>' +
         '<td>' + esc(descricaoBase) + ' (' + g.itens.length + 'x)</td>' +
         '<td class="num">R$ ' + fmtMoeda(saldoAberto > 0 ? saldoAberto : valorTotalGrupo) + '</td>' +
@@ -4860,7 +4864,7 @@
       var linhasFilhas = g.itens.map(function (p) {
         return linhaParcelaHtml(p, true);
       }).join('');
-      var linhasFilhasEnvolvidas = '<tbody class="hidden" data-grupo-filhas="' + idGrupo + '">' + linhasFilhas + '</tbody>';
+      var linhasFilhasEnvolvidas = '<tbody class="' + (estaAberto ? '' : 'hidden') + '" data-grupo-filhas="' + idGrupo + '">' + linhasFilhas + '</tbody>';
 
       return '<tbody>' + linhaGrupo + '</tbody>' + linhasFilhasEnvolvidas;
     }).join('');
@@ -4897,6 +4901,7 @@
           filhas.classList.toggle('hidden', !abrindo);
           btnSeta.textContent = abrindo ? '▾' : '▸';
           btnSeta.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+          gruposParcelasExpandidos[idGrupo] = abrindo;
           return;
         }
 
