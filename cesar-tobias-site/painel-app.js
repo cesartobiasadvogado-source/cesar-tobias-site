@@ -3061,7 +3061,11 @@
           '</div>' +
           '<div class="ncontrato-campo hidden" id="econtrato-campo-situacao">' +
             '<label for="econtrato-situacao">Situação</label>' +
-            '<input type="text" id="econtrato-situacao" placeholder="ex: Aguardando resultado">' +
+            '<select id="econtrato-situacao">' +
+              '<option value="Aguardando resultado">Aguardando resultado</option>' +
+              '<option value="Recebido">Recebido</option>' +
+              '<option value="Processo perdido">Processo perdido</option>' +
+            '</select>' +
           '</div>' +
           '<div class="ncontrato-linha2 hidden" id="econtrato-linha-exito-recebimento">' +
             '<div class="ncontrato-campo">' +
@@ -6012,7 +6016,17 @@
           estimativaEditadaManualmente = false;
         }
         atualizarHonorarioEstimado();
-        campoSituacao.value = item.situacao || '';
+        var situacaoAtual = item.situacao || 'Aguardando resultado';
+        var opcaoExistente = Array.prototype.some.call(campoSituacao.options, function (o) { return o.value === situacaoAtual; });
+        if (!opcaoExistente) {
+          // situacao antiga em texto livre, salva antes deste campo virar select -- preserva
+          // como opcao extra em vez de trocar silenciosamente pro valor padrao.
+          var opcaoLivre = document.createElement('option');
+          opcaoLivre.value = situacaoAtual;
+          opcaoLivre.textContent = situacaoAtual;
+          campoSituacao.appendChild(opcaoLivre);
+        }
+        campoSituacao.value = situacaoAtual;
       } else {
         selectStatusContrato.value = item.status_contrato === 'Cancelado' ? 'Cancelado' : 'Ativo';
         campoValorTotal.value = item.valor_total ? fmtMoeda(item.valor_total) : '';
