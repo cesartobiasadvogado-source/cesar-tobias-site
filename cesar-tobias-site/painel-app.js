@@ -3063,6 +3063,16 @@
             '<label for="econtrato-situacao">Situação</label>' +
             '<input type="text" id="econtrato-situacao" placeholder="ex: Aguardando resultado">' +
           '</div>' +
+          '<div class="ncontrato-linha2 hidden" id="econtrato-linha-exito-recebimento">' +
+            '<div class="ncontrato-campo">' +
+              '<label for="econtrato-valor-ja-recebido">Valor já recebido por você (R$)</label>' +
+              '<input type="text" id="econtrato-valor-ja-recebido" placeholder="0,00">' +
+            '</div>' +
+            '<div class="ncontrato-campo">' +
+              '<label>Ainda a receber</label>' +
+              '<div id="econtrato-a-receber-exito" style="padding:9px 10px; color:var(--ink-soft); font-size:13.5px;">—</div>' +
+            '</div>' +
+          '</div>' +
           '<div class="ncontrato-campo hidden" id="econtrato-campo-valores">' +
             '<label style="display:flex;align-items:center;gap:6px;font-weight:400;">' +
               '<input type="checkbox" id="econtrato-alterar-valores" style="width:auto;"> ' +
@@ -4578,15 +4588,11 @@
         '</td></tr>';
     }).join('');
     var linhasExito = exitos.map(function (e) {
-      var btnReceberExito = (e.a_receber || 0) > 0
-        ? '<button type="button" class="btn-conexao" data-receber-exito-id="' + e.id + '" style="padding:4px 10px; font-size:12.5px;">Receber</button> '
-        : '';
       return '<tr><td>' + esc(e.nome_cliente) + '</td><td>' + esc(e.servico || '—') + '</td>' +
         '<td class="num">' + Math.round((e.percentual || 0) * 10000) / 100 + '%</td>' +
         '<td class="num">—</td><td>Êxito</td>' +
         '<td><span class="chip neutral">' + esc(e.situacao || '—') + '</span></td>' +
         '<td>' +
-          btnReceberExito +
           '<button type="button" class="btn-editar" data-editar-exito="' + e.id + '">Editar</button> ' +
           '<button type="button" class="btn-remover" data-excluir-exito="' + e.id + '" data-excluir-contrato-nome="' + esc(e.nome_cliente) + '">Excluir</button>' +
         '</td></tr>';
@@ -4636,26 +4642,6 @@
       btn.addEventListener('click', function () {
         var item = honorariosContratosCache.exitos.filter(function (e) { return String(e.id) === btn.getAttribute('data-editar-exito'); })[0];
         if (item && window.abrirModalEditarContrato) window.abrirModalEditarContrato('exito', item);
-      });
-    });
-    container.querySelectorAll('[data-receber-exito-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idReceberExito = btn.getAttribute('data-receber-exito-id');
-        var itemExito = honorariosContratosCache.exitos.filter(function (e) { return String(e.id) === idReceberExito; })[0];
-        if (!itemExito) return;
-        pedirValorRecebido({ nome_cliente: itemExito.nome_cliente, saldo: itemExito.a_receber }).then(function (valorDigitado) {
-          if (valorDigitado === null) return;
-          var textoOriginal = btn.textContent;
-          btn.disabled = true;
-          btn.textContent = 'Registrando...';
-          apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_exito_receber', id: idReceberExito, valor: valorDigitado })
-            .then(function () { carregarHonorariosContratos(); })
-            .catch(function (e) {
-              mostrarAviso(e.message || 'Não foi possível registrar o recebimento agora.');
-              btn.disabled = false;
-              btn.textContent = textoOriginal;
-            });
-        });
       });
     });
   }
@@ -5913,6 +5899,10 @@
     var elHonorarioEstimado = document.getElementById('econtrato-honorario-estimado');
     var campoSituacaoWrap = document.getElementById('econtrato-campo-situacao');
     var campoSituacao = document.getElementById('econtrato-situacao');
+    var linhaExitoRecebimento = document.getElementById('econtrato-linha-exito-recebimento');
+    var campoValorJaRecebido = document.getElementById('econtrato-valor-ja-recebido');
+    var elAReceberExito = document.getElementById('econtrato-a-receber-exito');
+    var honorarioAtualExito = 0;
     var campoValoresWrap = document.getElementById('econtrato-campo-valores');
     var checkboxAlterarValores = document.getElementById('econtrato-alterar-valores');
     var subcamposValores = document.getElementById('econtrato-subcampos-valores');
@@ -5932,6 +5922,7 @@
     aplicarMascaraMoeda(campoValorCausaEditar);
     aplicarMascaraMoeda(campoValorGanhoCausa);
     aplicarMascaraMoeda(campoValorEstimado);
+    aplicarMascaraMoeda(campoValorJaRecebido);
 
     checkboxAlterarValores.addEventListener('change', function () {
       subcamposValores.classList.toggle('hidden', !checkboxAlterarValores.checked);
@@ -5963,6 +5954,26 @@
       }
     });
 
+    function honorarioAtualCalculado() {
+      var percentual = parseFloat((campoPercentual.value || '').replace(',', '.')) || 0;
+      var valorRecebidoClienteAtual = parseFloat((campoValorRecebido.value || '').replace(/\./g, '').replace(',', '.'));
+      // se o usuario ja digitou (ou o contrato ja tinha) o valor recebido pelo cliente, o
+      // honorario e recalculado na hora; senao usa o ultimo honorario ja salvo (contrato
+      // resolvido antes desta edicao).
+      if (valorRecebidoClienteAtual) return (percentual / 100) * valorRecebidoClienteAtual;
+      return honorarioAtualExito;
+    }
+    function atualizarAReceberExito() {
+      var honorario = honorarioAtualCalculado();
+      var jaRecebido = parseFloat((campoValorJaRecebido.value || '').replace(/\./g, '').replace(',', '.')) || 0;
+      if (!honorario) { elAReceberExito.textContent = '—'; return; }
+      elAReceberExito.textContent = 'R$ ' + fmtMoeda(Math.max(honorario - jaRecebido, 0));
+    }
+    campoValorJaRecebido.addEventListener('input', atualizarAReceberExito);
+    campoValorJaRecebido.addEventListener('blur', atualizarAReceberExito);
+    campoValorRecebido.addEventListener('input', atualizarAReceberExito);
+    campoPercentual.addEventListener('input', atualizarAReceberExito);
+
     function fecharModal() { modal.classList.add('hidden'); }
 
     window.abrirModalEditarContrato = function (tipoRegistro, item) {
@@ -5976,6 +5987,7 @@
       linhaExito.classList.toggle('hidden', !ehExito);
       linhaExitoCausa.classList.toggle('hidden', !ehExito);
       linhaExitoEstimativa.classList.toggle('hidden', !ehExito);
+      linhaExitoRecebimento.classList.toggle('hidden', !ehExito);
       campoSituacaoWrap.classList.toggle('hidden', !ehExito);
       campoValoresWrap.classList.toggle('hidden', ehExito);
       checkboxAlterarValores.checked = false;
@@ -5983,6 +5995,9 @@
       if (ehExito) {
         campoPercentual.value = item.percentual ? Math.round(item.percentual * 10000) / 100 : '';
         campoValorRecebido.value = '';
+        honorarioAtualExito = item.honorario || 0;
+        campoValorJaRecebido.value = item.valor_ja_recebido ? fmtMoeda(item.valor_ja_recebido) : '';
+        atualizarAReceberExito();
         campoValorCausaEditar.value = item.valor_causa ? fmtMoeda(item.valor_causa) : '';
         campoValorGanhoCausa.value = item.valor_ganho_causa ? fmtMoeda(item.valor_ganho_causa) : '';
         if (item.valor_estimado_ganho) {
@@ -6028,6 +6043,7 @@
         corpo.valor_causa = campoValorCausaEditar.value;
         corpo.valor_ganho_causa = campoValorGanhoCausa.value;
         corpo.valor_estimado_ganho = campoValorEstimado.value;
+        corpo.valor_ja_recebido = campoValorJaRecebido.value;
         corpo.status = campoSituacao.value.trim();
       } else {
         corpo.status = selectStatusContrato.value;
