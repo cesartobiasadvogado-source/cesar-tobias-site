@@ -1202,7 +1202,35 @@
         '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.28"/>' +
         '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>' +
       '</linearGradient>' +
+      // Ambient glow do fundo -- bem discreto, so pra dar profundidade/"ambiente digital" atras
+      // de tudo (pedido do usuario), nunca competindo com os dados.
+      '<radialGradient id="gradAmbiente" cx="0.5" cy="0.38" r="0.75">' +
+        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.05"/>' +
+        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '</radialGradient>' +
+      // Bloom mais forte, so pro ponto de maior valor (pico do periodo) -- efeito extra, usado
+      // uma unica vez, pra nao virar "tudo brilhando igual".
+      '<filter id="filtroBloomPico" x="-150%" y="-150%" width="400%" height="400%">' +
+        '<feGaussianBlur stdDeviation="5"/>' +
+      '</filter>' +
     '</defs>';
+
+    // Nucleo claro dos pontos de dado (Data Point Glow: halo azul + nucleo branco/ciano) --
+    // cor calculada uma vez, reaproveitada em todos os pontos da linha de saldo.
+    var corNucleoPonto = 'color-mix(in srgb, var(--accent) 30%, white)';
+
+    // Ambient glow (fundo) + particulas extremamente sutis -- 100% decorativo, posicoes fixas
+    // (nao regeneradas a cada render, pra nao "piscar" toda vez que o grafico redesenha).
+    var ambienteSvg = '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="url(#gradAmbiente)" aria-hidden="true"/>';
+    var PARTICULAS_FUNDO = [
+      [0.08, 0.22], [0.19, 0.62], [0.31, 0.15], [0.44, 0.78], [0.57, 0.3],
+      [0.68, 0.68], [0.77, 0.2], [0.85, 0.5], [0.93, 0.75], [0.62, 0.12],
+    ];
+    var particulasSvg = PARTICULAS_FUNDO.map(function (p, i) {
+      var cx = padL + p[0] * plotW, cy = padT + p[1] * plotH;
+      return '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + (i % 3 === 0 ? 1.1 : 0.7) +
+        '" fill="var(--ink-faint)" opacity="0.18" aria-hidden="true"/>';
+    }).join('');
 
     var anelDecorativo =
       '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
@@ -1223,12 +1251,17 @@
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
       var fillReceita = m.previsto ? 'url(#gradReceitaPrevista)' : 'url(#gradReceita)';
+      var alturaReceita = Math.max(Math.abs(baselineY - yReceitaTopo), 1);
+      var topoReceita = Math.min(yReceitaTopo, baselineY).toFixed(1);
       var barraReceita = m.receita > 0
-        ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="' + fillReceita + '" rx="3"' +
+        ? '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="3"' +
           (m.previsto
             ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"'
-            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>'
+            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>' +
+          // 3D Bar Glow: reflexo lateral sutil (bisel) na borda esquerda da barra, so nas
+          // realizadas -- da a sensacao de luz batendo de lado, sem exagerar.
+          (!m.previsto ? '<rect x="' + xEsq + '" y="' + topoReceita + '" width="1.2" height="' + alturaReceita.toFixed(1) + '" rx="0.6" fill="white" opacity="0.22" aria-hidden="true"/>' : '')
         : '';
       var barraDespesa = m.despesa > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
@@ -1259,17 +1292,41 @@
     var areaSaldoSvg = caminhoArea(idxRealizados) ? '<path d="' + caminhoArea(idxRealizados) + '" fill="url(#gradSaldoArea)"/>' : '';
     var areaSaldoPrevistaSvg = caminhoArea(idxPrevistos) ? '<path d="' + caminhoArea(idxPrevistos) + '" fill="url(#gradSaldoArea)" opacity="0.6"/>' : '';
 
-    // Todo ponto tem um brilho sutil (nao so o "hoje"), ecoando o print de referencia -- o ponto
+    // Data Point Glow: cada ponto vira 2 camadas -- um halo azul difuso (drop-shadow) por baixo
+    // e um pequeno nucleo branco/ciano por cima, em vez de um circulo solido unico. O ponto
     // "hoje" continua o mais forte, marcando a fronteira historico/previsto.
+    var idxPico = -1, valorPico = -Infinity;
+    serie.forEach(function (m, i) {
+      if (m.previsto) return;
+      var v = m.receita - m.despesa;
+      if (v > valorPico) { valorPico = v; idxPico = i; }
+    });
     var pontosSaldo = serie.map(function (m, i) {
       var ehHoje = i === fimRealizado && idxPrimeiroPrevisto > 0;
-      var r = ehHoje ? 4 : 2.5;
-      var raioGlow = ehHoje ? 4 : 2;
+      var ehPico = i === idxPico && idxPico !== -1;
+      var r = ehHoje || ehPico ? 4 : 2.5;
+      var raioGlow = ehHoje || ehPico ? 4 : 2;
+      var raioNucleo = ehHoje || ehPico ? 1.8 : 1.2;
       var opacidade = m.previsto ? 0.45 : 1;
-      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="' + r +
-        '" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5" opacity="' + opacidade +
-        '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));"/>';
+      var cx = xAt(i).toFixed(1), cy = yAtSigned(m.receita - m.despesa).toFixed(1);
+      return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r +
+          '" fill="var(--accent)" opacity="' + opacidade + '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));"/>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + raioNucleo + '" fill="' + corNucleoPonto + '" opacity="' + opacidade + '"/>';
     }).join('');
+
+    // Bloom + Light Burst -- so no ponto de maior valor do periodo (o "pico"), um brilho mais
+    // concentrado e um feixe em cruz bem discreto, simulando luz se acumulando ali. Unico ponto
+    // com esse reforco, pra nao competir com o resto do grafico.
+    var bloomPicoSvg = '';
+    if (idxPico !== -1) {
+      var cxPico = xAt(idxPico).toFixed(1), cyPico = yAtSigned(valorPico).toFixed(1);
+      bloomPicoSvg =
+        '<circle cx="' + cxPico + '" cy="' + cyPico + '" r="9" fill="var(--accent)" opacity="0.28" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
+        '<g opacity="0.35" aria-hidden="true">' +
+          '<line x1="' + (cxPico - 8) + '" y1="' + cyPico + '" x2="' + (Number(cxPico) + 8) + '" y2="' + cyPico + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
+          '<line x1="' + cxPico + '" y1="' + (cyPico - 8) + '" x2="' + cxPico + '" y2="' + (Number(cyPico) + 8) + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
+        '</g>';
+    }
 
     var corredorPrevisto = idxPrimeiroPrevisto <= 0 ? '' : (
       '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH + '" fill="url(#gradCorredor)"/>' +
@@ -1299,10 +1356,10 @@
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      defsSvg + gridSvg + anelDecorativo + feixesSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
+      defsSvg + ambienteSvg + particulasSvg + gridSvg + anelDecorativo + feixesSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
       '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
-      pontosSaldo + eixoX +
+      bloomPicoSvg + pontosSaldo + eixoX +
       '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
       hoverCols +
       '</svg>';
