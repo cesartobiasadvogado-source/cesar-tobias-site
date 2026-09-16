@@ -504,6 +504,30 @@
     });
   }
 
+  // Mascara do numero de processo no padrao CNJ (Resolucao 65/2008): NNNNNNN-DD.AAAA.J.TR.OOOO,
+  // sempre 20 digitos. O usuario so digita os numeros e o traço/pontos entram sozinhos a cada
+  // tecla -- mesmo motivo do valor em dinheiro nao usar <input type="number"> (aqui nem digito
+  // seria, e a mascara tem separador variado por posicao).
+  function aplicarMascaraNumeroCnj(input) {
+    if (!input) return;
+    input.setAttribute('inputmode', 'numeric');
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('input', function () {
+      var digitos = input.value.replace(/\D/g, '').slice(0, 20);
+      var partes = [
+        digitos.slice(0, 7), digitos.slice(7, 9), digitos.slice(9, 13),
+        digitos.slice(13, 14), digitos.slice(14, 16), digitos.slice(16, 20),
+      ];
+      var formatado = partes[0];
+      if (partes[1]) formatado += '-' + partes[1];
+      if (partes[2]) formatado += '.' + partes[2];
+      if (partes[3]) formatado += '.' + partes[3];
+      if (partes[4]) formatado += '.' + partes[4];
+      if (partes[5]) formatado += '.' + partes[5];
+      input.value = formatado;
+    });
+  }
+
   var ESC_MAPA = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   function esc(valor) {
     return String(valor === null || valor === undefined ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -8588,6 +8612,8 @@
 
     var processoEditandoId = null;
 
+    aplicarMascaraNumeroCnj(document.getElementById('procman-numero-cnj'));
+
     var datalistProcMan = document.getElementById('procman-clientes-lista');
     apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
@@ -8616,7 +8642,9 @@
     }
 
     function preencherFormularioParaEdicao(p) {
-      document.getElementById('procman-numero-cnj').value = p.numero_cnj || '';
+      var campoNumeroCnj = document.getElementById('procman-numero-cnj');
+      campoNumeroCnj.value = p.numero_cnj || '';
+      campoNumeroCnj.dispatchEvent(new Event('input')); // reaplica a mascara no valor ja salvo
       document.getElementById('procman-classe').value = p.classe_processual || '';
       document.getElementById('procman-area').value = p.area_direito || '';
       document.getElementById('procman-orgao').value = p.orgao_julgador || '';
