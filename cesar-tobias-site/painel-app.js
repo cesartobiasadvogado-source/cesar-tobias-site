@@ -1185,7 +1185,22 @@
       '<pattern id="scanlinesPrevisto" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
         '<line x1="0" y1="0" x2="0" y2="5" stroke="var(--accent)" stroke-width="1" opacity="0.5"/>' +
       '</pattern>' +
+      // Brilho neon nas barras/pontos -- o usuario pediu pra ir mais fundo no "instrumento/HUD",
+      // igual o print de referencia (barras com borda luminosa em vez de preenchimento chapado).
+      '<filter id="glowBarra" x="-60%" y="-60%" width="220%" height="220%">' +
+        '<feGaussianBlur stdDeviation="1.6"/>' +
+      '</filter>' +
+      // Anel decorativo sob o grafico, ecoando o halo do print de referencia -- 100% enfeite
+      // (nao representa nenhum dado), so uma faixa de luz sutil na base do plot.
+      '<radialGradient id="gradAnelBase" cx="0.5" cy="0.5" r="0.5">' +
+        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>' +
+        '<stop offset="70%" stop-color="var(--accent)" stop-opacity="0.06"/>' +
+        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '</radialGradient>' +
     '</defs>';
+
+    var anelDecorativo = '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
+      '" rx="' + (plotW * 0.55).toFixed(1) + '" ry="16" fill="url(#gradAnelBase)" aria-hidden="true"/>';
 
     var barrasSvg = serie.map(function (m, i) {
       var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
@@ -1195,11 +1210,14 @@
       var barraReceita = m.receita > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
           '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="' + fillReceita + '" rx="3"' +
-          (m.previsto ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"' : '') + '/>'
+          (m.previsto
+            ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"'
+            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>'
         : '';
       var barraDespesa = m.despesa > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="3"' + (m.previsto ? ' opacity="0.6"' : '') + '/>'
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="3"' +
+          (m.previsto ? ' opacity="0.6"' : ' stroke="var(--chart-despesa)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>'
         : '';
       return barraReceita + barraDespesa;
     }).join('');
@@ -1225,13 +1243,16 @@
     var areaSaldoSvg = caminhoArea(idxRealizados) ? '<path d="' + caminhoArea(idxRealizados) + '" fill="url(#gradSaldoArea)"/>' : '';
     var areaSaldoPrevistaSvg = caminhoArea(idxPrevistos) ? '<path d="' + caminhoArea(idxPrevistos) + '" fill="url(#gradSaldoArea)" opacity="0.6"/>' : '';
 
-    // Pontos discretos por padrao (o hover/crosshair ja mostra o valor exato) -- so o ponto
-    // "hoje" (fronteira historico/previsto) ganha destaque, ecoando o marcador HOJE das barras.
+    // Todo ponto tem um brilho sutil (nao so o "hoje"), ecoando o print de referencia -- o ponto
+    // "hoje" continua o mais forte, marcando a fronteira historico/previsto.
     var pontosSaldo = serie.map(function (m, i) {
       var ehHoje = i === fimRealizado && idxPrimeiroPrevisto > 0;
-      var r = ehHoje ? 4 : 2;
-      var extra = ehHoje ? ' style="filter:drop-shadow(0 0 3px var(--accent));"' : (m.previsto ? ' opacity="0.45"' : ' opacity="0.7"');
-      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="' + r + '" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"' + extra + '/>';
+      var r = ehHoje ? 4 : 2.5;
+      var raioGlow = ehHoje ? 4 : 2;
+      var opacidade = m.previsto ? 0.45 : 1;
+      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="' + r +
+        '" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5" opacity="' + opacidade +
+        '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));"/>';
     }).join('');
 
     var corredorPrevisto = idxPrimeiroPrevisto <= 0 ? '' : (
@@ -1262,7 +1283,7 @@
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      defsSvg + gridSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
+      defsSvg + gridSvg + anelDecorativo + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
       '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
