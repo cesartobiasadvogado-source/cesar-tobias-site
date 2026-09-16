@@ -1571,8 +1571,14 @@
     var container = document.getElementById('exec-acumulado');
     if (!container) return;
     if (!serie.length) { container.innerHTML = ''; return; }
-    var totalReceita = serie.reduce(function (acc, m) { return acc + (m.receita || 0); }, 0);
-    var totalDespesa = serie.reduce(function (acc, m) { return acc + (m.despesa || 0); }, 0);
+    // "No período" e o periodo HISTORICO escolhido no seletor (1M/3M/6M/12M/24M) -- os 6 meses
+    // de previsao que sempre entram no grafico (pra mostrar o que vem pela frente) sao uma coisa
+    // a parte e nao podem entrar nessa soma, senao "Receita no período" muda de significado
+    // (fica parte realizado + parte previsto) sem avisar, mais visivel ainda com 1M selecionado
+    // (relatado pelo usuario: os numeros nao batiam com so 1 mes).
+    var serieRealizada = serie.filter(function (m) { return !m.previsto; });
+    var totalReceita = serieRealizada.reduce(function (acc, m) { return acc + (m.receita || 0); }, 0);
+    var totalDespesa = serieRealizada.reduce(function (acc, m) { return acc + (m.despesa || 0); }, 0);
     var saldoTotal = totalReceita - totalDespesa;
     container.innerHTML =
       '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Receita no período</span>' +
