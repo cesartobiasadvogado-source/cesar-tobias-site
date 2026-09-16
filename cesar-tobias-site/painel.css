@@ -513,17 +513,54 @@
   .exec-venc-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 700; color: var(--ink); }
   .exec-venc-data { font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: center; gap: 4px; }
 
-  /* Painel "Honorarios de Exito -- Estimativa x Realizado" (Honorarios e Contratos). */
-  .exito-estimativa-resumo { display: flex; gap: 18px; flex-wrap: wrap; padding: 0 20px 14px; }
-  .exito-estimativa-card { display: flex; flex-direction: column; gap: 2px; }
-  .exito-estimativa-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
-  .exito-estimativa-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 700; }
-  .exito-estimativa-legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 0 20px 10px; }
-  .exito-bar-row { display: flex; align-items: center; gap: 10px; padding: 6px 20px; }
-  .exito-bar-label { flex: 0 0 150px; font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .exito-bar-track { flex: 1; height: 10px; background: var(--surface-sunken); border-radius: 5px; overflow: hidden; min-width: 0; }
-  .exito-bar-fill { height: 100%; border-radius: 5px; }
-  .exito-bar-valor { flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--ink); min-width: 84px; text-align: right; }
+  /* Painel "Honorarios de Exito -- Estimativa x Realizado" (Honorarios e Contratos). Redesign
+     "aneis + lista compacta" (pedido do usuario: futurista/minimalista) -- mesma logica/dados de
+     sempre (renderExitoEstimativaChart, painel-app.js), so a apresentacao visual mudou. */
+  .exito-estimativa-resumo { display: flex; gap: 32px; flex-wrap: wrap; padding: 16px 20px 20px; }
+  .exito-estimativa-card { display: flex; flex-direction: column; gap: 5px; padding-left: 13px; position: relative; }
+  .exito-estimativa-card::before {
+    content: ''; position: absolute; left: 0; top: 1px; bottom: 1px; width: 2px; border-radius: 1px;
+    background: var(--line);
+  }
+  .exito-estimativa-card[data-estado="estimado"]::before { background: var(--accent); }
+  .exito-estimativa-card[data-estado="a_receber"]::before { background: var(--warn); }
+  .exito-estimativa-card[data-estado="recebido"]::before { background: var(--good); }
+  .exito-estimativa-label { font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .exito-estimativa-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 23px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+  .exito-estimativa-legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 0 20px 6px; }
+
+  .exito-anel-row {
+    display: flex; align-items: center; gap: 14px; padding: 10px 20px;
+    border-bottom: 1px solid var(--line); transition: background-color .15s ease;
+  }
+  .exito-anel-row:last-child { border-bottom: none; }
+  .exito-anel-row:hover { background: var(--surface-sunken); }
+  .exito-anel-svg { flex: 0 0 auto; overflow: visible; }
+  .exito-anel-track { fill: none; stroke: var(--line); stroke-width: 3; }
+  .exito-anel-fill {
+    fill: none; stroke-width: 3; stroke-linecap: round;
+    transition: stroke-dashoffset .6s cubic-bezier(.4,0,.2,1), stroke .3s ease;
+  }
+  .exito-anel-fill.recebido { animation: exito-pulso-recebido 2.6s ease-in-out infinite; }
+  @keyframes exito-pulso-recebido {
+    0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+    50% { filter: drop-shadow(0 0 6px currentColor); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .exito-anel-fill { transition: none; }
+    .exito-anel-fill.recebido { animation: none; filter: drop-shadow(0 0 4px currentColor); }
+  }
+  .exito-linha-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .exito-linha-nome { font-size: 12.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exito-linha-servico { font-size: 11px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exito-linha-valor {
+    flex: 0 0 auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 13px; color: var(--ink); text-align: right; min-width: 92px;
+  }
+  .exito-linha-estado {
+    flex: 0 0 auto; font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+    min-width: 68px; text-align: right;
+  }
 
   /* Linha-resumo de um grupo de parcelas (Contas a receber) com seta pra expandir/recolher --
      as parcelas do contrato ficam escondidas ate clicar. */

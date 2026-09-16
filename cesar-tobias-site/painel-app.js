@@ -4837,12 +4837,12 @@
     itens.forEach(function (i) { totais[i.estado] += i.valor; });
     if (resumoEl) {
       resumoEl.innerHTML =
-        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Estimado em andamento</span>' +
-          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.estimado.cor + ';">R$ ' + fmtMoeda(totais.estimado) + '</span></div>' +
-        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">A receber (já apurado)</span>' +
-          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.a_receber.cor + ';">R$ ' + fmtMoeda(totais.a_receber) + '</span></div>' +
-        '<div class="exito-estimativa-card"><span class="exito-estimativa-label">Já recebido</span>' +
-          '<span class="exito-estimativa-valor" style="color:' + EXITO_ESTADO_INFO.recebido.cor + ';">R$ ' + fmtMoeda(totais.recebido) + '</span></div>';
+        '<div class="exito-estimativa-card" data-estado="estimado"><span class="exito-estimativa-label">Estimado em andamento</span>' +
+          '<span class="exito-estimativa-valor">R$ ' + fmtMoeda(totais.estimado) + '</span></div>' +
+        '<div class="exito-estimativa-card" data-estado="a_receber"><span class="exito-estimativa-label">A receber (já apurado)</span>' +
+          '<span class="exito-estimativa-valor">R$ ' + fmtMoeda(totais.a_receber) + '</span></div>' +
+        '<div class="exito-estimativa-card" data-estado="recebido"><span class="exito-estimativa-label">Já recebido</span>' +
+          '<span class="exito-estimativa-valor">R$ ' + fmtMoeda(totais.recebido) + '</span></div>';
     }
 
     if (!itens.length) {
@@ -4852,14 +4852,29 @@
 
     itens.sort(function (a, b) { return b.valor - a.valor; });
     var maior = Math.max.apply(null, itens.map(function (i) { return i.valor; }).concat([1]));
+    // Anel de progresso por caso: mesmo dado que a barra horizontal antiga mostrava (valor em
+    // relacao ao maior caso da lista), so que como um arco em vez de uma barra -- pedido do
+    // usuario por um visual mais "instrumento/HUD" e menos "grafico de dashboard generico".
+    var RAIO_ANEL = 15;
+    var CIRCUNFERENCIA_ANEL = 2 * Math.PI * RAIO_ANEL;
     container.innerHTML = itens.map(function (i) {
-      var pct = Math.max((i.valor / maior) * 100, 2);
+      var fracao = Math.max(i.valor / maior, 0.04);
       var info = EXITO_ESTADO_INFO[i.estado];
-      return '<div class="exito-bar-row">' +
-        '<div class="exito-bar-label" title="' + esc(i.nome + (i.servico ? ' — ' + i.servico : '')) + '">' + esc(i.nome) + '</div>' +
-        '<div class="exito-bar-track"><div class="exito-bar-fill" style="width:' + pct + '%; background:' + info.cor + ';"></div></div>' +
-        '<div class="exito-bar-valor">R$ ' + fmtMoeda(i.valor) + '</div>' +
-        '<span class="chip ' + info.chip + '">' + info.rotulo + '</span>' +
+      var offset = CIRCUNFERENCIA_ANEL * (1 - fracao);
+      var tituloAnel = esc(i.nome + (i.servico ? ' — ' + i.servico : '') + ': R$ ' + fmtMoeda(i.valor));
+      return '<div class="exito-anel-row">' +
+        '<svg class="exito-anel-svg" width="36" height="36" viewBox="0 0 36 36" role="img" aria-label="' + tituloAnel + '"><title>' + tituloAnel + '</title>' +
+          '<circle class="exito-anel-track" cx="18" cy="18" r="' + RAIO_ANEL + '"></circle>' +
+          '<circle class="exito-anel-fill' + (i.estado === 'recebido' ? ' recebido' : '') + '" cx="18" cy="18" r="' + RAIO_ANEL + '" ' +
+            'transform="rotate(-90 18 18)" ' +
+            'style="color:' + info.cor + '; stroke:' + info.cor + '; stroke-dasharray:' + CIRCUNFERENCIA_ANEL + '; stroke-dashoffset:' + offset + ';"></circle>' +
+        '</svg>' +
+        '<div class="exito-linha-info">' +
+          '<span class="exito-linha-nome">' + esc(i.nome) + '</span>' +
+          (i.servico ? '<span class="exito-linha-servico">' + esc(i.servico) + '</span>' : '') +
+        '</div>' +
+        '<span class="exito-linha-valor">R$ ' + fmtMoeda(i.valor) + '</span>' +
+        '<span class="exito-linha-estado" style="color:' + info.cor + ';">' + esc(info.rotulo) + '</span>' +
       '</div>';
     }).join('');
   }
