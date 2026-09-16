@@ -1504,11 +1504,12 @@
         var r = dados.resumo || {};
         var kpis = r.kpis || {};
         desenharReceitaDespesas(r.receita_x_despesas || []);
-        renderExecAcumulado(r.receita_x_despesas || []);
+        renderExecAcumulado(r);
         renderExecCategorias(r.despesas_por_categoria || []);
         renderExecProximos(r.proximos_vencimentos || []);
         renderExecInsights(r);
         renderExecHorizontes(r.horizontes || []);
+        renderVisaoGeral(r);
 
         var horizonte90 = (r.horizontes || []).filter(function (h) { return h.dias === 90; })[0];
         var elProjetado = document.getElementById('exec-kpi-projetado-90d');
@@ -1583,27 +1584,114 @@
     });
   }
 
-  function renderExecAcumulado(serie) {
+  var ICONE_TENDENCIA_ALTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17 9 11 13 15 21 7"></path><path d="M15 7h6v6"></path></svg>';
+  var ICONE_TENDENCIA_BAIXA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7 9 13 13 9 21 17"></path><path d="M15 17h6v-6"></path></svg>';
+  var ICONE_CARTEIRA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M16 12h.01"></path><path d="M3 9h18"></path></svg>';
+
+  // Variacao percentual real vs. periodo anterior equivalente -- nao e enfeite, vem de
+  // resumo.comparativo_periodo_anterior (banco.gerar_resumo_executivo), calculado no backend
+  // comparando o periodo selecionado (1M/3M/6M/12M/24M) com o mesmo tanto de meses imediatamente
+  // antes (pedido do usuario, a partir de um mockup com "+12,5% vs. periodo anterior").
+  function calcularVariacaoPct(atual, anterior) {
+    if (!anterior) return atual > 0 ? { pct: null, novo: true } : { pct: 0, novo: false };
+    return { pct: ((atual - anterior) / Math.abs(anterior)) * 100, novo: false };
+  }
+
+  function htmlChipVariacao(atual, anterior, maiorEhMelhor) {
+    var v = calcularVariacaoPct(atual, anterior);
+    if (v.novo) return '<span class="exec-variacao-chip neutro">novo</span>';
+    if (v.pct === 0 && anterior === 0) return '<span class="exec-variacao-chip neutro">—</span>';
+    var subiu = v.pct >= 0;
+    var favoravel = maiorEhMelhor ? subiu : !subiu;
+    var seta = subiu ? '▲' : '▼';
+    return '<span class="exec-variacao-chip ' + (favoravel ? 'bom' : 'ruim') + '">' + seta + ' ' + Math.abs(v.pct).toFixed(1).replace('.', ',') + '%</span>';
+  }
+
+  function renderExecAcumulado(resumo) {
     var container = document.getElementById('exec-acumulado');
     if (!container) return;
+    var serie = resumo.receita_x_despesas || [];
     if (!serie.length) { container.innerHTML = ''; return; }
-    // "No período" e o periodo HISTORICO escolhido no seletor (1M/3M/6M/12M/24M) -- os 6 meses
-    // de previsao que sempre entram no grafico (pra mostrar o que vem pela frente) sao uma coisa
-    // a parte e nao podem entrar nessa soma, senao "Receita no período" muda de significado
-    // (fica parte realizado + parte previsto) sem avisar, mais visivel ainda com 1M selecionado
-    // (relatado pelo usuario: os numeros nao batiam com so 1 mes).
-    var serieRealizada = serie.filter(function (m) { return !m.previsto; });
-    var totalReceita = serieRealizada.reduce(function (acc, m) { return acc + (m.receita || 0); }, 0);
-    var totalDespesa = serieRealizada.reduce(function (acc, m) { return acc + (m.despesa || 0); }, 0);
-    var saldoTotal = totalReceita - totalDespesa;
+    var cmp = resumo.comparativo_periodo_anterior || {};
+    var totalReceita = cmp.receita_atual || 0;
+    var totalDespesa = cmp.despesa_atual || 0;
+    var saldoTotal = cmp.saldo_atual != null ? cmp.saldo_atual : (totalReceita - totalDespesa);
+
     container.innerHTML =
-      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Receita no período</span>' +
-        '<span class="exec-acumulado-valor" style="color:var(--chart-receita);">R$ ' + fmtMoeda(totalReceita) + '</span></div>' +
-      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Despesas no período</span>' +
-        '<span class="exec-acumulado-valor" style="color:var(--chart-despesa);">R$ ' + fmtMoeda(totalDespesa) + '</span></div>' +
-      '<div class="exec-acumulado-item"><span class="exec-acumulado-label">Saldo do período</span>' +
-        '<span class="exec-acumulado-valor" style="color:' + (saldoTotal >= 0 ? 'var(--good)' : 'var(--crit)') + ';">' +
-          (saldoTotal < 0 ? '-' : '') + 'R$ ' + fmtMoeda(Math.abs(saldoTotal)) + '</span></div>';
+      '<div class="exec-periodo-card">' +
+        '<div class="exec-periodo-card-top">' +
+          '<span class="exec-periodo-card-label">Receita no período</span>' +
+          '<span class="exec-periodo-card-icone" style="color:var(--chart-receita);background:color-mix(in srgb, var(--chart-receita) 16%, transparent);">' + ICONE_TENDENCIA_ALTA + '</span>' +
+        '</div>' +
+        '<span class="exec-periodo-card-valor" style="color:var(--chart-receita);">R$ ' + fmtMoeda(totalReceita) + '</span>' +
+        '<div class="exec-periodo-card-rodape">' + htmlChipVariacao(cmp.receita_atual || 0, cmp.receita_anterior || 0, true) + '<span class="exec-periodo-card-vs">vs. período anterior</span></div>' +
+      '</div>' +
+      '<div class="exec-periodo-card">' +
+        '<div class="exec-periodo-card-top">' +
+          '<span class="exec-periodo-card-label">Despesas no período</span>' +
+          '<span class="exec-periodo-card-icone" style="color:var(--chart-despesa);background:color-mix(in srgb, var(--chart-despesa) 16%, transparent);">' + ICONE_TENDENCIA_BAIXA + '</span>' +
+        '</div>' +
+        '<span class="exec-periodo-card-valor" style="color:var(--chart-despesa);">R$ ' + fmtMoeda(totalDespesa) + '</span>' +
+        '<div class="exec-periodo-card-rodape">' + htmlChipVariacao(cmp.despesa_atual || 0, cmp.despesa_anterior || 0, false) + '<span class="exec-periodo-card-vs">vs. período anterior</span></div>' +
+      '</div>' +
+      '<div class="exec-periodo-card">' +
+        '<div class="exec-periodo-card-top">' +
+          '<span class="exec-periodo-card-label">Saldo do período</span>' +
+          '<span class="exec-periodo-card-icone" style="color:var(--accent);background:var(--accent-soft);">' + ICONE_CARTEIRA + '</span>' +
+        '</div>' +
+        '<span class="exec-periodo-card-valor" style="color:' + (saldoTotal >= 0 ? 'var(--good)' : 'var(--crit)') + ';">' +
+          (saldoTotal < 0 ? '-' : '') + 'R$ ' + fmtMoeda(Math.abs(saldoTotal)) + '</span>' +
+        '<div class="exec-periodo-card-rodape">' + htmlChipVariacao(cmp.saldo_atual || 0, cmp.saldo_anterior || 0, true) + '<span class="exec-periodo-card-vs">vs. período anterior</span></div>' +
+      '</div>';
+  }
+
+  function htmlSparkline(valores, cor) {
+    if (!valores.length) return '';
+    var W = 60, H = 22, pad = 2;
+    if (valores.length === 1) valores = [valores[0], valores[0]];
+    var min = Math.min.apply(null, valores), max = Math.max.apply(null, valores);
+    var amplitude = (max - min) || 1;
+    var passo = (W - pad * 2) / (valores.length - 1);
+    var pontos = valores.map(function (v, i) {
+      var x = pad + i * passo;
+      var y = H - pad - ((v - min) / amplitude) * (H - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    return '<svg class="exec-sparkline" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+      '<polyline points="' + pontos.join(' ') + '" fill="none" stroke="' + cor + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + pontos[pontos.length - 1].split(',')[0] + '" cy="' + pontos[pontos.length - 1].split(',')[1] + '" r="1.8" fill="' + cor + '"/>' +
+    '</svg>';
+  }
+
+  // "Visao Geral": painel lateral decorativo (orbita/brilho, sem dado nenhum atras -- o usuario
+  // pediu pra manter so como enfeite visual, ver AskUserQuestion desta sessao) + 3 linhas com
+  // dado real (mesmo comparativo_periodo_anterior dos cartoes acima) e um sparkline de verdade
+  // dos ultimos meses realizados.
+  function renderVisaoGeral(resumo) {
+    var container = document.getElementById('exec-visao-geral-corpo');
+    if (!container) return;
+    var cmp = resumo.comparativo_periodo_anterior || {};
+    var serieRealizada = (resumo.receita_x_despesas || []).filter(function (m) { return !m.previsto; }).slice(-6);
+    var receitas = serieRealizada.map(function (m) { return m.receita || 0; });
+    var despesas = serieRealizada.map(function (m) { return m.despesa || 0; });
+    var saldos = serieRealizada.map(function (m) { return (m.receita || 0) - (m.despesa || 0); });
+
+    function linha(label, valor, anterior, cor, icone, valores) {
+      return '<div class="exec-vg-linha">' +
+        '<span class="exec-vg-icone" style="color:' + cor + ';background:color-mix(in srgb, ' + cor + ' 16%, transparent);">' + icone + '</span>' +
+        '<div class="exec-vg-info">' +
+          '<span class="exec-vg-label">' + esc(label) + '</span>' +
+          '<span class="exec-vg-valor">R$ ' + fmtMoeda(Math.abs(valor)) + '</span>' +
+          htmlChipVariacao(valor, anterior, label !== 'Despesa') +
+        '</div>' +
+        htmlSparkline(valores, cor) +
+      '</div>';
+    }
+
+    container.innerHTML =
+      linha('Receita', cmp.receita_atual || 0, cmp.receita_anterior || 0, 'var(--chart-receita)', ICONE_TENDENCIA_ALTA, receitas) +
+      linha('Despesa', cmp.despesa_atual || 0, cmp.despesa_anterior || 0, 'var(--chart-despesa)', ICONE_TENDENCIA_BAIXA, despesas) +
+      linha('Saldo', cmp.saldo_atual || 0, cmp.saldo_anterior || 0, 'var(--accent)', ICONE_CARTEIRA, saldos);
   }
 
   function aplicarFiltroGrafico(filtro) {
@@ -3688,6 +3776,19 @@
             '<div class="exec-card-titulo">Despesas por categoria</div>' +
             '<div class="exec-card-sub" id="exec-categorias-periodo-label">Últimos 12 meses</div>' +
             '<div id="exec-categorias-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '</div>' +
+          '<div class="exec-card exec-visao-geral">' +
+            '<div class="exec-vg-orbita" aria-hidden="true">' +
+              '<svg viewBox="0 0 200 200">' +
+                '<circle cx="100" cy="100" r="70" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>' +
+                '<circle cx="100" cy="100" r="46" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.5" stroke-dasharray="2 5"/>' +
+                '<circle cx="100" cy="100" r="20" fill="var(--accent)" opacity="0.18"/>' +
+                '<circle cx="100" cy="100" r="6" fill="var(--accent)" style="filter:drop-shadow(0 0 8px var(--accent));"/>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="exec-card-titulo">Visão Geral</div>' +
+            '<div class="exec-card-sub">Seu desempenho financeiro em um só lugar</div>' +
+            '<div id="exec-visao-geral-corpo"></div>' +
           '</div>' +
         '</div>' +
         '<div class="exec-horizontes-cabecalho" style="margin-top:20px;">' +
