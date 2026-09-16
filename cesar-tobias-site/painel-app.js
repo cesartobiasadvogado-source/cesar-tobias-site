@@ -1123,7 +1123,9 @@
       return;
     }
 
-    var W = 720, H = 280, padL = 48, padR = 20, padT = 20, padB = 28;
+    // Grafico ganhou o card inteiro pra ele (pedido do usuario: estava sobrando espaco vazio do
+    // lado, nas outras duas colunas) -- H maior aproveita a largura nova sem ficar achatado.
+    var W = 900, H = 340, padL = 48, padR = 20, padT = 20, padB = 28;
     var plotW = W - padL - padR, plotH = H - padT - padB;
     var baselineY = padT + plotH / 2;
     var meioAltura = plotH / 2;
@@ -3910,29 +3912,29 @@
           execStatCard({ id: 'exec-kpi-recebido', idSub: 'exec-kpi-recebido-sub', label: 'Total recebido', icone: ICONE_EXEC_RECEBIDO, cor: 'var(--good)', subInicial: 'entradas + parcelas pagas' }) +
           execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false }) +
         '</div>' +
-        '<div class="exec-grid">' +
-          '<div class="exec-card">' +
-            '<div class="exec-card-titulo-row">' +
-              '<div><div class="exec-card-titulo exec-card-titulo-icone">' + ICONE_TENDENCIA_ALTA + '<span>Histórico de Fluxo Financeiro</span></div>' +
-                '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses + próximos 6 (previsão)</div></div>' +
-              '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
-                '<button type="button" class="exec-periodo-btn" data-meses="1">1M</button>' +
-                '<button type="button" class="exec-periodo-btn" data-meses="3">3M</button>' +
-                '<button type="button" class="exec-periodo-btn" data-meses="6">6M</button>' +
-                '<button type="button" class="exec-periodo-btn ativo" data-meses="12">12M</button>' +
-                '<button type="button" class="exec-periodo-btn" data-meses="24">24M</button>' +
-              '</div>' +
+        '<div class="exec-card exec-card-grafico-principal">' +
+          '<div class="exec-card-titulo-row">' +
+            '<div><div class="exec-card-titulo exec-card-titulo-icone">' + ICONE_TENDENCIA_ALTA + '<span>Histórico de Fluxo Financeiro</span></div>' +
+              '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses + próximos 6 (previsão)</div></div>' +
+            '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
+              '<button type="button" class="exec-periodo-btn" data-meses="1">1M</button>' +
+              '<button type="button" class="exec-periodo-btn" data-meses="3">3M</button>' +
+              '<button type="button" class="exec-periodo-btn" data-meses="6">6M</button>' +
+              '<button type="button" class="exec-periodo-btn ativo" data-meses="12">12M</button>' +
+              '<button type="button" class="exec-periodo-btn" data-meses="24">24M</button>' +
             '</div>' +
-            '<div class="exec-legend-simples">' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesa</span>' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Saldo</span>' +
-            '</div>' +
-            '<div class="exec-acumulado" id="exec-acumulado"></div>' +
-            '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
-            '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
-            '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
           '</div>' +
+          '<div class="exec-legend-simples">' +
+            '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
+            '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesa</span>' +
+            '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Saldo</span>' +
+          '</div>' +
+          '<div class="exec-acumulado" id="exec-acumulado"></div>' +
+          '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
+          '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
+        '</div>' +
+        '<div class="exec-grid">' +
           '<div class="exec-card">' +
             '<div class="exec-card-titulo">Despesas por categoria</div>' +
             '<div class="exec-card-sub" id="exec-categorias-periodo-label">Últimos 12 meses</div>' +
