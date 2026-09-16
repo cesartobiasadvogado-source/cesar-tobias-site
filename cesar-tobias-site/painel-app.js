@@ -1123,7 +1123,7 @@
       return;
     }
 
-    var W = 720, H = 280, padL = 54, padR = 20, padT = 16, padB = 28;
+    var W = 720, H = 280, padL = 48, padR = 20, padT = 20, padB = 28;
     var plotW = W - padL - padR, plotH = H - padT - padB;
     var baselineY = padT + plotH / 2;
     var meioAltura = plotH / 2;
@@ -1131,65 +1131,113 @@
     var maxEixo = arredondarEixoValor(maiorValor);
     var n = serie.length;
     var larguraSlot = plotW / n;
-    var larguraBarra = Math.max(Math.min(larguraSlot * 0.5, 26), 3);
+    var larguraBarra = Math.max(Math.min(larguraSlot * 0.42, 20), 3);
 
     function xAt(i) { return padL + (i + 0.5) * larguraSlot; }
     function yAtSigned(v) { return baselineY - (v / maxEixo) * meioAltura; }
 
-    var ticks = [-1, -0.5, 0, 0.5, 1].map(function (f) { return f * maxEixo; });
-    var gridSvg = ticks.map(function (v) {
+    // Grade minimalista: so as 3 linhas de referencia (topo/zero/base) em vez das 5 de antes,
+    // e bem mais discretas -- menos "caixa com grade cheia", mais espaco negativo (pedido do
+    // usuario). O calculo do eixo (maxEixo/yAtSigned) continua exatamente igual.
+    var gridSvg = [1, 0, -1].map(function (f) {
+      var v = f * maxEixo;
       var y = yAtSigned(v);
-      var ehZero = Math.abs(v) < 0.0001;
-      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="' + (ehZero ? 'var(--ink-faint)' : 'var(--line)') + '" stroke-width="' + (ehZero ? 1.4 : 1) + '"/>' +
-        '<text x="' + (padL - 8) + '" y="' + (y + 3.5) + '" text-anchor="end" font-size="10" fill="var(--ink-faint)">' + fmtValorEixo(Math.abs(v)) + '</text>';
+      var ehZero = f === 0;
+      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-width="' + (ehZero ? 1 : 0.75) + '"' + (ehZero ? '' : ' stroke-dasharray="1 4" opacity="0.7"') + '/>' +
+        '<text x="' + (padL - 8) + '" y="' + (y + 3.5) + '" text-anchor="end" font-size="9.5" letter-spacing="0.02em" fill="var(--ink-faint)">' + fmtValorEixo(Math.abs(v)) + '</text>';
     }).join('');
+
+    var idxPrimeiroPrevisto = serie.findIndex(function (m) { return m.previsto; });
+    var xHoje = padL + idxPrimeiroPrevisto * larguraSlot;
+
+    // Gradientes: dao uma sensacao sutil de profundidade nas barras (mais cheias perto da base,
+    // esmaecendo pra ponta) e fazem a transicao historico -> previsto parecer uma "revelacao"
+    // em vez de um corte seco -- o detalhe que o usuario pediu pra essa fronteira.
+    var defsSvg = '<defs>' +
+      '<linearGradient id="gradReceita" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
+        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.78"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="1"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="gradReceitaPrevista" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
+        '<stop offset="0" stop-color="var(--chart-receita-prevista)" stop-opacity="0.12"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita-prevista)" stop-opacity="0.65"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="gradDespesa" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH) + '">' +
+        '<stop offset="0" stop-color="var(--chart-despesa)" stop-opacity="0.85"/>' +
+        '<stop offset="1" stop-color="var(--chart-despesa)" stop-opacity="0.55"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="gradCorredor" gradientUnits="userSpaceOnUse" x1="' + xHoje.toFixed(1) + '" y1="0" x2="' + (W - padR) + '" y2="0">' +
+        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0.07"/>' +
+      '</linearGradient>' +
+      '<linearGradient id="gradSaldoArea" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + (padT + plotH) + '">' +
+        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.16"/>' +
+        '<stop offset="0.5" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0.16"/>' +
+      '</linearGradient>' +
+    '</defs>';
 
     var barrasSvg = serie.map(function (m, i) {
       var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
-      var opacidadeDespesa = m.previsto ? ' opacity="0.55"' : '';
-      var corReceita = m.previsto ? 'var(--chart-receita-prevista)' : 'var(--chart-receita)';
+      var fillReceita = m.previsto ? 'url(#gradReceitaPrevista)' : 'url(#gradReceita)';
       var barraReceita = m.receita > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(yReceitaTopo, baselineY).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="' + corReceita + '" rx="2"/>'
+          '" height="' + Math.max(Math.abs(baselineY - yReceitaTopo), 1).toFixed(1) + '" fill="' + fillReceita + '" rx="3"' +
+          (m.previsto ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"' : '') + '/>'
         : '';
       var barraDespesa = m.despesa > 0
         ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="var(--chart-despesa)" rx="2"' + opacidadeDespesa + '/>'
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="3"' + (m.previsto ? ' opacity="0.6"' : '') + '/>'
         : '';
       return barraReceita + barraDespesa;
     }).join('');
 
-    var idxPrimeiroPrevisto = serie.findIndex(function (m) { return m.previsto; });
     function pontoSaldo(i) { return xAt(i).toFixed(1) + ',' + yAtSigned(serie[i].receita - serie[i].despesa).toFixed(1); }
     var fimRealizado = idxPrimeiroPrevisto === -1 ? n - 1 : idxPrimeiroPrevisto;
-    var pathSaldoRealizado = serie.slice(0, fimRealizado + 1).map(function (m, i) {
-      return (i === 0 ? 'M' : 'L') + pontoSaldo(i);
-    }).join(' ');
-    var pathSaldoPrevisto = idxPrimeiroPrevisto === -1 ? '' : serie.slice(fimRealizado).map(function (m, i) {
-      return (i === 0 ? 'M' : 'L') + pontoSaldo(fimRealizado + i);
-    }).join(' ');
+    var idxRealizados = [];
+    for (var ir = 0; ir <= fimRealizado; ir++) idxRealizados.push(ir);
+    var idxPrevistos = [];
+    if (idxPrimeiroPrevisto !== -1) for (var ip = fimRealizado; ip < n; ip++) idxPrevistos.push(ip);
+
+    function caminhoLinha(indices) {
+      return indices.map(function (idx, k) { return (k === 0 ? 'M' : 'L') + pontoSaldo(idx); }).join(' ');
+    }
+    function caminhoArea(indices) {
+      if (indices.length < 2) return '';
+      var topo = caminhoLinha(indices);
+      var ultimo = indices[indices.length - 1], primeiro = indices[0];
+      return topo + ' L' + xAt(ultimo).toFixed(1) + ',' + baselineY.toFixed(1) + ' L' + xAt(primeiro).toFixed(1) + ',' + baselineY.toFixed(1) + ' Z';
+    }
+    var pathSaldoRealizado = caminhoLinha(idxRealizados);
+    var pathSaldoPrevisto = caminhoLinha(idxPrevistos);
+    var areaSaldoSvg = caminhoArea(idxRealizados) ? '<path d="' + caminhoArea(idxRealizados) + '" fill="url(#gradSaldoArea)"/>' : '';
+    var areaSaldoPrevistaSvg = caminhoArea(idxPrevistos) ? '<path d="' + caminhoArea(idxPrevistos) + '" fill="url(#gradSaldoArea)" opacity="0.6"/>' : '';
+
+    // Pontos discretos por padrao (o hover/crosshair ja mostra o valor exato) -- so o ponto
+    // "hoje" (fronteira historico/previsto) ganha destaque, ecoando o marcador HOJE das barras.
     var pontosSaldo = serie.map(function (m, i) {
-      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="3" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"' + (m.previsto ? ' opacity="0.6"' : '') + '/>';
+      var ehHoje = i === fimRealizado && idxPrimeiroPrevisto > 0;
+      var r = ehHoje ? 4 : 2;
+      var extra = ehHoje ? ' style="filter:drop-shadow(0 0 3px var(--accent));"' : (m.previsto ? ' opacity="0.45"' : ' opacity="0.7"');
+      return '<circle cx="' + xAt(i).toFixed(1) + '" cy="' + yAtSigned(m.receita - m.despesa).toFixed(1) + '" r="' + r + '" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"' + extra + '/>';
     }).join('');
 
-    var xHoje = padL + idxPrimeiroPrevisto * larguraSlot;
     var corredorPrevisto = idxPrimeiroPrevisto <= 0 ? '' : (
-      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH +
-      '" fill="var(--accent)" opacity="0.05"/>'
+      '<rect x="' + xHoje.toFixed(1) + '" y="' + padT + '" width="' + (W - padR - xHoje).toFixed(1) + '" height="' + plotH + '" fill="url(#gradCorredor)"/>'
     );
     var divisorHoje = idxPrimeiroPrevisto <= 0 ? '' : (
       '<line x1="' + xHoje.toFixed(1) + '" x2="' + xHoje.toFixed(1) +
-      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.6"/>' +
-      '<rect x="' + (xHoje - 20).toFixed(1) + '" y="' + (padT - 12) + '" width="40" height="15" rx="7.5" fill="var(--accent)"/>' +
-      '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 1.5) + '" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff">HOJE</text>'
+      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="1 3" opacity="0.55"/>' +
+      '<circle cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="2.5" fill="var(--accent)" style="filter:drop-shadow(0 0 3px var(--accent));"/>' +
+      '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 12) + '" text-anchor="middle" font-size="8" font-weight="600" letter-spacing="0.08em" fill="var(--accent)">HOJE</text>'
     );
 
     var labelStep = n > 18 ? 3 : (n > 12 ? 2 : 1);
     var eixoX = serie.map(function (m, i) {
       if (i % labelStep !== 0 && i !== n - 1) return '';
-      return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="var(--ink-faint)"' + (m.previsto ? ' font-style="italic"' : '') + '>' + esc(nomeMesAbrev(m.mes)) + '</text>';
+      return '<text x="' + xAt(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9.5" fill="var(--ink-faint)"' + (m.previsto ? ' font-style="italic"' : '') + '>' + esc(nomeMesAbrev(m.mes)) + '</text>';
     }).join('');
 
     var hoverCols = serie.map(function (m, i) {
@@ -1198,9 +1246,9 @@
     }).join('');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      gridSvg + corredorPrevisto + barrasSvg + divisorHoje +
-      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
-      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
+      defsSvg + gridSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje +
+      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
+      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
       '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
       hoverCols +
