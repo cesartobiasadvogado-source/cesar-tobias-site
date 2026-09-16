@@ -468,7 +468,6 @@
   .exec-acumulado-item { display: flex; flex-direction: column; gap: 4px; }
   .exec-acumulado-label { font-size: 10.5px; font-weight: 600; letter-spacing: .07em; color: var(--ink-faint); text-transform: uppercase; }
   .exec-acumulado-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-  .exec-legend { display: flex; gap: 18px; margin-bottom: 12px; flex-wrap: wrap; }
   .exec-marco-linha { display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); padding: 0 2px 4px; opacity: .8; }
   .exec-svg-wrap { position: relative; width: 100%; }
   .exec-tooltip {

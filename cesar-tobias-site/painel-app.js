@@ -3664,12 +3664,6 @@
               '</div>' +
             '</div>' +
             '<div class="exec-acumulado" id="exec-acumulado"></div>' +
-            '<div class="exec-legend">' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita realizada</span>' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita-prevista);"></span>Receita prevista</span>' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesas</span>' +
-              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);width:14px;height:3px;border-radius:2px;"></span>Saldo</span>' +
-            '</div>' +
             '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
             '<div class="exec-svg-wrap" id="exec-grafico-svg"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
             '<div id="exec-nota-sem-data" class="exec-nota hidden"></div>' +
