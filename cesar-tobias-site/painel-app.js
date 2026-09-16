@@ -1234,19 +1234,63 @@
         '" fill="var(--ink-faint)" opacity="0.18" aria-hidden="true"/>';
     }).join('');
 
+    // Plataforma holografica: varios aneis elipticos concentricos (perspectiva de olhar de
+    // cima em angulo), com glow, linhas de energia radiais e pontos percorrendo 2 dos aneis --
+    // 100% decorativo (nao representa nenhum dado), sempre desenhada ANTES das torres/linha, pra
+    // nunca atrapalhar a leitura dos meses/valores/barras (pedido do usuario).
     var anelCx = padL + plotW / 2, anelCy = padT + plotH, anelRx = plotW * 0.58, anelRy = 20;
+    var ANEIS_PLATAFORMA = [
+      { f: 1.00, opacidade: 0.28, largura: 1.1, dash: '' },
+      { f: 0.76, opacidade: 0.22, largura: 0.9, dash: '2 4' },
+      { f: 0.52, opacidade: 0.30, largura: 1, dash: '' },
+      { f: 0.30, opacidade: 0.22, largura: 0.75, dash: '1 3' },
+    ];
+    var aneisSvg = ANEIS_PLATAFORMA.map(function (a) {
+      return '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
+        '" fill="none" stroke="var(--accent)" stroke-width="' + a.largura + '" opacity="' + a.opacidade + '"' +
+        (a.dash ? ' stroke-dasharray="' + a.dash + '"' : '') + ' aria-hidden="true"/>';
+    }).join('');
+
+    // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" saindo do centro).
+    var conectoresSvg = [30, 100, 170, 260, 330].map(function (ang) {
+      var rad = ang * Math.PI / 180;
+      var r1 = 0.32, r2 = 0.5; // fracao do raio externo, do anel interno ate o anel do meio
+      var x1 = anelCx + Math.cos(rad) * anelRx * r1, y1 = anelCy + Math.sin(rad) * anelRy * r1;
+      var x2 = anelCx + Math.cos(rad) * anelRx * r2, y2 = anelCy + Math.sin(rad) * anelRy * r2;
+      return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+        '" stroke="var(--accent)" stroke-width="0.6" opacity="0.18" aria-hidden="true"/>';
+    }).join('');
+
+    // Pontos de luz percorrendo 2 dos aneis (SMIL animateMotion, nativo do SVG -- sem custo de
+    // JS por frame). Com "reduzir movimento" ativado, os pontos ficam parados num angulo fixo.
+    function caminhoElipse(f) {
+      var rx = anelRx * f, ry = anelRy * f;
+      return 'M' + (anelCx - rx).toFixed(1) + ',' + anelCy.toFixed(1) +
+        ' A' + rx.toFixed(1) + ',' + ry.toFixed(1) + ' 0 1,0 ' + (anelCx + rx).toFixed(1) + ',' + anelCy.toFixed(1) +
+        ' A' + rx.toFixed(1) + ',' + ry.toFixed(1) + ' 0 1,0 ' + (anelCx - rx).toFixed(1) + ',' + anelCy.toFixed(1);
+    }
+    var semMovimento = reduzMotion();
+    var pontosOrbitaSvg = [
+      { f: 1.00, dur: '14s', r: 1.6 },
+      { f: 0.52, dur: '10s', r: 1.3 },
+    ].map(function (o, idx) {
+      var idPath = 'exec-plataforma-orbita-' + idx;
+      var caminho = '<path id="' + idPath + '" d="' + caminhoElipse(o.f) + '" fill="none" stroke="none"/>';
+      if (semMovimento) {
+        var rx = anelRx * o.f;
+        return caminho + '<circle cx="' + (anelCx - rx).toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="' + o.r +
+          '" fill="' + corNucleoPonto + '" opacity="0.6" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true"/>';
+      }
+      return caminho +
+        '<circle r="' + o.r + '" fill="' + corNucleoPonto + '" opacity="0.7" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true">' +
+          '<animateMotion dur="' + o.dur + '" repeatCount="indefinite"><mpath href="#' + idPath + '" xlink:href="#' + idPath + '"/></animateMotion>' +
+        '</circle>';
+    }).join('');
+
     var anelDecorativo =
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
-        '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
-      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
-        '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy + '" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.25" aria-hidden="true"/>' +
-      // "Plataforma digital" -- pequenas linhas de energia extremamente sutis irradiando do
-      // anel, dando a sensacao de que as torres flutuam sobre uma base tecnologica.
-      [0.2, 0.5, 0.8].map(function (f) {
-        var x = anelCx - anelRx + f * anelRx * 2;
-        return '<line x1="' + x.toFixed(1) + '" y1="' + (anelCy - 2) + '" x2="' + x.toFixed(1) + '" y2="' + (anelCy + 2) +
-          '" stroke="var(--accent)" stroke-width="0.6" opacity="0.2" aria-hidden="true"/>';
-      }).join('');
+        '" rx="' + (anelRx * 1.05).toFixed(1) + '" ry="' + (anelRy * 1.05).toFixed(1) + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
+      conectoresSvg + aneisSvg + pontosOrbitaSvg;
 
     var feixesSvg = serie.map(function (m, i) {
       if (m.previsto) return '';
