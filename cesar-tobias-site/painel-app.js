@@ -1136,14 +1136,14 @@
     function xAt(i) { return padL + (i + 0.5) * larguraSlot; }
     function yAtSigned(v) { return baselineY - (v / maxEixo) * meioAltura; }
 
-    // Grade minimalista: so as 3 linhas de referencia (topo/zero/base) em vez das 5 de antes,
-    // e bem mais discretas -- menos "caixa com grade cheia", mais espaco negativo (pedido do
-    // usuario). O calculo do eixo (maxEixo/yAtSigned) continua exatamente igual.
-    var gridSvg = [1, 0, -1].map(function (f) {
+    // So os rotulos do eixo Y, sem linhas de grade cruzando o grafico (nem a zero, quase) --
+    // o mais perto do print de referencia do usuario, que nao tem "caixa com grade" nenhuma,
+    // so os numeros do lado esquerdo. O calculo do eixo (maxEixo/yAtSigned) continua igual.
+    var gridSvg = [1, 0.5, 0, -0.5, -1].map(function (f) {
       var v = f * maxEixo;
       var y = yAtSigned(v);
       var ehZero = f === 0;
-      return '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-width="' + (ehZero ? 1 : 0.75) + '"' + (ehZero ? '' : ' stroke-dasharray="1 4" opacity="0.7"') + '/>' +
+      return (ehZero ? '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y + '" y2="' + y + '" stroke="var(--line)" stroke-width="0.75" opacity="0.5"/>' : '') +
         '<text x="' + (padL - 8) + '" y="' + (y + 3.5) + '" text-anchor="end" font-size="9.5" letter-spacing="0.02em" fill="var(--ink-faint)">' + fmtValorEixo(Math.abs(v)) + '</text>';
     }).join('');
 
@@ -1188,19 +1188,35 @@
       // Brilho neon nas barras/pontos -- o usuario pediu pra ir mais fundo no "instrumento/HUD",
       // igual o print de referencia (barras com borda luminosa em vez de preenchimento chapado).
       '<filter id="glowBarra" x="-60%" y="-60%" width="220%" height="220%">' +
-        '<feGaussianBlur stdDeviation="1.6"/>' +
+        '<feGaussianBlur stdDeviation="2.2"/>' +
       '</filter>' +
       // Anel decorativo sob o grafico, ecoando o halo do print de referencia -- 100% enfeite
-      // (nao representa nenhum dado), so uma faixa de luz sutil na base do plot.
+      // (nao representa nenhum dado), so uma faixa de luz na base do plot.
       '<radialGradient id="gradAnelBase" cx="0.5" cy="0.5" r="0.5">' +
-        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.22"/>' +
-        '<stop offset="70%" stop-color="var(--accent)" stop-opacity="0.06"/>' +
+        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>' +
+        '<stop offset="65%" stop-color="var(--accent)" stop-opacity="0.08"/>' +
         '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
       '</radialGradient>' +
+      // "Feixe" de luz descendo de cada barra ate o anel -- mesmo espirito do halo, 100% enfeite.
+      '<linearGradient id="gradFeixeBarra" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH + 22) + '">' +
+        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.28"/>' +
+        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '</linearGradient>' +
     '</defs>';
 
-    var anelDecorativo = '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
-      '" rx="' + (plotW * 0.55).toFixed(1) + '" ry="16" fill="url(#gradAnelBase)" aria-hidden="true"/>';
+    var anelDecorativo =
+      '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
+        '" rx="' + (plotW * 0.58).toFixed(1) + '" ry="20" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
+      '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
+        '" rx="' + (plotW * 0.58).toFixed(1) + '" ry="20" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.25" aria-hidden="true"/>';
+
+    var feixesSvg = serie.map(function (m, i) {
+      if (m.previsto) return '';
+      var intensidade = Math.min(Math.max(m.receita, m.despesa) / maiorValor, 1);
+      if (intensidade < 0.08) return '';
+      return '<rect x="' + (xAt(i) - larguraBarra * 0.7).toFixed(1) + '" y="' + baselineY.toFixed(1) + '" width="' + (larguraBarra * 1.4).toFixed(1) +
+        '" height="' + (plotH / 2 + 22).toFixed(1) + '" fill="url(#gradFeixeBarra)" opacity="' + intensidade.toFixed(2) + '" aria-hidden="true"/>';
+    }).join('');
 
     var barrasSvg = serie.map(function (m, i) {
       var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
@@ -1283,7 +1299,7 @@
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
-      defsSvg + gridSvg + anelDecorativo + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
+      defsSvg + gridSvg + anelDecorativo + feixesSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
       '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
       (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       pontosSaldo + eixoX +
@@ -3778,7 +3794,7 @@
         '<div class="exec-grid">' +
           '<div class="exec-card">' +
             '<div class="exec-card-titulo-row">' +
-              '<div><div class="exec-card-titulo">Receita × Despesas</div>' +
+              '<div><div class="exec-card-titulo exec-card-titulo-icone">' + ICONE_TENDENCIA_ALTA + '<span>Histórico de Fluxo Financeiro</span></div>' +
                 '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses + próximos 6 (previsão)</div></div>' +
               '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
                 '<button type="button" class="exec-periodo-btn" data-meses="1">1M</button>' +
@@ -3787,6 +3803,11 @@
                 '<button type="button" class="exec-periodo-btn ativo" data-meses="12">12M</button>' +
                 '<button type="button" class="exec-periodo-btn" data-meses="24">24M</button>' +
               '</div>' +
+            '</div>' +
+            '<div class="exec-legend-simples">' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesa</span>' +
+              '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Saldo</span>' +
             '</div>' +
             '<div class="exec-acumulado" id="exec-acumulado"></div>' +
             '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
