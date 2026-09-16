@@ -1232,11 +1232,19 @@
         '" fill="var(--ink-faint)" opacity="0.18" aria-hidden="true"/>';
     }).join('');
 
+    var anelCx = padL + plotW / 2, anelCy = padT + plotH, anelRx = plotW * 0.58, anelRy = 20;
     var anelDecorativo =
-      '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
-        '" rx="' + (plotW * 0.58).toFixed(1) + '" ry="20" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
-      '<ellipse cx="' + (padL + plotW / 2).toFixed(1) + '" cy="' + (padT + plotH).toFixed(1) +
-        '" rx="' + (plotW * 0.58).toFixed(1) + '" ry="20" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.25" aria-hidden="true"/>';
+      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
+        '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
+      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
+        '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy + '" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.25" aria-hidden="true"/>' +
+      // "Plataforma digital" -- pequenas linhas de energia extremamente sutis irradiando do
+      // anel, dando a sensacao de que as torres flutuam sobre uma base tecnologica.
+      [0.2, 0.5, 0.8].map(function (f) {
+        var x = anelCx - anelRx + f * anelRx * 2;
+        return '<line x1="' + x.toFixed(1) + '" y1="' + (anelCy - 2) + '" x2="' + x.toFixed(1) + '" y2="' + (anelCy + 2) +
+          '" stroke="var(--accent)" stroke-width="0.6" opacity="0.2" aria-hidden="true"/>';
+      }).join('');
 
     var feixesSvg = serie.map(function (m, i) {
       if (m.previsto) return '';
@@ -1246,29 +1254,83 @@
         '" height="' + (plotH / 2 + 22).toFixed(1) + '" fill="url(#gradFeixeBarra)" opacity="' + intensidade.toFixed(2) + '" aria-hidden="true"/>';
     }).join('');
 
+    // "Torres de dados" 3D: cada mes vira uma torre isometrica (face frontal + topo + lateral),
+    // em vez de um retangulo chapado -- receita e despesa continuam com a MESMA altura/posicao
+    // de sempre (nada de logica/dado muda), so ganham profundidade visual. dx/dy definem o
+    // angulo isometrico, proporcional a largura da barra pra escalar bem em qualquer periodo.
+    var dxProf = Math.min(larguraBarra * 0.32, 6);
+    var dyProf = -dxProf * 0.6;
+    function faceLateral(xEsq, yTopo, altura, cor, opacidade) {
+      var xD = xEsq + larguraBarra;
+      var p = [
+        [xD, yTopo], [xD + dxProf, yTopo + dyProf],
+        [xD + dxProf, yTopo + altura + dyProf], [xD, yTopo + altura],
+      ].map(function (pt) { return pt[0].toFixed(1) + ',' + pt[1].toFixed(1); }).join(' ');
+      return '<polygon points="' + p + '" fill="' + cor + '" opacity="' + opacidade + '" aria-hidden="true"/>';
+    }
+    function faceTopo(xEsq, y, cor, opacidade) {
+      var xD = xEsq + larguraBarra;
+      var p = [
+        [xEsq, y], [xEsq + dxProf, y + dyProf],
+        [xD + dxProf, y + dyProf], [xD, y],
+      ].map(function (pt) { return pt[0].toFixed(1) + ',' + pt[1].toFixed(1); }).join(' ');
+      return '<polygon points="' + p + '" fill="' + cor + '" opacity="' + opacidade + '" aria-hidden="true"/>';
+    }
+
+    var idxTorreMax = -1, alturaTorreMax = -1;
+    serie.forEach(function (m, i) {
+      if (m.previsto) return;
+      if (m.receita > alturaTorreMax) { alturaTorreMax = m.receita; idxTorreMax = i; }
+    });
+
     var barrasSvg = serie.map(function (m, i) {
-      var xEsq = (xAt(i) - larguraBarra / 2).toFixed(1);
+      var xEsqNum = xAt(i) - larguraBarra / 2;
+      var xEsq = xEsqNum.toFixed(1);
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
       var fillReceita = m.previsto ? 'url(#gradReceitaPrevista)' : 'url(#gradReceita)';
       var alturaReceita = Math.max(Math.abs(baselineY - yReceitaTopo), 1);
-      var topoReceita = Math.min(yReceitaTopo, baselineY).toFixed(1);
-      var barraReceita = m.receita > 0
-        ? '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="3"' +
+      var topoReceitaNum = Math.min(yReceitaTopo, baselineY);
+      var topoReceita = topoReceitaNum.toFixed(1);
+      var ehTorrePico = i === idxTorreMax;
+
+      var partesReceita = '';
+      if (m.receita > 0) {
+        if (!m.previsto) {
+          // lateral (face escura, profundidade) desenhada ANTES da face frontal, pra ficar atras.
+          partesReceita += faceLateral(xEsqNum, topoReceitaNum, alturaReceita, 'color-mix(in srgb, var(--chart-receita) 55%, black)', 0.55);
+        }
+        partesReceita += '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="2"' +
           (m.previsto
             ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"'
-            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>' +
-          // 3D Bar Glow: reflexo lateral sutil (bisel) na borda esquerda da barra, so nas
-          // realizadas -- da a sensacao de luz batendo de lado, sem exagerar.
-          (!m.previsto ? '<rect x="' + xEsq + '" y="' + topoReceita + '" width="1.2" height="' + alturaReceita.toFixed(1) + '" rx="0.6" fill="white" opacity="0.22" aria-hidden="true"/>' : '')
-        : '';
+            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
+        if (!m.previsto) {
+          // nucleo interno (energia) -- faixa vertical mais clara no centro da torre.
+          partesReceita += '<rect x="' + (xEsqNum + larguraBarra * 0.32).toFixed(1) + '" y="' + topoReceita + '" width="' + (larguraBarra * 0.36).toFixed(1) +
+            '" height="' + alturaReceita.toFixed(1) + '" rx="1.5" fill="color-mix(in srgb, var(--chart-receita) 40%, white)" opacity="0.28" aria-hidden="true"/>';
+          // topo (tampa translucida) + pequeno brilho no topo de cada torre.
+          partesReceita += faceTopo(xEsqNum, topoReceitaNum, 'color-mix(in srgb, var(--chart-receita) 45%, white)', ehTorrePico ? 0.75 : 0.55);
+          var raioBrilhoTopo = ehTorrePico ? 3.5 : 1.6;
+          partesReceita += '<circle cx="' + (xEsqNum + larguraBarra / 2 + dxProf / 2).toFixed(1) + '" cy="' + (topoReceitaNum + dyProf / 2).toFixed(1) +
+            '" r="' + raioBrilhoTopo + '" fill="white" opacity="' + (ehTorrePico ? 0.85 : 0.6) + '" style="filter:blur(' + (ehTorrePico ? 1.5 : 0.8) + 'px);" aria-hidden="true"/>';
+        }
+      }
       var barraDespesa = m.despesa > 0
-        ? '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="3"' +
+        ? faceLateral(xEsqNum, Math.min(baselineY, yDespesaBase), Math.max(Math.abs(yDespesaBase - baselineY), 1), 'color-mix(in srgb, var(--chart-despesa) 55%, black)', m.previsto ? 0 : 0.5) +
+          '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="2"' +
           (m.previsto ? ' opacity="0.6"' : ' stroke="var(--chart-despesa)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>'
         : '';
-      return barraReceita + barraDespesa;
+
+      // Bloom + Light Burst concentrado so na torre mais alta do periodo (pico) -- reforco extra
+      // em cima do que ja existe, marcando ela como "a maior visualmente" tambem.
+      var bloomTorrePico = ehTorrePico
+        ? '<ellipse cx="' + (xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + topoReceitaNum.toFixed(1) + '" rx="' + (larguraBarra * 1.6).toFixed(1) +
+            '" ry="10" fill="var(--chart-receita)" opacity="0.22" filter="url(#filtroBloomPico)" aria-hidden="true"/>'
+        : '';
+
+      return bloomTorrePico + partesReceita + barraDespesa;
     }).join('');
 
     function pontoSaldo(i) { return xAt(i).toFixed(1) + ',' + yAtSigned(serie[i].receita - serie[i].despesa).toFixed(1); }
