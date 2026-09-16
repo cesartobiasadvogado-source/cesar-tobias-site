@@ -511,6 +511,100 @@
     });
   }
 
+  // Siglas exatamente como o DataJud (base publica do CNJ) espera -- ver datajud.py,
+  // _alias_tribunal monta a URL da API a partir dessa sigla, entao um valor fora dessa lista
+  // nunca sincroniza (a consulta simplesmente nao acha nada, sem erro nenhum). Escolher aqui em
+  // vez de digitar evita repetir o problema descoberto com o processo da Elen Samile (tribunal
+  // salvo por extenso, "Tribunal de Justiça do Amapá", nunca batia com a sigla "TJAP" da API).
+  var GRUPOS_TRIBUNAIS = [
+    { grupo: 'Superiores', itens: [
+      ['STF', 'STF — Supremo Tribunal Federal'], ['STJ', 'STJ — Superior Tribunal de Justiça'],
+      ['TST', 'TST — Tribunal Superior do Trabalho'], ['TSE', 'TSE — Tribunal Superior Eleitoral'],
+      ['STM', 'STM — Superior Tribunal Militar'],
+    ] },
+    { grupo: 'Justiça Estadual (TJ)', itens: [
+      ['TJAC', 'TJAC — Acre'], ['TJAL', 'TJAL — Alagoas'], ['TJAP', 'TJAP — Amapá'],
+      ['TJAM', 'TJAM — Amazonas'], ['TJBA', 'TJBA — Bahia'], ['TJCE', 'TJCE — Ceará'],
+      ['TJDFT', 'TJDFT — Distrito Federal e Territórios'], ['TJES', 'TJES — Espírito Santo'],
+      ['TJGO', 'TJGO — Goiás'], ['TJMA', 'TJMA — Maranhão'], ['TJMT', 'TJMT — Mato Grosso'],
+      ['TJMS', 'TJMS — Mato Grosso do Sul'], ['TJMG', 'TJMG — Minas Gerais'], ['TJPA', 'TJPA — Pará'],
+      ['TJPB', 'TJPB — Paraíba'], ['TJPR', 'TJPR — Paraná'], ['TJPE', 'TJPE — Pernambuco'],
+      ['TJPI', 'TJPI — Piauí'], ['TJRJ', 'TJRJ — Rio de Janeiro'], ['TJRN', 'TJRN — Rio Grande do Norte'],
+      ['TJRS', 'TJRS — Rio Grande do Sul'], ['TJRO', 'TJRO — Rondônia'], ['TJRR', 'TJRR — Roraima'],
+      ['TJSC', 'TJSC — Santa Catarina'], ['TJSE', 'TJSE — Sergipe'], ['TJSP', 'TJSP — São Paulo'],
+      ['TJTO', 'TJTO — Tocantins'],
+    ] },
+    { grupo: 'Justiça Federal (TRF)', itens: [
+      ['TRF1', 'TRF1 — 1ª Região'], ['TRF2', 'TRF2 — 2ª Região'], ['TRF3', 'TRF3 — 3ª Região'],
+      ['TRF4', 'TRF4 — 4ª Região'], ['TRF5', 'TRF5 — 5ª Região'], ['TRF6', 'TRF6 — 6ª Região'],
+    ] },
+    { grupo: 'Justiça do Trabalho (TRT)', itens: Array.from({ length: 24 }, function (_, i) {
+      var n = i + 1;
+      return ['TRT' + n, 'TRT' + n + ' — ' + n + 'ª Região'];
+    }) },
+    { grupo: 'Justiça Eleitoral (TRE)', itens: [
+      ['TREAC', 'TRE-AC'], ['TREAL', 'TRE-AL'], ['TREAP', 'TRE-AP'], ['TREAM', 'TRE-AM'],
+      ['TREBA', 'TRE-BA'], ['TRECE', 'TRE-CE'], ['TREDF', 'TRE-DF'], ['TREES', 'TRE-ES'],
+      ['TREGO', 'TRE-GO'], ['TREMA', 'TRE-MA'], ['TREMT', 'TRE-MT'], ['TREMS', 'TRE-MS'],
+      ['TREMG', 'TRE-MG'], ['TREPA', 'TRE-PA'], ['TREPB', 'TRE-PB'], ['TREPR', 'TRE-PR'],
+      ['TREPE', 'TRE-PE'], ['TREPI', 'TRE-PI'], ['TRERJ', 'TRE-RJ'], ['TRERN', 'TRE-RN'],
+      ['TRERS', 'TRE-RS'], ['TRERO', 'TRE-RO'], ['TRERR', 'TRE-RR'], ['TRESC', 'TRE-SC'],
+      ['TRESE', 'TRE-SE'], ['TRESP', 'TRE-SP'], ['TRETO', 'TRE-TO'],
+    ] },
+    { grupo: 'Justiça Militar Estadual', itens: [
+      ['TJMMG', 'TJM-MG — Minas Gerais'], ['TJMRS', 'TJM-RS — Rio Grande do Sul'], ['TJMSP', 'TJM-SP — São Paulo'],
+    ] },
+  ];
+
+  function htmlOpcoesTribunal(valorSelecionado) {
+    var atual = (valorSelecionado || '').trim().toUpperCase();
+    var opcaoVazia = '<option value="">Selecione...</option>';
+    var grupos = GRUPOS_TRIBUNAIS.map(function (g) {
+      var opcoes = g.itens.map(function (item) {
+        return '<option value="' + esc(item[0]) + '"' + (item[0] === atual ? ' selected' : '') + '>' + esc(item[1]) + '</option>';
+      }).join('');
+      return '<optgroup label="' + esc(g.grupo) + '">' + opcoes + '</optgroup>';
+    }).join('');
+    // se o processo ja tinha um valor que nao bate com nenhuma sigla conhecida (cadastro antigo,
+    // por extenso ou de um tribunal fora dessa lista), preserva ele como opcao extra em vez de
+    // trocar silenciosamente -- mesmo cuidado ja usado pro campo Situacao dos honorarios de exito.
+    var conhecido = GRUPOS_TRIBUNAIS.some(function (g) { return g.itens.some(function (item) { return item[0] === atual; }); });
+    var opcaoLivre = (atual && !conhecido) ? '<option value="' + esc(valorSelecionado) + '" selected>' + esc(valorSelecionado) + '</option>' : '';
+    return opcaoVazia + opcaoLivre + grupos;
+  }
+
+  function agruparAtosRepetidos(lista) {
+    // O DataJud loga um "Peticao / Outros documentos" por ARQUIVO anexado (a peticao inicial
+    // com 25 documentos vira 25 movimentos identicos, so alguns segundos de diferenca) --
+    // dado real do tribunal, nao duplicata nossa, mas 25 linhas iguais na tela e ilegivel.
+    // Junta tudo que tem a mesma origem+tipo+descricao+data numa linha so, com contador.
+    var grupos = [];
+    var indice = {};
+    lista.forEach(function (a) {
+      var chave = (a.origem || '') + '|' + (a.tipo || '') + '|' + (a.descricao || '') + '|' + (a.data || '');
+      if (indice[chave] === undefined) {
+        indice[chave] = grupos.length;
+        grupos.push({ base: a, qtd: 1 });
+      } else {
+        grupos[indice[chave]].qtd += 1;
+      }
+    });
+    return grupos;
+  }
+
+  function setSelectValueComFallback(select, valor) {
+    if (!select) return;
+    var v = valor || '';
+    var existe = Array.prototype.some.call(select.options, function (o) { return o.value === v; });
+    if (v && !existe) {
+      var opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      select.appendChild(opt);
+    }
+    select.value = v;
+  }
+
   function _abrirCalendarioAoClicar(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -1993,7 +2087,7 @@
               '<div><label>Órgão julgador / Vara</label><input id="procman-orgao" placeholder="Ex: 1ª Vara Cível"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Tribunal</label><input id="procman-tribunal" placeholder="Ex: TJSP, TRT-2"></div>' +
+              '<div><label>Tribunal</label><select id="procman-tribunal">' + htmlOpcoesTribunal('') + '</select></div>' +
               '<div><label>Comarca / Foro</label><input id="procman-comarca" placeholder="Ex: São Paulo"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
@@ -6375,11 +6469,15 @@
         corpo.innerHTML = '<div class="empty-state"><div class="msg">Nenhum ato processual registrado.</div></div>';
         return;
       }
-      corpo.innerHTML = filtrados.map(function (a) {
+      corpo.innerHTML = agruparAtosRepetidos(filtrados).map(function (g) {
+        var a = g.base;
+        var selo = g.qtd > 1
+          ? ' <span class="chip neutral" title="O tribunal registrou este mesmo andamento ' + g.qtd + ' vezes nesse dia (comum quando vários documentos são anexados de uma vez, ex: petição inicial com vários anexos)">×' + g.qtd + '</span>'
+          : '';
         return '<div class="prazo-card">' +
           '<div class="prazo-card-topo">' +
             '<div><span class="chip ' + (a.origem === 'Tribunal' ? 'neutral' : 'good') + '">' + esc(a.origem === 'Tribunal' ? 'Tribunal' : 'Escritório') + '</span> ' +
-              '<strong style="font-size:13.5px;">' + esc(a.tipo || 'Ato') + '</strong></div>' +
+              '<strong style="font-size:13.5px;">' + esc(a.tipo || 'Ato') + '</strong>' + selo + '</div>' +
             '<span class="prazo-meta">' + fmtDataProcesso(a.data) + '</span>' +
           '</div>' +
           (a.descricao ? '<div class="prazo-resumo">' + esc(a.descricao) + '</div>' : '') +
@@ -7696,7 +7794,7 @@
               '<div><label>Classe processual</label><input id="procficha-edit-classe" value="' + esc(p.classe_processual || '') + '"></div>' +
               '<div><label>Área do direito</label><input id="procficha-edit-area" value="' + esc(p.area_direito || '') + '"></div>' +
               '<div><label>Órgão julgador / Vara</label><input id="procficha-edit-orgao" value="' + esc(p.orgao_julgador || '') + '"></div>' +
-              '<div><label>Tribunal</label><input id="procficha-edit-tribunal" value="' + esc(p.tribunal || '') + '"></div>' +
+              '<div><label>Tribunal</label><select id="procficha-edit-tribunal">' + htmlOpcoesTribunal(p.tribunal || '') + '</select></div>' +
               '<div><label>Comarca / Foro</label><input id="procficha-edit-comarca" value="' + esc(p.comarca || '') + '"></div>' +
               '<div><label>Grau</label><select id="procficha-edit-grau"><option value="">Selecione...</option>' +
                 ['1º Grau', '2º Grau', 'Tribunal Superior'].map(function (g) { return '<option' + (p.grau === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
@@ -7894,11 +7992,15 @@
 
     function _htmlListaAtosInline(atos) {
       if (!atos.length) return '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Nenhum ato processual registrado.</div></div>';
-      return atos.map(function (a) {
+      return agruparAtosRepetidos(atos).map(function (g) {
+        var a = g.base;
+        var selo = g.qtd > 1
+          ? ' <span class="chip neutral" title="O tribunal registrou este mesmo andamento ' + g.qtd + ' vezes nesse dia (comum quando vários documentos são anexados de uma vez, ex: petição inicial com vários anexos)">×' + g.qtd + '</span>'
+          : '';
         return '<div class="prazo-card" style="background:var(--bg);border-color:var(--line);">' +
           '<div class="prazo-card-topo">' +
             '<div><span class="chip ' + (a.origem === 'Tribunal' ? 'neutral' : 'good') + '">' + esc(a.origem === 'Tribunal' ? 'Tribunal' : 'Escritório') + '</span> ' +
-              '<strong style="font-size:13px;color:var(--ink);">' + esc(a.tipo || 'Ato') + '</strong></div>' +
+              '<strong style="font-size:13px;color:var(--ink);">' + esc(a.tipo || 'Ato') + '</strong>' + selo + '</div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(a.data) + '</span>' +
           '</div>' +
           (a.descricao ? '<div class="prazo-resumo" style="color:var(--ink-soft);">' + esc(a.descricao) + '</div>' : '') +
@@ -8471,12 +8573,13 @@
       .catch(function () { /* datalist so ajuda, nao bloqueia o preenchimento manual se falhar */ });
 
     function limparFormulario() {
-      ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao', 'procman-tribunal',
+      ['procman-numero-cnj', 'procman-classe', 'procman-area', 'procman-orgao',
         'procman-comarca', 'procman-cliente', 'procman-fase', 'procman-valor-causa',
         'procman-data-distribuicao', 'procman-data-encerramento', 'procman-advogado',
         'procman-prioridade', 'procman-obs'].forEach(function (id) {
         document.getElementById(id).value = '';
       });
+      document.getElementById('procman-tribunal').value = '';
       document.getElementById('procman-grau').value = '';
       document.getElementById('procman-status').value = 'Em andamento';
       document.getElementById('procman-risco').value = '';
@@ -8492,7 +8595,7 @@
       document.getElementById('procman-classe').value = p.classe_processual || '';
       document.getElementById('procman-area').value = p.area_direito || '';
       document.getElementById('procman-orgao').value = p.orgao_julgador || '';
-      document.getElementById('procman-tribunal').value = p.tribunal || '';
+      setSelectValueComFallback(document.getElementById('procman-tribunal'), p.tribunal || '');
       document.getElementById('procman-comarca').value = p.comarca || '';
       document.getElementById('procman-grau').value = p.grau || '';
       document.getElementById('procman-status').value = p.status || 'Em andamento';
