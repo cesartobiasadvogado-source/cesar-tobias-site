@@ -1546,7 +1546,7 @@
       });
   }
 
-  var ROTULO_PERIODO_EXEC = { 3: 'Últimos 3 meses', 6: 'Últimos 6 meses', 12: 'Últimos 12 meses', 24: 'Últimos 24 meses' };
+  var ROTULO_PERIODO_EXEC = { 1: 'Último mês', 3: 'Últimos 3 meses', 6: 'Últimos 6 meses', 12: 'Últimos 12 meses', 24: 'Últimos 24 meses' };
 
   function wireExecPeriodoFiltros() {
     var wrap = document.getElementById('exec-periodo-filtros');
@@ -3650,6 +3650,7 @@
               '<div><div class="exec-card-titulo">Receita × Despesas</div>' +
                 '<div class="exec-card-sub" id="exec-grafico-periodo-label">Últimos 12 meses + próximos 6 (previsão)</div></div>' +
               '<div class="fluxo-filtros" id="exec-periodo-filtros">' +
+                '<button type="button" class="exec-periodo-btn" data-meses="1">1M</button>' +
                 '<button type="button" class="exec-periodo-btn" data-meses="3">3M</button>' +
                 '<button type="button" class="exec-periodo-btn" data-meses="6">6M</button>' +
                 '<button type="button" class="exec-periodo-btn ativo" data-meses="12">12M</button>' +
