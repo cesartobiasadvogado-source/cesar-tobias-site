@@ -573,6 +573,24 @@
     return opcaoVazia + opcaoLivre + grupos;
   }
 
+  // Links confirmados da consulta publica oficial de cada tribunal (o DataJud so da o TIPO do
+  // andamento, nunca o documento -- ver conversa com o usuario sobre "Peticao"/"Decisao
+  // Interlocutoria" sem link pra abrir). So entram aqui tribunais com URL verificada de verdade
+  // (busca feita, nao chute) -- pra qualquer outro, cai no fallback de busca no Google.
+  var CONSULTA_PUBLICA_TRIBUNAL = {
+    'TJAP': 'https://pje.tjap.jus.br/1g/ConsultaPublica/listView.seam',
+    'TRT8': 'https://pje.trt8.jus.br/consultaprocessual/home',
+    'TRF1': 'https://pje1g.trf1.jus.br/pje/ConsultaPublica/listView.seam',
+  };
+
+  function linkConsultaPublicaProcesso(tribunal, numeroCnj) {
+    var sigla = (tribunal || '').trim().toUpperCase();
+    if (CONSULTA_PUBLICA_TRIBUNAL[sigla]) return CONSULTA_PUBLICA_TRIBUNAL[sigla];
+    // fallback honesto pra tribunal sem URL confirmada -- nunca inventa um link direto que pode
+    // dar pagina quebrada, so ajuda a achar a consulta oficial certa.
+    return 'https://www.google.com/search?q=' + encodeURIComponent((numeroCnj || '') + ' ' + (tribunal || '') + ' consulta processual pje');
+  }
+
   function agruparAtosRepetidos(lista) {
     // O DataJud loga um "Peticao / Outros documentos" por ARQUIVO anexado (a peticao inicial
     // com 25 documentos vira 25 movimentos identicos, so alguns segundos de diferenca) --
@@ -7860,6 +7878,13 @@
               '<span id="procficha-sincronizar-status" style="font-size:12.5px; color:var(--ink-faint); align-self:center;"></span>' +
             '</div>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
+            (p.numero_cnj ? (
+              '<div style="margin-top:10px; font-size:12.5px; color:var(--ink-faint);">' +
+                'O DataJud só informa o tipo de cada andamento, nunca o documento em si. ' +
+                'Pra abrir o processo de verdade: <a href="' + esc(linkConsultaPublicaProcesso(p.tribunal, p.numero_cnj)) + '" target="_blank" rel="noopener" style="color:var(--accent);">consultar no ' + esc(p.tribunal || 'tribunal') + '</a> ' +
+                '— cole o número do processo lá: <strong style="color:var(--ink-soft); user-select:all;">' + esc(p.numero_cnj) + '</strong>' +
+              '</div>'
+            ) : '') +
 
             '<div class="procficha-pje-secao hidden" style="margin-top:22px;">' +
               '<p class="procficha-painel-titulo">Comunicações do PJe</p>' +
