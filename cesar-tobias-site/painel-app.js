@@ -4662,15 +4662,26 @@
     if (!container) return;
     var exitos = honorariosContratosCache.exitos || [];
     var itens = exitos.map(function (e) {
+      var baseEstimativa = e.valor_estimado_ganho != null ? e.valor_estimado_ganho : (e.valor_causa || 0);
+      var valorEstimado = (e.percentual || 0) * baseEstimativa;
       var apurado = (e.honorario || 0) > 0; // ja tem valor_recebido_cliente informado -- honorario calculado de verdade
       var estado;
       var valor;
-      if (!apurado) {
+      if (e.situacao === 'Processo perdido') {
+        // processo perdido nao gera honorario -- some do grafico em vez de aparecer como
+        // estimado ou a receber pra sempre.
+        estado = null;
+        valor = 0;
+      } else if (e.situacao === 'Recebido') {
+        // a Situacao manda: se o usuario marcou "Recebido" ali, o grafico segue essa escolha,
+        // mesmo que "Valor ja recebido por voce" ainda nao tenha sido preenchido a parte.
+        estado = 'recebido';
+        valor = apurado ? e.honorario : valorEstimado;
+      } else if (!apurado) {
         // ainda sem resultado -- so a estimativa (% x estimativa de ganho, ou valor da causa
         // se ninguem salvou uma estimativa propria ainda).
         estado = 'estimado';
-        var baseEstimativa = e.valor_estimado_ganho != null ? e.valor_estimado_ganho : (e.valor_causa || 0);
-        valor = (e.percentual || 0) * baseEstimativa;
+        valor = valorEstimado;
       } else if ((e.a_receber || 0) > 0.004) {
         // resultado ja saiu e o honorario ja foi apurado, mas o advogado ainda nao recebeu
         // (nem tudo, nem parte) -- diferente de "valor_recebido_cliente", que e so o que o
@@ -4684,7 +4695,7 @@
         valor = e.honorario || 0;
       }
       return { nome: e.nome_cliente, servico: e.servico || '', estado: estado, valor: valor };
-    }).filter(function (i) { return i.valor > 0.004; });
+    }).filter(function (i) { return i.estado && i.valor > 0.004; });
 
     var totais = { estimado: 0, a_receber: 0, recebido: 0 };
     itens.forEach(function (i) { totais[i.estado] += i.valor; });
