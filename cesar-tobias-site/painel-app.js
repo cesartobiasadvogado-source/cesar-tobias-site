@@ -5615,12 +5615,12 @@
           var idReceber = btnReceber.getAttribute('data-receber-parcela-id');
           var itemReceber = parcelasAReceberCache.filter(function (p) { return String(p.id) === idReceber; })[0];
           if (!itemReceber) { window.alert('Não encontrei essa parcela na lista carregada (id ' + idReceber + '). Atualize a página e tente de novo.'); return; }
-          pedirValorRecebido(itemReceber).then(function (valorDigitadoReceber) {
-            if (valorDigitadoReceber === null) return;
+          pedirValorRecebido(itemReceber).then(function (recebimentoDigitado) {
+            if (recebimentoDigitado === null) return;
             var textoOriginalReceber = btnReceber.textContent;
             btnReceber.disabled = true;
             btnReceber.textContent = 'Registrando...';
-            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber, valor: valorDigitadoReceber })
+            apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_parcela_receber', id: idReceber, valor: recebimentoDigitado.valor, data_pagamento: recebimentoDigitado.data })
               .then(function () { carregarParcelasAReceber(); })
               .catch(function (e) {
                 window.alert(e.message || 'Não foi possível registrar o recebimento agora.');
@@ -5747,6 +5747,10 @@
               '<label for="receber-valor-input">Valor recebido (R$)</label>' +
               '<input type="text" id="receber-valor-input" autocomplete="off">' +
             '</div>' +
+            '<div class="ncontrato-campo" style="margin-top:10px; text-align:left;">' +
+              '<label for="receber-valor-data">Data do pagamento</label>' +
+              '<input type="date" id="receber-valor-data">' +
+            '</div>' +
             '<div class="ncontrato-erro" id="receber-valor-erro"></div>' +
             '<div class="confirm-modal-acoes">' +
               '<button type="button" class="btn-conexao-secundario" id="receber-valor-cancelar">Cancelar</button>' +
@@ -5758,11 +5762,15 @@
       }
       document.getElementById('receber-valor-titulo').textContent = 'Valor recebido de ' + item.nome_cliente;
       var input = document.getElementById('receber-valor-input');
+      var inputData = document.getElementById('receber-valor-data');
       var erroEl = document.getElementById('receber-valor-erro');
       var btnOk = document.getElementById('receber-valor-ok');
       var btnCancelar = document.getElementById('receber-valor-cancelar');
       erroEl.textContent = '';
       input.value = fmtMoeda(item.saldo);
+      var hoje = new Date();
+      inputData.value = hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0');
+      inputData.max = inputData.value;
 
       function limpar(resultado) {
         overlay.classList.add('hidden');
@@ -5776,7 +5784,8 @@
       function onCancelar() { limpar(null); }
       function onOk() {
         if (!input.value.trim()) { erroEl.textContent = 'Informe o valor recebido.'; return; }
-        limpar(input.value.trim());
+        if (!inputData.value) { erroEl.textContent = 'Informe a data do pagamento.'; return; }
+        limpar({ valor: input.value.trim(), data: fmtDataCurta(inputData.value) });
       }
       function onOverlay(e) { if (e.target === overlay) limpar(null); }
       function onEsc(e) { if (e.key === 'Escape') limpar(null); }
