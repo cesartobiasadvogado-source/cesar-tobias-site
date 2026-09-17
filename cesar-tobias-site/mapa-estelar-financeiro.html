@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vero Jurídico - Mapa Estelar</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Playfair+Display:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-dim": "#dbdad7",
+                      "on-secondary-fixed-variant": "#003ea8",
+                      "tertiary-container": "#380081",
+                      "on-surface-variant": "#44474d",
+                      "inverse-primary": "#b6c7eb",
+                      "on-primary-fixed": "#081b38",
+                      "on-primary-container": "#8293b5",
+                      "secondary-fixed": "#dbe1ff",
+                      "tertiary": "#1f004e",
+                      "on-tertiary-fixed": "#25005a",
+                      "on-primary": "#ffffff",
+                      "inverse-surface": "#2f312f",
+                      "secondary-container": "#316bf3",
+                      "error": "#ba1a1a",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#e3e2df",
+                      "surface": "#faf9f6",
+                      "tertiary-fixed": "#eaddff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-container": "#fefcff",
+                      "on-error": "#ffffff",
+                      "surface-tint": "#4e5f7e",
+                      "secondary-fixed-dim": "#b4c5ff",
+                      "primary-fixed": "#d7e2ff",
+                      "on-error-container": "#93000a",
+                      "error-container": "#ffdad6",
+                      "outline-variant": "#c5c6ce",
+                      "surface-container": "#efeeeb",
+                      "on-surface": "#1a1c1a",
+                      "background": "#faf9f6",
+                      "on-background": "#1a1c1a",
+                      "surface-container-high": "#e9e8e5",
+                      "primary-container": "#1a2b48",
+                      "on-tertiary-fixed-variant": "#5a00c6",
+                      "inverse-on-surface": "#f2f1ee",
+                      "surface-container-low": "#f4f3f0",
+                      "secondary": "#0051d5",
+                      "tertiary-fixed-dim": "#d2bbff",
+                      "on-primary-fixed-variant": "#374765",
+                      "on-tertiary-container": "#a579ff",
+                      "outline": "#75777e",
+                      "surface-bright": "#faf9f6",
+                      "on-secondary-fixed": "#00174b",
+                      "surface-variant": "#e3e2df",
+                      "primary-fixed-dim": "#b6c7eb",
+                      "on-secondary": "#ffffff",
+                      "primary": "#031632",
+                      
+                      // Specific colors requested for the card
+                      "navy-bg": "#0a0e17",
+                      "orb-received": "#4facfe",
+                      "orb-pending": "#f6a623",
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "sidebar_width": "280px",
+                      "base": "8px",
+                      "margin_desktop": "40px",
+                      "margin_mobile": "16px",
+                      "container_max_width": "1440px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-md": ["IBM Plex Sans"],
+                      "display-lg": ["Playfair Display"],
+                      "body-lg": ["IBM Plex Sans"],
+                      "label-md": ["IBM Plex Sans"],
+                      "body-sm": ["IBM Plex Sans"],
+                      "headline-md": ["Playfair Display"],
+                      "headline-lg": ["Playfair Display"],
+                      "headline-lg-mobile": ["Playfair Display"],
+                      "mono": ["IBM Plex Mono"]
+              },
+              "fontSize": {
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "caption": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "500"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .draw-line {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: draw 2s ease-out forwards;
+        }
+        @keyframes draw {
+            to { stroke-dashoffset: 0; }
+        }
+        .fade-in-scale {
+            opacity: 0;
+            transform: scale(0);
+            transform-origin: center;
+            animation: fadeInScale 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes fadeInScale {
+            to { opacity: 1; transform: scale(1); }
+        }
+        .orb-glow {
+            filter: drop-shadow(0 0 8px rgba(79, 172, 254, 0.6));
+        }
+        .tooltip {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+        }
+        .hover-target:hover + .tooltip {
+            opacity: 1;
+            transform: translateY(-8px) translateX(-50%);
+        }
+        
+        /* Staggered animations */
+        .delay-1 { animation-delay: 0.3s; }
+        .delay-2 { animation-delay: 0.6s; }
+        .delay-3 { animation-delay: 0.9s; }
+        .delay-4 { animation-delay: 1.2s; }
+        .delay-5 { animation-delay: 1.5s; }
+        .delay-6 { animation-delay: 1.8s; }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface h-screen flex flex-col antialiased">
+<!-- Top Navigation from Shared Components -->
+<header class="flex justify-between items-center h-16 px-margin_desktop ml-sidebar_width w-[calc(100%-theme(spacing.sidebar_width))] border-b border-outline-variant bg-surface hidden md:flex z-50">
+<div class="font-headline-md text-headline-md font-bold text-primary">Dashboard</div>
+<!-- Search omitted as per search_bar: on_left, simplified for UI focus -->
+<div class="flex items-center gap-6">
+<div class="flex gap-4 text-on-surface-variant">
+<button class="hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-secondary rounded-full p-1"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span></button>
+<button class="hover:text-primary transition-colors focus-within:ring-2 focus-within:ring-secondary rounded-full p-1"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">history</span></button>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors font-label-md text-label-md flex items-center gap-2 focus-within:ring-2 focus-within:ring-secondary rounded p-1">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A small, professional headshot of a legal professional in a dark tailored suit against a neutral studio background. The lighting is soft and corporate, conveying trust and authority in a minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAPwSYlgmyxvU0Zjs2_tSCcmAHKQyVrMOqSH98C-1tABq5FGTe2DdVvUIzdu_izF7dliDlFPVBIYKU6jvhLAKNhTD0HbQkAZpUhrmQEJhDzzMZp-5lXANzkBvcyw9DtvwvSguTpEY555mHn-u3qbHvc94sR67c9X4r6Bje_m5VDmE99CvXTDxo6pjUyCzKIqHFyyxrqvsCkjasURInl-HUWnJixcgV8HsXiTnqme0bbJYxhiaZr4VOY"/>
+<span>Profile</span>
+</button>
+</div>
+</header>
+<!-- Side Navigation from Shared Components -->
+<nav class="flex flex-col h-screen fixed top-0 left-0 border-r border-outline-variant/10 bg-primary w-sidebar_width z-40 hidden md:flex">
+<div class="p-6">
+<div class="flex items-center gap-4 mb-8">
+<img class="w-10 h-10 rounded" data-alt="A sleek, minimalist logo for a high-end law firm. The logo features abstract geometric shapes in deep navy and silver, conveying stability, authority, and modern legal practice. The background is pristine white." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwgcmcEiqJCs99c3RtCIDdyCHJojVEowrcKkRgxgxIZqMeHKcdGvOt5LQcg-riXVeyGbs0y5FOB6knhVCjW1RlqgTq8amLU_zSS-z4OeQs5Q4iCH1dMunh5qXduOI-pAeZX5AVU6FmNuyWv26ui4fVgAf8qgJWi3J6gsrZGTzLwvoa0oiNtDlx1m2W5O-oauBE5osa2epPuMM-IWItm6sHYkpWK2E1HMMR28qxG4qMbwGj68pZj3yU"/>
+<div>
+<div class="font-headline-md text-headline-md font-bold text-on-primary">Vero Jurídico</div>
+<div class="font-label-md text-label-md text-on-primary/70 uppercase">Legal Management</div>
+</div>
+</div>
+<button class="w-full bg-secondary-container text-on-secondary-container hover:bg-primary-fixed-dim/10 rounded-lg py-3 font-label-md text-label-md transition-colors flex justify-center items-center gap-2 mb-6 border border-transparent hover:border-secondary-container">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Case
+            </button>
+</div>
+<div class="flex-1 overflow-y-auto py-4">
+<ul class="space-y-1">
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">group</span>
+                        Clients
+                    </a>
+</li>
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">gavel</span>
+                        Cases
+                    </a>
+</li>
+<li>
+<a class="bg-secondary-container text-on-secondary-container mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md shadow-sm" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+                        Financial
+                    </a>
+</li>
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">calendar_today</span>
+                        Calendar
+                    </a>
+</li>
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-3 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">smart_toy</span>
+                        Automations
+                    </a>
+</li>
+</ul>
+</div>
+<div class="p-4 border-t border-outline-variant/10">
+<ul class="space-y-1">
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-2 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">settings</span>
+                        Settings
+                    </a>
+</li>
+<li>
+<a class="text-on-primary-container/70 hover:text-on-primary hover:bg-primary-fixed-dim/10 mx-2 my-1 px-4 py-2 flex items-center gap-3 transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 0;">help_center</span>
+                        Support
+                    </a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-sidebar_width p-margin_mobile md:p-margin_desktop overflow-auto bg-surface-container-low flex justify-center items-center">
+<!-- Mapa Estelar Component -->
+<div class="relative w-full max-w-4xl h-[400px] rounded-xl overflow-hidden shadow-2xl border border-primary-container flex flex-col bg-navy-bg isolate">
+<!-- Background Animation Layer -->
+<!-- STITCH_SHADER_START:ANIMATION_12 class="absolute inset-0 w-full h-full -z-10 opacity-60" -->
+<div class="absolute inset-0 w-full h-full -z-10 opacity-60" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_12" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_12');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+varying vec2 v_texCoord;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+void main() {
+    vec2 uv = v_texCoord;
+    
+    // Deep navy base
+    vec3 color = vec3(0.039, 0.055, 0.09); // #0a0e17
+    
+    // Subtle radial glows in corners (purple-blue nebula style)
+    float d1 = distance(uv, vec2(0.0, 0.0));
+    float d2 = distance(uv, vec2(1.0, 1.0));
+    
+    vec3 glowColor = vec3(0.2, 0.1, 0.4); // Subtle purple-blue
+    
+    float glow1 = smoothstep(0.8, 0.0, d1) * 0.15;
+    float glow2 = smoothstep(0.8, 0.0, d2) * 0.12;
+    
+    // Add a bit of pulse to the glows
+    float pulse = sin(u_time * 0.5) * 0.02 + 0.98;
+    
+    color += glowColor * glow1 * pulse;
+    color += glowColor * glow2 * (1.0/pulse);
+    
+    gl_FragColor = vec4(color, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_12 -->
+<!-- Card Header -->
+<div class="p-6 flex justify-between items-start z-10 border-b border-white/5">
+<div>
+<h2 class="font-headline-md text-headline-md text-white">Mapa Estelar</h2>
+<p class="font-body-sm text-body-sm text-inverse-primary/60 mt-1">Cash Flow Projection</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-inverse-primary/50 text-sm">more_horiz</span>
+</div>
+</div>
+<!-- Graph Area -->
+<div class="flex-1 relative w-full h-full px-8 py-4 z-10">
+<svg class="overflow-visible" height="100%" preserveaspectratio="none" viewbox="0 0 800 200" width="100%">
+<!-- Grid Lines -->
+<line stroke="rgba(255,255,255,0.03)" stroke-width="1" x1="0" x2="800" y1="50" y2="50"></line>
+<line stroke="rgba(255,255,255,0.03)" stroke-width="1" x1="0" x2="800" y1="100" y2="100"></line>
+<line stroke="rgba(255,255,255,0.03)" stroke-width="1" x1="0" x2="800" y1="150" y2="150"></line>
+<!-- The Line (Translucent, animated) -->
+<!-- Coordinates roughly mapped to data: 12.5k -> ~160y, 19.2k -> ~40y -->
+<path class="draw-line" d="M 50 160 L 190 110 L 330 120 L 470 60 L 610 85 L 750 40" fill="none" stroke="rgba(182, 199, 235, 0.2)" stroke-width="1.5"></path>
+<!-- Nodes & Tooltips -->
+<!-- Jan -->
+<g class="fade-in-scale delay-1">
+<circle class="orb-glow hover-target cursor-pointer" cx="50" cy="160" fill="#4facfe" r="5"></circle>
+<g class="tooltip opacity-0" transform="translate(50, 160)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">JAN</text>
+<text fill="#4facfe" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">12.500</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="50" y="195">JAN</text>
+</g>
+<!-- Feb -->
+<g class="fade-in-scale delay-2">
+<circle class="orb-glow hover-target cursor-pointer" cx="190" cy="110" fill="#4facfe" r="5"></circle>
+<g class="tooltip opacity-0" transform="translate(190, 110)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">FEB</text>
+<text fill="#4facfe" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">15.200</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="190" y="195">FEB</text>
+</g>
+<!-- Mar -->
+<g class="fade-in-scale delay-3">
+<circle class="orb-glow hover-target cursor-pointer" cx="330" cy="120" fill="#4facfe" r="5"></circle>
+<g class="tooltip opacity-0" transform="translate(330, 120)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">MAR</text>
+<text fill="#4facfe" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">14.800</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="330" y="195">MAR</text>
+</g>
+<!-- Apr -->
+<g class="fade-in-scale delay-4">
+<circle class="orb-glow hover-target cursor-pointer" cx="470" cy="60" fill="#4facfe" r="5"></circle>
+<g class="tooltip opacity-0" transform="translate(470, 60)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">APR</text>
+<text fill="#4facfe" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">18.000</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="470" y="195">APR</text>
+</g>
+<!-- May (Pending) -->
+<g class="fade-in-scale delay-5">
+<circle class="hover-target cursor-pointer" cx="610" cy="85" fill="rgba(246, 166, 35, 0.8)" r="3.5"></circle>
+<g class="tooltip opacity-0" transform="translate(610, 85)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">MAY</text>
+<text fill="#f6a623" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">16.500</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="610" y="195">MAY</text>
+</g>
+<!-- Jun (Pending) -->
+<g class="fade-in-scale delay-6">
+<circle class="hover-target cursor-pointer" cx="750" cy="40" fill="rgba(246, 166, 35, 0.8)" r="3.5"></circle>
+<g class="tooltip opacity-0" transform="translate(750, 40)">
+<rect fill="#0a0e17" height="30" rx="4" stroke="rgba(255,255,255,0.1)" stroke-width="1" width="80" x="-40" y="-45"></rect>
+<text fill="white" font-family="'Playfair Display', serif" font-size="10" text-anchor="middle" x="0" y="-28">JUN</text>
+<text fill="#f6a623" font-family="'IBM Plex Mono', monospace" font-size="9" text-anchor="middle" x="0" y="-18">19.200</text>
+</g>
+<text fill="rgba(182, 199, 235, 0.5)" font-family="'IBM Plex Sans', sans-serif" font-size="10" font-weight="500" letter-spacing="0.1em" text-anchor="middle" x="750" y="195">JUN</text>
+</g>
+</svg>
+</div>
+<!-- Legend & Totals Footer -->
+<div class="px-6 py-4 flex justify-between items-center z-10 border-t border-white/5 bg-navy-bg/50 backdrop-blur-sm">
+<div class="flex gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-orb-received shadow-[0_0_6px_rgba(79,172,254,0.6)]"></span>
+<span class="text-caption text-inverse-primary/60 uppercase">Total recebido</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-orb-pending/80"></span>
+<span class="text-caption text-inverse-primary/60 uppercase">Total a receber</span>
+</div>
+</div>
+<div class="flex gap-6">
+<div class="text-right">
+<div class="text-caption text-inverse-primary/40 uppercase mb-1">Recebido</div>
+<div class="font-mono text-sm text-white font-medium">R$ 60.500</div>
+</div>
+<div class="text-right">
+<div class="text-caption text-inverse-primary/40 uppercase mb-1">A Receber</div>
+<div class="font-mono text-sm text-orb-pending font-medium">R$ 35.700</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
