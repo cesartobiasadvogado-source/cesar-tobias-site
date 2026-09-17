@@ -23,12 +23,7 @@
     --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, ui-monospace, monospace;
-    /* Paleta "dark premium futurista" do grafico Receita x Despesas (torres/linha/plataforma) --
-       azul eletrico dominante + ciano pro saldo, coral reservado so pra despesa (pedido do
-       usuario, com hex exatos). Mesmos valores nos 3 blocos de tema de proposito -- e uma
-       identidade visual fixa do grafico, nao um tom que deva mudar com claro/escuro. */
-    --chart-receita: #0066ff; --chart-receita-neon: #00b7ff; --chart-saldo: #00d9d9;
-    --chart-despesa: #ff5a5f; --chart-despesa-clara: #ff765c;
+    --chart-receita: #2a78d6; --chart-despesa: #eb6834;
     --chart-cat-1: #2a78d6; --chart-cat-2: #eb6834; --chart-cat-3: #1baf7a; --chart-cat-4: #eda100;
     --chart-cat-5: #e87ba4; --chart-cat-6: #008300; --chart-cat-7: #4a3aa7; --chart-cat-8: #e34948;
   }
@@ -41,8 +36,7 @@
       --warn: #9c7a16; --warn-soft: #2a2312;
       --crit: #e23a2e; --crit-soft: #2c1614;
       --sidebar-line: rgba(255, 255, 255, 0.07);
-      --chart-receita: #0066ff; --chart-receita-neon: #00b7ff; --chart-saldo: #00d9d9;
-      --chart-despesa: #ff5a5f; --chart-despesa-clara: #ff765c;
+      --chart-receita: #3987e5; --chart-despesa: #d95926;
       --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
       --chart-cat-5: #d55181; --chart-cat-6: #008300; --chart-cat-7: #9085e9; --chart-cat-8: #e66767;
     }
@@ -55,8 +49,7 @@
     --warn: #9c7a16; --warn-soft: #2a2312;
     --crit: #e23a2e; --crit-soft: #2c1614;
     --sidebar-line: rgba(255, 255, 255, 0.07);
-    --chart-receita: #0066ff; --chart-receita-neon: #00b7ff; --chart-saldo: #00d9d9;
-    --chart-despesa: #ff5a5f; --chart-despesa-clara: #ff765c;
+    --chart-receita: #3987e5; --chart-despesa: #d95926;
     --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
     --chart-cat-5: #d55181; --chart-cat-6: #008300; --chart-cat-7: #9085e9; --chart-cat-8: #e66767;
   }
