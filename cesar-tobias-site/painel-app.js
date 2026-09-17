@@ -7,11 +7,11 @@
   var mesesGraficoExecAtual = 12;
   var dadosPainelAtual = null;
   var itensModalDrillAtual = [];
-  // Receita por mes do ultimo desenho do grafico Receita x Despesas nesta sessao -- comparada a
-  // cada novo desenho pra saber se algum mes cresceu (ex: acabou de registrar um recebimento e
-  // voltou pra aba Dashboard) e animar so aquela torre subindo, em vez de sempre redesenhar tudo
-  // estatico. null = ainda nao desenhou nenhuma vez (primeiro desenho nunca anima).
-  var ultimaSerieExecReceitaPorMes = null;
+  // Receita/despesa por mes do ultimo desenho do grafico Receita x Despesas nesta sessao --
+  // comparada a cada novo desenho (1o carregamento, refresh, troca de periodo, dado novo) pra
+  // toda torre animar do valor anterior pro atual. null = ainda nao desenhou nenhuma vez (1o
+  // desenho sempre anima 0 -> altura atual).
+  var ultimaSerieExecPorMes = null;
 
   var ROTULO_STATUS_DRILL = {
     'EmAberto': 'A Receber — parcelas em aberto',
@@ -1445,52 +1445,82 @@
     // pontilhado da face frontal e a unica outra diferenca visual, tambem controlada aqui.
     var OPACIDADE_TORRE_PREVISTA = 0.62;
 
-    // Crescimento animado (SMIL, sem JS por frame): quando um mes teve a receita aumentada desde
-    // o ultimo desenho deste grafico nesta sessao (pedido do usuario -- lancar um contrato/receber
-    // um pagamento e ver a torre "subir" ao voltar pra aba Dashboard), a face frontal + borda +
-    // nucleo nascem na altura antiga e animam y/height juntos ate a altura nova -- como os dois
-    // atributos sao funcoes lineares do mesmo intervalo, a base (y+height) fica sempre colada na
-    // plataforma durante toda a animacao. Lateral/topo ficam na geometria final (a discrepancia
-    // por 0.9s e sutil demais pra valer interpolar os poligonos).
-    // 1.8s (era 0.9s) -- muito rapido pra notar, principalmente porque so comeca depois do fetch
-    // resolver (pequeno delay depois do clique na aba). Mais lento + faisca maior + estouro no
-    // topo no final, pra ficar dificil de passar batido (usuario relatou nao ter percebido).
-    // calcMode "spline" com aquele keySplines concentrava quase todo o movimento nos primeiros
-    // ~30% do tempo (ease-out agressivo) -- parecia um "salto" rapido em vez de uma subida
-    // constante (relatado pelo usuario). Linear (sem calcMode/keySplines) distribui o movimento
-    // igualmente pelos 1.8s inteiros, bem mais facil de acompanhar.
-    var DUR_CRESCIMENTO_TORRE = '1.8s';
-    function animSmil(atributo, de, para) {
+    // Crescimento animado (SMIL, sem JS por frame): TODA vez que o grafico e desenhado (primeiro
+    // carregamento, refresh, troca de periodo, novo dado chegando), cada torre nasce na altura
+    // anterior (0 no primeiro carregamento) e anima y/height juntos ate a altura atual -- como os
+    // dois atributos sao funcoes lineares do mesmo intervalo, a base (y+height) fica sempre colada
+    // na plataforma durante toda a animacao, tanto subindo quanto descendo. Lateral/topo ficam na
+    // geometria final (discrepancia breve demais pra valer interpolar os poligonos). Pedido do
+    // usuario: cubic-bezier(0.22, 1, 0.36, 1) -- mesma parametrizacao do calcMode="spline" do SMIL
+    // (keySplines usa os mesmos 4 numeros do cubic-bezier do CSS).
+    var DUR_CRESCIMENTO_TORRE_NUM = 1.2;
+    var DUR_CRESCIMENTO_TORRE = DUR_CRESCIMENTO_TORRE_NUM + 's';
+    var KEYSPLINES_TORRE = '0.22 1 0.36 1';
+    // Cascata sutil: cada mes comeca um pouco depois do anterior (esquerda -> direita), pedido do
+    // usuario. Intervalo pequeno pra nao alongar demais o total em periodos longos (24M).
+    var STAGGER_MES_S = 0.03;
+    function animSmil(atributo, de, para, beginOffset) {
       return '<animate attributeName="' + atributo + '" from="' + de.toFixed(1) + '" to="' + para.toFixed(1) +
-        '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>';
+        '" begin="' + beginOffset.toFixed(2) + 's" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="' + KEYSPLINES_TORRE + '" fill="freeze"/>';
     }
-    // Faisca que sobe do topo antigo ate um pouco acima do topo novo, acompanhando o crescimento,
-    // e estoura num pequeno brilho quando chega no topo -- feedback visual de "isso acabou de subir".
-    function faiscaCrescimento(cx, yAntigo, yNovo, cor) {
+    // Faisca de energia holografica (nucleo branco + centro ciano + halo azul eletrico, sempre
+    // nessa familia de cor -- mesmo numa torre de despesa -- nunca fogo/amarelo) que acompanha
+    // exatamente o topo da torre enquanto ela cresce (presa matematicamente ao mesmo y animado),
+    // solta 2 micropar­ticulas curtas pro lado, e produz um pulso+bloom rapido quando chega no topo.
+    function faiscaCrescimento(cx, yAntigo, yNovo, beginOffset) {
       var yFinal = yNovo - 10;
-      return '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="3.6" fill="' + cor +
-        '" style="filter:drop-shadow(0 0 4px ' + cor + ');" aria-hidden="true">' +
-        '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + yFinal.toFixed(1) + '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
-        '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.82;1" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
-        '<animate attributeName="r" values="3.6;1.6" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
-      '</circle>' +
-      '<circle cx="' + cx.toFixed(1) + '" cy="' + yFinal.toFixed(1) + '" r="1" fill="' + cor + '" opacity="0" aria-hidden="true">' +
-        '<animate attributeName="r" from="1" to="10" begin="' + DUR_CRESCIMENTO_TORRE + '" dur="0.5s" fill="freeze"/>' +
-        '<animate attributeName="opacity" values="0.85;0" begin="' + DUR_CRESCIMENTO_TORRE + '" dur="0.5s" fill="freeze"/>' +
-      '</circle>';
+      var b = beginOffset.toFixed(2) + 's';
+      var animCy = '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + yFinal.toFixed(1) + '" begin="' + b + '" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="' + KEYSPLINES_TORRE + '" fill="freeze"/>';
+      var animOpacidade = '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.06;0.85;1" begin="' + b + '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>';
+      var svg =
+        // halo azul eletrico (Outer Glow, maior e mais suave, atras das outras 2 camadas)
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="6" fill="' + TORRE_AZUL_ELETRICO + '" opacity="0" filter="url(#filtroGlowAnel)" aria-hidden="true">' + animCy + animOpacidade + '</circle>' +
+        // centro ciano (Bloom via drop-shadow)
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="3.4" fill="' + TORRE_CIANO + '" opacity="0" style="filter:drop-shadow(0 0 4px ' + TORRE_CIANO + ');" aria-hidden="true">' + animCy + animOpacidade +
+          '<animate attributeName="r" values="3.4;1.6" begin="' + b + '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
+        '</circle>' +
+        // nucleo branco (centro solido da particula)
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="1.3" fill="white" opacity="0" aria-hidden="true">' + animCy + animOpacidade + '</circle>';
+
+      // 2 micropar­ticulas curtas saindo pro lado (energia se dissipando) -- poucas e leves, so
+      // nas torres que estao realmente animando (nunca centenas simultaneas).
+      [-4, 3].forEach(function (dx, idx) {
+        var durMicro = (0.3 + idx * 0.06).toFixed(2) + 's';
+        svg += '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="1" fill="' + TORRE_CIANO + '" opacity="0" aria-hidden="true">' +
+          '<animate attributeName="cx" from="' + cx.toFixed(1) + '" to="' + (cx + dx).toFixed(1) + '" begin="' + b + '" dur="' + durMicro + '" fill="freeze"/>' +
+          '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + (yAntigo - 5 - idx * 2).toFixed(1) + '" begin="' + b + '" dur="' + durMicro + '" fill="freeze"/>' +
+          '<animate attributeName="opacity" values="0;0.9;0" begin="' + b + '" dur="' + durMicro + '" fill="freeze"/>' +
+        '</circle>';
+      });
+
+      // Pulse + Bloom + Light Burst rapido quando a faisca chega ao topo final -- depois disso ela
+      // desaparece (a faisca em si ja terminou de sumir pela animacao de opacidade acima) e sobra
+      // so o ponto luminoso normal da torre (faceTopo/brilho do topo, ja existentes).
+      var tChegada = (beginOffset + DUR_CRESCIMENTO_TORRE_NUM).toFixed(2) + 's';
+      svg +=
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + yFinal.toFixed(1) + '" r="1" fill="' + TORRE_CIANO + '" opacity="0" filter="url(#filtroBloomPico)" aria-hidden="true">' +
+          '<animate attributeName="r" values="1;11;6" keyTimes="0;0.4;1" begin="' + tChegada + '" dur="0.45s" fill="freeze"/>' +
+          '<animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.3;1" begin="' + tChegada + '" dur="0.45s" fill="freeze"/>' +
+        '</circle>' +
+        '<circle cx="' + cx.toFixed(1) + '" cy="' + yFinal.toFixed(1) + '" r="1.6" fill="white" opacity="0" aria-hidden="true">' +
+          '<animate attributeName="opacity" values="0;1;0" keyTimes="0;0.25;1" begin="' + tChegada + '" dur="0.4s" fill="freeze"/>' +
+        '</circle>';
+      return svg;
     }
 
     function renderSegmentoTorre3D(opts) {
       // opts: xEsqNum, topoNum, altura, gradienteFrente (url), corBorda, corSombra, corLuz,
-      // previsto, desenharTopo, desenharBase, ehTorrePico, topoAnteriorNum, alturaAnteriorNum
-      // (os 2 ultimos opcionais -- so quando essa torre esta crescendo desde o ultimo desenho).
+      // previsto, desenharTopo, desenharBase, ehTorrePico, topoAnteriorNum, alturaAnteriorNum,
+      // beginOffset (os 3 ultimos opcionais -- so quando essa torre esta animando desde o ultimo
+      // desenho; beginOffset e o atraso em segundos da cascata, sempre presente quando os outros 2
+      // estao).
       var xEsq = opts.xEsqNum.toFixed(1);
       var partes = '';
-      var crescendo = opts.topoAnteriorNum != null && Math.abs(opts.topoAnteriorNum - opts.topoNum) > 0.1;
-      var yAtributo = (crescendo ? opts.topoAnteriorNum : opts.topoNum).toFixed(1);
-      var hAtributo = (crescendo ? opts.alturaAnteriorNum : opts.altura).toFixed(1);
-      var animY = crescendo ? animSmil('y', opts.topoAnteriorNum, opts.topoNum) : '';
-      var animH = crescendo ? animSmil('height', opts.alturaAnteriorNum, opts.altura) : '';
+      var animando = opts.topoAnteriorNum != null && Math.abs(opts.topoAnteriorNum - opts.topoNum) > 0.1;
+      var yAtributo = (animando ? opts.topoAnteriorNum : opts.topoNum).toFixed(1);
+      var hAtributo = (animando ? opts.alturaAnteriorNum : opts.altura).toFixed(1);
+      var animY = animando ? animSmil('y', opts.topoAnteriorNum, opts.topoNum, opts.beginOffset) : '';
+      var animH = animando ? animSmil('height', opts.alturaAnteriorNum, opts.altura, opts.beginOffset) : '';
 
       // 1) face lateral direita -- sombra, da a sensacao de profundidade/extrusao pra tras.
       partes += faceLateral(opts.xEsqNum, opts.topoNum, opts.altura, opts.corSombra, 0.5);
@@ -1510,8 +1540,8 @@
       partes += '<rect x="' + (opts.xEsqNum + larguraBarra * 0.34).toFixed(1) + '" y="' + yAtributo + '" width="' + (larguraBarra * 0.32).toFixed(1) +
         '" height="' + hAtributo + '" rx="1.3" fill="' + opts.corLuz + '" opacity="0.3" aria-hidden="true">' + animY + animH + '</rect>';
 
-      if (crescendo) {
-        partes += faiscaCrescimento(opts.xEsqNum + larguraBarra / 2, opts.topoAnteriorNum, opts.topoNum, opts.corLuz);
+      if (animando) {
+        partes += faiscaCrescimento(opts.xEsqNum + larguraBarra / 2, opts.topoAnteriorNum, opts.topoNum, opts.beginOffset);
       }
 
       if (opts.desenharTopo) {
@@ -1529,63 +1559,68 @@
       return opts.previsto ? '<g opacity="' + OPACIDADE_TORRE_PREVISTA + '">' + partes + '</g>' : partes;
     }
 
+    // Snapshot do desenho anterior, capturado ANTES de qualquer leitura -- ultimaSerieExecPorMes
+    // so e sobrescrita com os valores atuais no fim da funcao (depois que barrasSvg E pontosSaldo
+    // ja leram o valor antigo pra saber de onde cada animacao comeca).
+    var serieAnteriorPorMes = ultimaSerieExecPorMes;
+
+    // Geometria (topo/altura) de uma torre pra um valor generico -- reaproveitada tanto pro
+    // valor atual quanto pro valor "anterior" (usado so pra calcular de onde a animacao comeca).
+    function geometriaTorreReceita(valor) {
+      var yTopo = yAtSigned(valor);
+      return { topo: Math.min(yTopo, baselineY), altura: Math.max(Math.abs(baselineY - yTopo), 1) };
+    }
+    function geometriaTorreDespesa(valor) {
+      var yBase = yAtSigned(-valor);
+      return { topo: Math.min(baselineY, yBase), altura: Math.max(Math.abs(yBase - baselineY), 1) };
+    }
+
     var barrasSvg = serie.map(function (m, i) {
       var xEsqNum = xAt(i) - larguraBarra / 2;
-      var yReceitaTopo = yAtSigned(m.receita);
-      var yDespesaBase = yAtSigned(-m.despesa);
-      var alturaReceita = Math.max(Math.abs(baselineY - yReceitaTopo), 1);
-      var topoReceitaNum = Math.min(yReceitaTopo, baselineY);
+      var geoReceita = geometriaTorreReceita(m.receita);
       var ehTorrePico = i === idxTorreMax;
+      var beginOffset = i * STAGGER_MES_S;
 
-      // So anima crescimento: mes ja realizado (nao previsto), com valor MAIOR que o do ultimo
-      // desenho, sem "reduzir movimento" ativado. A geometria antiga usa a mesma yAtSigned de
-      // agora (eixo atual), pra torre parecer que ela mesma cresceu, mesmo que o eixo tenha
-      // mudado de escala entre um desenho e outro.
-      var topoAnteriorNum = null, alturaAnteriorNum = null;
-      if (!semMovimento && !m.previsto && ultimaSerieExecReceitaPorMes) {
-        var receitaAnterior = ultimaSerieExecReceitaPorMes[m.mes];
-        if (receitaAnterior != null && m.receita > receitaAnterior) {
-          var yReceitaTopoAnterior = yAtSigned(receitaAnterior);
-          alturaAnteriorNum = Math.max(Math.abs(baselineY - yReceitaTopoAnterior), 1);
-          topoAnteriorNum = Math.min(yReceitaTopoAnterior, baselineY);
-        }
-      }
+      // Toda vez que o grafico e desenhado (1o carregamento, refresh, troca de periodo, dado
+      // novo), cada torre anima do valor anterior pro atual -- 0 quando nao ha desenho anterior
+      // nesta sessao (1o carregamento) ou quando o mes nao existia no desenho anterior (ex: abriu
+      // um periodo mais longo). Sobe OU desce, historico OU previsto -- sem excecao (pedido do
+      // usuario). So nao anima com "reduzir movimento" ativado.
+      var receitaAnterior = semMovimento ? m.receita : (serieAnteriorPorMes && serieAnteriorPorMes[m.mes] ? serieAnteriorPorMes[m.mes].receita : 0);
+      var geoReceitaAnterior = geometriaTorreReceita(receitaAnterior);
 
       var partesReceita = m.receita > 0
         ? renderSegmentoTorre3D({
-            xEsqNum: xEsqNum, topoNum: topoReceitaNum, altura: alturaReceita,
+            xEsqNum: xEsqNum, topoNum: geoReceita.topo, altura: geoReceita.altura,
             gradienteFrente: 'url(#gradReceita)', corBorda: TORRE_AZUL_NEON,
             corSombra: 'color-mix(in srgb, ' + TORRE_AZUL_PROFUNDO + ' 70%, black)', corLuz: TORRE_CIANO,
             previsto: m.previsto, desenharTopo: true, desenharBase: m.despesa <= 0, ehTorrePico: ehTorrePico,
-            topoAnteriorNum: topoAnteriorNum, alturaAnteriorNum: alturaAnteriorNum,
+            topoAnteriorNum: geoReceitaAnterior.topo, alturaAnteriorNum: geoReceitaAnterior.altura, beginOffset: beginOffset,
           })
         : '';
 
-      var alturaDespesa = Math.max(Math.abs(yDespesaBase - baselineY), 1);
-      var topoDespesaNum = Math.min(baselineY, yDespesaBase);
+      var geoDespesa = geometriaTorreDespesa(m.despesa);
+      var despesaAnterior = semMovimento ? m.despesa : (serieAnteriorPorMes && serieAnteriorPorMes[m.mes] ? serieAnteriorPorMes[m.mes].despesa : 0);
+      var geoDespesaAnterior = geometriaTorreDespesa(despesaAnterior);
       var barraDespesa = m.despesa > 0
         ? renderSegmentoTorre3D({
-            xEsqNum: xEsqNum, topoNum: topoDespesaNum, altura: alturaDespesa,
+            xEsqNum: xEsqNum, topoNum: geoDespesa.topo, altura: geoDespesa.altura,
             gradienteFrente: 'url(#gradDespesa)', corBorda: 'var(--chart-despesa)',
             corSombra: 'color-mix(in srgb, var(--chart-despesa) 55%, black)', corLuz: 'color-mix(in srgb, var(--chart-despesa) 40%, white)',
             previsto: m.previsto, desenharTopo: false, desenharBase: true, ehTorrePico: false,
+            topoAnteriorNum: geoDespesaAnterior.topo, alturaAnteriorNum: geoDespesaAnterior.altura, beginOffset: beginOffset,
           })
         : '';
 
       // Bloom + Light Burst concentrado so na torre mais alta do periodo (pico, sempre um mes ja
       // realizado) -- reforco extra em cima do que ja existe, marcando ela como "a maior" tambem.
       var bloomTorrePico = ehTorrePico
-        ? '<ellipse cx="' + (xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + topoReceitaNum.toFixed(1) + '" rx="' + (larguraBarra * 1.6).toFixed(1) +
+        ? '<ellipse cx="' + (xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + geoReceita.topo.toFixed(1) + '" rx="' + (larguraBarra * 1.6).toFixed(1) +
             '" ry="10" fill="' + TORRE_AZUL_NEON + '" opacity="0.22" filter="url(#filtroBloomPico)" aria-hidden="true"/>'
         : '';
 
       return bloomTorrePico + partesReceita + barraDespesa;
     }).join('');
-
-    // Guarda a receita deste desenho pra comparar no proximo (mesma sessao) e saber quais torres
-    // cresceram -- tem que ser DEPOIS do map acima, que ainda precisa do valor anterior.
-    ultimaSerieExecReceitaPorMes = {};
-    serie.forEach(function (m) { ultimaSerieExecReceitaPorMes[m.mes] = m.receita; });
 
     var fimRealizado = idxPrimeiroPrevisto === -1 ? n - 1 : idxPrimeiroPrevisto;
     var idxRealizados = [];
@@ -1637,10 +1672,29 @@
       var raioGlow = ehHoje || ehPico ? 4 : 2;
       var raioNucleo = ehHoje || ehPico ? 1.8 : 1.2;
       var opacidade = m.previsto ? 0.45 : 1;
-      var cx = xAt(i).toFixed(1), cy = yAtSigned(m.receita - m.despesa).toFixed(1);
+      var cx = xAt(i).toFixed(1), cyNum = yAtSigned(m.receita - m.despesa);
+
+      // Sincroniza o ponto da linha com a mesma cascata/duracao/facilitacao das torres daquele
+      // mes -- termina de se mover exatamente quando a torre termina de subir/descer (pedido do
+      // usuario). O ponto continua representando o SALDO (nunca a receita isolada), so a
+      // ANIMACAO que fica coordenada com a torre, nao a posicao final. O atributo cy estatico
+      // (antes do SMIL comecar) tem que ser o valor ANTIGO, senao o ponto pisca na posicao final
+      // durante o atraso da cascata e "volta" quando a animacao de fato comeca.
+      var anim = '';
+      var cyNumInicial = cyNum;
+      if (!semMovimento && serieAnteriorPorMes && serieAnteriorPorMes[m.mes]) {
+        var anteriorPonto = serieAnteriorPorMes[m.mes];
+        var cyAnteriorNum = yAtSigned(anteriorPonto.receita - anteriorPonto.despesa);
+        if (Math.abs(cyAnteriorNum - cyNum) > 0.1) {
+          anim = animSmil('cy', cyAnteriorNum, cyNum, i * STAGGER_MES_S);
+          cyNumInicial = cyAnteriorNum;
+        }
+      }
+      var cy = cyNumInicial.toFixed(1);
+
       return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r +
-          '" fill="var(--accent)" opacity="' + opacidade + '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));"/>' +
-        '<circle cx="' + cx + '" cy="' + cy + '" r="' + raioNucleo + '" fill="' + corNucleoPonto + '" opacity="' + opacidade + '"/>';
+          '" fill="var(--accent)" opacity="' + opacidade + '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));">' + anim + '</circle>' +
+        '<circle cx="' + cx + '" cy="' + cy + '" r="' + raioNucleo + '" fill="' + corNucleoPonto + '" opacity="' + opacidade + '">' + anim + '</circle>';
     }).join('');
 
     // Bloom + Light Burst -- so no ponto de maior valor do periodo (o "pico"), um brilho mais
@@ -1695,6 +1749,12 @@
 
     wrap.innerHTML = svg + tooltipHtml;
     wireHoverExecGrafico(wrap, serie, xAt);
+
+    // Guarda a receita/despesa deste desenho pra comparar no proximo (mesma sessao) -- so agora,
+    // depois que barrasSvg E pontosSaldo ja leram serieAnteriorPorMes pra saber de onde cada
+    // animacao (torres + ponto da linha) comecou.
+    ultimaSerieExecPorMes = {};
+    serie.forEach(function (m) { ultimaSerieExecPorMes[m.mes] = { receita: m.receita, despesa: m.despesa }; });
 
     var elMarco = document.getElementById('exec-marco-linha');
     if (elMarco) {
