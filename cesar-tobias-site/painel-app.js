@@ -1259,24 +1259,48 @@
         '" fill="var(--ink-faint)" opacity="0.18" aria-hidden="true"/>';
     }).join('');
 
-    // Plataforma holografica: varios aneis elipticos concentricos (perspectiva de olhar de
-    // cima em angulo), com glow, linhas de energia radiais e pontos percorrendo 2 dos aneis --
-    // 100% decorativo (nao representa nenhum dado), sempre desenhada ANTES das torres/linha, pra
-    // nunca atrapalhar a leitura dos meses/valores/barras (pedido do usuario).
-    var anelCx = padL + plotW / 2, anelCy = padT + plotH, anelRx = plotW * 0.58, anelRy = 20;
+    // Plataforma holografica 3D: nao e mais uma elipse so -- e um "tambor" raso (aro de cima +
+    // aro de baixo + parede entre eles, dando altura de verdade) com varios aneis concentricos
+    // sobrepostos, marcadores tecnicos e um nucleo de energia central. Sempre desenhada ANTES
+    // das torres/linha, pra nunca atrapalhar a leitura dos meses/valores/barras.
+    var anelCx = padL + plotW / 2, anelCy = padT + plotH, anelRx = plotW * 0.6, anelRy = 20;
+    var drumAltura = anelRy * 0.9; // "espessura" visual da plataforma
+    var anelCyBase = anelCy + drumAltura;
+
+    // Parede do tambor (a face frontal, entre o aro de cima e o de baixo) -- e isso que da
+    // profundidade/altura de verdade, em vez de tudo ficar num unico plano achatado.
+    var defsParede = '<defs><linearGradient id="gradParedeTambor" gradientUnits="userSpaceOnUse" x1="0" y1="' + anelCy + '" x2="0" y2="' + anelCyBase + '">' +
+      '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"/>' +
+      '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>' +
+    '</linearGradient></defs>';
+    function paredeTambor(rx, ry) {
+      var xE = (anelCx - rx).toFixed(1), xD = (anelCx + rx).toFixed(1);
+      return 'M' + xE + ',' + anelCy.toFixed(1) +
+        ' A' + rx.toFixed(1) + ',' + ry.toFixed(1) + ' 0 0 0 ' + xD + ',' + anelCy.toFixed(1) +
+        ' L' + xD + ',' + anelCyBase.toFixed(1) +
+        ' A' + rx.toFixed(1) + ',' + ry.toFixed(1) + ' 0 0 1 ' + xE + ',' + anelCyBase.toFixed(1) + ' Z';
+    }
+    var paredeSvg =
+      '<path d="' + paredeTambor(anelRx, anelRy) + '" fill="url(#gradParedeTambor)" aria-hidden="true"/>' +
+      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCyBase.toFixed(1) + '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy.toFixed(1) +
+        '" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.14" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
+
+    // 5 aneis concentricos: externo grande e continuo, alguns segmentados/pontilhados no meio,
+    // e os mais internos com brilho mais forte (sensacao de "nucleo energetico").
     var ANEIS_PLATAFORMA = [
-      { f: 1.00, opacidade: 0.28, largura: 1.1, dash: '' },
-      { f: 0.76, opacidade: 0.22, largura: 0.9, dash: '2 4' },
-      { f: 0.52, opacidade: 0.30, largura: 1, dash: '' },
-      { f: 0.30, opacidade: 0.22, largura: 0.75, dash: '1 3' },
+      { f: 1.00, opacidade: 0.32, largura: 1.3, dash: '' },
+      { f: 0.82, opacidade: 0.16, largura: 0.8, dash: '4 6' },
+      { f: 0.63, opacidade: 0.26, largura: 1, dash: '' },
+      { f: 0.44, opacidade: 0.20, largura: 0.8, dash: '1 4' },
+      { f: 0.25, opacidade: 0.40, largura: 1.2, dash: '' },
     ];
-    // Cada anel ganha uma copia borrada por baixo (Neon/Outer Glow) alem do traco nitido --
-    // os aneis mais internos (f menor) brilham mais forte, os externos ficam mais suaves,
-    // como pedido ("nucleo mais intenso, halo desaparecendo aos poucos pra fora").
+    // Cada anel ganha uma copia borrada por baixo (Neon/Outer Glow) alem do traco nitido -- os
+    // mais internos (f menor) brilham mais forte, os externos ficam mais suaves ("nucleo mais
+    // intenso, halo desaparecendo aos poucos pra fora").
     var aneisSvg = ANEIS_PLATAFORMA.map(function (a) {
-      var glowOpacidade = 0.14 + (1 - a.f) * 0.26;
+      var glowOpacidade = 0.16 + (1 - a.f) * 0.3;
       var glow = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
-        '" fill="none" stroke="var(--accent)" stroke-width="' + (a.largura * 2.4) + '" opacity="' + glowOpacidade.toFixed(2) +
+        '" fill="none" stroke="var(--accent)" stroke-width="' + (a.largura * 2.6) + '" opacity="' + glowOpacidade.toFixed(2) +
         '" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
       var nitido = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
         '" fill="none" stroke="var(--accent)" stroke-width="' + a.largura + '" opacity="' + a.opacidade + '"' +
@@ -1284,32 +1308,62 @@
       return glow + nitido;
     }).join('');
 
-    // Reflexo no piso, projetado abaixo da plataforma -- luz "batendo" numa superficie escura,
-    // completando a sequencia anel -> luz intensa -> halo difuso -> reflexo no piso.
-    var reflexoPisoSvg = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + (anelCy + anelRy * 0.4).toFixed(1) +
-      '" rx="' + (anelRx * 0.9).toFixed(1) + '" ry="' + (anelRy * 1.8).toFixed(1) + '" fill="url(#gradReflexoPiso)" aria-hidden="true"/>';
+    // Marcadores tecnicos: pequenas "tralhas" (tracinhos e retangulos) apoiadas em 2 dos aneis,
+    // como leituras de uma interface holografica de dados -- puramente decorativo.
+    function pontoNoAnel(f, angGraus) {
+      var rad = angGraus * Math.PI / 180;
+      return { x: anelCx + Math.cos(rad) * anelRx * f, y: anelCy + Math.sin(rad) * anelRy * f };
+    }
+    var marcadoresSvg = [
+      { f: 1.00, ang: 20 }, { f: 1.00, ang: 160 }, { f: 0.63, ang: 250 }, { f: 0.63, ang: 80 }, { f: 0.44, ang: 320 },
+    ].map(function (m, idx) {
+      var p = pontoNoAnel(m.f, m.ang);
+      return idx % 2 === 0
+        ? '<rect x="' + (p.x - 1.6).toFixed(1) + '" y="' + (p.y - 1.6).toFixed(1) + '" width="3.2" height="3.2" fill="var(--accent)" opacity="0.5" transform="rotate(45 ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')" aria-hidden="true"/>'
+        : '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="1.4" fill="' + corNucleoPonto + '" opacity="0.6" aria-hidden="true"/>';
+    }).join('');
+
+    // Reflexo no piso, projetado abaixo da plataforma -- mais forte perto do centro, some pras
+    // bordas -- completando a sequencia anel -> luz intensa -> halo difuso -> reflexo no piso.
+    var reflexoPisoSvg = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + (anelCyBase + anelRy * 0.5).toFixed(1) +
+      '" rx="' + (anelRx * 0.85).toFixed(1) + '" ry="' + (anelRy * 1.6).toFixed(1) + '" fill="url(#gradReflexoPiso)" aria-hidden="true"/>';
 
     // Foco de energia concentrado perto da torre de maior valor do periodo -- o mesmo ponto por
     // onde o "feixe" daquela torre atravessa a plataforma.
     var focoTorreMaxSvg = idxTorreMax === -1 ? '' : (function () {
       var xFoco = xAt(idxTorreMax);
       return '<ellipse cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (larguraBarra * 1.8).toFixed(1) + '" ry="' + (anelRy * 0.7).toFixed(1) +
-          '" fill="var(--accent)" opacity="0.3" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
+          '" fill="var(--accent)" opacity="0.32" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
         '<circle cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2" fill="' + corNucleoPonto + '" opacity="0.85" style="filter:drop-shadow(0 0 3px var(--accent));" aria-hidden="true"/>';
     })();
 
-    // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" saindo do centro).
+    // Nucleo de energia central: halo difuso + pequeno "light burst" em cruz + ponto luminoso,
+    // como o coracao da plataforma (Bloom + Light Burst + Ambient Glow do centro).
+    var nucleoCentralSvg =
+      '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * 0.16).toFixed(1) + '" ry="' + (anelRy * 0.16).toFixed(1) +
+        '" fill="var(--accent)" opacity="0.5" filter="url(#filtroGlowAnel)" aria-hidden="true"/>' +
+      '<circle cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2.2" fill="' + corNucleoPonto + '" opacity="0.9" style="filter:drop-shadow(0 0 4px var(--accent));" aria-hidden="true"/>' +
+      [0, 90].map(function (ang) {
+        var rad = ang * Math.PI / 180, comp = anelRx * 0.13;
+        var x1 = anelCx - Math.cos(rad) * comp, y1 = anelCy - Math.sin(rad) * comp * 0.4;
+        var x2 = anelCx + Math.cos(rad) * comp, y2 = anelCy + Math.sin(rad) * comp * 0.4;
+        return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
+          '" stroke="' + corNucleoPonto + '" stroke-width="0.8" opacity="0.5" aria-hidden="true"/>';
+      }).join('');
+
+    // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" entre os aneis).
     var conectoresSvg = [30, 100, 170, 260, 330].map(function (ang) {
       var rad = ang * Math.PI / 180;
-      var r1 = 0.32, r2 = 0.5; // fracao do raio externo, do anel interno ate o anel do meio
+      var r1 = 0.25, r2 = 0.44; // fracao do raio externo, do anel interno ate o intermediario
       var x1 = anelCx + Math.cos(rad) * anelRx * r1, y1 = anelCy + Math.sin(rad) * anelRy * r1;
       var x2 = anelCx + Math.cos(rad) * anelRx * r2, y2 = anelCy + Math.sin(rad) * anelRy * r2;
       return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
         '" stroke="var(--accent)" stroke-width="0.6" opacity="0.18" aria-hidden="true"/>';
     }).join('');
 
-    // Pontos de luz percorrendo 2 dos aneis (SMIL animateMotion, nativo do SVG -- sem custo de
-    // JS por frame). Com "reduzir movimento" ativado, os pontos ficam parados num angulo fixo.
+    // Pontos de luz percorrendo 3 dos aneis (SMIL animateMotion, nativo do SVG -- sem custo de
+    // JS por frame), deixando um rastro curto (Light Trail). Extremamente lento e sutil -- com
+    // "reduzir movimento" ativado, os pontos ficam parados num angulo fixo, sem animar.
     function caminhoElipse(f) {
       var rx = anelRx * f, ry = anelRy * f;
       return 'M' + (anelCx - rx).toFixed(1) + ',' + anelCy.toFixed(1) +
@@ -1318,8 +1372,9 @@
     }
     var semMovimento = reduzMotion();
     var pontosOrbitaSvg = [
-      { f: 1.00, dur: '14s', r: 1.6 },
-      { f: 0.52, dur: '10s', r: 1.3 },
+      { f: 1.00, dur: '22s', r: 1.6 },
+      { f: 0.63, dur: '17s', r: 1.3 },
+      { f: 0.25, dur: '12s', r: 1 },
     ].map(function (o, idx) {
       var idPath = 'exec-plataforma-orbita-' + idx;
       var caminho = '<path id="' + idPath + '" d="' + caminhoElipse(o.f) + '" fill="none" stroke="none"/>';
@@ -1328,19 +1383,28 @@
         return caminho + '<circle cx="' + (anelCx - rx).toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="' + o.r +
           '" fill="' + corNucleoPonto + '" opacity="0.6" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true"/>';
       }
-      return caminho +
-        '<circle r="' + o.r + '" fill="' + corNucleoPonto + '" opacity="0.7" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true">' +
+      // rastro curto: 3 copias do ponto, um pouco atrasadas no tempo (begin negativo) e mais
+      // fracas, dando a sensacao de "cauda" de luz em vez de so um ponto viajando.
+      var rastro = [0.3, 0.15].map(function (op, k) {
+        return '<circle r="' + (o.r * 0.7) + '" fill="' + corNucleoPonto + '" opacity="' + op + '" aria-hidden="true">' +
+          '<animateMotion dur="' + o.dur + '" begin="-' + ((k + 1) * 0.4) + 's" repeatCount="indefinite"><mpath href="#' + idPath + '" xlink:href="#' + idPath + '"/></animateMotion>' +
+        '</circle>';
+      }).join('');
+      return caminho + rastro +
+        '<circle r="' + o.r + '" fill="' + corNucleoPonto + '" opacity="0.75" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true">' +
           '<animateMotion dur="' + o.dur + '" repeatCount="indefinite"><mpath href="#' + idPath + '" xlink:href="#' + idPath + '"/></animateMotion>' +
         '</circle>';
     }).join('');
 
     var anelDecorativo =
+      defsParede +
       reflexoPisoSvg +
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
-        '" rx="' + (anelRx * 1.05).toFixed(1) + '" ry="' + (anelRy * 1.05).toFixed(1) + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
+        '" rx="' + (anelRx * 1.08).toFixed(1) + '" ry="' + (anelRy * 1.15).toFixed(1) + '" fill="url(#gradAnelBase)" aria-hidden="true"/>' +
+      paredeSvg +
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) +
         '" rx="' + (anelRx * 0.7).toFixed(1) + '" ry="' + (anelRy * 0.7).toFixed(1) + '" fill="url(#gradNucleoPlataforma)" aria-hidden="true"/>' +
-      conectoresSvg + aneisSvg + focoTorreMaxSvg + pontosOrbitaSvg;
+      conectoresSvg + aneisSvg + marcadoresSvg + focoTorreMaxSvg + nucleoCentralSvg + pontosOrbitaSvg;
 
     var feixesSvg = serie.map(function (m, i) {
       if (m.previsto) return '';
