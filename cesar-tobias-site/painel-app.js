@@ -1337,19 +1337,13 @@
         '<circle cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2" fill="' + corNucleoPonto + '" opacity="0.85" style="filter:drop-shadow(0 0 3px var(--accent));" aria-hidden="true"/>';
     })();
 
-    // Nucleo de energia central: halo difuso + pequeno "light burst" em cruz + ponto luminoso,
-    // como o coracao da plataforma (Bloom + Light Burst + Ambient Glow do centro).
+    // Nucleo de energia central: halo difuso + ponto luminoso, como o coracao da plataforma
+    // (Bloom + Ambient Glow do centro) -- sem as linhas em cruz (removidas a pedido do usuario,
+    // ficavam parecendo um "X" sobre o grafico).
     var nucleoCentralSvg =
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * 0.16).toFixed(1) + '" ry="' + (anelRy * 0.16).toFixed(1) +
         '" fill="var(--accent)" opacity="0.5" filter="url(#filtroGlowAnel)" aria-hidden="true"/>' +
-      '<circle cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2.2" fill="' + corNucleoPonto + '" opacity="0.9" style="filter:drop-shadow(0 0 4px var(--accent));" aria-hidden="true"/>' +
-      [0, 90].map(function (ang) {
-        var rad = ang * Math.PI / 180, comp = anelRx * 0.13;
-        var x1 = anelCx - Math.cos(rad) * comp, y1 = anelCy - Math.sin(rad) * comp * 0.4;
-        var x2 = anelCx + Math.cos(rad) * comp, y2 = anelCy + Math.sin(rad) * comp * 0.4;
-        return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
-          '" stroke="' + corNucleoPonto + '" stroke-width="0.8" opacity="0.5" aria-hidden="true"/>';
-      }).join('');
+      '<circle cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2.2" fill="' + corNucleoPonto + '" opacity="0.9" style="filter:drop-shadow(0 0 4px var(--accent));" aria-hidden="true"/>';
 
     // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" entre os aneis).
     var conectoresSvg = [30, 100, 170, 260, 330].map(function (ang) {
