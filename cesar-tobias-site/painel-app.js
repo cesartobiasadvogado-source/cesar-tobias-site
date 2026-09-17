@@ -1168,9 +1168,12 @@
         '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.78"/>' +
         '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="1"/>' +
       '</linearGradient>' +
+      // Mesma cor da receita realizada (nao mais um azul/ciano diferente) -- so mais transparente,
+      // pra previsao continuar parecendo a MESMA torre, so translucida (pedido do usuario: os
+      // dois lados do "HOJE" tem que parecer o mesmo sistema, nao objetos diferentes).
       '<linearGradient id="gradReceitaPrevista" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
-        '<stop offset="0" stop-color="var(--chart-receita-prevista)" stop-opacity="0.12"/>' +
-        '<stop offset="1" stop-color="var(--chart-receita-prevista)" stop-opacity="0.65"/>' +
+        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.1"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="0.55"/>' +
       '</linearGradient>' +
       '<linearGradient id="gradDespesa" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH) + '">' +
         '<stop offset="0" stop-color="var(--chart-despesa)" stop-opacity="0.85"/>' +
@@ -1470,7 +1473,7 @@
         partesReceita += '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
           '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="2"' +
           (m.previsto
-            ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"'
+            ? ' stroke="var(--chart-receita)" stroke-width="1" stroke-dasharray="2 2"'
             : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
         partesReceita += camadaFrenteExtra3D(xEsqNum, topoReceitaNum, alturaReceita, 'var(--chart-receita)', m.previsto, true, ehTorrePico);
       }
