@@ -542,68 +542,7 @@
   .exec-cat-legend-nome { flex: 1; min-width: 0; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .exec-cat-legend-valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
   .exec-cat-legend-pct { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); width: 34px; text-align: right; flex-shrink: 0; }
-  /* Financial Insight Banner -- vidro escuro premium, independente do tema claro/escuro da
-     pagina (mesma logica das torres 3D do grafico: material fixo em azul-eletrico/ciano,
-     nao amarrado aos tokens --bg/--ink do painel). */
-  .exec-nota {
-    --insight-profundo: #0066ff; --insight-eletrico: #008cff; --insight-neon: #00b7ff;
-    --insight-ciano: #00e5ff; --insight-hl: #eaf6ff;
-    position: relative;
-    margin-top: 16px;
-    padding: 15px 20px;
-    border-radius: 16px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px 16px;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: #aebfe0;
-    background:
-      linear-gradient(180deg, rgba(10, 20, 42, .95), rgba(4, 9, 20, .97)) padding-box,
-      linear-gradient(120deg, rgba(0, 102, 255, .6), rgba(0, 183, 255, .22) 32%, rgba(0, 229, 255, .55) 58%, rgba(0, 140, 255, .3) 100%) border-box;
-    border: 1px solid transparent;
-    box-shadow: 0 0 0 1px rgba(0, 140, 255, .06) inset, 0 10px 30px rgba(0, 10, 40, .35), 0 0 34px rgba(0, 140, 255, .13);
-    overflow: hidden;
-    isolation: isolate;
-  }
-  .exec-nota::before, .exec-nota::after {
-    content: ""; position: absolute; width: 52px; height: 52px; border-radius: 50%;
-    pointer-events: none; filter: blur(11px); opacity: .55; z-index: -1;
-  }
-  .exec-nota::before { top: -22px; left: 38%; background: radial-gradient(circle, rgba(0, 229, 255, .9), transparent 70%); }
-  .exec-nota::after { bottom: -24px; right: 16%; background: radial-gradient(circle, rgba(0, 102, 255, .75), transparent 70%); }
-  .exec-nota-icone {
-    position: relative; flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(circle at 35% 30%, rgba(0, 183, 255, .38), rgba(0, 60, 140, .18) 60%, rgba(0, 20, 50, .3) 100%);
-    border: 1px solid rgba(0, 213, 255, .65);
-    box-shadow: 0 0 0 1px rgba(0, 183, 255, .16) inset, 0 0 10px rgba(0, 183, 255, .55), 0 0 22px rgba(0, 183, 255, .28);
-    color: var(--insight-hl);
-  }
-  .exec-nota-icone svg { width: 17px; height: 17px; filter: drop-shadow(0 0 4px rgba(0, 229, 255, .85)); }
-  .exec-nota-texto { flex: 1 1 260px; min-width: 200px; }
-  .exec-nota-texto b { font-size: 15px; font-weight: 700; color: var(--insight-hl); letter-spacing: .01em; }
-  .exec-nota-cta {
-    flex-shrink: 0; margin-left: auto;
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 18px; border-radius: 999px;
-    background: rgba(0, 60, 140, .32);
-    border: 1px solid rgba(0, 183, 255, .5);
-    color: var(--insight-hl); font-size: 12.5px; font-weight: 600; white-space: nowrap;
-    cursor: pointer; box-shadow: 0 0 12px rgba(0, 140, 255, .16);
-    transition: border-color .28s ease, box-shadow .28s ease, background .28s ease;
-  }
-  .exec-nota-cta:hover {
-    border-color: rgba(0, 229, 255, .9);
-    background: rgba(0, 90, 190, .45);
-    box-shadow: 0 0 22px rgba(0, 183, 255, .4);
-  }
-  .exec-nota-cta-seta { display: inline-flex; transition: transform .28s ease; }
-  .exec-nota-cta:hover .exec-nota-cta-seta { transform: translateX(3px); }
-  @media (max-width: 640px) {
-    .exec-nota-cta { flex: 1 1 100%; justify-content: center; margin-left: 0; }
-  }
+  .exec-nota { margin-top: 14px; padding: 10px 13px; border-radius: 6px; background: var(--warn-soft); border: 1px solid var(--warn); color: var(--warn); font-size: 12.5px; line-height: 1.5; }
   .exec-horizontes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 10px; }
   .exec-horizonte-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s ease, transform .15s ease; }
   .exec-horizonte-card:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08); transform: translateY(-1px); }
