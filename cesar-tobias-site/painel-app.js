@@ -1848,6 +1848,8 @@
     if (elContratosAtivos) elContratosAtivos.textContent = f.contratos_ativos || 0;
   }
 
+  var ICONE_EXEC_INSIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.45.98 1.16 1.05 1.95L9.5 16h5l.05-.25c.07-.79.45-1.5 1.05-1.95A6 6 0 0 0 12 3z"></path></svg>';
+
   function carregarPainelExecutivo() {
     var wrap = document.getElementById('exec-grafico-svg');
     if (!wrap) return;
@@ -4081,7 +4083,6 @@
     var ICONE_EXEC_ATRASO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"></path><path d="M10.3 3.9 1.8 18a1.5 1.5 0 0 0 1.3 2.2h17.8a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"></path><path d="M12 16h.01"></path></svg>';
     var ICONE_EXEC_ATIVOS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
     var ICONE_EXEC_PROJETADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17 9 11 13 15 21 7"></path><path d="M15 7h6v6"></path></svg>';
-    var ICONE_EXEC_INSIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 21h4"></path><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.45.98 1.16 1.05 1.95L9.5 16h5l.05-.25c.07-.79.45-1.5 1.05-1.95A6 6 0 0 0 12 3z"></path></svg>';
 
     function execStatCard(opts) {
       var corValor = opts.cor ? (' style="color:' + opts.cor + ';"') : '';
