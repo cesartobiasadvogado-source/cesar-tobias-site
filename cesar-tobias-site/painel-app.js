@@ -1163,17 +1163,17 @@
     // Gradientes: dao uma sensacao sutil de profundidade nas barras (mais cheias perto da base,
     // esmaecendo pra ponta) e fazem a transicao historico -> previsto parecer uma "revelacao"
     // em vez de um corte seco -- o detalhe que o usuario pediu pra essa fronteira.
+    // Material "vidro holografico" da torre de receita -- 3 tons de azul (profundo -> eletrico
+    // -> neon), escopados so pra torre (nao mexe na variavel global --chart-receita usada em
+    // outros lugares da plataforma). Historico e previsao usam O MESMO gradiente -- a diferenca
+    // entre eles vira de um <g opacity> por fora, nunca de uma cor/gradiente exclusivo (pedido
+    // explicito do usuario: "nao crie uma variavel de cor exclusiva pra previsao").
+    var TORRE_AZUL_PROFUNDO = '#0066ff', TORRE_AZUL_ELETRICO = '#008cff', TORRE_AZUL_NEON = '#00b7ff', TORRE_CIANO = '#00e5ff';
     var defsSvg = '<defs>' +
       '<linearGradient id="gradReceita" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
-        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.78"/>' +
-        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="1"/>' +
-      '</linearGradient>' +
-      // Mesma cor da receita realizada (nao mais um azul/ciano diferente) -- so mais transparente,
-      // pra previsao continuar parecendo a MESMA torre, so translucida (pedido do usuario: os
-      // dois lados do "HOJE" tem que parecer o mesmo sistema, nao objetos diferentes).
-      '<linearGradient id="gradReceitaPrevista" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
-        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.1"/>' +
-        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="0.55"/>' +
+        '<stop offset="0%" stop-color="' + TORRE_AZUL_PROFUNDO + '" stop-opacity="0.6"/>' +
+        '<stop offset="55%" stop-color="' + TORRE_AZUL_ELETRICO + '" stop-opacity="0.8"/>' +
+        '<stop offset="100%" stop-color="' + TORRE_AZUL_NEON + '" stop-opacity="0.95"/>' +
       '</linearGradient>' +
       '<linearGradient id="gradDespesa" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH) + '">' +
         '<stop offset="0" stop-color="var(--chart-despesa)" stop-opacity="0.85"/>' +
@@ -1411,10 +1411,11 @@
         '" height="' + (plotH / 2 + 22).toFixed(1) + '" fill="url(#gradFeixeBarra)" opacity="' + intensidade.toFixed(2) + '" aria-hidden="true"/>';
     }).join('');
 
-    // "Torres de dados" 3D: cada mes vira uma torre isometrica (face frontal + topo + lateral),
-    // em vez de um retangulo chapado -- receita e despesa continuam com a MESMA altura/posicao
-    // de sempre (nada de logica/dado muda), so ganham profundidade visual. dx/dy definem o
-    // angulo isometrico, proporcional a largura da barra pra escalar bem em qualquer periodo.
+    // "Torres de dados" 3D: um UNICO renderizador de segmento (renderSegmentoTorre3D), chamado
+    // de forma IDENTICA pra receita/despesa, historico/previsao -- nenhuma geometria/estilo
+    // manual por mes ou por estado. dx/dy definem o angulo isometrico, proporcional a largura da
+    // barra (nao a altura), pra uma torre baixinha continuar tendo lateral/topo visiveis em vez
+    // de virar um retangulo chapado.
     var dxProf = Math.min(larguraBarra * 0.32, 6);
     var dyProf = -dxProf * 0.6;
     function faceLateral(xEsq, yTopo, altura, cor, opacidade) {
@@ -1434,66 +1435,83 @@
       return '<polygon points="' + p + '" fill="' + cor + '" opacity="' + opacidade + '" aria-hidden="true"/>';
     }
 
-    // Sistema 3D UNICO pra toda torre, realizada ou prevista -- so a intensidade muda (pedido do
-    // usuario: nao pode existir torre "achatada", nem entre as pequenas nem nas de previsao).
-    // camadaLateral3D desenha ANTES da face frontal (fica atras); camadaFrenteExtra3D desenha
-    // DEPOIS dela (nucleo de energia + tampa/brilho do topo, quando aplicavel).
-    var MULT_PREVISTO_3D = 0.55;
-    function camadaLateral3D(xEsqNum, topoNum, altura, corVar, previsto) {
-      var mult = previsto ? MULT_PREVISTO_3D : 1;
-      return faceLateral(xEsqNum, topoNum, altura, 'color-mix(in srgb, ' + corVar + ' 55%, black)', (0.5 * mult).toFixed(2));
-    }
-    function camadaFrenteExtra3D(xEsqNum, topoNum, altura, corVar, previsto, desenharTopo, ehTorrePico) {
-      var mult = previsto ? MULT_PREVISTO_3D : 1;
-      var partes = '<rect x="' + (xEsqNum + larguraBarra * 0.32).toFixed(1) + '" y="' + topoNum.toFixed(1) + '" width="' + (larguraBarra * 0.36).toFixed(1) +
-        '" height="' + altura.toFixed(1) + '" rx="1.5" fill="color-mix(in srgb, ' + corVar + ' 40%, white)" opacity="' + (0.28 * mult).toFixed(2) + '" aria-hidden="true"/>';
-      if (desenharTopo) {
-        partes += faceTopo(xEsqNum, topoNum, 'color-mix(in srgb, ' + corVar + ' 45%, white)', ((ehTorrePico ? 0.75 : 0.55) * mult).toFixed(2));
-        var raioBrilhoTopo = ehTorrePico ? 3.5 : 1.6;
-        partes += '<circle cx="' + (xEsqNum + larguraBarra / 2 + dxProf / 2).toFixed(1) + '" cy="' + (topoNum + dyProf / 2).toFixed(1) +
-          '" r="' + raioBrilhoTopo + '" fill="white" opacity="' + ((ehTorrePico ? 0.85 : 0.6) * mult).toFixed(2) + '" style="filter:blur(' + (ehTorrePico ? 1.5 : 0.8) + 'px);" aria-hidden="true"/>';
+    // Unica diferenca entre historico e previsao: um <g opacity="..."> por fora de TUDO (mesma
+    // geometria, mesmo gradiente, mesmas camadas) -- nao uma cor/gradiente separado. O contorno
+    // pontilhado da face frontal e a unica outra diferenca visual, tambem controlada aqui.
+    var OPACIDADE_TORRE_PREVISTA = 0.62;
+
+    function renderSegmentoTorre3D(opts) {
+      // opts: xEsqNum, topoNum, altura, gradienteFrente (url), corBorda, corSombra, corLuz,
+      // previsto, desenharTopo, desenharBase, ehTorrePico
+      var xEsq = opts.xEsqNum.toFixed(1);
+      var partes = '';
+
+      // 1) face lateral direita -- sombra, da a sensacao de profundidade/extrusao pra tras.
+      partes += faceLateral(opts.xEsqNum, opts.topoNum, opts.altura, opts.corSombra, 0.5);
+
+      // 2) face frontal -- MESMO gradiente pra historico e previsao; so o contorno muda
+      // (pontilhado na previsao) e o glow (so no historico, mais "aceso").
+      partes += '<rect x="' + xEsq + '" y="' + opts.topoNum.toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
+        '" height="' + opts.altura.toFixed(1) + '" fill="' + opts.gradienteFrente + '" rx="2" stroke="' + opts.corBorda + '" stroke-width="' + (opts.previsto ? 1 : 0.75) + '"' +
+        (opts.previsto ? ' stroke-dasharray="2.5 2.5"' : '') + ' filter="url(#glowBarra)"/>';
+
+      // 3) borda esquerda iluminada (edge glow) -- faixa fina e clara ao longo da borda
+      // esquerda inteira, simulando luz vindo de um lado (perspectiva de prisma, nao de cubo).
+      partes += '<rect x="' + xEsq + '" y="' + opts.topoNum.toFixed(1) + '" width="1.3" height="' + opts.altura.toFixed(1) +
+        '" rx="0.65" fill="' + opts.corLuz + '" opacity="0.6" aria-hidden="true"/>';
+
+      // 4) nucleo interno (energia passando pelo centro da torre).
+      partes += '<rect x="' + (opts.xEsqNum + larguraBarra * 0.34).toFixed(1) + '" y="' + opts.topoNum.toFixed(1) + '" width="' + (larguraBarra * 0.32).toFixed(1) +
+        '" height="' + opts.altura.toFixed(1) + '" rx="1.3" fill="' + opts.corLuz + '" opacity="0.3" aria-hidden="true"/>';
+
+      if (opts.desenharTopo) {
+        partes += faceTopo(opts.xEsqNum, opts.topoNum, opts.corLuz, opts.ehTorrePico ? 0.8 : 0.6);
+        var raioBrilhoTopo = opts.ehTorrePico ? 3.5 : 1.6;
+        partes += '<circle cx="' + (opts.xEsqNum + larguraBarra / 2 + dxProf / 2).toFixed(1) + '" cy="' + (opts.topoNum + dyProf / 2).toFixed(1) +
+          '" r="' + raioBrilhoTopo + '" fill="white" opacity="' + (opts.ehTorrePico ? 0.9 : 0.65) + '" style="filter:blur(' + (opts.ehTorrePico ? 1.5 : 0.8) + 'px);" aria-hidden="true"/>';
       }
-      return partes;
+      if (opts.desenharBase) {
+        // brilho na base -- pequeno reflexo onde a torre encosta na plataforma.
+        partes += '<ellipse cx="' + (opts.xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + (opts.topoNum + opts.altura).toFixed(1) +
+          '" rx="' + (larguraBarra * 0.55).toFixed(1) + '" ry="1.6" fill="' + opts.corLuz + '" opacity="0.4" aria-hidden="true"/>';
+      }
+
+      return opts.previsto ? '<g opacity="' + OPACIDADE_TORRE_PREVISTA + '">' + partes + '</g>' : partes;
     }
 
     var barrasSvg = serie.map(function (m, i) {
       var xEsqNum = xAt(i) - larguraBarra / 2;
-      var xEsq = xEsqNum.toFixed(1);
       var yReceitaTopo = yAtSigned(m.receita);
       var yDespesaBase = yAtSigned(-m.despesa);
-      var fillReceita = m.previsto ? 'url(#gradReceitaPrevista)' : 'url(#gradReceita)';
       var alturaReceita = Math.max(Math.abs(baselineY - yReceitaTopo), 1);
       var topoReceitaNum = Math.min(yReceitaTopo, baselineY);
-      var topoReceita = topoReceitaNum.toFixed(1);
       var ehTorrePico = i === idxTorreMax;
 
-      var partesReceita = '';
-      if (m.receita > 0) {
-        partesReceita += camadaLateral3D(xEsqNum, topoReceitaNum, alturaReceita, 'var(--chart-receita)', m.previsto);
-        partesReceita += '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="2"' +
-          (m.previsto
-            ? ' stroke="var(--chart-receita)" stroke-width="1" stroke-dasharray="2 2"'
-            : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
-        partesReceita += camadaFrenteExtra3D(xEsqNum, topoReceitaNum, alturaReceita, 'var(--chart-receita)', m.previsto, true, ehTorrePico);
-      }
+      var partesReceita = m.receita > 0
+        ? renderSegmentoTorre3D({
+            xEsqNum: xEsqNum, topoNum: topoReceitaNum, altura: alturaReceita,
+            gradienteFrente: 'url(#gradReceita)', corBorda: TORRE_AZUL_NEON,
+            corSombra: 'color-mix(in srgb, ' + TORRE_AZUL_PROFUNDO + ' 70%, black)', corLuz: TORRE_CIANO,
+            previsto: m.previsto, desenharTopo: true, desenharBase: m.despesa <= 0, ehTorrePico: ehTorrePico,
+          })
+        : '';
 
       var alturaDespesa = Math.max(Math.abs(yDespesaBase - baselineY), 1);
       var topoDespesaNum = Math.min(baselineY, yDespesaBase);
-      var barraDespesa = '';
-      if (m.despesa > 0) {
-        barraDespesa += camadaLateral3D(xEsqNum, topoDespesaNum, alturaDespesa, 'var(--chart-despesa)', m.previsto);
-        barraDespesa += '<rect x="' + xEsq + '" y="' + topoDespesaNum.toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + alturaDespesa.toFixed(1) + '" fill="url(#gradDespesa)" rx="2"' +
-          (m.previsto ? ' opacity="0.6"' : ' stroke="var(--chart-despesa)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
-        barraDespesa += camadaFrenteExtra3D(xEsqNum, topoDespesaNum, alturaDespesa, 'var(--chart-despesa)', m.previsto, false, false);
-      }
+      var barraDespesa = m.despesa > 0
+        ? renderSegmentoTorre3D({
+            xEsqNum: xEsqNum, topoNum: topoDespesaNum, altura: alturaDespesa,
+            gradienteFrente: 'url(#gradDespesa)', corBorda: 'var(--chart-despesa)',
+            corSombra: 'color-mix(in srgb, var(--chart-despesa) 55%, black)', corLuz: 'color-mix(in srgb, var(--chart-despesa) 40%, white)',
+            previsto: m.previsto, desenharTopo: false, desenharBase: true, ehTorrePico: false,
+          })
+        : '';
 
       // Bloom + Light Burst concentrado so na torre mais alta do periodo (pico, sempre um mes ja
       // realizado) -- reforco extra em cima do que ja existe, marcando ela como "a maior" tambem.
       var bloomTorrePico = ehTorrePico
         ? '<ellipse cx="' + (xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + topoReceitaNum.toFixed(1) + '" rx="' + (larguraBarra * 1.6).toFixed(1) +
-            '" ry="10" fill="var(--chart-receita)" opacity="0.22" filter="url(#filtroBloomPico)" aria-hidden="true"/>'
+            '" ry="10" fill="' + TORRE_AZUL_NEON + '" opacity="0.22" filter="url(#filtroBloomPico)" aria-hidden="true"/>'
         : '';
 
       return bloomTorrePico + partesReceita + barraDespesa;
