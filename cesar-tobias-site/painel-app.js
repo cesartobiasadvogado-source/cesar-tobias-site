@@ -1431,6 +1431,28 @@
       return '<polygon points="' + p + '" fill="' + cor + '" opacity="' + opacidade + '" aria-hidden="true"/>';
     }
 
+    // Sistema 3D UNICO pra toda torre, realizada ou prevista -- so a intensidade muda (pedido do
+    // usuario: nao pode existir torre "achatada", nem entre as pequenas nem nas de previsao).
+    // camadaLateral3D desenha ANTES da face frontal (fica atras); camadaFrenteExtra3D desenha
+    // DEPOIS dela (nucleo de energia + tampa/brilho do topo, quando aplicavel).
+    var MULT_PREVISTO_3D = 0.55;
+    function camadaLateral3D(xEsqNum, topoNum, altura, corVar, previsto) {
+      var mult = previsto ? MULT_PREVISTO_3D : 1;
+      return faceLateral(xEsqNum, topoNum, altura, 'color-mix(in srgb, ' + corVar + ' 55%, black)', (0.5 * mult).toFixed(2));
+    }
+    function camadaFrenteExtra3D(xEsqNum, topoNum, altura, corVar, previsto, desenharTopo, ehTorrePico) {
+      var mult = previsto ? MULT_PREVISTO_3D : 1;
+      var partes = '<rect x="' + (xEsqNum + larguraBarra * 0.32).toFixed(1) + '" y="' + topoNum.toFixed(1) + '" width="' + (larguraBarra * 0.36).toFixed(1) +
+        '" height="' + altura.toFixed(1) + '" rx="1.5" fill="color-mix(in srgb, ' + corVar + ' 40%, white)" opacity="' + (0.28 * mult).toFixed(2) + '" aria-hidden="true"/>';
+      if (desenharTopo) {
+        partes += faceTopo(xEsqNum, topoNum, 'color-mix(in srgb, ' + corVar + ' 45%, white)', ((ehTorrePico ? 0.75 : 0.55) * mult).toFixed(2));
+        var raioBrilhoTopo = ehTorrePico ? 3.5 : 1.6;
+        partes += '<circle cx="' + (xEsqNum + larguraBarra / 2 + dxProf / 2).toFixed(1) + '" cy="' + (topoNum + dyProf / 2).toFixed(1) +
+          '" r="' + raioBrilhoTopo + '" fill="white" opacity="' + ((ehTorrePico ? 0.85 : 0.6) * mult).toFixed(2) + '" style="filter:blur(' + (ehTorrePico ? 1.5 : 0.8) + 'px);" aria-hidden="true"/>';
+      }
+      return partes;
+    }
+
     var barrasSvg = serie.map(function (m, i) {
       var xEsqNum = xAt(i) - larguraBarra / 2;
       var xEsq = xEsqNum.toFixed(1);
@@ -1444,35 +1466,28 @@
 
       var partesReceita = '';
       if (m.receita > 0) {
-        if (!m.previsto) {
-          // lateral (face escura, profundidade) desenhada ANTES da face frontal, pra ficar atras.
-          partesReceita += faceLateral(xEsqNum, topoReceitaNum, alturaReceita, 'color-mix(in srgb, var(--chart-receita) 55%, black)', 0.55);
-        }
+        partesReceita += camadaLateral3D(xEsqNum, topoReceitaNum, alturaReceita, 'var(--chart-receita)', m.previsto);
         partesReceita += '<rect x="' + xEsq + '" y="' + topoReceita + '" width="' + larguraBarra.toFixed(1) +
           '" height="' + alturaReceita.toFixed(1) + '" fill="' + fillReceita + '" rx="2"' +
           (m.previsto
             ? ' stroke="var(--chart-receita-prevista)" stroke-width="1" stroke-dasharray="2 2"'
             : ' stroke="var(--chart-receita)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
-        if (!m.previsto) {
-          // nucleo interno (energia) -- faixa vertical mais clara no centro da torre.
-          partesReceita += '<rect x="' + (xEsqNum + larguraBarra * 0.32).toFixed(1) + '" y="' + topoReceita + '" width="' + (larguraBarra * 0.36).toFixed(1) +
-            '" height="' + alturaReceita.toFixed(1) + '" rx="1.5" fill="color-mix(in srgb, var(--chart-receita) 40%, white)" opacity="0.28" aria-hidden="true"/>';
-          // topo (tampa translucida) + pequeno brilho no topo de cada torre.
-          partesReceita += faceTopo(xEsqNum, topoReceitaNum, 'color-mix(in srgb, var(--chart-receita) 45%, white)', ehTorrePico ? 0.75 : 0.55);
-          var raioBrilhoTopo = ehTorrePico ? 3.5 : 1.6;
-          partesReceita += '<circle cx="' + (xEsqNum + larguraBarra / 2 + dxProf / 2).toFixed(1) + '" cy="' + (topoReceitaNum + dyProf / 2).toFixed(1) +
-            '" r="' + raioBrilhoTopo + '" fill="white" opacity="' + (ehTorrePico ? 0.85 : 0.6) + '" style="filter:blur(' + (ehTorrePico ? 1.5 : 0.8) + 'px);" aria-hidden="true"/>';
-        }
+        partesReceita += camadaFrenteExtra3D(xEsqNum, topoReceitaNum, alturaReceita, 'var(--chart-receita)', m.previsto, true, ehTorrePico);
       }
-      var barraDespesa = m.despesa > 0
-        ? faceLateral(xEsqNum, Math.min(baselineY, yDespesaBase), Math.max(Math.abs(yDespesaBase - baselineY), 1), 'color-mix(in srgb, var(--chart-despesa) 55%, black)', m.previsto ? 0 : 0.5) +
-          '<rect x="' + xEsq + '" y="' + Math.min(baselineY, yDespesaBase).toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
-          '" height="' + Math.max(Math.abs(yDespesaBase - baselineY), 1).toFixed(1) + '" fill="url(#gradDespesa)" rx="2"' +
-          (m.previsto ? ' opacity="0.6"' : ' stroke="var(--chart-despesa)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>'
-        : '';
 
-      // Bloom + Light Burst concentrado so na torre mais alta do periodo (pico) -- reforco extra
-      // em cima do que ja existe, marcando ela como "a maior visualmente" tambem.
+      var alturaDespesa = Math.max(Math.abs(yDespesaBase - baselineY), 1);
+      var topoDespesaNum = Math.min(baselineY, yDespesaBase);
+      var barraDespesa = '';
+      if (m.despesa > 0) {
+        barraDespesa += camadaLateral3D(xEsqNum, topoDespesaNum, alturaDespesa, 'var(--chart-despesa)', m.previsto);
+        barraDespesa += '<rect x="' + xEsq + '" y="' + topoDespesaNum.toFixed(1) + '" width="' + larguraBarra.toFixed(1) +
+          '" height="' + alturaDespesa.toFixed(1) + '" fill="url(#gradDespesa)" rx="2"' +
+          (m.previsto ? ' opacity="0.6"' : ' stroke="var(--chart-despesa)" stroke-width="0.75" filter="url(#glowBarra)"') + '/>';
+        barraDespesa += camadaFrenteExtra3D(xEsqNum, topoDespesaNum, alturaDespesa, 'var(--chart-despesa)', m.previsto, false, false);
+      }
+
+      // Bloom + Light Burst concentrado so na torre mais alta do periodo (pico, sempre um mes ja
+      // realizado) -- reforco extra em cima do que ja existe, marcando ela como "a maior" tambem.
       var bloomTorrePico = ehTorrePico
         ? '<ellipse cx="' + (xEsqNum + larguraBarra / 2).toFixed(1) + '" cy="' + topoReceitaNum.toFixed(1) + '" rx="' + (larguraBarra * 1.6).toFixed(1) +
             '" ry="10" fill="var(--chart-receita)" opacity="0.22" filter="url(#filtroBloomPico)" aria-hidden="true"/>'
