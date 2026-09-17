@@ -1455,10 +1455,14 @@
     // 1.8s (era 0.9s) -- muito rapido pra notar, principalmente porque so comeca depois do fetch
     // resolver (pequeno delay depois do clique na aba). Mais lento + faisca maior + estouro no
     // topo no final, pra ficar dificil de passar batido (usuario relatou nao ter percebido).
+    // calcMode "spline" com aquele keySplines concentrava quase todo o movimento nos primeiros
+    // ~30% do tempo (ease-out agressivo) -- parecia um "salto" rapido em vez de uma subida
+    // constante (relatado pelo usuario). Linear (sem calcMode/keySplines) distribui o movimento
+    // igualmente pelos 1.8s inteiros, bem mais facil de acompanhar.
     var DUR_CRESCIMENTO_TORRE = '1.8s';
     function animSmil(atributo, de, para) {
       return '<animate attributeName="' + atributo + '" from="' + de.toFixed(1) + '" to="' + para.toFixed(1) +
-        '" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="0.22 0.61 0.36 1" fill="freeze"/>';
+        '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>';
     }
     // Faisca que sobe do topo antigo ate um pouco acima do topo novo, acompanhando o crescimento,
     // e estoura num pequeno brilho quando chega no topo -- feedback visual de "isso acabou de subir".
@@ -1466,7 +1470,7 @@
       var yFinal = yNovo - 10;
       return '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="3.6" fill="' + cor +
         '" style="filter:drop-shadow(0 0 4px ' + cor + ');" aria-hidden="true">' +
-        '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + yFinal.toFixed(1) + '" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="0.22 0.61 0.36 1" fill="freeze"/>' +
+        '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + yFinal.toFixed(1) + '" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
         '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.82;1" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
         '<animate attributeName="r" values="3.6;1.6" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
       '</circle>' +
