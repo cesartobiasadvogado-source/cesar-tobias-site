@@ -1499,24 +1499,37 @@
       return bloomTorrePico + partesReceita + barraDespesa;
     }).join('');
 
-    function pontoSaldo(i) { return xAt(i).toFixed(1) + ',' + yAtSigned(serie[i].receita - serie[i].despesa).toFixed(1); }
     var fimRealizado = idxPrimeiroPrevisto === -1 ? n - 1 : idxPrimeiroPrevisto;
     var idxRealizados = [];
     for (var ir = 0; ir <= fimRealizado; ir++) idxRealizados.push(ir);
     var idxPrevistos = [];
     if (idxPrimeiroPrevisto !== -1) for (var ip = fimRealizado; ip < n; ip++) idxPrevistos.push(ip);
 
-    function caminhoLinha(indices) {
-      return indices.map(function (idx, k) { return (k === 0 ? 'M' : 'L') + pontoSaldo(idx); }).join(' ');
+    // Curva suave (Catmull-Rom convertido pra Bezier cubica) passando exatamente pelos MESMOS
+    // pontos de sempre -- nenhum valor muda, so a linha entre um mes e outro deixa de ser reta
+    // e vira uma transicao suave, como pedido ("a linha deve acompanhar suavemente a curva").
+    function xyPonto(idx) { return [xAt(idx), yAtSigned(serie[idx].receita - serie[idx].despesa)]; }
+    function caminhoSuave(indices) {
+      if (!indices.length) return '';
+      var pts = indices.map(xyPonto);
+      if (pts.length === 1) return 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+      var d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+      for (var k = 0; k < pts.length - 1; k++) {
+        var p0 = pts[k - 1] || pts[k], p1 = pts[k], p2 = pts[k + 1], p3 = pts[k + 2] || p2;
+        var cp1x = p1[0] + (p2[0] - p0[0]) / 6, cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+        var cp2x = p2[0] - (p3[0] - p1[0]) / 6, cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+        d += ' C' + cp1x.toFixed(1) + ',' + cp1y.toFixed(1) + ' ' + cp2x.toFixed(1) + ',' + cp2y.toFixed(1) + ' ' + p2[0].toFixed(1) + ',' + p2[1].toFixed(1);
+      }
+      return d;
     }
     function caminhoArea(indices) {
       if (indices.length < 2) return '';
-      var topo = caminhoLinha(indices);
+      var topo = caminhoSuave(indices);
       var ultimo = indices[indices.length - 1], primeiro = indices[0];
       return topo + ' L' + xAt(ultimo).toFixed(1) + ',' + baselineY.toFixed(1) + ' L' + xAt(primeiro).toFixed(1) + ',' + baselineY.toFixed(1) + ' Z';
     }
-    var pathSaldoRealizado = caminhoLinha(idxRealizados);
-    var pathSaldoPrevisto = caminhoLinha(idxPrevistos);
+    var pathSaldoRealizado = caminhoSuave(idxRealizados);
+    var pathSaldoPrevisto = caminhoSuave(idxPrevistos);
     var areaSaldoSvg = caminhoArea(idxRealizados) ? '<path d="' + caminhoArea(idxRealizados) + '" fill="url(#gradSaldoArea)"/>' : '';
     var areaSaldoPrevistaSvg = caminhoArea(idxPrevistos) ? '<path d="' + caminhoArea(idxPrevistos) + '" fill="url(#gradSaldoArea)" opacity="0.6"/>' : '';
 
@@ -1550,7 +1563,7 @@
       var cxPico = xAt(idxPico).toFixed(1), cyPico = yAtSigned(valorPico).toFixed(1);
       bloomPicoSvg =
         '<circle cx="' + cxPico + '" cy="' + cyPico + '" r="9" fill="var(--accent)" opacity="0.28" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
-        '<g opacity="0.35" aria-hidden="true">' +
+        '<g opacity="0.22" aria-hidden="true">' +
           '<line x1="' + (cxPico - 8) + '" y1="' + cyPico + '" x2="' + (Number(cxPico) + 8) + '" y2="' + cyPico + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
           '<line x1="' + cxPico + '" y1="' + (cyPico - 8) + '" x2="' + cxPico + '" y2="' + (Number(cyPico) + 8) + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
         '</g>';
