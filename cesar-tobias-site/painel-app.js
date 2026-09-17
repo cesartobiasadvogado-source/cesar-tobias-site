@@ -1452,20 +1452,27 @@
     // atributos sao funcoes lineares do mesmo intervalo, a base (y+height) fica sempre colada na
     // plataforma durante toda a animacao. Lateral/topo ficam na geometria final (a discrepancia
     // por 0.9s e sutil demais pra valer interpolar os poligonos).
-    var DUR_CRESCIMENTO_TORRE = '0.9s';
+    // 1.8s (era 0.9s) -- muito rapido pra notar, principalmente porque so comeca depois do fetch
+    // resolver (pequeno delay depois do clique na aba). Mais lento + faisca maior + estouro no
+    // topo no final, pra ficar dificil de passar batido (usuario relatou nao ter percebido).
+    var DUR_CRESCIMENTO_TORRE = '1.8s';
     function animSmil(atributo, de, para) {
       return '<animate attributeName="' + atributo + '" from="' + de.toFixed(1) + '" to="' + para.toFixed(1) +
         '" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="0.22 0.61 0.36 1" fill="freeze"/>';
     }
     // Faisca que sobe do topo antigo ate um pouco acima do topo novo, acompanhando o crescimento,
-    // e se apaga no final -- feedback visual de "isso acabou de subir".
+    // e estoura num pequeno brilho quando chega no topo -- feedback visual de "isso acabou de subir".
     function faiscaCrescimento(cx, yAntigo, yNovo, cor) {
-      var yFinal = yNovo - 6;
-      return '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="2.6" fill="' + cor +
-        '" style="filter:drop-shadow(0 0 3px ' + cor + ');" aria-hidden="true">' +
+      var yFinal = yNovo - 10;
+      return '<circle cx="' + cx.toFixed(1) + '" cy="' + yAntigo.toFixed(1) + '" r="3.6" fill="' + cor +
+        '" style="filter:drop-shadow(0 0 4px ' + cor + ');" aria-hidden="true">' +
         '<animate attributeName="cy" from="' + yAntigo.toFixed(1) + '" to="' + yFinal.toFixed(1) + '" dur="' + DUR_CRESCIMENTO_TORRE + '" calcMode="spline" keySplines="0.22 0.61 0.36 1" fill="freeze"/>' +
-        '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.12;0.7;1" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
-        '<animate attributeName="r" values="2.6;1.2" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
+        '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.82;1" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
+        '<animate attributeName="r" values="3.6;1.6" dur="' + DUR_CRESCIMENTO_TORRE + '" fill="freeze"/>' +
+      '</circle>' +
+      '<circle cx="' + cx.toFixed(1) + '" cy="' + yFinal.toFixed(1) + '" r="1" fill="' + cor + '" opacity="0" aria-hidden="true">' +
+        '<animate attributeName="r" from="1" to="10" begin="' + DUR_CRESCIMENTO_TORRE + '" dur="0.5s" fill="freeze"/>' +
+        '<animate attributeName="opacity" values="0.85;0" begin="' + DUR_CRESCIMENTO_TORRE + '" dur="0.5s" fill="freeze"/>' +
       '</circle>';
     }
 
