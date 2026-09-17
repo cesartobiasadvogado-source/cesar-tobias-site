@@ -1166,7 +1166,7 @@
     var defsSvg = '<defs>' +
       '<linearGradient id="gradReceita" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + baselineY + '">' +
         '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.78"/>' +
-        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="1"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita-neon)" stop-opacity="1"/>' +
       '</linearGradient>' +
       // Mesma cor da receita realizada (nao mais um azul/ciano diferente) -- so mais transparente,
       // pra previsao continuar parecendo a MESMA torre, so translucida (pedido do usuario: os
@@ -1177,16 +1177,16 @@
       '</linearGradient>' +
       '<linearGradient id="gradDespesa" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH) + '">' +
         '<stop offset="0" stop-color="var(--chart-despesa)" stop-opacity="0.85"/>' +
-        '<stop offset="1" stop-color="var(--chart-despesa)" stop-opacity="0.55"/>' +
+        '<stop offset="1" stop-color="var(--chart-despesa-clara)" stop-opacity="0.6"/>' +
       '</linearGradient>' +
       '<linearGradient id="gradCorredor" gradientUnits="userSpaceOnUse" x1="' + xHoje.toFixed(1) + '" y1="0" x2="' + (W - padR) + '" y2="0">' +
-        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0"/>' +
-        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0.07"/>' +
+        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="0.07"/>' +
       '</linearGradient>' +
       '<linearGradient id="gradSaldoArea" gradientUnits="userSpaceOnUse" x1="0" y1="' + padT + '" x2="0" y2="' + (padT + plotH) + '">' +
-        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.16"/>' +
-        '<stop offset="0.5" stop-color="var(--accent)" stop-opacity="0"/>' +
-        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0.16"/>' +
+        '<stop offset="0" stop-color="var(--chart-saldo)" stop-opacity="0.16"/>' +
+        '<stop offset="0.5" stop-color="var(--chart-saldo)" stop-opacity="0"/>' +
+        '<stop offset="1" stop-color="var(--chart-saldo)" stop-opacity="0.16"/>' +
       '</linearGradient>' +
       // Brilho ao longo do traçado do saldo (filtro reaproveitado, desenhado uma vez por baixo
       // da linha nitida) -- em vez de so um ponto de brilho fixo no "hoje".
@@ -1196,7 +1196,7 @@
       // Textura de scan-line bem discreta sobre a area prevista -- reforca "isso ainda nao
       // aconteceu de verdade" sem virar ruido visual.
       '<pattern id="scanlinesPrevisto" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
-        '<line x1="0" y1="0" x2="0" y2="5" stroke="var(--accent)" stroke-width="1" opacity="0.5"/>' +
+        '<line x1="0" y1="0" x2="0" y2="5" stroke="var(--chart-receita)" stroke-width="1" opacity="0.5"/>' +
       '</pattern>' +
       // Brilho neon nas barras/pontos -- o usuario pediu pra ir mais fundo no "instrumento/HUD",
       // igual o print de referencia (barras com borda luminosa em vez de preenchimento chapado).
@@ -1206,20 +1206,20 @@
       // Anel decorativo sob o grafico, ecoando o halo do print de referencia -- 100% enfeite
       // (nao representa nenhum dado), so uma faixa de luz na base do plot.
       '<radialGradient id="gradAnelBase" cx="0.5" cy="0.5" r="0.5">' +
-        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>' +
-        '<stop offset="65%" stop-color="var(--accent)" stop-opacity="0.08"/>' +
-        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="0%" stop-color="var(--chart-receita)" stop-opacity="0.3"/>' +
+        '<stop offset="65%" stop-color="var(--chart-receita)" stop-opacity="0.08"/>' +
+        '<stop offset="100%" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
       '</radialGradient>' +
       // "Feixe" de luz descendo de cada barra ate o anel -- mesmo espirito do halo, 100% enfeite.
       '<linearGradient id="gradFeixeBarra" gradientUnits="userSpaceOnUse" x1="0" y1="' + baselineY + '" x2="0" y2="' + (padT + plotH + 22) + '">' +
-        '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.28"/>' +
-        '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.28"/>' +
+        '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
       '</linearGradient>' +
       // Ambient glow do fundo -- bem discreto, so pra dar profundidade/"ambiente digital" atras
       // de tudo (pedido do usuario), nunca competindo com os dados.
       '<radialGradient id="gradAmbiente" cx="0.5" cy="0.38" r="0.75">' +
-        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.05"/>' +
-        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="0%" stop-color="var(--chart-receita)" stop-opacity="0.05"/>' +
+        '<stop offset="100%" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
       '</radialGradient>' +
       // Bloom mais forte, so pro ponto de maior valor (pico do periodo) -- efeito extra, usado
       // uma unica vez, pra nao virar "tudo brilhando igual".
@@ -1234,20 +1234,20 @@
       // Nucleo de luz azul/ciano no centro da plataforma, desaparecendo aos poucos pra fora --
       // "luz volumetrica" (Neon/Outer Glow combinados num unico gradiente).
       '<radialGradient id="gradNucleoPlataforma" cx="0.5" cy="0.5" r="0.5">' +
-        '<stop offset="0%" stop-color="color-mix(in srgb, var(--accent) 55%, white)" stop-opacity="0.4"/>' +
-        '<stop offset="40%" stop-color="var(--accent)" stop-opacity="0.16"/>' +
-        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="0%" stop-color="color-mix(in srgb, var(--chart-saldo) 55%, white)" stop-opacity="0.4"/>' +
+        '<stop offset="40%" stop-color="var(--chart-saldo)" stop-opacity="0.16"/>' +
+        '<stop offset="100%" stop-color="var(--chart-saldo)" stop-opacity="0"/>' +
       '</radialGradient>' +
       // Reflexo no piso, abaixo da plataforma -- a luz dos aneis "batendo" numa superficie escura.
       '<radialGradient id="gradReflexoPiso" cx="0.5" cy="0" r="0.7">' +
-        '<stop offset="0%" stop-color="var(--accent)" stop-opacity="0.12"/>' +
-        '<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>' +
+        '<stop offset="0%" stop-color="var(--chart-receita)" stop-opacity="0.12"/>' +
+        '<stop offset="100%" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
       '</radialGradient>' +
     '</defs>';
 
     // Nucleo claro dos pontos de dado (Data Point Glow: halo azul + nucleo branco/ciano) --
     // cor calculada uma vez, reaproveitada em todos os pontos da linha de saldo.
-    var corNucleoPonto = 'color-mix(in srgb, var(--accent) 30%, white)';
+    var corNucleoPonto = 'color-mix(in srgb, var(--chart-saldo) 30%, white)';
 
     // Ambient glow (fundo) + particulas extremamente sutis -- 100% decorativo, posicoes fixas
     // (nao regeneradas a cada render, pra nao "piscar" toda vez que o grafico redesenha).
@@ -1273,8 +1273,8 @@
     // Parede do tambor (a face frontal, entre o aro de cima e o de baixo) -- e isso que da
     // profundidade/altura de verdade, em vez de tudo ficar num unico plano achatado.
     var defsParede = '<defs><linearGradient id="gradParedeTambor" gradientUnits="userSpaceOnUse" x1="0" y1="' + anelCy + '" x2="0" y2="' + anelCyBase + '">' +
-      '<stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"/>' +
-      '<stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>' +
+      '<stop offset="0" stop-color="var(--chart-receita)" stop-opacity="0.22"/>' +
+      '<stop offset="1" stop-color="var(--chart-receita)" stop-opacity="0"/>' +
     '</linearGradient></defs>';
     function paredeTambor(rx, ry) {
       var xE = (anelCx - rx).toFixed(1), xD = (anelCx + rx).toFixed(1);
@@ -1286,7 +1286,7 @@
     var paredeSvg =
       '<path d="' + paredeTambor(anelRx, anelRy) + '" fill="url(#gradParedeTambor)" aria-hidden="true"/>' +
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCyBase.toFixed(1) + '" rx="' + anelRx.toFixed(1) + '" ry="' + anelRy.toFixed(1) +
-        '" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.14" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
+        '" fill="none" stroke="var(--chart-receita)" stroke-width="1" opacity="0.14" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
 
     // 5 aneis concentricos: externo grande e continuo, alguns segmentados/pontilhados no meio,
     // e os mais internos com brilho mais forte (sensacao de "nucleo energetico").
@@ -1297,16 +1297,23 @@
       { f: 0.44, opacidade: 0.20, largura: 0.8, dash: '1 4' },
       { f: 0.25, opacidade: 0.40, largura: 1.2, dash: '' },
     ];
+    // Cor de cada anel varia por profundidade: os externos (f perto de 1) ficam no azul eletrico
+    // da receita, os internos (f perto de 0) viram ciano do saldo -- MESMA paleta do resto do
+    // grafico, so profundidade por luminosidade/matiz, nunca uma cor nova (pedido do usuario).
+    function corAnelPorProfundidade(f) {
+      return 'color-mix(in srgb, var(--chart-saldo) ' + Math.round((1 - f) * 100) + '%, var(--chart-receita))';
+    }
     // Cada anel ganha uma copia borrada por baixo (Neon/Outer Glow) alem do traco nitido -- os
     // mais internos (f menor) brilham mais forte, os externos ficam mais suaves ("nucleo mais
     // intenso, halo desaparecendo aos poucos pra fora").
     var aneisSvg = ANEIS_PLATAFORMA.map(function (a) {
+      var cor = corAnelPorProfundidade(a.f);
       var glowOpacidade = 0.16 + (1 - a.f) * 0.3;
       var glow = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
-        '" fill="none" stroke="var(--accent)" stroke-width="' + (a.largura * 2.6) + '" opacity="' + glowOpacidade.toFixed(2) +
+        '" fill="none" stroke="' + cor + '" stroke-width="' + (a.largura * 2.6) + '" opacity="' + glowOpacidade.toFixed(2) +
         '" filter="url(#filtroGlowAnel)" aria-hidden="true"/>';
       var nitido = '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * a.f).toFixed(1) + '" ry="' + (anelRy * a.f).toFixed(1) +
-        '" fill="none" stroke="var(--accent)" stroke-width="' + a.largura + '" opacity="' + a.opacidade + '"' +
+        '" fill="none" stroke="' + cor + '" stroke-width="' + a.largura + '" opacity="' + a.opacidade + '"' +
         (a.dash ? ' stroke-dasharray="' + a.dash + '"' : '') + ' aria-hidden="true"/>';
       return glow + nitido;
     }).join('');
@@ -1322,7 +1329,7 @@
     ].map(function (m, idx) {
       var p = pontoNoAnel(m.f, m.ang);
       return idx % 2 === 0
-        ? '<rect x="' + (p.x - 1.6).toFixed(1) + '" y="' + (p.y - 1.6).toFixed(1) + '" width="3.2" height="3.2" fill="var(--accent)" opacity="0.5" transform="rotate(45 ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')" aria-hidden="true"/>'
+        ? '<rect x="' + (p.x - 1.6).toFixed(1) + '" y="' + (p.y - 1.6).toFixed(1) + '" width="3.2" height="3.2" fill="' + corAnelPorProfundidade(m.f) + '" opacity="0.5" transform="rotate(45 ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ')" aria-hidden="true"/>'
         : '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="1.4" fill="' + corNucleoPonto + '" opacity="0.6" aria-hidden="true"/>';
     }).join('');
 
@@ -1336,8 +1343,8 @@
     var focoTorreMaxSvg = idxTorreMax === -1 ? '' : (function () {
       var xFoco = xAt(idxTorreMax);
       return '<ellipse cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (larguraBarra * 1.8).toFixed(1) + '" ry="' + (anelRy * 0.7).toFixed(1) +
-          '" fill="var(--accent)" opacity="0.32" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
-        '<circle cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2" fill="' + corNucleoPonto + '" opacity="0.85" style="filter:drop-shadow(0 0 3px var(--accent));" aria-hidden="true"/>';
+          '" fill="var(--chart-receita)" opacity="0.32" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
+        '<circle cx="' + xFoco.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2" fill="' + corNucleoPonto + '" opacity="0.85" style="filter:drop-shadow(0 0 3px var(--chart-receita));" aria-hidden="true"/>';
     })();
 
     // Nucleo de energia central: halo difuso + ponto luminoso, como o coracao da plataforma
@@ -1345,8 +1352,8 @@
     // ficavam parecendo um "X" sobre o grafico).
     var nucleoCentralSvg =
       '<ellipse cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" rx="' + (anelRx * 0.16).toFixed(1) + '" ry="' + (anelRy * 0.16).toFixed(1) +
-        '" fill="var(--accent)" opacity="0.5" filter="url(#filtroGlowAnel)" aria-hidden="true"/>' +
-      '<circle cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2.2" fill="' + corNucleoPonto + '" opacity="0.9" style="filter:drop-shadow(0 0 4px var(--accent));" aria-hidden="true"/>';
+        '" fill="var(--chart-saldo)" opacity="0.5" filter="url(#filtroGlowAnel)" aria-hidden="true"/>' +
+      '<circle cx="' + anelCx.toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="2.2" fill="' + corNucleoPonto + '" opacity="0.9" style="filter:drop-shadow(0 0 4px var(--chart-saldo));" aria-hidden="true"/>';
 
     // Conectores radiais (curtos, so sugerindo "linhas tecnologicas" entre os aneis).
     var conectoresSvg = [30, 100, 170, 260, 330].map(function (ang) {
@@ -1355,7 +1362,7 @@
       var x1 = anelCx + Math.cos(rad) * anelRx * r1, y1 = anelCy + Math.sin(rad) * anelRy * r1;
       var x2 = anelCx + Math.cos(rad) * anelRx * r2, y2 = anelCy + Math.sin(rad) * anelRy * r2;
       return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) +
-        '" stroke="var(--accent)" stroke-width="0.6" opacity="0.18" aria-hidden="true"/>';
+        '" stroke="var(--chart-saldo)" stroke-width="0.6" opacity="0.18" aria-hidden="true"/>';
     }).join('');
 
     // Pontos de luz percorrendo 3 dos aneis (SMIL animateMotion, nativo do SVG -- sem custo de
@@ -1378,7 +1385,7 @@
       if (semMovimento) {
         var rx = anelRx * o.f;
         return caminho + '<circle cx="' + (anelCx - rx).toFixed(1) + '" cy="' + anelCy.toFixed(1) + '" r="' + o.r +
-          '" fill="' + corNucleoPonto + '" opacity="0.6" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true"/>';
+          '" fill="' + corNucleoPonto + '" opacity="0.6" style="filter:drop-shadow(0 0 2px var(--chart-saldo));" aria-hidden="true"/>';
       }
       // rastro curto: 3 copias do ponto, um pouco atrasadas no tempo (begin negativo) e mais
       // fracas, dando a sensacao de "cauda" de luz em vez de so um ponto viajando.
@@ -1388,7 +1395,7 @@
         '</circle>';
       }).join('');
       return caminho + rastro +
-        '<circle r="' + o.r + '" fill="' + corNucleoPonto + '" opacity="0.75" style="filter:drop-shadow(0 0 2px var(--accent));" aria-hidden="true">' +
+        '<circle r="' + o.r + '" fill="' + corNucleoPonto + '" opacity="0.75" style="filter:drop-shadow(0 0 2px var(--chart-saldo));" aria-hidden="true">' +
           '<animateMotion dur="' + o.dur + '" repeatCount="indefinite"><mpath href="#' + idPath + '" xlink:href="#' + idPath + '"/></animateMotion>' +
         '</circle>';
     }).join('');
@@ -1551,7 +1558,7 @@
       var opacidade = m.previsto ? 0.45 : 1;
       var cx = xAt(i).toFixed(1), cy = yAtSigned(m.receita - m.despesa).toFixed(1);
       return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r +
-          '" fill="var(--accent)" opacity="' + opacidade + '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--accent));"/>' +
+          '" fill="var(--chart-saldo)" opacity="' + opacidade + '" style="filter:drop-shadow(0 0 ' + raioGlow + 'px var(--chart-saldo));"/>' +
         '<circle cx="' + cx + '" cy="' + cy + '" r="' + raioNucleo + '" fill="' + corNucleoPonto + '" opacity="' + opacidade + '"/>';
     }).join('');
 
@@ -1562,7 +1569,7 @@
     if (idxPico !== -1) {
       var cxPico = xAt(idxPico).toFixed(1), cyPico = yAtSigned(valorPico).toFixed(1);
       bloomPicoSvg =
-        '<circle cx="' + cxPico + '" cy="' + cyPico + '" r="9" fill="var(--accent)" opacity="0.28" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
+        '<circle cx="' + cxPico + '" cy="' + cyPico + '" r="9" fill="var(--chart-saldo)" opacity="0.28" filter="url(#filtroBloomPico)" aria-hidden="true"/>' +
         '<g opacity="0.22" aria-hidden="true">' +
           '<line x1="' + (cxPico - 8) + '" y1="' + cyPico + '" x2="' + (Number(cxPico) + 8) + '" y2="' + cyPico + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
           '<line x1="' + cxPico + '" y1="' + (cyPico - 8) + '" x2="' + cxPico + '" y2="' + (Number(cyPico) + 8) + '" stroke="' + corNucleoPonto + '" stroke-width="0.75"/>' +
@@ -1575,10 +1582,10 @@
     );
     var divisorHoje = idxPrimeiroPrevisto <= 0 ? '' : (
       '<line x1="' + xHoje.toFixed(1) + '" x2="' + xHoje.toFixed(1) +
-      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--accent)" stroke-width="1" stroke-dasharray="1 3" opacity="0.55"/>' +
-      '<circle class="exec-hoje-pulso" cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="3" fill="none" stroke="var(--accent)" stroke-width="1"/>' +
-      '<circle cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="2.5" fill="var(--accent)" style="filter:drop-shadow(0 0 3px var(--accent));"/>' +
-      '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 12) + '" text-anchor="middle" font-size="8" font-weight="600" letter-spacing="0.08em" fill="var(--accent)">HOJE</text>'
+      '" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--chart-saldo)" stroke-width="1" stroke-dasharray="1 3" opacity="0.55"/>' +
+      '<circle class="exec-hoje-pulso" cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="3" fill="none" stroke="var(--chart-saldo)" stroke-width="1"/>' +
+      '<circle cx="' + xHoje.toFixed(1) + '" cy="' + (padT - 6) + '" r="2.5" fill="var(--chart-saldo)" style="filter:drop-shadow(0 0 3px var(--chart-saldo));"/>' +
+      '<text x="' + xHoje.toFixed(1) + '" y="' + (padT - 12) + '" text-anchor="middle" font-size="8" font-weight="600" letter-spacing="0.08em" fill="var(--chart-saldo)">HOJE</text>'
     );
 
     var labelStep = n > 18 ? 3 : (n > 12 ? 2 : 1);
@@ -1593,13 +1600,13 @@
     }).join('');
 
     var glowSaldoSvg =
-      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.35" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' +
-      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
+      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--chart-saldo)" stroke-width="4" opacity="0.35" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' +
+      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--chart-saldo)" stroke-width="4" opacity="0.2" filter="url(#glowSaldo)" stroke-linejoin="round" stroke-linecap="round"/>' : '');
 
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%; height:auto; display:block;" id="exec-grafico-svg-el">' +
       defsSvg + ambienteSvg + particulasSvg + gridSvg + anelDecorativo + feixesSvg + corredorPrevisto + barrasSvg + areaSaldoSvg + areaSaldoPrevistaSvg + divisorHoje + glowSaldoSvg +
-      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
-      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--accent)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
+      '<path d="' + pathSaldoRealizado + '" fill="none" stroke="var(--chart-saldo)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>' +
+      (pathSaldoPrevisto ? '<path d="' + pathSaldoPrevisto + '" fill="none" stroke="var(--chart-saldo)" stroke-width="1.75" stroke-dasharray="1 4" opacity="0.7" stroke-linejoin="round" stroke-linecap="round"/>' : '') +
       bloomPicoSvg + pontosSaldo + eixoX +
       '<line id="exec-crosshair" x1="0" x2="0" y1="' + padT + '" y2="' + (padT + plotH) + '" stroke="var(--ink-faint)" stroke-width="1" style="display:none; pointer-events:none;"/>' +
       hoverCols +
@@ -1972,7 +1979,7 @@
       '<div class="exec-periodo-card">' +
         '<div class="exec-periodo-card-top">' +
           '<span class="exec-periodo-card-label">Saldo do período</span>' +
-          '<span class="exec-periodo-card-icone" style="color:var(--accent);background:var(--accent-soft);">' + ICONE_CARTEIRA + '</span>' +
+          '<span class="exec-periodo-card-icone" style="color:var(--chart-saldo);background:color-mix(in srgb, var(--chart-saldo) 16%, transparent);">' + ICONE_CARTEIRA + '</span>' +
         '</div>' +
         '<span class="exec-periodo-card-valor" style="color:' + (saldoTotal >= 0 ? 'var(--good)' : 'var(--crit)') + ';">' +
           (saldoTotal < 0 ? '-' : '') + 'R$ ' + fmtMoeda(Math.abs(saldoTotal)) + '</span>' +
@@ -2026,7 +2033,7 @@
     container.innerHTML =
       linha('Receita', cmp.receita_atual || 0, cmp.receita_anterior || 0, 'var(--chart-receita)', ICONE_TENDENCIA_ALTA, receitas) +
       linha('Despesa', cmp.despesa_atual || 0, cmp.despesa_anterior || 0, 'var(--chart-despesa)', ICONE_TENDENCIA_BAIXA, despesas) +
-      linha('Saldo', cmp.saldo_atual || 0, cmp.saldo_anterior || 0, 'var(--accent)', ICONE_CARTEIRA, saldos);
+      linha('Saldo', cmp.saldo_atual || 0, cmp.saldo_anterior || 0, 'var(--chart-saldo)', ICONE_CARTEIRA, saldos);
   }
 
   function aplicarFiltroGrafico(filtro) {
@@ -4104,7 +4111,7 @@
           '<div class="exec-legend-simples">' +
             '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-receita);"></span>Receita</span>' +
             '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-despesa);"></span>Despesa</span>' +
-            '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--accent);"></span>Saldo</span>' +
+            '<span class="exec-legend-item"><span class="exec-legend-swatch" style="background:var(--chart-saldo);"></span>Saldo</span>' +
           '</div>' +
           '<div class="exec-acumulado" id="exec-acumulado"></div>' +
           '<div class="exec-marco-linha" id="exec-marco-linha"></div>' +
@@ -4120,10 +4127,10 @@
           '<div class="exec-card exec-visao-geral">' +
             '<div class="exec-vg-orbita" aria-hidden="true">' +
               '<svg viewBox="0 0 200 200">' +
-                '<circle cx="100" cy="100" r="70" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.35"/>' +
-                '<circle cx="100" cy="100" r="46" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.5" stroke-dasharray="2 5"/>' +
-                '<circle cx="100" cy="100" r="20" fill="var(--accent)" opacity="0.18"/>' +
-                '<circle cx="100" cy="100" r="6" fill="var(--accent)" style="filter:drop-shadow(0 0 8px var(--accent));"/>' +
+                '<circle cx="100" cy="100" r="70" fill="none" stroke="var(--chart-receita)" stroke-width="1" opacity="0.35"/>' +
+                '<circle cx="100" cy="100" r="46" fill="none" stroke="var(--chart-saldo)" stroke-width="1" opacity="0.5" stroke-dasharray="2 5"/>' +
+                '<circle cx="100" cy="100" r="20" fill="var(--chart-saldo)" opacity="0.18"/>' +
+                '<circle cx="100" cy="100" r="6" fill="var(--chart-saldo)" style="filter:drop-shadow(0 0 8px var(--chart-saldo));"/>' +
               '</svg>' +
             '</div>' +
             '<div class="exec-card-titulo">Visão Geral</div>' +
