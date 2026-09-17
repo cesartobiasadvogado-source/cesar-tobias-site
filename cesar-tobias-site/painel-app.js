@@ -1598,7 +1598,7 @@
     var elMarco = document.getElementById('exec-marco-linha');
     if (elMarco) {
       elMarco.innerHTML = idxPrimeiroPrevisto > 0
-        ? '<span>← Histórico efetivado</span><span style="color:var(--chart-receita-prevista);">Previsto →</span>'
+        ? '<span>← Histórico efetivado</span><span style="color:var(--chart-receita);">Previsto →</span>'
         : '';
     }
   }
