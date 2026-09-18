@@ -744,6 +744,44 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'triagem_listar') {
+    var tokenSessaoTriagemListar = obterToken(req);
+    if (!tokenSessaoTriagemListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=triagem_listar&token=' + encodeURIComponent(tokenSessaoTriagemListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar as triagens.' });
+    }
+    return;
+  }
+
+  if (acao === 'triagem_obter') {
+    var tokenSessaoTriagemObter = obterToken(req);
+    if (!tokenSessaoTriagemObter) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var idTriagemObter = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=triagem_obter&id=' + encodeURIComponent(idTriagemObter) +
+        '&token=' + encodeURIComponent(tokenSessaoTriagemObter) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao carregar a triagem.' });
+    }
+    return;
+  }
+
   if (acao === 'etiqueta_listar') {
     var tokenSessaoEtiquetaListar = obterToken(req);
     if (!tokenSessaoEtiquetaListar) {
@@ -830,6 +868,12 @@ module.exports = async (req, res) => {
     plataforma_tenant_status: 'Erro de conexao ao atualizar o status do escritorio.',
     plataforma_tenant_excluir: 'Erro de conexao ao excluir o escritorio.',
     plataforma_tenant_plano: 'Erro de conexao ao trocar o plano do escritorio.',
+    triagem_criar: 'Erro de conexao ao criar a triagem.',
+    triagem_atualizar: 'Erro de conexao ao salvar as alteracoes da triagem.',
+    triagem_status: 'Erro de conexao ao atualizar o status da triagem.',
+    triagem_arquivar: 'Erro de conexao ao arquivar a triagem.',
+    triagem_duplicar: 'Erro de conexao ao duplicar a triagem.',
+    triagem_excluir: 'Erro de conexao ao excluir a triagem.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

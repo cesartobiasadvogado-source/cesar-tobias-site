@@ -1172,6 +1172,23 @@
     display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px;
     border: 1px solid var(--line); border-bottom: none; background: var(--bg); font-size: 13px; color: var(--ink);
   }
+
+  /* Wizard da Triagem Trabalhista -- barra de progresso por passo (mesma ideia visual do
+     onboarding em cadastro-advogado.html, so que reaproveitavel aqui via classe em vez de
+     <style> proprio da pagina, ja que esta pagina usa o painel.css compartilhado). */
+  .triagem-passos { display: flex; gap: 6px; margin: 4px 0 18px; }
+  .triagem-passo-marca { flex: 1; height: 4px; border-radius: 3px; background: var(--line); transition: background .2s ease; }
+  .triagem-passo-marca.feito { background: var(--good); }
+  .triagem-passo-marca.atual { background: var(--accent); }
+  .triagem-passo-legenda { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-faint); margin-bottom: 6px; }
+  .triagem-passo-titulo { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }
+  .triagem-passo-sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 18px; }
+  .triagem-nav-passos { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+  .triagem-campo-condicional { margin-top: 10px; padding: 12px 14px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--line); }
+  .triagem-simnao { display: flex; gap: 8px; }
+  .triagem-simnao button { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft); font-size: 13px; cursor: pointer; transition: all .15s ease; }
+  .triagem-simnao button.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .triagem-chip-status { font-size: 11px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
   .procficha-modelo-item:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 8px 8px; }
   .procficha-modelo-item:first-child { border-radius: 8px 8px 0 0; }
   .procficha-campo-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }

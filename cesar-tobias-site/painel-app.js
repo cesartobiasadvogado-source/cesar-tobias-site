@@ -69,6 +69,7 @@
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
+    triagem_trabalhista: 'Triagem Trabalhista', criar_triagem: 'Nova Triagem Trabalhista',
   };
 
   function wireMenuMobile() {
@@ -2991,6 +2992,74 @@
         '</div>' +
       '</section>';
 
+    var htmlTriagemDashboard = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-triagem-trabalhista">' +
+        '<div class="procpage-dark">' +
+          '<div class="procpage-topo">' +
+            '<h2 class="procpage-titulo">Triagem Trabalhista</h2>' +
+            '<div class="procpage-acoes-topo">' +
+              '<a class="procpage-btn procpage-btn-primary" href="painel-criar-triagem.html#sec-criar-triagem">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>' +
+                'Nova Triagem Trabalhista</a>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="procpage-filtros">' +
+            '<div class="procpage-filtros-grid">' +
+              '<div><label>Cliente ou empresa</label><input type="text" id="triagem-filtro-busca" placeholder="Buscar por cliente ou empresa..."></div>' +
+              '<div><label>Status</label><select id="triagem-filtro-status">' +
+                '<option value="">Todas (exceto arquivadas)</option>' +
+                '<option value="nao_iniciada">Não iniciada</option>' +
+                '<option value="em_andamento">Em andamento</option>' +
+                '<option value="aguardando_documentos">Aguardando documentos</option>' +
+                '<option value="aguardando_informacoes">Aguardando informações</option>' +
+                '<option value="concluida">Concluída</option>' +
+                '<option value="convertida">Convertida em caso/processo</option>' +
+              '</select></div>' +
+              '<div class="procpage-filtros-botoes">' +
+                '<button type="button" class="procpage-btn" id="triagem-filtro-limpar">Limpar</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="procpage-tabela-wrap">' +
+            '<div id="triagem-lista"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
+    // Wizard da Triagem Trabalhista -- fase 1 do plano aprovado: so os passos Cliente, Empresa
+    // e Contrato ficam de fato funcionais aqui (Jornada e os demais entram nas fases seguintes,
+    // cada uma com sua propria migracao). #triagem-wizard-conteudo e reconstruido a cada passo
+    // por renderPassoTriagem*(), mesmo padrao de troca de tela do wizard de onboarding
+    // (cadastro-advogado.html), so que usando as classes .triagem-passos/.procficha-painel do
+    // painel.css compartilhado em vez de <style> proprio da pagina.
+    var htmlCriarTriagem = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-criar-triagem">' +
+        '<div class="procpage-dark">' +
+          '<div class="procficha-topo">' +
+            '<div class="procficha-titulo-wrap">' +
+              '<a class="procficha-voltar" href="painel-triagem-trabalhista.html#sec-triagem-trabalhista">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>' +
+                '<span>Voltar</span>' +
+              '</a>' +
+              '<h2 class="procficha-numero" id="triagem-wizard-titulo">Nova Triagem Trabalhista</h2>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="triagem-passos" id="triagem-passos-barra"></div>' +
+          '<div class="triagem-passo-legenda"><span id="triagem-passo-atual-label"></span><span id="triagem-passo-pct-label"></span></div>' +
+
+          '<div id="triagem-wizard-erro"></div>' +
+          '<div id="triagem-wizard-conteudo" class="procficha-painel"></div>' +
+
+          '<div class="triagem-nav-passos">' +
+            '<button type="button" class="procpage-btn" id="triagem-btn-voltar">← Voltar</button>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="triagem-btn-avancar">Avançar →</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
     var htmlProcessoAdministrativo = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-processo-administrativo"><p class="section-label">Processo Administrativo</p>' +
         '<div class="panel">' +
@@ -4354,6 +4423,8 @@
       audiencias: htmlAudiencias,
       admin: htmlConexoes + htmlEscritoriosPlataforma,
       configuracoes: htmlConfiguracoes,
+      triagem_trabalhista: htmlTriagemDashboard,
+      criar_triagem: htmlCriarTriagem,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
@@ -4361,6 +4432,7 @@
       importar_oab: 'processos', criar_processo: 'processos', novo_cliente: 'clientes', prazos: 'processos',
       tarefas: 'agenda', agenda_completa: 'agenda', automacoes_gerais: 'automacoes', procuracao_contrato: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
+      triagem_trabalhista: 'processos', criar_triagem: 'processos',
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
     var temAcessoPagina = (PAGINA_ATUAL === 'admin' || PAGINA_ATUAL === 'configuracoes')
@@ -4433,6 +4505,8 @@
       wireExecPeriodoFiltros(); carregarPainelExecutivo();
     }
     if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosHub(); }
+    if (PAGINA_ATUAL === 'triagem_trabalhista') { wireTriagemDashboard(); carregarTriagens(); }
+    if (PAGINA_ATUAL === 'criar_triagem') { wireTriagemWizard(); }
     if (PAGINA_ATUAL === 'processo_administrativo') { wireProcessosAdministrativos(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
@@ -9004,6 +9078,482 @@
         var termo = this.value.trim().toLowerCase();
         renderModelos(modelosCarregados.filter(function (n) { return n.toLowerCase().indexOf(termo) !== -1; }));
       });
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Triagem Trabalhista -- dashboard/lista (fase 1 do plano aprovado). Mesmo padrao de
+  // wireProcessosHub/carregarProcessosManuais: busca a lista inteira uma vez, filtro/busca
+  // roda no navegador contra o array em memoria, menu "..." por linha via delegacao de evento.
+  // ---------------------------------------------------------------------------------------
+  var ROTULO_STATUS_TRIAGEM = {
+    nao_iniciada: 'Não iniciada', em_andamento: 'Em andamento',
+    aguardando_documentos: 'Aguardando documentos', aguardando_informacoes: 'Aguardando informações',
+    concluida: 'Concluída', convertida: 'Convertida em caso/processo',
+  };
+  var CHIP_STATUS_TRIAGEM = {
+    nao_iniciada: 'neutral', em_andamento: 'warn', aguardando_documentos: 'warn',
+    aguardando_informacoes: 'warn', concluida: 'good', convertida: 'good',
+  };
+  var _triagensTodasCarregadas = [];
+
+  function _passaNosFiltrosTriagem(t, f) {
+    if (f.status && t.status !== f.status) return false;
+    if (!f.status && t.arquivado_em) return false;
+    if (f.busca) {
+      var alvo = ((t.cliente_nome || '') + ' ' + (t.empresa_razao_social || '') + ' ' + (t.empresa_nome_fantasia || '')).toLowerCase();
+      if (alvo.indexOf(f.busca) === -1) return false;
+    }
+    return true;
+  }
+
+  function _lerFiltrosTriagemAtuais() {
+    var elBusca = document.getElementById('triagem-filtro-busca');
+    var elStatus = document.getElementById('triagem-filtro-status');
+    return {
+      busca: elBusca && elBusca.value ? elBusca.value.trim().toLowerCase() : '',
+      status: elStatus ? elStatus.value : '',
+    };
+  }
+
+  function _renderListaTriagens(triagens) {
+    var lista = document.getElementById('triagem-lista');
+    if (!lista) return;
+    if (!triagens.length) {
+      lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Nenhuma triagem encontrada.</div></div>';
+      return;
+    }
+    var svgMais = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="6" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18" r="1.8"></circle></svg>';
+    lista.innerHTML = '<table><thead><tr>' +
+      '<th>Cliente</th><th>Empresa/Reclamada</th><th>Responsável</th><th>Status</th><th>Conclusão</th><th>Última atualização</th><th></th>' +
+      '</tr></thead><tbody>' +
+      triagens.map(function (t, indice) {
+        return '<tr>' +
+          '<td><a class="procpage-numero-link" href="painel-criar-triagem.html?id=' + t.id + '#sec-criar-triagem">' + esc(t.cliente_nome || 'Cliente não definido') + '</a></td>' +
+          '<td>' + esc(t.empresa_razao_social || t.empresa_nome_fantasia || '—') + '</td>' +
+          '<td style="color:var(--ink-faint);">' + esc(t.responsavel_email || '—') + '</td>' +
+          '<td><span class="chip triagem-chip-status ' + (CHIP_STATUS_TRIAGEM[t.status] || 'neutral') + '">' + esc(ROTULO_STATUS_TRIAGEM[t.status] || t.status) + '</span></td>' +
+          '<td style="color:var(--ink-faint);">' + (t.percentual_conclusao || 0) + '%</td>' +
+          '<td style="color:var(--ink-faint);">' + fmtDataProcesso(String(t.atualizado_em || '').slice(0, 10)) + '</td>' +
+          '<td>' +
+            '<div class="procpage-acoes-icones">' +
+              '<a class="procpage-btn" href="painel-criar-triagem.html?id=' + t.id + '#sec-criar-triagem">Continuar</a>' +
+              '<span class="procman-acoes-wrap">' +
+                '<button type="button" class="procpage-icone-btn" data-triagem-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
+                '<div class="procman-acoes-menu hidden" data-triagem-menu="' + indice + '">' +
+                  '<button type="button" data-triagem-duplicar="' + indice + '">Duplicar</button>' +
+                  '<button type="button" data-triagem-arquivar="' + indice + '">Arquivar</button>' +
+                  '<button type="button" class="procman-acao-excluir" data-triagem-excluir="' + indice + '">Excluir</button>' +
+                '</div>' +
+              '</span>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  }
+
+  function carregarTriagens() {
+    var lista = document.getElementById('triagem-lista');
+    if (!lista) return;
+    apiGetJson('/api/painel?acao=triagem_listar')
+      .then(function (dados) {
+        _triagensTodasCarregadas = dados.triagens || [];
+        var f = _lerFiltrosTriagemAtuais();
+        _renderListaTriagens(_triagensTodasCarregadas.filter(function (t) { return _passaNosFiltrosTriagem(t, f); }));
+      })
+      .catch(function () {
+        lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar as triagens agora.</div></div>';
+      });
+  }
+
+  function wireTriagemDashboard() {
+    var lista = document.getElementById('triagem-lista');
+    if (!lista) return;
+
+    function aplicarFiltrosTriagem() {
+      var f = _lerFiltrosTriagemAtuais();
+      _renderListaTriagens(_triagensTodasCarregadas.filter(function (t) { return _passaNosFiltrosTriagem(t, f); }));
+    }
+    var elBusca = document.getElementById('triagem-filtro-busca');
+    var elStatus = document.getElementById('triagem-filtro-status');
+    if (elBusca) elBusca.addEventListener('input', aplicarFiltrosTriagem);
+    if (elStatus) elStatus.addEventListener('change', aplicarFiltrosTriagem);
+    var elLimpar = document.getElementById('triagem-filtro-limpar');
+    if (elLimpar) elLimpar.addEventListener('click', function () {
+      if (elBusca) elBusca.value = '';
+      if (elStatus) elStatus.value = '';
+      aplicarFiltrosTriagem();
+    });
+
+    lista.addEventListener('click', function (ev) {
+      var btnMais = ev.target.closest('[data-triagem-mais]');
+      if (btnMais) {
+        var idx = btnMais.getAttribute('data-triagem-mais');
+        var menuAlvo = lista.querySelector('[data-triagem-menu="' + idx + '"]');
+        var jaAberto = menuAlvo && !menuAlvo.classList.contains('hidden');
+        lista.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        if (menuAlvo && !jaAberto) menuAlvo.classList.remove('hidden');
+        return;
+      }
+
+      var btnDuplicar = ev.target.closest('[data-triagem-duplicar]');
+      if (btnDuplicar) {
+        var t = _triagensTodasCarregadas[btnDuplicar.getAttribute('data-triagem-duplicar')];
+        apiPostJson('/api/painel?acao=triagem_duplicar', { id: t.id })
+          .then(function () { carregarTriagens(); })
+          .catch(function (e) { mostrarAviso(e.message || 'Não foi possível duplicar agora.'); });
+        return;
+      }
+
+      var btnArquivar = ev.target.closest('[data-triagem-arquivar]');
+      if (btnArquivar) {
+        var ta = _triagensTodasCarregadas[btnArquivar.getAttribute('data-triagem-arquivar')];
+        confirmarModal('Arquivar essa triagem? Ela sai da lista, mas continua guardada.').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=triagem_arquivar', { id: ta.id })
+            .then(function () { carregarTriagens(); })
+            .catch(function (e) { mostrarAviso(e.message || 'Não foi possível arquivar agora.'); });
+        });
+        return;
+      }
+
+      var btnExcluir = ev.target.closest('[data-triagem-excluir]');
+      if (btnExcluir) {
+        var te = _triagensTodasCarregadas[btnExcluir.getAttribute('data-triagem-excluir')];
+        confirmarModal('Excluir essa triagem? Essa ação não pode ser desfeita.').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=triagem_excluir', { id: te.id })
+            .then(function () { carregarTriagens(); })
+            .catch(function (e) { mostrarAviso(e.message || 'Não foi possível excluir agora.'); });
+        });
+        return;
+      }
+    });
+
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('[data-triagem-mais]')) {
+        lista.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Triagem Trabalhista -- wizard (fase 1 do plano aprovado: so os passos Cliente, Empresa e
+  // Contrato ficam funcionais aqui; Jornada e os demais entram nas fases seguintes). Botoes
+  // sim/nao reaproveitam a mesma ideia de campo condicional ja usada em wireNovoContratoModal
+  // (mostrar/esconder um bloco com .hidden a partir de uma resposta), generalizada aqui em 3
+  // helpers pequenos em vez de repetir a logica por pergunta.
+  function htmlSimNaoTriagem(id, rotulo, valorAtual) {
+    return '<div>' +
+      '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">' + esc(rotulo) + '</label>' +
+      '<div class="triagem-simnao" id="' + id + '" data-valor="' + (valorAtual === true ? 'sim' : (valorAtual === false ? 'nao' : '')) + '">' +
+        '<button type="button" data-v="sim">Sim</button>' +
+        '<button type="button" data-v="nao">Não</button>' +
+      '</div>' +
+    '</div>';
+  }
+  function wireSimNaoTriagem(id, onChange) {
+    var wrap = document.getElementById(id);
+    if (!wrap) return;
+    function atualizarVisual() {
+      var v = wrap.getAttribute('data-valor');
+      wrap.querySelectorAll('button').forEach(function (b) { b.classList.toggle('ativo', b.getAttribute('data-v') === v); });
+    }
+    wrap.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        wrap.setAttribute('data-valor', b.getAttribute('data-v'));
+        atualizarVisual();
+        if (onChange) onChange(lerSimNaoTriagem(id));
+      });
+    });
+    atualizarVisual();
+    if (onChange) onChange(lerSimNaoTriagem(id));
+  }
+  function lerSimNaoTriagem(id) {
+    var wrap = document.getElementById(id);
+    if (!wrap) return null;
+    var v = wrap.getAttribute('data-valor');
+    return v === 'sim' ? true : (v === 'nao' ? false : null);
+  }
+
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato'];
+  var ROTULOS_PASSO_WIZARD_TRIAGEM = { cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato' };
+
+  function wireTriagemWizard() {
+    var conteudo = document.getElementById('triagem-wizard-conteudo');
+    if (!conteudo) return;
+
+    var estado = { triagemId: null, passoIndex: 0, clienteModo: 'existente', clienteSelecionadoId: null };
+    var _clientesCacheTriagem = null;
+
+    function renderBarraPassosTriagem() {
+      var barra = document.getElementById('triagem-passos-barra');
+      barra.innerHTML = PASSOS_WIZARD_TRIAGEM.map(function (p, i) {
+        var classe = i < estado.passoIndex ? 'feito' : (i === estado.passoIndex ? 'atual' : '');
+        return '<div class="triagem-passo-marca ' + classe + '"></div>';
+      }).join('');
+      document.getElementById('triagem-passo-atual-label').textContent =
+        'Passo ' + (estado.passoIndex + 1) + ' de ' + PASSOS_WIZARD_TRIAGEM.length + ' — ' + ROTULOS_PASSO_WIZARD_TRIAGEM[PASSOS_WIZARD_TRIAGEM[estado.passoIndex]];
+      document.getElementById('triagem-passo-pct-label').textContent =
+        'Triagem ' + Math.round((estado.passoIndex / PASSOS_WIZARD_TRIAGEM.length) * 100) + '% concluída';
+      document.getElementById('triagem-btn-voltar').style.visibility = estado.passoIndex === 0 ? 'hidden' : 'visible';
+      document.getElementById('triagem-btn-avancar').textContent =
+        estado.passoIndex === PASSOS_WIZARD_TRIAGEM.length - 1 ? 'Salvar e voltar ao painel' : 'Avançar →';
+    }
+
+    function erroWizardTriagem(msg) {
+      document.getElementById('triagem-wizard-erro').innerHTML = msg ? '<div class="aviso-tenant">' + esc(msg) + '</div>' : '';
+    }
+
+    function renderPassoClienteTriagem() {
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Cliente</p>' +
+        '<p class="triagem-passo-sub">Selecione um cliente já cadastrado, ou cadastre um novo — ele já entra na lista geral de Clientes.</p>' +
+        '<div class="triagem-simnao" id="triagem-cliente-modo">' +
+          '<button type="button" data-modo="existente">Cliente já cadastrado</button>' +
+          '<button type="button" data-modo="novo">Cadastrar novo cliente</button>' +
+        '</div>' +
+        '<div id="triagem-cliente-existente-wrap" class="triagem-campo-condicional" style="margin-top:14px;">' +
+          '<div class="procficha-editar-grid"><div><label>Cliente</label><select id="triagem-cliente-select"><option value="">Carregando...</option></select></div></div>' +
+        '</div>' +
+        '<div id="triagem-cliente-novo-wrap" class="triagem-campo-condicional hidden" style="margin-top:14px;">' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Tipo</label><select id="triagem-nc-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
+            '<div><label>Nome completo *</label><input id="triagem-nc-nome"></div>' +
+            '<div><label>CPF/CNPJ</label><input id="triagem-nc-cpf"></div>' +
+            '<div><label>Telefone</label><input id="triagem-nc-telefone"></div>' +
+            '<div><label>E-mail</label><input id="triagem-nc-email"></div>' +
+          '</div>' +
+        '</div>';
+
+      var btnExistente = conteudo.querySelector('[data-modo="existente"]');
+      var btnNovo = conteudo.querySelector('[data-modo="novo"]');
+      function atualizarModoCliente() {
+        btnExistente.classList.toggle('ativo', estado.clienteModo === 'existente');
+        btnNovo.classList.toggle('ativo', estado.clienteModo === 'novo');
+        document.getElementById('triagem-cliente-existente-wrap').classList.toggle('hidden', estado.clienteModo !== 'existente');
+        document.getElementById('triagem-cliente-novo-wrap').classList.toggle('hidden', estado.clienteModo !== 'novo');
+      }
+      btnExistente.addEventListener('click', function () { estado.clienteModo = 'existente'; atualizarModoCliente(); });
+      btnNovo.addEventListener('click', function () { estado.clienteModo = 'novo'; atualizarModoCliente(); });
+      atualizarModoCliente();
+
+      var select = document.getElementById('triagem-cliente-select');
+      (_clientesCacheTriagem ? Promise.resolve({ clientes: _clientesCacheTriagem }) : apiGetJson('/api/painel?acao=cliente_cadastro_listar'))
+        .then(function (d) {
+          _clientesCacheTriagem = d.clientes || [];
+          select.innerHTML = '<option value="">Selecione...</option>' +
+            _clientesCacheTriagem.map(function (c) {
+              return '<option value="' + c.id + '">' + esc(c.nome) + (c.cpf_cnpj ? ' — ' + esc(c.cpf_cnpj) : '') + '</option>';
+            }).join('');
+          if (estado.clienteSelecionadoId) select.value = estado.clienteSelecionadoId;
+        })
+        .catch(function () { select.innerHTML = '<option value="">Não foi possível carregar os clientes</option>'; });
+    }
+
+    function salvarPassoClienteTriagem() {
+      return new Promise(function (resolve, reject) {
+        if (estado.clienteModo === 'existente') {
+          var id = document.getElementById('triagem-cliente-select').value;
+          if (!id) { reject('Selecione um cliente.'); return; }
+          resolve(parseInt(id, 10));
+        } else {
+          var nome = document.getElementById('triagem-nc-nome').value.trim();
+          if (!nome) { reject('Informe o nome do novo cliente.'); return; }
+          apiPostJson('/api/painel?acao=cliente_cadastro_criar', {
+            tipo: document.getElementById('triagem-nc-tipo').value,
+            nome: nome,
+            cpf_cnpj: document.getElementById('triagem-nc-cpf').value.trim(),
+            telefone: document.getElementById('triagem-nc-telefone').value.trim(),
+            email: document.getElementById('triagem-nc-email').value.trim(),
+          }).then(function (d) { resolve(d.id); }).catch(function (e) { reject(e.message || 'Não foi possível cadastrar o cliente agora.'); });
+        }
+      });
+    }
+
+    function renderPassoEmpresaTriagem(d) {
+      d = d || {};
+      var endereco = (d.empresa_endereco && d.empresa_endereco.texto) || '';
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Empresa (reclamada)</p>' +
+        '<p class="triagem-passo-sub">Dados da empresa onde o cliente trabalhou.</p>' +
+        '<div class="procficha-editar-grid">' +
+          '<div><label>Razão social</label><input id="tg-emp-razao" value="' + esc(d.empresa_razao_social || '') + '"></div>' +
+          '<div><label>Nome fantasia</label><input id="tg-emp-fantasia" value="' + esc(d.empresa_nome_fantasia || '') + '"></div>' +
+          '<div><label>CNPJ</label><input id="tg-emp-cnpj" value="' + esc(d.empresa_cnpj || '') + '"></div>' +
+          '<div><label>Endereço</label><input id="tg-emp-endereco" value="' + esc(endereco) + '"></div>' +
+          '<div><label>Local efetivo de trabalho</label><input id="tg-emp-local" value="' + esc(d.local_trabalho || '') + '"></div>' +
+          '<div><label>Nome do superior imediato</label><input id="tg-emp-superior-nome" value="' + esc(d.superior_imediato_nome || '') + '"></div>' +
+          '<div><label>Cargo do superior</label><input id="tg-emp-superior-cargo" value="' + esc(d.superior_imediato_cargo || '') + '"></div>' +
+        '</div>' +
+        '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-emp-terceirizacao', 'Havia terceirização?', d.terceirizacao) +
+          htmlSimNaoTriagem('tg-emp-grupo', 'Pode haver grupo econômico?', d.grupo_economico) +
+        '</div>' +
+        '<div id="tg-emp-grupo-obs-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
+          '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Observações sobre o grupo econômico</label>' +
+          '<input id="tg-emp-grupo-obs" value="' + esc(d.grupo_economico_obs || '') + '" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);">' +
+        '</div>';
+      wireSimNaoTriagem('tg-emp-terceirizacao');
+      wireSimNaoTriagem('tg-emp-grupo', function (valor) {
+        document.getElementById('tg-emp-grupo-obs-wrap').classList.toggle('hidden', valor !== true);
+      });
+    }
+
+    function coletarPassoEmpresaTriagem() {
+      return {
+        empresa_razao_social: document.getElementById('tg-emp-razao').value.trim(),
+        empresa_nome_fantasia: document.getElementById('tg-emp-fantasia').value.trim(),
+        empresa_cnpj: document.getElementById('tg-emp-cnpj').value.trim(),
+        empresa_endereco: { texto: document.getElementById('tg-emp-endereco').value.trim() },
+        local_trabalho: document.getElementById('tg-emp-local').value.trim(),
+        superior_imediato_nome: document.getElementById('tg-emp-superior-nome').value.trim(),
+        superior_imediato_cargo: document.getElementById('tg-emp-superior-cargo').value.trim(),
+        terceirizacao: lerSimNaoTriagem('tg-emp-terceirizacao'),
+        grupo_economico: lerSimNaoTriagem('tg-emp-grupo'),
+        grupo_economico_obs: document.getElementById('tg-emp-grupo-obs') ? document.getElementById('tg-emp-grupo-obs').value.trim() : '',
+      };
+    }
+
+    function renderPassoContratoTriagem(d) {
+      d = d || {};
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Contrato de trabalho</p>' +
+        '<p class="triagem-passo-sub">Como o vínculo foi registrado e como funcionava na prática.</p>' +
+        '<div class="procficha-editar-grid">' +
+          '<div><label>Data de admissão</label><input type="date" id="tg-ct-admissao" value="' + esc((d.data_admissao || '').slice(0, 10)) + '"></div>' +
+          '<div><label>Cargo registrado</label><input id="tg-ct-cargo-registrado" value="' + esc(d.cargo_registrado || '') + '"></div>' +
+          '<div><label>Função efetivamente exercida</label><input id="tg-ct-funcao" value="' + esc(d.funcao_exercida || '') + '"></div>' +
+          '<div><label>Último salário (R$)</label><input id="tg-ct-salario" value="' + esc(d.salario_registrado != null ? String(d.salario_registrado).replace('.', ',') : '') + '"></div>' +
+          '<div><label>Forma de pagamento</label><input id="tg-ct-forma-pagamento" value="' + esc(d.forma_pagamento || '') + '"></div>' +
+        '</div>' +
+        '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-ct-ctps', 'Registro em CTPS?', d.ctps_registrado) +
+          htmlSimNaoTriagem('tg-ct-por-fora', 'Recebia algum valor por fora?', d.pagamento_por_fora) +
+        '</div>' +
+        '<div id="tg-ct-por-fora-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Qual valor?</label><input id="tg-ct-por-fora-valor" value="' + esc(d.valor_por_fora != null ? String(d.valor_por_fora).replace('.', ',') : '') + '"></div>' +
+            '<div><label>Qual frequência?</label><input id="tg-ct-por-fora-frequencia" value="' + esc(d.frequencia_por_fora || '') + '"></div>' +
+            '<div><label>Como era pago?</label><input id="tg-ct-por-fora-forma" value="' + esc(d.forma_por_fora || '') + '" placeholder="Pix, dinheiro, transferência..."></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' + htmlSimNaoTriagem('tg-ct-por-fora-comprovante', 'Existe comprovante?', d.comprovante_por_fora) + '</div>' +
+        '</div>' +
+        '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-ct-comissoes', 'Comissões?', d.comissoes) +
+          htmlSimNaoTriagem('tg-ct-bonificacoes', 'Bonificações/premiações?', d.bonificacoes) +
+          htmlSimNaoTriagem('tg-ct-alteracao', 'Alteração de cargo/salário?', d.alteracao_cargo_salario) +
+          htmlSimNaoTriagem('tg-ct-acumulo', 'Acúmulo/desvio de função?', d.acumulo_desvio_funcao) +
+        '</div>';
+      wireSimNaoTriagem('tg-ct-ctps');
+      wireSimNaoTriagem('tg-ct-por-fora', function (valor) {
+        document.getElementById('tg-ct-por-fora-wrap').classList.toggle('hidden', valor !== true);
+      });
+      ['tg-ct-por-fora-comprovante', 'tg-ct-comissoes', 'tg-ct-bonificacoes', 'tg-ct-alteracao', 'tg-ct-acumulo'].forEach(function (id) { wireSimNaoTriagem(id); });
+    }
+
+    function coletarPassoContratoTriagem() {
+      return {
+        data_admissao: document.getElementById('tg-ct-admissao').value || null,
+        ctps_registrado: lerSimNaoTriagem('tg-ct-ctps'),
+        cargo_registrado: document.getElementById('tg-ct-cargo-registrado').value.trim(),
+        funcao_exercida: document.getElementById('tg-ct-funcao').value.trim(),
+        salario_registrado: document.getElementById('tg-ct-salario').value.trim(),
+        forma_pagamento: document.getElementById('tg-ct-forma-pagamento').value.trim(),
+        pagamento_por_fora: lerSimNaoTriagem('tg-ct-por-fora'),
+        valor_por_fora: document.getElementById('tg-ct-por-fora-valor') ? document.getElementById('tg-ct-por-fora-valor').value.trim() : '',
+        frequencia_por_fora: document.getElementById('tg-ct-por-fora-frequencia') ? document.getElementById('tg-ct-por-fora-frequencia').value.trim() : '',
+        forma_por_fora: document.getElementById('tg-ct-por-fora-forma') ? document.getElementById('tg-ct-por-fora-forma').value.trim() : '',
+        comprovante_por_fora: lerSimNaoTriagem('tg-ct-por-fora-comprovante'),
+        comissoes: lerSimNaoTriagem('tg-ct-comissoes'),
+        bonificacoes: lerSimNaoTriagem('tg-ct-bonificacoes'),
+        alteracao_cargo_salario: lerSimNaoTriagem('tg-ct-alteracao'),
+        acumulo_desvio_funcao: lerSimNaoTriagem('tg-ct-acumulo'),
+      };
+    }
+
+    function renderPassoAtualTriagem(dadosExistentes) {
+      renderBarraPassosTriagem();
+      var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
+      if (passo === 'cliente') renderPassoClienteTriagem();
+      else if (passo === 'empresa') renderPassoEmpresaTriagem(dadosExistentes);
+      else if (passo === 'contrato') renderPassoContratoTriagem(dadosExistentes);
+    }
+
+    function salvarPassoAtualEAvancarTriagem() {
+      erroWizardTriagem('');
+      var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
+      var btnAvancar = document.getElementById('triagem-btn-avancar');
+      btnAvancar.disabled = true;
+
+      function irParaProximoPasso() {
+        btnAvancar.disabled = false;
+        if (estado.passoIndex < PASSOS_WIZARD_TRIAGEM.length - 1) {
+          estado.passoIndex += 1;
+          renderPassoAtualTriagem(null);
+        } else {
+          window.location.href = 'painel-triagem-trabalhista.html#sec-triagem-trabalhista';
+        }
+      }
+
+      if (passo === 'cliente') {
+        salvarPassoClienteTriagem().then(function (clienteId) {
+          estado.clienteSelecionadoId = clienteId;
+          if (!estado.triagemId) {
+            apiPostJson('/api/painel?acao=triagem_criar', { cliente_id: clienteId })
+              .then(function (d) {
+                estado.triagemId = d.id;
+                window.history.replaceState(null, '', 'painel-criar-triagem.html?id=' + d.id + '#sec-criar-triagem');
+                apiPostJson('/api/painel?acao=triagem_atualizar', {
+                  id: d.id, passo_atual: 'empresa',
+                  percentual_conclusao: Math.round((1 / PASSOS_WIZARD_TRIAGEM.length) * 100),
+                }).catch(function () {});
+                irParaProximoPasso();
+              })
+              .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível criar a triagem agora.'); });
+          } else {
+            apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, cliente_id: clienteId })
+              .then(irParaProximoPasso)
+              .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+          }
+        }).catch(function (msgErro) { btnAvancar.disabled = false; erroWizardTriagem(msgErro); });
+        return;
+      }
+
+      var corpo = passo === 'empresa' ? coletarPassoEmpresaTriagem() : coletarPassoContratoTriagem();
+      corpo.id = estado.triagemId;
+      var proximoPasso = PASSOS_WIZARD_TRIAGEM[estado.passoIndex + 1];
+      if (proximoPasso) corpo.passo_atual = proximoPasso;
+      corpo.percentual_conclusao = Math.round(((estado.passoIndex + 1) / PASSOS_WIZARD_TRIAGEM.length) * 100);
+      apiPostJson('/api/painel?acao=triagem_atualizar', corpo)
+        .then(irParaProximoPasso)
+        .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+    }
+
+    document.getElementById('triagem-btn-avancar').addEventListener('click', salvarPassoAtualEAvancarTriagem);
+    document.getElementById('triagem-btn-voltar').addEventListener('click', function () {
+      if (estado.passoIndex === 0) return;
+      estado.passoIndex -= 1;
+      renderPassoAtualTriagem(null);
+    });
+
+    // Retomando uma triagem existente (?id=X na URL) -- busca tudo de uma vez e pula pro passo
+    // salvo (autosave/retomada, pedido explicito do usuario).
+    var idNaUrlTriagem = new URLSearchParams(window.location.search).get('id');
+    if (idNaUrlTriagem) {
+      apiGetJson('/api/painel?acao=triagem_obter&id=' + idNaUrlTriagem)
+        .then(function (d) {
+          var t = d.triagem;
+          estado.triagemId = t.id;
+          estado.clienteSelecionadoId = t.cliente_id;
+          var idxSalvo = PASSOS_WIZARD_TRIAGEM.indexOf(t.passo_atual);
+          estado.passoIndex = idxSalvo === -1 ? 0 : idxSalvo;
+          renderPassoAtualTriagem(t);
+        })
+        .catch(function () { erroWizardTriagem('Não foi possível carregar essa triagem agora.'); });
+    } else {
+      renderPassoAtualTriagem(null);
     }
   }
 
