@@ -10327,6 +10327,344 @@
       return secoes;
     }
 
+    // ---- Exportação em PDF (fase 10) -- gerado 100% no navegador com pdfmake (carregado via
+    // CDN só nesta página, ver painel-criar-triagem.html), a partir dos mesmos dados que a
+    // triagem_obter já devolve -- nunca por screenshot/impressão da tela, e sempre com os dados
+    // mais recentes (o botão sempre refaz o fetch antes de montar o PDF). Nada fica guardado no
+    // servidor nem em URL pública -- o PDF é montado e baixado só no navegador de quem já está
+    // autenticado no painel.
+    function _semAcentoPdfTriagem(texto) {
+      return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    function _nomeArquivoPdfTriagem(t) {
+      var nome = _semAcentoPdfTriagem(t.cliente_nome || 'Cliente').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      var agora = new Date();
+      var dataStr = String(agora.getDate()).padStart(2, '0') + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + agora.getFullYear();
+      return 'Triagem_Trabalhista_' + (nome || 'Cliente') + '_' + dataStr + '.pdf';
+    }
+
+    function _textoOuNaoInformadoPdf(v) {
+      return (v === null || v === undefined || v === '') ? 'Não informado' : String(v);
+    }
+
+    function _boolTextoPdf(v) {
+      if (v === true) return 'Sim';
+      if (v === false) return 'Não';
+      return 'Não informado';
+    }
+
+    function _moedaTextoPdf(v) {
+      return (v !== null && v !== undefined && v !== '') ? 'R$ ' + _valorMoedaTriagem(v) : 'Não informado';
+    }
+
+    function _dataTextoPdf(v) {
+      return v ? fmtDataProcesso(String(v).slice(0, 10)) : 'Não informado';
+    }
+
+    function _linhaPdf(rotulo, valor) {
+      return { text: [{ text: rotulo + ': ', style: 'rotulo' }, valor], style: 'corpo' };
+    }
+
+    function _garantirPdfMakeCarregado() {
+      return new Promise(function (resolve, reject) {
+        var tentativas = 0;
+        (function checar() {
+          if (window.pdfMake && window.pdfMake.vfs) return resolve();
+          tentativas += 1;
+          if (tentativas > 40) return reject(new Error('Não foi possível carregar o gerador de PDF agora.'));
+          setTimeout(checar, 150);
+        })();
+      });
+    }
+
+    function _montarDocDefinicaoPdfTriagem(t) {
+      var conteudo = [];
+      var agora = new Date();
+      var dataHoraGeracao = fmtDataProcesso(agora.toISOString().slice(0, 10)) + ' às ' +
+        String(agora.getHours()).padStart(2, '0') + ':' + String(agora.getMinutes()).padStart(2, '0');
+
+      // Capa
+      conteudo.push({ text: 'VERO JURÍDICO', style: 'marca' });
+      conteudo.push({ text: 'RELATÓRIO DE TRIAGEM TRABALHISTA', style: 'titulo' });
+      conteudo.push({
+        columns: [
+          [
+            _linhaPdf('Cliente', _textoOuNaoInformadoPdf(t.cliente_nome)),
+            _linhaPdf('Reclamada', _textoOuNaoInformadoPdf(t.empresa_razao_social || t.empresa_nome_fantasia)),
+            _linhaPdf('Responsável pelo atendimento', _textoOuNaoInformadoPdf(t.responsavel_email)),
+          ],
+          [
+            _linhaPdf('Data da triagem', _dataTextoPdf(t.criado_em)),
+            _linhaPdf('Relatório gerado em', dataHoraGeracao),
+            _linhaPdf('ID interno da triagem', String(t.id)),
+          ],
+        ],
+        columnGap: 20, margin: [0, 6, 0, 14],
+      });
+
+      // Resumo da triagem
+      var alertasCriticos = (t.alertas || []).filter(function (a) { return a.severidade === 'critico'; });
+      var alertasAtencao = (t.alertas || []).filter(function (a) { return a.severidade !== 'critico'; });
+      var provasDisponiveis = (t.provas || []).filter(function (p) { return p.status === 'disponivel'; });
+      var provasAObter = (t.provas || []).filter(function (p) { return p.status === 'a_obter'; });
+      conteudo.push({ text: 'RESUMO DA TRIAGEM', style: 'secao' });
+      conteudo.push(_linhaPdf('Cliente', _textoOuNaoInformadoPdf(t.cliente_nome)));
+      conteudo.push(_linhaPdf('Reclamada', _textoOuNaoInformadoPdf(t.empresa_razao_social || t.empresa_nome_fantasia)));
+      conteudo.push(_linhaPdf('Período trabalhado', (t.data_admissao ? _dataTextoPdf(t.data_admissao) : 'Não informado') +
+        ' até ' + (t.contrato_terminou ? _dataTextoPdf(t.data_rescisao) : 'contrato em andamento')));
+      conteudo.push(_linhaPdf('Cargo', _textoOuNaoInformadoPdf(t.cargo_registrado)));
+      conteudo.push(_linhaPdf('Última remuneração recebida', _moedaTextoPdf(t.salario_recebido_real || t.salario_registrado)));
+      conteudo.push(_linhaPdf('Forma de rescisão', t.forma_rescisao ? _rotuloPorChaveTriagem(FORMAS_RESCISAO_TRIAGEM, t.forma_rescisao) : 'Não informado'));
+      conteudo.push(_linhaPdf('Testemunhas cadastradas', String((t.testemunhas || []).length)));
+      conteudo.push(_linhaPdf('Provas/documentos cadastrados', String((t.provas || []).length) + ' (' + provasDisponiveis.length + ' disponível(is), ' + provasAObter.length + ' a obter)'));
+      conteudo.push(_linhaPdf('Alertas identificados', String((t.alertas || []).length) + ' (' + alertasCriticos.length + ' crítico(s), ' + alertasAtencao.length + ' de atenção)'));
+
+      // Pontos de atenção
+      if ((t.alertas || []).length) {
+        conteudo.push({ text: 'PONTOS DE ATENÇÃO', style: 'secao' });
+        t.alertas.forEach(function (a) {
+          conteudo.push({ text: (a.severidade === 'critico' ? '🔴 ' : '🟠 ') + a.mensagem, style: 'corpo' });
+        });
+        conteudo.push({ text: 'Os itens acima são pontos que exigem análise jurídica -- não representam conclusão definitiva de existência de direito.', style: 'disclaimer' });
+      }
+
+      conteudo.push({ text: '', pageBreak: 'after' });
+
+      // 1. Identificação do cliente
+      conteudo.push({ text: '1. IDENTIFICAÇÃO DO CLIENTE', style: 'secao' });
+      conteudo.push(_linhaPdf('Cliente', _textoOuNaoInformadoPdf(t.cliente_nome)));
+      conteudo.push(_linhaPdf('Responsável pela triagem', _textoOuNaoInformadoPdf(t.responsavel_email)));
+
+      // 2. Dados da empresa/reclamada
+      conteudo.push({ text: '2. DADOS DA EMPRESA/RECLAMADA', style: 'secao' });
+      conteudo.push(_linhaPdf('Razão social', _textoOuNaoInformadoPdf(t.empresa_razao_social)));
+      conteudo.push(_linhaPdf('Nome fantasia', _textoOuNaoInformadoPdf(t.empresa_nome_fantasia)));
+      conteudo.push(_linhaPdf('CNPJ', _textoOuNaoInformadoPdf(t.empresa_cnpj)));
+      conteudo.push(_linhaPdf('Local de trabalho', _textoOuNaoInformadoPdf(t.local_trabalho)));
+      conteudo.push(_linhaPdf('Superior imediato', _textoOuNaoInformadoPdf(t.superior_imediato_nome) + (t.superior_imediato_cargo ? ' (' + t.superior_imediato_cargo + ')' : '')));
+      conteudo.push(_linhaPdf('Terceirização', _boolTextoPdf(t.terceirizacao)));
+      conteudo.push(_linhaPdf('Grupo econômico', _boolTextoPdf(t.grupo_economico)));
+
+      // 3. Contrato de trabalho + 4. Cargo e funções exercidas
+      conteudo.push({ text: '3. INFORMAÇÕES DO CONTRATO DE TRABALHO', style: 'secao' });
+      conteudo.push(_linhaPdf('Data de admissão', _dataTextoPdf(t.data_admissao)));
+      conteudo.push(_linhaPdf('Registro em CTPS', _boolTextoPdf(t.ctps_registrado)));
+      conteudo.push(_linhaPdf('Forma de pagamento', _textoOuNaoInformadoPdf(t.forma_pagamento)));
+      if (t.pagamento_por_fora) {
+        conteudo.push(_linhaPdf('Pagamento por fora', 'Sim -- valor: ' + _moedaTextoPdf(t.valor_por_fora) + ', frequência: ' + _textoOuNaoInformadoPdf(t.frequencia_por_fora)));
+      } else {
+        conteudo.push(_linhaPdf('Pagamento por fora', _boolTextoPdf(t.pagamento_por_fora)));
+      }
+      conteudo.push({ text: '4. Cargo e funções exercidas', style: 'subsecao' });
+      conteudo.push(_linhaPdf('Cargo registrado', _textoOuNaoInformadoPdf(t.cargo_registrado)));
+      conteudo.push(_linhaPdf('Função exercida de fato', _textoOuNaoInformadoPdf(t.funcao_exercida)));
+      conteudo.push(_linhaPdf('Alteração de cargo/salário', _boolTextoPdf(t.alteracao_cargo_salario)));
+      conteudo.push(_linhaPdf('Acúmulo/desvio de função', _boolTextoPdf(t.acumulo_desvio_funcao)));
+
+      // 5. Remuneração
+      conteudo.push({ text: '5. REMUNERAÇÃO', style: 'secao' });
+      conteudo.push(_linhaPdf('Salário registrado', _moedaTextoPdf(t.salario_registrado)));
+      conteudo.push(_linhaPdf('Salário recebido de fato', _moedaTextoPdf(t.salario_recebido_real)));
+      conteudo.push(_linhaPdf('Recebia DSR', _boolTextoPdf(t.recebia_dsr)));
+      conteudo.push(_linhaPdf('Adicional noturno', _boolTextoPdf(t.recebia_adicional_noturno)));
+      conteudo.push(_linhaPdf('Vale-transporte / alimentação / refeição', _boolTextoPdf(t.vale_transporte) + ' / ' + _boolTextoPdf(t.vale_alimentacao) + ' / ' + _boolTextoPdf(t.vale_refeicao)));
+      conteudo.push(_linhaPdf('Descontos indevidos', _textoOuNaoInformadoPdf(t.descontos_indevidos)));
+
+      // 6. Jornada de trabalho + 8. Horas extras + 9. Intervalos
+      conteudo.push({ text: '6. JORNADA DE TRABALHO', style: 'secao' });
+      if ((t.jornada_dias || []).length) {
+        t.jornada_dias.forEach(function (d) {
+          var sigla = _rotuloPorChaveTriagem(DIAS_SEMANA_TRIAGEM.map(function (ds) { return { chave: ds.numero, rotulo: ds.sigla }; }), d.dia_semana);
+          conteudo.push({ text: sigla + ': ' + (d.trabalhava ? ((d.horario_entrada || '?') + ' às ' + (d.horario_saida || '?')) : 'não trabalhava'), style: 'corpo' });
+        });
+      } else {
+        conteudo.push({ text: 'Grade diária não informada.', style: 'corpo' });
+      }
+      conteudo.push({ text: '8. Horas extras', style: 'subsecao' });
+      conteudo.push(_linhaPdf('Horas extras habituais', _boolTextoPdf(t.jornada_horas_extras)));
+      conteudo.push(_linhaPdf('Trabalho em feriados', _boolTextoPdf(t.jornada_feriados)));
+      conteudo.push(_linhaPdf('Banco de horas', _boolTextoPdf(t.jornada_banco_horas)));
+      conteudo.push(_linhaPdf('Compensação de jornada', _boolTextoPdf(t.jornada_compensacao)));
+      conteudo.push(_linhaPdf('Jornada noturna', _boolTextoPdf(t.jornada_noturno)));
+      conteudo.push({ text: '9. Intervalos', style: 'subsecao' });
+      conteudo.push(_linhaPdf('Trabalho no intervalo', _boolTextoPdf(t.jornada_trabalho_intervalo)));
+
+      // 7. Controle de ponto
+      conteudo.push({ text: '7. CONTROLE DE PONTO', style: 'secao' });
+      conteudo.push(_linhaPdf('Existia controle de ponto', _boolTextoPdf(t.controle_ponto_existia)));
+      conteudo.push(_linhaPdf('Tipo', _textoOuNaoInformadoPdf(t.controle_ponto_tipo)));
+      conteudo.push(_linhaPdf('Registrava a jornada real', _boolTextoPdf(t.controle_ponto_registrava_real)));
+      conteudo.push(_linhaPdf('Explicação', _textoOuNaoInformadoPdf(t.controle_ponto_explicacao)));
+
+      // 10. Insalubridade/periculosidade (so se houver)
+      if ((t.insalubridade || []).length) {
+        conteudo.push({ text: '10. INSALUBRIDADE/PERICULOSIDADE', style: 'secao' });
+        t.insalubridade.forEach(function (i) {
+          conteudo.push({ text: _rotuloPorChaveTriagem(AGENTES_INSALUBRIDADE_TRIAGEM, i.agente) + ' -- adicional recebido: ' + _boolTextoPdf(i.adicional_recebido), style: 'corpo' });
+        });
+      }
+
+      // 11. Acidente de trabalho/doença ocupacional (so se houver)
+      if (t.saude_seguranca) {
+        conteudo.push({ text: '11. ACIDENTE DE TRABALHO/DOENÇA OCUPACIONAL', style: 'secao' });
+        conteudo.push(_linhaPdf('Acidente/doença ocupacional', _boolTextoPdf(t.saude_seguranca.teve_acidente_doenca)));
+        conteudo.push(_linhaPdf('CAT emitida', _boolTextoPdf(t.saude_seguranca.cat_emitida)));
+        conteudo.push(_linhaPdf('Afastamento pelo INSS', _boolTextoPdf(t.saude_seguranca.afastamento_inss)));
+        conteudo.push(_linhaPdf('Limitação atual', _textoOuNaoInformadoPdf(t.saude_seguranca.limitacao_atual)));
+      }
+
+      // 12. Assédio/discriminação (so se houver)
+      if ((t.assedio_episodios || []).length) {
+        conteudo.push({ text: '12. ASSÉDIO, DISCRIMINAÇÃO OU OUTROS ACONTECIMENTOS RELEVANTES', style: 'secao' });
+        t.assedio_episodios.forEach(function (ep) {
+          conteudo.push({ text: _rotuloPorChaveTriagem(TIPOS_ASSEDIO_TRIAGEM, ep.tipo) + ' -- ' + _dataTextoPdf(ep.data_ocorrencia) + ' -- testemunha: ' + _boolTextoPdf(ep.teve_testemunha), style: 'corpo' });
+        });
+      }
+
+      // 13. Ferias/13o/FGTS/INSS -- so o que a triagem de fato capta hoje (norma coletiva + FGTS
+      // na rescisao); nao ha campo proprio de ferias/13o na triagem ainda, entao a secao usa so
+      // dado real, sem inventar.
+      if (t.sindicato || t.categoria_profissional || t.tem_cct_act !== null && t.tem_cct_act !== undefined || t.fgts_guias_entregues !== null && t.fgts_guias_entregues !== undefined) {
+        conteudo.push({ text: '13. FÉRIAS, 13º SALÁRIO, FGTS E INSS', style: 'secao' });
+        conteudo.push(_linhaPdf('Categoria profissional', _textoOuNaoInformadoPdf(t.categoria_profissional)));
+        conteudo.push(_linhaPdf('Sindicato', _textoOuNaoInformadoPdf(t.sindicato)));
+        conteudo.push(_linhaPdf('Tem CCT/ACT', _boolTextoPdf(t.tem_cct_act)));
+        conteudo.push(_linhaPdf('Guias do FGTS entregues (na rescisão)', _boolTextoPdf(t.fgts_guias_entregues)));
+      }
+
+      // 14. Rescisão contratual + 15. Justa causa
+      conteudo.push({ text: '14. RESCISÃO CONTRATUAL', style: 'secao' });
+      conteudo.push(_linhaPdf('Contrato já terminou', _boolTextoPdf(t.contrato_terminou)));
+      if (t.contrato_terminou) {
+        conteudo.push(_linhaPdf('Data da rescisão', _dataTextoPdf(t.data_rescisao)));
+        conteudo.push(_linhaPdf('Forma', t.forma_rescisao ? _rotuloPorChaveTriagem(FORMAS_RESCISAO_TRIAGEM, t.forma_rescisao) : 'Não informado'));
+        conteudo.push(_linhaPdf('TRCT recebido', _boolTextoPdf(t.trct_recebido)));
+        conteudo.push(_linhaPdf('Seguro-desemprego liberado', _boolTextoPdf(t.seguro_desemprego_liberado)));
+        conteudo.push(_linhaPdf('Multa de 40% paga', _boolTextoPdf(t.multa_40_paga)));
+      }
+      if (t.forma_rescisao === 'justa_causa') {
+        conteudo.push({ text: '15. Justa causa -- necessária análise específica', style: 'subsecao' });
+        conteudo.push(_linhaPdf('Acusação da empresa', _textoOuNaoInformadoPdf(t.jc_acusacao)));
+        conteudo.push(_linhaPdf('Advertências prévias', _boolTextoPdf(t.jc_advertencias_previas)));
+        conteudo.push(_linhaPdf('Investigação formal', _boolTextoPdf(t.jc_investigacao_formal)));
+        conteudo.push(_linhaPdf('Dias entre o fato e a demissão', _textoOuNaoInformadoPdf(t.jc_tempo_fato_demissao_dias)));
+      }
+
+      // 16. Estabilidades (so se houver)
+      if ((t.estabilidades_detectadas || []).length) {
+        conteudo.push({ text: '16. POSSÍVEIS ESTABILIDADES IDENTIFICADAS PARA ANÁLISE', style: 'secao' });
+        t.estabilidades_detectadas.forEach(function (e) { conteudo.push({ text: e.mensagem, style: 'corpo' }); });
+        conteudo.push({ text: 'Itens sinalizados pelo sistema pra análise jurídica -- não representam conclusão de direito.', style: 'disclaimer' });
+      }
+
+      // 17. Testemunhas (so se houver)
+      if ((t.testemunhas || []).length) {
+        conteudo.push({ text: '17. TESTEMUNHAS', style: 'secao' });
+        t.testemunhas.forEach(function (te) {
+          conteudo.push({ text: te.nome + (te.cargo ? ' (' + te.cargo + ')' : ''), style: 'subsecao' });
+          conteudo.push(_linhaPdf('Telefone', _textoOuNaoInformadoPdf(te.telefone)));
+          conteudo.push(_linhaPdf('Período trabalhado com o cliente', _textoOuNaoInformadoPdf(te.periodo_conviveu)));
+          conteudo.push(_linhaPdf('Ainda trabalha na empresa', _boolTextoPdf(te.ainda_trabalha_na_empresa)));
+          conteudo.push(_linhaPdf('Fatos que presenciou', _textoOuNaoInformadoPdf(te.fatos_presenciados)));
+        });
+      }
+
+      // 18/19/20. Provas e documentos, apresentados e pendentes
+      if ((t.provas || []).length) {
+        conteudo.push({ text: '18. PROVAS E DOCUMENTOS', style: 'secao' });
+        conteudo.push({ text: '19. Documentos/provas apresentados', style: 'subsecao' });
+        if (provasDisponiveis.length) {
+          provasDisponiveis.forEach(function (p) {
+            conteudo.push({ text: '• ' + _rotuloPorChaveTriagem(CATEGORIAS_PROVA_TRIAGEM, p.categoria) + (p.descricao ? ' -- ' + p.descricao : '') + (p.documento_id ? ' (arquivo anexado na plataforma)' : ''), style: 'corpo' });
+          });
+        } else {
+          conteudo.push({ text: 'Nenhuma prova/documento disponível cadastrado.', style: 'corpo' });
+        }
+        conteudo.push({ text: '20. Documentos/provas a providenciar', style: 'subsecao' });
+        if (provasAObter.length) {
+          provasAObter.forEach(function (p) {
+            conteudo.push({ text: '☐ ' + _rotuloPorChaveTriagem(CATEGORIAS_PROVA_TRIAGEM, p.categoria) + (p.descricao ? ' -- ' + p.descricao : ''), style: 'corpo' });
+          });
+        } else {
+          conteudo.push({ text: 'Nenhuma pendência de prova/documento cadastrada.', style: 'corpo' });
+        }
+      }
+
+      // 23. Informações ainda pendentes (so se houver)
+      if ((t.pendencias || []).length) {
+        conteudo.push({ text: '23. INFORMAÇÕES AINDA PENDENTES', style: 'secao' });
+        t.pendencias.forEach(function (p) { conteudo.push({ text: '• ' + p.mensagem, style: 'corpo' }); });
+      }
+
+      // 24. Observações do advogado (so se houver)
+      if ((t.observacoes_advogado || '').trim()) {
+        conteudo.push({ text: '24. OBSERVAÇÕES DO ADVOGADO', style: 'secao' });
+        conteudo.push({ text: t.observacoes_advogado, style: 'corpo' });
+      }
+
+      // 25. Linha do tempo do contrato (so se houver datas suficientes)
+      var timeline = _montarTimelineTriagem(t);
+      if (timeline.length) {
+        conteudo.push({ text: '25. LINHA DO TEMPO DO CONTRATO', style: 'secao' });
+        timeline.forEach(function (ev) {
+          conteudo.push({ text: _dataTextoPdf(ev.data) + ' -- ' + ev.rotulo, style: 'corpo' });
+        });
+      }
+
+      return {
+        pageSize: 'A4',
+        pageMargins: [40, 50, 40, 50],
+        header: function () {
+          return { text: 'VERO JURÍDICO', style: 'marca', margin: [40, 18, 40, 0] };
+        },
+        footer: function (paginaAtual, totalPaginas) {
+          return {
+            columns: [
+              { text: 'VERO JURÍDICO — Relatório de Triagem Trabalhista', style: 'rodape' },
+              { text: 'Página ' + paginaAtual + ' de ' + totalPaginas, style: 'rodape', alignment: 'right' },
+            ],
+            margin: [40, 0, 40, 20],
+          };
+        },
+        content: conteudo,
+        defaultStyle: { font: 'Roboto', fontSize: 10 },
+        styles: {
+          marca: { fontSize: 9, bold: true, color: '#2c5ce0' },
+          titulo: { fontSize: 17, bold: true, margin: [0, 4, 0, 10] },
+          secao: { fontSize: 13, bold: true, color: '#2c5ce0', margin: [0, 14, 0, 6] },
+          subsecao: { fontSize: 11, bold: true, margin: [0, 8, 0, 3] },
+          rotulo: { bold: true },
+          corpo: { fontSize: 10, margin: [0, 0, 0, 3] },
+          disclaimer: { fontSize: 8.5, italics: true, color: '#666666', margin: [0, 4, 0, 10] },
+          rodape: { fontSize: 8, color: '#888888' },
+        },
+      };
+    }
+
+    function _gerarPdfTriagem(estadoBotao, modo) {
+      var btn = document.getElementById(estadoBotao);
+      var textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Gerando PDF...';
+      erroWizardTriagem('');
+      apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId)
+        .then(function (d) { return _garantirPdfMakeCarregado().then(function () { return d.triagem; }); })
+        .then(function (triagem) {
+          var docDefinicao = _montarDocDefinicaoPdfTriagem(triagem);
+          var pdf = pdfMake.createPdf(docDefinicao);
+          if (modo === 'baixar') pdf.download(_nomeArquivoPdfTriagem(triagem));
+          else pdf.open();
+          btn.textContent = 'PDF gerado';
+          setTimeout(function () { btn.textContent = textoOriginal; btn.disabled = false; }, 2500);
+        })
+        .catch(function (e) {
+          btn.textContent = 'Erro ao gerar PDF -- tentar novamente';
+          btn.disabled = false;
+          erroWizardTriagem(e.message || 'Não foi possível gerar o PDF agora.');
+        });
+    }
+
     function renderPassoAnaliseFinalTriagem(t) {
       t = t || {};
       var alertasCriticos = (t.alertas || []).filter(function (a) { return a.severidade === 'critico'; }).length;
@@ -10356,6 +10694,10 @@
           '</div>'
           : '<p style="font-size:13px;color:var(--ink-faint);">Nenhuma data suficiente pra montar a timeline ainda.</p>') +
 
+        '<p style="font-weight:600;margin:22px 0 8px;">Observações do advogado</p>' +
+        '<textarea id="tg-observacoes-advogado" rows="3" placeholder="Anotações gerais sobre o caso (aparecem no relatório/PDF)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(t.observacoes_advogado || '') + '</textarea>' +
+        '<div style="margin-top:6px;"><button type="button" class="procpage-btn" id="tg-salvar-observacoes">Salvar observações</button> <span id="tg-observacoes-status" style="font-size:12px;color:var(--ink-faint);"></span></div>' +
+
         '<p style="font-weight:600;margin:22px 0 8px;">Relatório completo</p>' +
         secoesRelatorio.map(function (s) {
           return '<div class="procficha-painel" style="margin-bottom:10px;">' +
@@ -10368,8 +10710,23 @@
           (t.convertido_processo_id
             ? '<a class="procpage-btn" href="painel-processos.html?processo=' + t.convertido_processo_id + '#sec-processos">Ver processo criado</a>'
             : '<button type="button" class="procpage-btn" id="tg-converter-processo">Converter em Caso</button>') +
+          '<button type="button" class="procpage-btn" id="tg-visualizar-pdf">👁 Visualizar PDF</button>' +
+          '<button type="button" class="procpage-btn" id="tg-baixar-pdf">📄 Baixar Triagem em PDF</button>' +
           '<button type="button" class="procpage-btn procpage-btn-primary" id="tg-concluir-triagem">Marcar triagem como concluída</button>' +
         '</div>';
+
+      document.getElementById('tg-salvar-observacoes').addEventListener('click', function () {
+        var btnObs = document.getElementById('tg-salvar-observacoes');
+        var statusObs = document.getElementById('tg-observacoes-status');
+        btnObs.disabled = true;
+        statusObs.textContent = 'Salvando...';
+        apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, observacoes_advogado: document.getElementById('tg-observacoes-advogado').value })
+          .then(function () { statusObs.textContent = 'Salvo.'; btnObs.disabled = false; setTimeout(function () { statusObs.textContent = ''; }, 2500); })
+          .catch(function (e) { statusObs.textContent = ''; btnObs.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar as observações agora.'); });
+      });
+
+      document.getElementById('tg-visualizar-pdf').addEventListener('click', function () { _gerarPdfTriagem('tg-visualizar-pdf', 'visualizar'); });
+      document.getElementById('tg-baixar-pdf').addEventListener('click', function () { _gerarPdfTriagem('tg-baixar-pdf', 'baixar'); });
 
       document.getElementById('tg-concluir-triagem').addEventListener('click', function () {
         var btn = document.getElementById('tg-concluir-triagem');
