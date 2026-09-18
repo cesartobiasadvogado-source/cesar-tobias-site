@@ -9277,8 +9277,13 @@
     return v === 'sim' ? true : (v === 'nao' ? false : null);
   }
 
-  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato'];
-  var ROTULOS_PASSO_WIZARD_TRIAGEM = { cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato' };
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada'];
+  var ROTULOS_PASSO_WIZARD_TRIAGEM = { cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada' };
+  var DIAS_SEMANA_TRIAGEM = [
+    { numero: 1, sigla: 'SEG' }, { numero: 2, sigla: 'TER' }, { numero: 3, sigla: 'QUA' },
+    { numero: 4, sigla: 'QUI' }, { numero: 5, sigla: 'SEX' }, { numero: 6, sigla: 'SÁB' },
+    { numero: 7, sigla: 'DOM' },
+  ];
 
   function wireTriagemWizard() {
     var conteudo = document.getElementById('triagem-wizard-conteudo');
@@ -9473,12 +9478,120 @@
       };
     }
 
+    // ---- passo Jornada (fase 2) -- grade semanal (tabela propria, triagem_jornada_dias) +
+    // perguntas de resumo (colunas do cabecalho, ja existiam desde a fase 1). Grade sempre
+    // manda os 7 dias de uma vez (delete+insert no backend), nunca dia isolado.
+    function _diaJornadaPorNumero(diasExistentes, numero) {
+      return (diasExistentes || []).filter(function (d) { return d.dia_semana === numero; })[0] || {};
+    }
+
+    function renderPassoJornadaTriagem(d) {
+      d = d || {};
+      var diasExistentes = d.jornada_dias || [];
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Jornada de trabalho</p>' +
+        '<p class="triagem-passo-sub">Reconstrua a rotina semanal e as irregularidades de horário.</p>' +
+        '<div class="procpage-tabela-wrap"><table><thead><tr>' +
+          '<th>Dia</th><th>Trabalhava?</th><th>Entrada</th><th>Saída</th><th>Intervalo início</th><th>Intervalo fim</th>' +
+        '</tr></thead><tbody>' +
+        DIAS_SEMANA_TRIAGEM.map(function (dia) {
+          var registro = _diaJornadaPorNumero(diasExistentes, dia.numero);
+          var trabalhava = registro.trabalhava !== false;
+          return '<tr>' +
+            '<td><strong>' + dia.sigla + '</strong></td>' +
+            '<td><input type="checkbox" id="tg-jor-trabalhava-' + dia.numero + '"' + (trabalhava ? ' checked' : '') + '></td>' +
+            '<td><input type="time" id="tg-jor-entrada-' + dia.numero + '" value="' + esc((registro.horario_entrada || '').slice(0, 5)) + '"></td>' +
+            '<td><input type="time" id="tg-jor-saida-' + dia.numero + '" value="' + esc((registro.horario_saida || '').slice(0, 5)) + '"></td>' +
+            '<td><input type="time" id="tg-jor-int-ini-' + dia.numero + '" value="' + esc((registro.intervalo_inicio || '').slice(0, 5)) + '"></td>' +
+            '<td><input type="time" id="tg-jor-int-fim-' + dia.numero + '" value="' + esc((registro.intervalo_fim || '').slice(0, 5)) + '"></td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody></table></div>' +
+        '<p class="triagem-passo-sub" style="margin-top:22px;margin-bottom:8px;font-weight:600;">Perguntas complementares</p>' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-jor-horas-extras', 'Fazia horas extras?', d.jornada_horas_extras) +
+          htmlSimNaoTriagem('tg-jor-feriados', 'Trabalhava em feriados?', d.jornada_feriados) +
+          htmlSimNaoTriagem('tg-jor-intervalo', 'Trabalhava durante o intervalo?', d.jornada_trabalho_intervalo) +
+          htmlSimNaoTriagem('tg-jor-ponto-alterado', 'Chegava antes/saía depois de registrar o ponto?', d.jornada_ponto_alterado) +
+        '</div>' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">' +
+          htmlSimNaoTriagem('tg-jor-mensagens', 'Recebia mensagens/ordens fora do expediente?', d.jornada_mensagens_fora_expediente) +
+          htmlSimNaoTriagem('tg-jor-banco-horas', 'Existia banco de horas?', d.jornada_banco_horas) +
+          htmlSimNaoTriagem('tg-jor-compensacao', 'Existia compensação?', d.jornada_compensacao) +
+          htmlSimNaoTriagem('tg-jor-noturno', 'Trabalhava em horário noturno?', d.jornada_noturno) +
+        '</div>' +
+        '<p class="triagem-passo-sub" style="margin-top:22px;margin-bottom:8px;font-weight:600;">Controle de ponto</p>' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-jor-ponto-existia', 'Existia controle de jornada?', d.controle_ponto_existia) +
+        '</div>' +
+        '<div id="tg-jor-ponto-detalhe-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Tipo de controle</label><select id="tg-jor-ponto-tipo">' +
+              '<option value="">Selecione...</option>' +
+              '<option value="biometrico">Biométrico</option>' +
+              '<option value="eletronico">Eletrônico</option>' +
+              '<option value="aplicativo">Aplicativo</option>' +
+              '<option value="folha">Folha</option>' +
+              '<option value="cartao">Cartão</option>' +
+              '<option value="outro">Outro</option>' +
+            '</select></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' + htmlSimNaoTriagem('tg-jor-ponto-real', 'O ponto registrava a jornada verdadeira?', d.controle_ponto_registrava_real) + '</div>' +
+          '<div id="tg-jor-ponto-explicacao-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Explique como funcionava</label>' +
+            '<textarea id="tg-jor-ponto-explicacao" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.controle_ponto_explicacao || '') + '</textarea>' +
+          '</div>' +
+        '</div>';
+
+      setSelectValueComFallback(document.getElementById('tg-jor-ponto-tipo'), d.controle_ponto_tipo || '');
+
+      wireSimNaoTriagem('tg-jor-horas-extras'); wireSimNaoTriagem('tg-jor-feriados');
+      wireSimNaoTriagem('tg-jor-intervalo'); wireSimNaoTriagem('tg-jor-ponto-alterado');
+      wireSimNaoTriagem('tg-jor-mensagens'); wireSimNaoTriagem('tg-jor-banco-horas');
+      wireSimNaoTriagem('tg-jor-compensacao'); wireSimNaoTriagem('tg-jor-noturno');
+      wireSimNaoTriagem('tg-jor-ponto-existia', function (valor) {
+        document.getElementById('tg-jor-ponto-detalhe-wrap').classList.toggle('hidden', valor !== true);
+      });
+      wireSimNaoTriagem('tg-jor-ponto-real', function (valor) {
+        document.getElementById('tg-jor-ponto-explicacao-wrap').classList.toggle('hidden', valor !== false);
+      });
+    }
+
+    function coletarPassoJornadaTriagem() {
+      var dias = DIAS_SEMANA_TRIAGEM.map(function (dia) {
+        return {
+          dia_semana: dia.numero,
+          trabalhava: document.getElementById('tg-jor-trabalhava-' + dia.numero).checked,
+          horario_entrada: document.getElementById('tg-jor-entrada-' + dia.numero).value || null,
+          horario_saida: document.getElementById('tg-jor-saida-' + dia.numero).value || null,
+          intervalo_inicio: document.getElementById('tg-jor-int-ini-' + dia.numero).value || null,
+          intervalo_fim: document.getElementById('tg-jor-int-fim-' + dia.numero).value || null,
+        };
+      });
+      var camposResumo = {
+        jornada_horas_extras: lerSimNaoTriagem('tg-jor-horas-extras'),
+        jornada_feriados: lerSimNaoTriagem('tg-jor-feriados'),
+        jornada_trabalho_intervalo: lerSimNaoTriagem('tg-jor-intervalo'),
+        jornada_ponto_alterado: lerSimNaoTriagem('tg-jor-ponto-alterado'),
+        jornada_mensagens_fora_expediente: lerSimNaoTriagem('tg-jor-mensagens'),
+        jornada_banco_horas: lerSimNaoTriagem('tg-jor-banco-horas'),
+        jornada_compensacao: lerSimNaoTriagem('tg-jor-compensacao'),
+        jornada_noturno: lerSimNaoTriagem('tg-jor-noturno'),
+        controle_ponto_existia: lerSimNaoTriagem('tg-jor-ponto-existia'),
+        controle_ponto_tipo: document.getElementById('tg-jor-ponto-tipo').value,
+        controle_ponto_registrava_real: lerSimNaoTriagem('tg-jor-ponto-real'),
+        controle_ponto_explicacao: document.getElementById('tg-jor-ponto-explicacao') ? document.getElementById('tg-jor-ponto-explicacao').value.trim() : '',
+      };
+      return { dias: dias, camposResumo: camposResumo };
+    }
+
     function renderPassoAtualTriagem(dadosExistentes) {
       renderBarraPassosTriagem();
       var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
       if (passo === 'cliente') renderPassoClienteTriagem();
       else if (passo === 'empresa') renderPassoEmpresaTriagem(dadosExistentes);
       else if (passo === 'contrato') renderPassoContratoTriagem(dadosExistentes);
+      else if (passo === 'jornada') renderPassoJornadaTriagem(dadosExistentes);
     }
 
     function salvarPassoAtualEAvancarTriagem() {
@@ -9521,11 +9634,28 @@
         return;
       }
 
+      var proximoPasso = PASSOS_WIZARD_TRIAGEM[estado.passoIndex + 1];
+      var percentual = Math.round(((estado.passoIndex + 1) / PASSOS_WIZARD_TRIAGEM.length) * 100);
+
+      if (passo === 'jornada') {
+        var pacoteJornada = coletarPassoJornadaTriagem();
+        var corpoResumo = pacoteJornada.camposResumo;
+        corpoResumo.id = estado.triagemId;
+        if (proximoPasso) corpoResumo.passo_atual = proximoPasso;
+        corpoResumo.percentual_conclusao = percentual;
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', corpoResumo),
+          apiPostJson('/api/painel?acao=triagem_jornada_salvar', { id: estado.triagemId, dias: pacoteJornada.dias }),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar a jornada agora.'); });
+        return;
+      }
+
       var corpo = passo === 'empresa' ? coletarPassoEmpresaTriagem() : coletarPassoContratoTriagem();
       corpo.id = estado.triagemId;
-      var proximoPasso = PASSOS_WIZARD_TRIAGEM[estado.passoIndex + 1];
       if (proximoPasso) corpo.passo_atual = proximoPasso;
-      corpo.percentual_conclusao = Math.round(((estado.passoIndex + 1) / PASSOS_WIZARD_TRIAGEM.length) * 100);
+      corpo.percentual_conclusao = percentual;
       apiPostJson('/api/painel?acao=triagem_atualizar', corpo)
         .then(irParaProximoPasso)
         .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });

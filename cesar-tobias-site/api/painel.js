@@ -874,6 +874,7 @@ module.exports = async (req, res) => {
     triagem_arquivar: 'Erro de conexao ao arquivar a triagem.',
     triagem_duplicar: 'Erro de conexao ao duplicar a triagem.',
     triagem_excluir: 'Erro de conexao ao excluir a triagem.',
+    triagem_jornada_salvar: 'Erro de conexao ao salvar a jornada.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {
