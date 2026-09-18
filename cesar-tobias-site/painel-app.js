@@ -9277,8 +9277,18 @@
     return v === 'sim' ? true : (v === 'nao' ? false : null);
   }
 
-  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada'];
-  var ROTULOS_PASSO_WIZARD_TRIAGEM = { cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada' };
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades'];
+  var ROTULOS_PASSO_WIZARD_TRIAGEM = {
+    cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada',
+    remuneracao: 'Remuneração', irregularidades: 'Irregularidades',
+  };
+  var AGENTES_INSALUBRIDADE_TRIAGEM = [
+    { chave: 'ruido', rotulo: 'Ruído' }, { chave: 'calor', rotulo: 'Calor' }, { chave: 'frio', rotulo: 'Frio' },
+    { chave: 'quimicos', rotulo: 'Produtos químicos' }, { chave: 'biologicos', rotulo: 'Agentes biológicos' },
+    { chave: 'eletricidade', rotulo: 'Eletricidade' }, { chave: 'inflamaveis', rotulo: 'Inflamáveis' },
+    { chave: 'explosivos', rotulo: 'Explosivos' }, { chave: 'motocicleta', rotulo: 'Motocicleta' },
+    { chave: 'poeira', rotulo: 'Poeira' }, { chave: 'outro', rotulo: 'Outro agente' },
+  ];
   var DIAS_SEMANA_TRIAGEM = [
     { numero: 1, sigla: 'SEG' }, { numero: 2, sigla: 'TER' }, { numero: 3, sigla: 'QUA' },
     { numero: 4, sigla: 'QUI' }, { numero: 5, sigla: 'SEX' }, { numero: 6, sigla: 'SÁB' },
@@ -9585,6 +9595,135 @@
       return { dias: dias, camposResumo: camposResumo };
     }
 
+    // ---- passo Remuneração (fase 3) -- so colunas do cabecalho, ja existiam desde a fase 1.
+    // Alerta visual automatico (pedido explicito do usuario) quando salario registrado e
+    // salario efetivamente recebido divergem -- comparacao simples na hora de desenhar a tela,
+    // sem precisar de coluna calculada no banco.
+    function _valorMoedaTriagem(v) {
+      return v != null ? String(v).replace('.', ',') : '';
+    }
+
+    function renderPassoRemuneracaoTriagem(d) {
+      d = d || {};
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Remuneração</p>' +
+        '<p class="triagem-passo-sub">Salário registrado x efetivamente recebido, e outros valores.</p>' +
+        '<div id="tg-rem-alerta-divergencia"></div>' +
+        '<div class="procficha-editar-grid">' +
+          '<div><label>Salário registrado (R$)</label><input value="' + esc(_valorMoedaTriagem(d.salario_registrado)) + '" disabled title="Editado no passo Contrato"></div>' +
+          '<div><label>Salário efetivamente recebido (R$)</label><input id="tg-rem-salario-real" value="' + esc(_valorMoedaTriagem(d.salario_recebido_real)) + '"></div>' +
+          '<div><label>Descontos indevidos (se houver)</label><input id="tg-rem-descontos" value="' + esc(d.descontos_indevidos || '') + '"></div>' +
+        '</div>' +
+        '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-rem-dsr', 'Recebia DSR?', d.recebia_dsr) +
+          htmlSimNaoTriagem('tg-rem-noturno', 'Recebia adicional noturno?', d.recebia_adicional_noturno) +
+          htmlSimNaoTriagem('tg-rem-vt', 'Vale-transporte?', d.vale_transporte) +
+          htmlSimNaoTriagem('tg-rem-va', 'Vale-alimentação?', d.vale_alimentacao) +
+          htmlSimNaoTriagem('tg-rem-vr', 'Vale-refeição?', d.vale_refeicao) +
+        '</div>';
+      ['tg-rem-dsr', 'tg-rem-noturno', 'tg-rem-vt', 'tg-rem-va', 'tg-rem-vr'].forEach(function (id) { wireSimNaoTriagem(id); });
+
+      function atualizarAlertaDivergencia() {
+        var registrado = parseFloat((d.salario_registrado || '0').toString().replace(',', '.')) || 0;
+        var recebidoTexto = document.getElementById('tg-rem-salario-real').value.trim();
+        var recebido = parseFloat(recebidoTexto.replace(',', '.'));
+        var alertaEl = document.getElementById('tg-rem-alerta-divergencia');
+        if (recebidoTexto && !isNaN(recebido) && Math.abs(recebido - registrado) > 0.01) {
+          alertaEl.innerHTML = '<div class="aviso-tenant" style="margin-bottom:14px;">⚠ Possível divergência remuneratória identificada — o salário efetivamente recebido é diferente do registrado.</div>';
+        } else {
+          alertaEl.innerHTML = '';
+        }
+      }
+      document.getElementById('tg-rem-salario-real').addEventListener('input', atualizarAlertaDivergencia);
+      atualizarAlertaDivergencia();
+    }
+
+    function coletarPassoRemuneracaoTriagem() {
+      return {
+        salario_recebido_real: document.getElementById('tg-rem-salario-real').value.trim(),
+        descontos_indevidos: document.getElementById('tg-rem-descontos').value.trim(),
+        recebia_dsr: lerSimNaoTriagem('tg-rem-dsr'),
+        recebia_adicional_noturno: lerSimNaoTriagem('tg-rem-noturno'),
+        vale_transporte: lerSimNaoTriagem('tg-rem-vt'),
+        vale_alimentacao: lerSimNaoTriagem('tg-rem-va'),
+        vale_refeicao: lerSimNaoTriagem('tg-rem-vr'),
+      };
+    }
+
+    // ---- passo Irregularidades / Insalubridade e Periculosidade (fase 3) -- checklist de
+    // agentes; marcar um agente revela suas sub-perguntas (mesmo padrao .triagem-campo-condicional
+    // ja usado nos outros passos, generalizado aqui pra uma lista dinamica de agentes em vez de
+    // um unico campo condicional).
+    function _agenteInsalubridadePorChave(agentesExistentes, chave) {
+      return (agentesExistentes || []).filter(function (a) { return a.agente === chave; })[0] || null;
+    }
+
+    function renderPassoIrregularidadesTriagem(d) {
+      d = d || {};
+      var agentesExistentes = d.insalubridade || [];
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Insalubridade e periculosidade</p>' +
+        '<p class="triagem-passo-sub">Marque os agentes a que o cliente foi exposto -- cada um abre perguntas complementares.</p>' +
+        AGENTES_INSALUBRIDADE_TRIAGEM.map(function (agenteInfo) {
+          var registro = _agenteInsalubridadePorChave(agentesExistentes, agenteInfo.chave);
+          var marcado = !!registro;
+          return '<div style="margin-bottom:10px;">' +
+            '<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);cursor:pointer;">' +
+              '<input type="checkbox" class="tg-irr-agente-check" data-agente="' + agenteInfo.chave + '"' + (marcado ? ' checked' : '') + '>' +
+              agenteInfo.rotulo +
+            '</label>' +
+            '<div id="tg-irr-detalhe-' + agenteInfo.chave + '" class="triagem-campo-condicional' + (marcado ? '' : ' hidden') + '" style="margin-top:8px;margin-left:26px;">' +
+              '<div class="procficha-editar-grid">' +
+                '<div><label>Qual era a exposição?</label><input id="tg-irr-exp-' + agenteInfo.chave + '" value="' + esc((registro && registro.descricao_exposicao) || '') + '"></div>' +
+                '<div><label>Com que frequência?</label><input id="tg-irr-freq-' + agenteInfo.chave + '" value="' + esc((registro && registro.frequencia) || '') + '"></div>' +
+                '<div><label>Durante quanto tempo?</label><input id="tg-irr-tempo-' + agenteInfo.chave + '" value="' + esc((registro && registro.tempo_exposicao) || '') + '"></div>' +
+                '<div><label>Qual EPI?</label><input id="tg-irr-epiqual-' + agenteInfo.chave + '" value="' + esc((registro && registro.epi_qual) || '') + '"></div>' +
+              '</div>' +
+              '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;">' +
+                htmlSimNaoTriagem('tg-irr-episim-' + agenteInfo.chave, 'Recebia EPI?', registro && registro.epi_fornecido) +
+                htmlSimNaoTriagem('tg-irr-epiuso-' + agenteInfo.chave, 'Utilizava?', registro && registro.epi_utilizava) +
+                htmlSimNaoTriagem('tg-irr-episub-' + agenteInfo.chave, 'Era substituído?', registro && registro.epi_substituido) +
+                htmlSimNaoTriagem('tg-irr-fiscal-' + agenteInfo.chave, 'Existia fiscalização?', registro && registro.existia_fiscalizacao) +
+                htmlSimNaoTriagem('tg-irr-adic-' + agenteInfo.chave, 'Recebia adicional?', registro && registro.adicional_recebido) +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+      AGENTES_INSALUBRIDADE_TRIAGEM.forEach(function (agenteInfo) {
+        ['episim', 'epiuso', 'episub', 'fiscal', 'adic'].forEach(function (prefixo) {
+          wireSimNaoTriagem('tg-irr-' + prefixo + '-' + agenteInfo.chave);
+        });
+      });
+
+      conteudo.querySelectorAll('.tg-irr-agente-check').forEach(function (chk) {
+        chk.addEventListener('change', function () {
+          document.getElementById('tg-irr-detalhe-' + chk.getAttribute('data-agente')).classList.toggle('hidden', !chk.checked);
+        });
+      });
+    }
+
+    function coletarPassoIrregularidadesTriagem() {
+      var agentes = [];
+      conteudo.querySelectorAll('.tg-irr-agente-check').forEach(function (chk) {
+        if (!chk.checked) return;
+        var chave = chk.getAttribute('data-agente');
+        agentes.push({
+          agente: chave,
+          descricao_exposicao: document.getElementById('tg-irr-exp-' + chave).value.trim(),
+          frequencia: document.getElementById('tg-irr-freq-' + chave).value.trim(),
+          tempo_exposicao: document.getElementById('tg-irr-tempo-' + chave).value.trim(),
+          epi_qual: document.getElementById('tg-irr-epiqual-' + chave).value.trim(),
+          epi_fornecido: lerSimNaoTriagem('tg-irr-episim-' + chave),
+          epi_utilizava: lerSimNaoTriagem('tg-irr-epiuso-' + chave),
+          epi_substituido: lerSimNaoTriagem('tg-irr-episub-' + chave),
+          existia_fiscalizacao: lerSimNaoTriagem('tg-irr-fiscal-' + chave),
+          adicional_recebido: lerSimNaoTriagem('tg-irr-adic-' + chave),
+        });
+      });
+      return agentes;
+    }
+
     function renderPassoAtualTriagem(dadosExistentes) {
       renderBarraPassosTriagem();
       var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
@@ -9592,6 +9731,8 @@
       else if (passo === 'empresa') renderPassoEmpresaTriagem(dadosExistentes);
       else if (passo === 'contrato') renderPassoContratoTriagem(dadosExistentes);
       else if (passo === 'jornada') renderPassoJornadaTriagem(dadosExistentes);
+      else if (passo === 'remuneracao') renderPassoRemuneracaoTriagem(dadosExistentes);
+      else if (passo === 'irregularidades') renderPassoIrregularidadesTriagem(dadosExistentes);
     }
 
     function salvarPassoAtualEAvancarTriagem() {
@@ -9604,7 +9745,14 @@
         btnAvancar.disabled = false;
         if (estado.passoIndex < PASSOS_WIZARD_TRIAGEM.length - 1) {
           estado.passoIndex += 1;
-          renderPassoAtualTriagem(null);
+          // Busca a triagem atualizada antes de desenhar o proximo passo -- alguns passos
+          // precisam de dado salvo num passo anterior (ex: Remuneracao mostra o "salario
+          // registrado" que acabou de ser salvo no passo Contrato). Sem isso, so quem retomava
+          // via ?id= na URL (resume) via esses dados; quem avancava na mesma sessao veria em
+          // branco (bug real encontrado ao implementar o passo Remuneracao).
+          apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId)
+            .then(function (d) { renderPassoAtualTriagem(d.triagem); })
+            .catch(function () { renderPassoAtualTriagem(null); });
         } else {
           window.location.href = 'painel-triagem-trabalhista.html#sec-triagem-trabalhista';
         }
@@ -9652,7 +9800,20 @@
         return;
       }
 
-      var corpo = passo === 'empresa' ? coletarPassoEmpresaTriagem() : coletarPassoContratoTriagem();
+      if (passo === 'irregularidades') {
+        var agentesColetados = coletarPassoIrregularidadesTriagem();
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'irregularidades', percentual_conclusao: percentual }),
+          apiPostJson('/api/painel?acao=triagem_insalubridade_salvar', { id: estado.triagemId, agentes: agentesColetados }),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
+      var corpo = passo === 'empresa' ? coletarPassoEmpresaTriagem()
+        : passo === 'contrato' ? coletarPassoContratoTriagem()
+        : coletarPassoRemuneracaoTriagem();
       corpo.id = estado.triagemId;
       if (proximoPasso) corpo.passo_atual = proximoPasso;
       corpo.percentual_conclusao = percentual;
