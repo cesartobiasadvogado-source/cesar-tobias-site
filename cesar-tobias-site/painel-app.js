@@ -9851,9 +9851,34 @@
         '<button type="button" class="procpage-btn" id="tg-ass-adicionar" style="margin-top:10px;">+ Adicionar episódio</button>';
       _renderListaEpisodiosAssedioTriagem();
       document.getElementById('tg-ass-adicionar').addEventListener('click', function () {
+        _sincronizarEpisodiosAssedioDoDom();
         _episodiosAssedioTriagem.push({});
         _renderListaEpisodiosAssedioTriagem();
       });
+    }
+
+    // Le os valores que estao de fato na tela agora (o usuario pode ter digitado algo depois do
+    // ultimo render) pro array em memoria antes de qualquer re-render -- sem isso, adicionar ou
+    // remover um episodio jogava fora o que ja tinha sido preenchido nos outros (bug real
+    // reportado: o campo de cima ficava em branco ao clicar "+ Adicionar episodio").
+    function _lerEpisodioAssedioDoDom(i) {
+      var elTipo = document.getElementById('tg-ass-tipo-' + i);
+      if (!elTipo) return null;
+      return {
+        tipo: elTipo.value,
+        data_ocorrencia: document.getElementById('tg-ass-data-' + i).value || null,
+        quem: document.getElementById('tg-ass-quem-' + i).value,
+        cargo_quem: document.getElementById('tg-ass-cargo-' + i).value,
+        quantidade_vezes: document.getElementById('tg-ass-qtd-' + i).value,
+        local_ocorrencia: document.getElementById('tg-ass-local-' + i).value,
+        descricao: document.getElementById('tg-ass-desc-' + i).value,
+        teve_testemunha: lerSimNaoTriagem('tg-ass-test-' + i),
+        tem_prova: lerSimNaoTriagem('tg-ass-prova-' + i),
+      };
+    }
+
+    function _sincronizarEpisodiosAssedioDoDom() {
+      _episodiosAssedioTriagem = _episodiosAssedioTriagem.map(function (ep, i) { return _lerEpisodioAssedioDoDom(i) || ep; });
     }
 
     function _renderListaEpisodiosAssedioTriagem() {
@@ -9894,6 +9919,7 @@
 
       lista.querySelectorAll('[data-ass-remover]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+          _sincronizarEpisodiosAssedioDoDom();
           _episodiosAssedioTriagem.splice(parseInt(btn.getAttribute('data-ass-remover'), 10), 1);
           _renderListaEpisodiosAssedioTriagem();
         });
@@ -10007,9 +10033,31 @@
         '<button type="button" class="procpage-btn" id="tg-test-adicionar" style="margin-top:10px;">+ Adicionar testemunha</button>';
       _renderListaTestemunhasTriagem();
       document.getElementById('tg-test-adicionar').addEventListener('click', function () {
+        _sincronizarTestemunhasDoDom();
         _testemunhasTriagem.push({});
         _renderListaTestemunhasTriagem();
       });
+    }
+
+    // Mesmo motivo do _sincronizarEpisodiosAssedioDoDom -- le a tela de verdade antes de
+    // adicionar/remover, pra nao perder o que ja foi digitado nos outros cards.
+    function _lerTestemunhaDoDom(i) {
+      var elNome = document.getElementById('tg-test-nome-' + i);
+      if (!elNome) return null;
+      return {
+        nome: elNome.value,
+        telefone: document.getElementById('tg-test-tel-' + i).value,
+        empresa_trabalhou: document.getElementById('tg-test-emp-' + i).value,
+        cargo: document.getElementById('tg-test-cargo-' + i).value,
+        periodo_conviveu: document.getElementById('tg-test-periodo-' + i).value,
+        relacao_com_cliente: document.getElementById('tg-test-relacao-' + i).value,
+        fatos_presenciados: document.getElementById('tg-test-fatos-' + i).value,
+        ainda_trabalha_na_empresa: lerSimNaoTriagem('tg-test-ativa-' + i),
+      };
+    }
+
+    function _sincronizarTestemunhasDoDom() {
+      _testemunhasTriagem = _testemunhasTriagem.map(function (t, i) { return _lerTestemunhaDoDom(i) || t; });
     }
 
     function _renderListaTestemunhasTriagem() {
@@ -10043,6 +10091,7 @@
 
       lista.querySelectorAll('[data-test-remover]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+          _sincronizarTestemunhasDoDom();
           _testemunhasTriagem.splice(parseInt(btn.getAttribute('data-test-remover'), 10), 1);
           _renderListaTestemunhasTriagem();
         });
@@ -10078,9 +10127,29 @@
         '<button type="button" class="procpage-btn" id="tg-prova-adicionar" style="margin-top:10px;">+ Adicionar prova</button>';
       _renderListaProvasTriagem();
       document.getElementById('tg-prova-adicionar').addEventListener('click', function () {
+        _sincronizarProvasDoDom();
         _provasTriagem.push({ categoria: 'documento', status: 'a_obter' });
         _renderListaProvasTriagem();
       });
+    }
+
+    // Mesmo motivo do _sincronizarEpisodiosAssedioDoDom -- le a tela de verdade antes de
+    // adicionar/remover/anexar arquivo. documento_id nao existe em nenhum input (so e setado
+    // depois que um upload termina), por isso preserva o que ja estava no array em memoria.
+    function _lerProvaDoDom(i) {
+      var elCat = document.getElementById('tg-prova-cat-' + i);
+      if (!elCat) return null;
+      return {
+        categoria: elCat.value,
+        fato_relacionado: document.getElementById('tg-prova-fato-' + i).value,
+        descricao: document.getElementById('tg-prova-desc-' + i).value,
+        status: lerSimNaoTriagem('tg-prova-disp-' + i) ? 'disponivel' : 'a_obter',
+        documento_id: (_provasTriagem[i] && _provasTriagem[i].documento_id) || null,
+      };
+    }
+
+    function _sincronizarProvasDoDom() {
+      _provasTriagem = _provasTriagem.map(function (p, i) { return _lerProvaDoDom(i) || p; });
     }
 
     function _renderListaProvasTriagem() {
@@ -10121,6 +10190,7 @@
 
       lista.querySelectorAll('[data-prova-remover]').forEach(function (btn) {
         btn.addEventListener('click', function () {
+          _sincronizarProvasDoDom();
           _provasTriagem.splice(parseInt(btn.getAttribute('data-prova-remover'), 10), 1);
           _renderListaProvasTriagem();
         });
@@ -10168,6 +10238,7 @@
           return apiPostJson('/api/painel?acao=documento_processo_upload_finalizar', { upload_id: uploadId });
         })
         .then(function (resp) {
+          _sincronizarProvasDoDom();
           _provasTriagem[i].documento_id = resp.id;
           _provasTriagem[i].status = 'disponivel';
           _renderListaProvasTriagem();
