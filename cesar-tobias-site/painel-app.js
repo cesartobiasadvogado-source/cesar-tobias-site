@@ -9373,7 +9373,10 @@
       var barra = document.getElementById('triagem-passos-barra');
       barra.innerHTML = PASSOS_WIZARD_TRIAGEM.map(function (p, i) {
         var classe = i < estado.passoIndex ? 'feito' : (i === estado.passoIndex ? 'atual' : '');
-        return '<div class="triagem-passo-marca ' + classe + '"></div>';
+        var clicavel = i < estado.passoIndex; // so deixa pular direto pra passo ja visitado
+        return '<div class="triagem-passo-marca ' + classe + (clicavel ? ' clicavel' : '') + '"' +
+          (clicavel ? ' data-triagem-passo-idx="' + i + '" title="Ir para: ' + esc(ROTULOS_PASSO_WIZARD_TRIAGEM[p]) + '"' : '') +
+          '></div>';
       }).join('');
       document.getElementById('triagem-passo-atual-label').textContent =
         'Passo ' + (estado.passoIndex + 1) + ' de ' + PASSOS_WIZARD_TRIAGEM.length + ' — ' + ROTULOS_PASSO_WIZARD_TRIAGEM[PASSOS_WIZARD_TRIAGEM[estado.passoIndex]];
@@ -10981,11 +10984,30 @@
         .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
     }
 
+    // Pula direto pra um passo ja visitado -- reaproveitado tanto pelo botao "Voltar" (so
+    // decrementa 1) quanto pelo clique na propria barra verde (pedido explicito do usuario, pra
+    // nao precisar clicar "Voltar" repetidas vezes). Sempre busca a triagem de novo antes de
+    // desenhar (mesmo motivo do irParaProximoPasso -- sem isso, o passo pro qual voltou aparecia
+    // com os campos em branco em vez do que ja tinha sido preenchido).
+    function _irParaPassoJaVisitadoTriagem(indice) {
+      estado.passoIndex = indice;
+      if (!estado.triagemId) { renderPassoAtualTriagem(null); return; }
+      apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId)
+        .then(function (d) { renderPassoAtualTriagem(d.triagem); })
+        .catch(function () { renderPassoAtualTriagem(null); });
+    }
+
     document.getElementById('triagem-btn-avancar').addEventListener('click', salvarPassoAtualEAvancarTriagem);
     document.getElementById('triagem-btn-voltar').addEventListener('click', function () {
       if (estado.passoIndex === 0) return;
-      estado.passoIndex -= 1;
-      renderPassoAtualTriagem(null);
+      _irParaPassoJaVisitadoTriagem(estado.passoIndex - 1);
+    });
+    document.getElementById('triagem-passos-barra').addEventListener('click', function (ev) {
+      var marca = ev.target.closest('[data-triagem-passo-idx]');
+      if (!marca) return;
+      var idx = parseInt(marca.getAttribute('data-triagem-passo-idx'), 10);
+      if (idx >= estado.passoIndex) return; // barra so deixa voltar, nao pular pra frente
+      _irParaPassoJaVisitadoTriagem(idx);
     });
 
     // ---- Alertas e pendencias (fase 6) -- calculados no backend (triagem_regras.py) a partir
