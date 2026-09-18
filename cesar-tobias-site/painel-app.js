@@ -9279,11 +9279,12 @@
     return v === 'sim' ? true : (v === 'nao' ? false : null);
   }
 
-  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades', 'saude', 'assedio', 'rescisao', 'testemunhas', 'provas'];
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades', 'saude', 'assedio', 'rescisao', 'testemunhas', 'provas', 'analise_final'];
   var ROTULOS_PASSO_WIZARD_TRIAGEM = {
     cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada',
     remuneracao: 'Remuneração', irregularidades: 'Irregularidades', saude: 'Saúde e Segurança',
     assedio: 'Assédio e Discriminação', rescisao: 'Rescisão', testemunhas: 'Testemunhas', provas: 'Provas',
+    analise_final: 'Diagnóstico e Relatório',
   };
   var CATEGORIAS_PROVA_TRIAGEM = [
     { chave: 'documento', rotulo: 'Documento' }, { chave: 'whatsapp', rotulo: 'WhatsApp' },
@@ -10154,6 +10155,193 @@
       });
     }
 
+    // ---- passo Diagnóstico e Relatório (fase 7) -- ultimo passo, so leitura. Diagnostico e
+    // alertas/pendencias reaproveitam o que o backend (triagem_regras.py) ja calcula desde a
+    // fase 6; a timeline e o relatorio de 16 secoes sao montados aqui mesmo, direto dos campos
+    // que a triagem_obter ja devolve -- nunca inventa fato que nao foi informado (mostra "Não
+    // informado" em vez de deixar em branco ou supor um valor).
+    function _rotuloPorChaveTriagem(lista, chave) {
+      var item = lista.filter(function (x) { return x.chave === chave; })[0];
+      return item ? item.rotulo : (chave || '—');
+    }
+
+    function _valorOuNaoInformadoTriagem(v) {
+      if (v === null || v === undefined || v === '') return '<span style="color:var(--ink-faint);">Não informado</span>';
+      return esc(String(v));
+    }
+
+    function _boolParaTextoTriagem(v) {
+      if (v === true) return 'Sim';
+      if (v === false) return 'Não';
+      return '<span style="color:var(--ink-faint);">Não informado</span>';
+    }
+
+    function _montarTimelineTriagem(t) {
+      var eventos = [];
+      if (t.data_admissao) eventos.push({ data: t.data_admissao, rotulo: 'Admissão' });
+      if (t.saude_seguranca && t.saude_seguranca.data_retorno_afastamento) {
+        eventos.push({ data: t.saude_seguranca.data_retorno_afastamento, rotulo: 'Retorno de afastamento (INSS)' });
+      }
+      (t.assedio_episodios || []).forEach(function (ep) {
+        if (ep.data_ocorrencia) eventos.push({ data: ep.data_ocorrencia, rotulo: 'Episódio relatado: ' + _rotuloPorChaveTriagem(TIPOS_ASSEDIO_TRIAGEM, ep.tipo) });
+      });
+      if (t.contrato_terminou && t.data_rescisao) {
+        eventos.push({ data: t.data_rescisao, rotulo: 'Rescisão (' + _rotuloPorChaveTriagem(FORMAS_RESCISAO_TRIAGEM, t.forma_rescisao) + ')' });
+      }
+      eventos.sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+      return eventos;
+    }
+
+    function _montarSecoesRelatorioTriagem(t) {
+      var secoes = [];
+      secoes.push({ titulo: '1. Identificação do cliente', linhas: [
+        'Cliente: ' + _valorOuNaoInformadoTriagem(t.cliente_nome),
+        'Responsável pela triagem: ' + _valorOuNaoInformadoTriagem(t.responsavel_email),
+      ]});
+      secoes.push({ titulo: '2. Dados da empresa', linhas: [
+        'Razão social: ' + _valorOuNaoInformadoTriagem(t.empresa_razao_social),
+        'Nome fantasia: ' + _valorOuNaoInformadoTriagem(t.empresa_nome_fantasia),
+        'CNPJ: ' + _valorOuNaoInformadoTriagem(t.empresa_cnpj),
+        'Local de trabalho: ' + _valorOuNaoInformadoTriagem(t.local_trabalho),
+        'Superior imediato: ' + _valorOuNaoInformadoTriagem(t.superior_imediato_nome) + (t.superior_imediato_cargo ? ' (' + esc(t.superior_imediato_cargo) + ')' : ''),
+        'Terceirização: ' + _boolParaTextoTriagem(t.terceirizacao),
+        'Grupo econômico: ' + _boolParaTextoTriagem(t.grupo_economico),
+      ]});
+      secoes.push({ titulo: '3. Contrato de trabalho', linhas: [
+        'Data de admissão: ' + _valorOuNaoInformadoTriagem(t.data_admissao),
+        'Registro em CTPS: ' + _boolParaTextoTriagem(t.ctps_registrado),
+        'Cargo registrado: ' + _valorOuNaoInformadoTriagem(t.cargo_registrado),
+        'Função exercida de fato: ' + _valorOuNaoInformadoTriagem(t.funcao_exercida),
+        'Salário registrado: ' + _valorOuNaoInformadoTriagem(t.salario_registrado),
+        'Pagamento por fora: ' + _boolParaTextoTriagem(t.pagamento_por_fora) +
+          (t.pagamento_por_fora ? ' — valor: ' + _valorOuNaoInformadoTriagem(t.valor_por_fora) + ', frequência: ' + _valorOuNaoInformadoTriagem(t.frequencia_por_fora) : ''),
+        'Acúmulo/desvio de função: ' + _boolParaTextoTriagem(t.acumulo_desvio_funcao),
+      ]});
+      secoes.push({ titulo: '4. Jornada de trabalho', linhas: [
+        'Horas extras habituais: ' + _boolParaTextoTriagem(t.jornada_horas_extras),
+        'Trabalho em feriados: ' + _boolParaTextoTriagem(t.jornada_feriados),
+        'Trabalho no intervalo: ' + _boolParaTextoTriagem(t.jornada_trabalho_intervalo),
+        'Banco de horas: ' + _boolParaTextoTriagem(t.jornada_banco_horas),
+        'Jornada noturna: ' + _boolParaTextoTriagem(t.jornada_noturno),
+      ].concat((t.jornada_dias || []).length ? (t.jornada_dias || []).map(function (d) {
+        var sigla = _rotuloPorChaveTriagem(DIAS_SEMANA_TRIAGEM.map(function (ds) { return { chave: ds.numero, rotulo: ds.sigla }; }), d.dia_semana);
+        return sigla + ': ' + (d.trabalhava ? ((d.horario_entrada || '?') + ' às ' + (d.horario_saida || '?')) : 'não trabalhava');
+      }) : ['Grade diária: <span style="color:var(--ink-faint);">Não informada</span>'])});
+      secoes.push({ titulo: '5. Controle de ponto', linhas: [
+        'Existia controle de ponto: ' + _boolParaTextoTriagem(t.controle_ponto_existia),
+        'Tipo: ' + _valorOuNaoInformadoTriagem(t.controle_ponto_tipo),
+        'Registrava a jornada real: ' + _boolParaTextoTriagem(t.controle_ponto_registrava_real),
+        'Explicação: ' + _valorOuNaoInformadoTriagem(t.controle_ponto_explicacao),
+      ]});
+      secoes.push({ titulo: '6. Remuneração', linhas: [
+        'Salário recebido de fato: ' + _valorOuNaoInformadoTriagem(t.salario_recebido_real),
+        'Recebia DSR: ' + _boolParaTextoTriagem(t.recebia_dsr),
+        'Adicional noturno: ' + _boolParaTextoTriagem(t.recebia_adicional_noturno),
+        'Vale-transporte / alimentação / refeição: ' + _boolParaTextoTriagem(t.vale_transporte) + ' / ' + _boolParaTextoTriagem(t.vale_alimentacao) + ' / ' + _boolParaTextoTriagem(t.vale_refeicao),
+        'Descontos indevidos: ' + _valorOuNaoInformadoTriagem(t.descontos_indevidos),
+      ]});
+      secoes.push({ titulo: '7. Norma coletiva', linhas: [
+        'Categoria profissional: ' + _valorOuNaoInformadoTriagem(t.categoria_profissional),
+        'Sindicato: ' + _valorOuNaoInformadoTriagem(t.sindicato),
+        'Tem CCT/ACT: ' + _boolParaTextoTriagem(t.tem_cct_act),
+        'Piso salarial da categoria: ' + _valorOuNaoInformadoTriagem(t.piso_salarial_categoria),
+      ]});
+      secoes.push({ titulo: '8. Insalubridade e periculosidade', linhas:
+        (t.insalubridade || []).length ? t.insalubridade.map(function (i) {
+          return _rotuloPorChaveTriagem(AGENTES_INSALUBRIDADE_TRIAGEM, i.agente) + ' — adicional recebido: ' + _boolParaTextoTriagem(i.adicional_recebido);
+        }) : ['<span style="color:var(--ink-faint);">Nenhum agente de risco relatado.</span>']});
+      secoes.push({ titulo: '9. Saúde e segurança do trabalho', linhas:
+        t.saude_seguranca ? [
+          'Acidente/doença ocupacional: ' + _boolParaTextoTriagem(t.saude_seguranca.teve_acidente_doenca),
+          'CAT emitida: ' + _boolParaTextoTriagem(t.saude_seguranca.cat_emitida),
+          'Afastamento pelo INSS: ' + _boolParaTextoTriagem(t.saude_seguranca.afastamento_inss),
+          'Limitação atual: ' + _valorOuNaoInformadoTriagem(t.saude_seguranca.limitacao_atual),
+        ] : ['<span style="color:var(--ink-faint);">Nenhum acidente ou doença ocupacional relatado.</span>']});
+      secoes.push({ titulo: '10. Assédio e discriminação', linhas:
+        (t.assedio_episodios || []).length ? t.assedio_episodios.map(function (ep) {
+          return _rotuloPorChaveTriagem(TIPOS_ASSEDIO_TRIAGEM, ep.tipo) + ' — ' + _valorOuNaoInformadoTriagem(ep.data_ocorrencia) + ' — testemunha: ' + _boolParaTextoTriagem(ep.teve_testemunha);
+        }) : ['<span style="color:var(--ink-faint);">Nenhum episódio relatado.</span>']});
+      secoes.push({ titulo: '11. Rescisão contratual', linhas: [
+        'Contrato já terminou: ' + _boolParaTextoTriagem(t.contrato_terminou),
+        'Data da rescisão: ' + _valorOuNaoInformadoTriagem(t.data_rescisao),
+        'Forma: ' + (t.forma_rescisao ? _rotuloPorChaveTriagem(FORMAS_RESCISAO_TRIAGEM, t.forma_rescisao) : '<span style="color:var(--ink-faint);">Não informado</span>'),
+        'TRCT recebido: ' + _boolParaTextoTriagem(t.trct_recebido),
+        'Guias do FGTS entregues: ' + _boolParaTextoTriagem(t.fgts_guias_entregues),
+        'Multa de 40% paga: ' + _boolParaTextoTriagem(t.multa_40_paga),
+      ].concat(t.forma_rescisao === 'justa_causa' ? [
+        'Acusação da empresa: ' + _valorOuNaoInformadoTriagem(t.jc_acusacao),
+        'Dias entre o fato e a demissão: ' + _valorOuNaoInformadoTriagem(t.jc_tempo_fato_demissao_dias),
+      ] : [])});
+      secoes.push({ titulo: '12. Estabilidades identificadas', linhas:
+        (t.estabilidades_detectadas || []).length ? t.estabilidades_detectadas.map(function (e) { return e.mensagem; })
+          : ['<span style="color:var(--ink-faint);">Nenhuma estabilidade identificada com os dados atuais.</span>']});
+      secoes.push({ titulo: '13. Testemunhas', linhas:
+        (t.testemunhas || []).length ? t.testemunhas.map(function (te) {
+          return esc(te.nome) + (te.cargo ? ' (' + esc(te.cargo) + ')' : '') + ' — ainda na empresa: ' + _boolParaTextoTriagem(te.ainda_trabalha_na_empresa);
+        }) : ['<span style="color:var(--ink-faint);">Nenhuma testemunha cadastrada.</span>']});
+      secoes.push({ titulo: '14. Central de provas', linhas:
+        (t.provas || []).length ? t.provas.map(function (p) {
+          return _rotuloPorChaveTriagem(CATEGORIAS_PROVA_TRIAGEM, p.categoria) + ' — ' + (p.status === 'disponivel' ? 'disponível' : 'a obter') + (p.descricao ? ' — ' + esc(p.descricao) : '');
+        }) : ['<span style="color:var(--ink-faint);">Nenhuma prova cadastrada.</span>']});
+      secoes.push({ titulo: '15. Alertas jurídicos', linhas:
+        (t.alertas || []).length ? t.alertas.map(function (a) { return (a.severidade === 'critico' ? '🔴 ' : '🟠 ') + a.mensagem; })
+          : ['<span style="color:var(--ink-faint);">Nenhum alerta identificado com os dados atuais.</span>']});
+      secoes.push({ titulo: '16. Pendências e próximos passos', linhas:
+        (t.pendencias || []).length ? t.pendencias.map(function (p) { return p.mensagem; })
+          : ['<span style="color:var(--ink-faint);">Nenhuma pendência identificada com os dados atuais.</span>']});
+      return secoes;
+    }
+
+    function renderPassoAnaliseFinalTriagem(t) {
+      t = t || {};
+      var alertasCriticos = (t.alertas || []).filter(function (a) { return a.severidade === 'critico'; }).length;
+      var alertasAtencao = (t.alertas || []).length - alertasCriticos;
+      var provasDisponiveis = (t.provas || []).filter(function (p) { return p.status === 'disponivel'; }).length;
+      var provasAObter = (t.provas || []).length - provasDisponiveis;
+      var timeline = _montarTimelineTriagem(t);
+      var secoesRelatorio = _montarSecoesRelatorioTriagem(t);
+
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Diagnóstico da triagem</p>' +
+        '<p class="triagem-passo-sub">Resumo do que foi coletado até aqui, timeline do contrato e o relatório completo (16 seções) — nada aqui é inventado, só organiza o que foi respondido.</p>' +
+        '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:14px 0;">' +
+          '<div class="procficha-painel" style="flex:1;min-width:150px;"><div style="font-size:12px;color:var(--ink-faint);">Alertas críticos</div><div style="font-size:22px;font-weight:700;color:var(--crit);">' + alertasCriticos + '</div></div>' +
+          '<div class="procficha-painel" style="flex:1;min-width:150px;"><div style="font-size:12px;color:var(--ink-faint);">Alertas de atenção</div><div style="font-size:22px;font-weight:700;color:var(--warn);">' + alertasAtencao + '</div></div>' +
+          '<div class="procficha-painel" style="flex:1;min-width:150px;"><div style="font-size:12px;color:var(--ink-faint);">Provas disponíveis</div><div style="font-size:22px;font-weight:700;color:var(--good);">' + provasDisponiveis + '</div></div>' +
+          '<div class="procficha-painel" style="flex:1;min-width:150px;"><div style="font-size:12px;color:var(--ink-faint);">Provas a obter</div><div style="font-size:22px;font-weight:700;">' + provasAObter + '</div></div>' +
+          '<div class="procficha-painel" style="flex:1;min-width:150px;"><div style="font-size:12px;color:var(--ink-faint);">Testemunhas</div><div style="font-size:22px;font-weight:700;">' + (t.testemunhas || []).length + '</div></div>' +
+        '</div>' +
+
+        '<p style="font-weight:600;margin:18px 0 8px;">Timeline do contrato</p>' +
+        (timeline.length ?
+          '<div style="border-left:2px solid var(--line);padding-left:14px;">' +
+            timeline.map(function (ev) {
+              return '<div style="margin-bottom:10px;"><span style="font-size:12px;color:var(--ink-faint);">' + esc(ev.data) + '</span><br><span style="font-size:13.5px;">' + esc(ev.rotulo) + '</span></div>';
+            }).join('') +
+          '</div>'
+          : '<p style="font-size:13px;color:var(--ink-faint);">Nenhuma data suficiente pra montar a timeline ainda.</p>') +
+
+        '<p style="font-weight:600;margin:22px 0 8px;">Relatório completo</p>' +
+        secoesRelatorio.map(function (s) {
+          return '<div class="procficha-painel" style="margin-bottom:10px;">' +
+            '<p style="font-weight:600;margin:0 0 8px;font-size:13.5px;">' + esc(s.titulo) + '</p>' +
+            s.linhas.map(function (l) { return '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px;">' + l + '</div>'; }).join('') +
+          '</div>';
+        }).join('') +
+
+        '<div style="margin-top:16px;">' +
+          '<button type="button" class="procpage-btn procpage-btn-primary" id="tg-concluir-triagem">Marcar triagem como concluída</button>' +
+        '</div>';
+
+      document.getElementById('tg-concluir-triagem').addEventListener('click', function () {
+        var btn = document.getElementById('tg-concluir-triagem');
+        btn.disabled = true;
+        apiPostJson('/api/painel?acao=triagem_status', { id: estado.triagemId, status: 'concluida' })
+          .then(function () { window.location.href = 'painel-triagem-trabalhista.html#sec-triagem-trabalhista'; })
+          .catch(function (e) { btn.disabled = false; erroWizardTriagem(e.message || 'Não foi possível concluir a triagem agora.'); });
+      });
+    }
+
     function renderPassoAtualTriagem(dadosExistentes) {
       renderBarraPassosTriagem();
       var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
@@ -10168,6 +10356,7 @@
       else if (passo === 'rescisao') renderPassoRescisaoTriagem(dadosExistentes);
       else if (passo === 'testemunhas') renderPassoTestemunhasTriagem(dadosExistentes);
       else if (passo === 'provas') renderPassoProvasTriagem(dadosExistentes);
+      else if (passo === 'analise_final') renderPassoAnaliseFinalTriagem(dadosExistentes);
     }
 
     function salvarPassoAtualEAvancarTriagem() {
@@ -10286,6 +10475,16 @@
           apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'provas', percentual_conclusao: percentual }),
           apiPostJson('/api/painel?acao=triagem_provas_salvar', { id: estado.triagemId, provas: provasColetadas }),
         ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
+      if (passo === 'analise_final') {
+        // Ultimo passo -- so leitura (diagnostico/timeline/relatorio), nada pra coletar aqui.
+        // "Avancar" so marca 100% e volta pro painel; concluir de fato (status = concluida) e
+        // uma acao separada (botao dentro do proprio passo).
+        apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: 'analise_final', percentual_conclusao: 100 })
           .then(irParaProximoPasso)
           .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
         return;
