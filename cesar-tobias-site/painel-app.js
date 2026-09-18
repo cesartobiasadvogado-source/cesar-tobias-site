@@ -9139,10 +9139,13 @@
           '<td style="color:var(--ink-faint);">' + fmtDataProcesso(String(t.atualizado_em || '').slice(0, 10)) + '</td>' +
           '<td>' +
             '<div class="procpage-acoes-icones">' +
-              '<a class="procpage-btn" href="painel-criar-triagem.html?id=' + t.id + '#sec-criar-triagem">Continuar</a>' +
+              (t.convertido_processo_id
+                ? '<a class="procpage-btn" href="painel-processos.html?processo=' + t.convertido_processo_id + '#sec-processos">Ver processo</a>'
+                : '<a class="procpage-btn" href="painel-criar-triagem.html?id=' + t.id + '#sec-criar-triagem">Continuar</a>') +
               '<span class="procman-acoes-wrap">' +
                 '<button type="button" class="procpage-icone-btn" data-triagem-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
                 '<div class="procman-acoes-menu hidden" data-triagem-menu="' + indice + '">' +
+                  (t.convertido_processo_id ? '' : '<button type="button" data-triagem-converter="' + indice + '">Converter em Caso</button>') +
                   '<button type="button" data-triagem-duplicar="' + indice + '">Duplicar</button>' +
                   '<button type="button" data-triagem-arquivar="' + indice + '">Arquivar</button>' +
                   '<button type="button" class="procman-acao-excluir" data-triagem-excluir="' + indice + '">Excluir</button>' +
@@ -9196,6 +9199,21 @@
         var jaAberto = menuAlvo && !menuAlvo.classList.contains('hidden');
         lista.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
         if (menuAlvo && !jaAberto) menuAlvo.classList.remove('hidden');
+        return;
+      }
+
+      var btnConverter = ev.target.closest('[data-triagem-converter]');
+      if (btnConverter) {
+        var tc = _triagensTodasCarregadas[btnConverter.getAttribute('data-triagem-converter')];
+        confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=triagem_converter_processo', { id: tc.id })
+            .then(function (d) {
+              carregarTriagens();
+              window.location.href = 'painel-processos.html?processo=' + d.processo_id + '#sec-processos';
+            })
+            .catch(function (e) { mostrarAviso(e.message || 'Não foi possível converter agora.'); });
+        });
         return;
       }
 
@@ -10329,7 +10347,10 @@
           '</div>';
         }).join('') +
 
-        '<div style="margin-top:16px;">' +
+        '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
+          (t.convertido_processo_id
+            ? '<a class="procpage-btn" href="painel-processos.html?processo=' + t.convertido_processo_id + '#sec-processos">Ver processo criado</a>'
+            : '<button type="button" class="procpage-btn" id="tg-converter-processo">Converter em Caso</button>') +
           '<button type="button" class="procpage-btn procpage-btn-primary" id="tg-concluir-triagem">Marcar triagem como concluída</button>' +
         '</div>';
 
@@ -10340,6 +10361,19 @@
           .then(function () { window.location.href = 'painel-triagem-trabalhista.html#sec-triagem-trabalhista'; })
           .catch(function (e) { btn.disabled = false; erroWizardTriagem(e.message || 'Não foi possível concluir a triagem agora.'); });
       });
+
+      var btnConverterProcesso = document.getElementById('tg-converter-processo');
+      if (btnConverterProcesso) {
+        btnConverterProcesso.addEventListener('click', function () {
+          confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.').then(function (ok) {
+            if (!ok) return;
+            btnConverterProcesso.disabled = true;
+            apiPostJson('/api/painel?acao=triagem_converter_processo', { id: estado.triagemId })
+              .then(function (d) { window.location.href = 'painel-processos.html?processo=' + d.processo_id + '#sec-processos'; })
+              .catch(function (e) { btnConverterProcesso.disabled = false; erroWizardTriagem(e.message || 'Não foi possível converter agora.'); });
+          });
+        });
+      }
     }
 
     function renderPassoAtualTriagem(dadosExistentes) {

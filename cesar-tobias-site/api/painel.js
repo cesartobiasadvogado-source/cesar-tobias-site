@@ -882,6 +882,7 @@ module.exports = async (req, res) => {
     triagem_assedio_salvar: 'Erro de conexao ao salvar os episodios de assedio.',
     triagem_testemunhas_salvar: 'Erro de conexao ao salvar as testemunhas.',
     triagem_provas_salvar: 'Erro de conexao ao salvar as provas.',
+    triagem_converter_processo: 'Erro de conexao ao converter a triagem em processo.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {
