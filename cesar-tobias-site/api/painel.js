@@ -876,6 +876,8 @@ module.exports = async (req, res) => {
     triagem_excluir: 'Erro de conexao ao excluir a triagem.',
     triagem_jornada_salvar: 'Erro de conexao ao salvar a jornada.',
     triagem_insalubridade_salvar: 'Erro de conexao ao salvar a insalubridade.',
+    triagem_saude_salvar: 'Erro de conexao ao salvar a saude/seguranca.',
+    triagem_assedio_salvar: 'Erro de conexao ao salvar os episodios de assedio.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

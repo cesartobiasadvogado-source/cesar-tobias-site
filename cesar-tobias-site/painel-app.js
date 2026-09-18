@@ -9277,11 +9277,30 @@
     return v === 'sim' ? true : (v === 'nao' ? false : null);
   }
 
-  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades'];
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades', 'saude', 'assedio', 'rescisao'];
   var ROTULOS_PASSO_WIZARD_TRIAGEM = {
     cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada',
-    remuneracao: 'Remuneração', irregularidades: 'Irregularidades',
+    remuneracao: 'Remuneração', irregularidades: 'Irregularidades', saude: 'Saúde e Segurança',
+    assedio: 'Assédio e Discriminação', rescisao: 'Rescisão',
   };
+  var TIPOS_ASSEDIO_TRIAGEM = [
+    { chave: 'assedio_moral', rotulo: 'Assédio moral' }, { chave: 'assedio_sexual', rotulo: 'Assédio sexual' },
+    { chave: 'discriminacao_genero', rotulo: 'Discriminação de gênero' }, { chave: 'discriminacao_racial', rotulo: 'Discriminação racial' },
+    { chave: 'discriminacao_idade', rotulo: 'Discriminação por idade' }, { chave: 'discriminacao_deficiencia', rotulo: 'Discriminação por deficiência' },
+    { chave: 'humilhacao', rotulo: 'Humilhação/xingamento' }, { chave: 'ameaca', rotulo: 'Ameaça' },
+    { chave: 'cobranca_abusiva', rotulo: 'Cobrança abusiva' }, { chave: 'meta_abusiva', rotulo: 'Meta abusiva' },
+    { chave: 'isolamento', rotulo: 'Isolamento/perseguição' }, { chave: 'retaliacao', rotulo: 'Retaliação' },
+    { chave: 'outro', rotulo: 'Outro' },
+  ];
+  var FORMAS_RESCISAO_TRIAGEM = [
+    { chave: 'dispensa_sem_justa_causa', rotulo: 'Dispensa sem justa causa' },
+    { chave: 'justa_causa', rotulo: 'Justa causa' },
+    { chave: 'pedido_demissao', rotulo: 'Pedido de demissão' },
+    { chave: 'rescisao_indireta', rotulo: 'Rescisão indireta' },
+    { chave: 'acordo', rotulo: 'Acordo' },
+    { chave: 'termino_contrato_determinado', rotulo: 'Término de contrato determinado' },
+    { chave: 'outro', rotulo: 'Outro' },
+  ];
   var AGENTES_INSALUBRIDADE_TRIAGEM = [
     { chave: 'ruido', rotulo: 'Ruído' }, { chave: 'calor', rotulo: 'Calor' }, { chave: 'frio', rotulo: 'Frio' },
     { chave: 'quimicos', rotulo: 'Produtos químicos' }, { chave: 'biologicos', rotulo: 'Agentes biológicos' },
@@ -9300,6 +9319,7 @@
     if (!conteudo) return;
 
     var estado = { triagemId: null, passoIndex: 0, clienteModo: 'existente', clienteSelecionadoId: null };
+    var _episodiosAssedioTriagem = [];
     var _clientesCacheTriagem = null;
 
     function renderBarraPassosTriagem() {
@@ -9724,6 +9744,211 @@
       return agentes;
     }
 
+    // ---- passo Saúde e Segurança (fase 4) -- linha unica opcional (triagem_saude_seguranca).
+    function renderPassoSaudeTriagem(d) {
+      d = d || {};
+      var s = d.saude_seguranca || {};
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Saúde e segurança do trabalho</p>' +
+        '<p class="triagem-passo-sub">Acidentes de trabalho ou doenças relacionadas ao trabalho.</p>' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-sau-teve', 'Sofreu acidente de trabalho ou desenvolveu doença relacionada ao trabalho?', s.teve_acidente_doenca) +
+        '</div>' +
+        '<div id="tg-sau-detalhe-wrap" class="triagem-campo-condicional hidden" style="margin-top:14px;">' +
+          '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
+            htmlSimNaoTriagem('tg-sau-cat', 'Foi emitida CAT?', s.cat_emitida) +
+            htmlSimNaoTriagem('tg-sau-exames', 'Possui exames?', s.exames_realizados) +
+            htmlSimNaoTriagem('tg-sau-laudos', 'Possui laudos médicos?', s.laudos_medicos) +
+            htmlSimNaoTriagem('tg-sau-afastamento', 'Foi afastado pelo INSS?', s.afastamento_inss) +
+            htmlSimNaoTriagem('tg-sau-dispensado', 'Foi dispensado após retornar?', s.dispensado_apos_retorno) +
+          '</div>' +
+          '<div class="procficha-editar-grid" style="margin-top:14px;">' +
+            '<div><label>Dias de afastamento (aprox.)</label><input id="tg-sau-dias" value="' + esc(s.dias_afastamento || '') + '"></div>' +
+            '<div><label>Data de retorno do afastamento</label><input type="date" id="tg-sau-retorno" value="' + esc((s.data_retorno_afastamento || '').slice(0, 10)) + '"></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Limitação atual (se houver)</label>' +
+            '<textarea id="tg-sau-limitacao" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(s.limitacao_atual || '') + '</textarea>' +
+          '</div>' +
+        '</div>';
+      ['tg-sau-cat', 'tg-sau-exames', 'tg-sau-laudos', 'tg-sau-afastamento', 'tg-sau-dispensado'].forEach(function (id) { wireSimNaoTriagem(id); });
+      wireSimNaoTriagem('tg-sau-teve', function (valor) {
+        document.getElementById('tg-sau-detalhe-wrap').classList.toggle('hidden', valor !== true);
+      });
+    }
+
+    function coletarPassoSaudeTriagem() {
+      return {
+        teve_acidente_doenca: lerSimNaoTriagem('tg-sau-teve'),
+        cat_emitida: lerSimNaoTriagem('tg-sau-cat'),
+        exames_realizados: lerSimNaoTriagem('tg-sau-exames'),
+        laudos_medicos: lerSimNaoTriagem('tg-sau-laudos'),
+        afastamento_inss: lerSimNaoTriagem('tg-sau-afastamento'),
+        dias_afastamento: document.getElementById('tg-sau-dias').value.trim(),
+        limitacao_atual: document.getElementById('tg-sau-limitacao').value.trim(),
+        dispensado_apos_retorno: lerSimNaoTriagem('tg-sau-dispensado'),
+        data_retorno_afastamento: document.getElementById('tg-sau-retorno').value || null,
+      };
+    }
+
+    // ---- passo Assédio e Discriminação (fase 4) -- lista dinamica "+ adicionar episodio"
+    // (primeira lista de verdade do wizard com quantidade livre, ao contrario da jornada/
+    // insalubridade que tem um conjunto fixo de linhas possiveis).
+    function renderPassoAssedioTriagem(d) {
+      d = d || {};
+      _episodiosAssedioTriagem = (d.assedio_episodios || []).slice();
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Assédio e discriminação</p>' +
+        '<p class="triagem-passo-sub">Cadastre cada episódio separadamente — pode adicionar quantos precisar.</p>' +
+        '<div id="tg-ass-lista"></div>' +
+        '<button type="button" class="procpage-btn" id="tg-ass-adicionar" style="margin-top:10px;">+ Adicionar episódio</button>';
+      _renderListaEpisodiosAssedioTriagem();
+      document.getElementById('tg-ass-adicionar').addEventListener('click', function () {
+        _episodiosAssedioTriagem.push({});
+        _renderListaEpisodiosAssedioTriagem();
+      });
+    }
+
+    function _renderListaEpisodiosAssedioTriagem() {
+      var lista = document.getElementById('tg-ass-lista');
+      if (!_episodiosAssedioTriagem.length) {
+        lista.innerHTML = '<p style="color:var(--ink-faint);font-size:13px;">Nenhum episódio cadastrado ainda.</p>';
+        return;
+      }
+      lista.innerHTML = _episodiosAssedioTriagem.map(function (ep, i) {
+        return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
+          '<button type="button" class="procman-acao-excluir" data-ass-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Tipo</label><select id="tg-ass-tipo-' + i + '">' +
+              TIPOS_ASSEDIO_TRIAGEM.map(function (t) { return '<option value="' + t.chave + '">' + esc(t.rotulo) + '</option>'; }).join('') +
+            '</select></div>' +
+            '<div><label>Quando aconteceu?</label><input type="date" id="tg-ass-data-' + i + '" value="' + esc((ep.data_ocorrencia || '').slice(0, 10)) + '"></div>' +
+            '<div><label>Quem praticou?</label><input id="tg-ass-quem-' + i + '" value="' + esc(ep.quem || '') + '"></div>' +
+            '<div><label>Qual cargo?</label><input id="tg-ass-cargo-' + i + '" value="' + esc(ep.cargo_quem || '') + '"></div>' +
+            '<div><label>Quantas vezes?</label><input id="tg-ass-qtd-' + i + '" value="' + esc(ep.quantidade_vezes || '') + '"></div>' +
+            '<div><label>Onde?</label><input id="tg-ass-local-' + i + '" value="' + esc(ep.local_ocorrencia || '') + '"></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">O que aconteceu?</label>' +
+            '<textarea id="tg-ass-desc-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(ep.descricao || '') + '</textarea>' +
+          '</div>' +
+          '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">' +
+            htmlSimNaoTriagem('tg-ass-test-' + i, 'Quem presenciou (existem testemunhas)?', ep.teve_testemunha) +
+            htmlSimNaoTriagem('tg-ass-prova-' + i, 'Existem provas (mensagens/áudios/vídeos)?', ep.tem_prova) +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      _episodiosAssedioTriagem.forEach(function (ep, i) {
+        setSelectValueComFallback(document.getElementById('tg-ass-tipo-' + i), ep.tipo || 'assedio_moral');
+        wireSimNaoTriagem('tg-ass-test-' + i);
+        wireSimNaoTriagem('tg-ass-prova-' + i);
+      });
+
+      lista.querySelectorAll('[data-ass-remover]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          _episodiosAssedioTriagem.splice(parseInt(btn.getAttribute('data-ass-remover'), 10), 1);
+          _renderListaEpisodiosAssedioTriagem();
+        });
+      });
+    }
+
+    function coletarPassoAssedioTriagem() {
+      return _episodiosAssedioTriagem.map(function (ep, i) {
+        return {
+          tipo: document.getElementById('tg-ass-tipo-' + i).value,
+          data_ocorrencia: document.getElementById('tg-ass-data-' + i).value || null,
+          quem: document.getElementById('tg-ass-quem-' + i).value.trim(),
+          cargo_quem: document.getElementById('tg-ass-cargo-' + i).value.trim(),
+          quantidade_vezes: document.getElementById('tg-ass-qtd-' + i).value.trim(),
+          local_ocorrencia: document.getElementById('tg-ass-local-' + i).value.trim(),
+          descricao: document.getElementById('tg-ass-desc-' + i).value.trim(),
+          teve_testemunha: lerSimNaoTriagem('tg-ass-test-' + i),
+          tem_prova: lerSimNaoTriagem('tg-ass-prova-' + i),
+        };
+      });
+    }
+
+    // ---- passo Rescisão (fase 4) -- colunas do cabecalho (ja existiam desde a fase 1), com a
+    // subsecao de Justa Causa condicional e o painel de Estabilidades (so leitura, calculado no
+    // backend a partir de outras respostas -- ver _detectar_estabilidades em triagem_trabalhista.py).
+    function montarPainelEstabilidadesTriagem(lista) {
+      if (!lista || !lista.length) return '';
+      return '<div class="triagem-campo-condicional" style="margin-top:22px;border-color:var(--crit);">' +
+        '<p style="font-weight:600;margin:0 0 8px;color:var(--ink);">🔴 Pontos de atenção — possíveis estabilidades</p>' +
+        lista.map(function (e) { return '<div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px;">• ' + esc(e.mensagem) + '</div>'; }).join('') +
+        '<p style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;margin-bottom:0;">Isso não conclui que existe direito — só sinaliza que o assunto precisa de análise jurídica.</p>' +
+      '</div>';
+    }
+
+    function renderPassoRescisaoTriagem(d) {
+      d = d || {};
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Rescisão</p>' +
+        '<p class="triagem-passo-sub">Como e quando o contrato terminou (se já terminou).</p>' +
+        '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
+          htmlSimNaoTriagem('tg-res-terminou', 'O contrato já terminou?', d.contrato_terminou) +
+        '</div>' +
+        '<div id="tg-res-detalhe-wrap" class="triagem-campo-condicional hidden" style="margin-top:14px;">' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Data da rescisão</label><input type="date" id="tg-res-data" value="' + esc((d.data_rescisao || '').slice(0, 10)) + '"></div>' +
+            '<div><label>Forma de desligamento</label><select id="tg-res-forma">' +
+              '<option value="">Selecione...</option>' +
+              FORMAS_RESCISAO_TRIAGEM.map(function (f) { return '<option value="' + f.chave + '">' + esc(f.rotulo) + '</option>'; }).join('') +
+            '</select></div>' +
+            '<div><label>Tipo de aviso-prévio</label><input id="tg-res-aviso" value="' + esc(d.aviso_previo_tipo || '') + '"></div>' +
+          '</div>' +
+          '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">' +
+            htmlSimNaoTriagem('tg-res-trct', 'Recebeu TRCT?', d.trct_recebido) +
+            htmlSimNaoTriagem('tg-res-fgts', 'Recebeu as guias do FGTS?', d.fgts_guias_entregues) +
+            htmlSimNaoTriagem('tg-res-seguro', 'Recebeu seguro-desemprego?', d.seguro_desemprego_liberado) +
+            htmlSimNaoTriagem('tg-res-multa', 'Recebeu a multa de 40%?', d.multa_40_paga) +
+          '</div>' +
+          '<div id="tg-res-jc-wrap" class="triagem-campo-condicional hidden" style="margin-top:18px;">' +
+            '<p class="triagem-passo-sub" style="font-weight:600;margin-bottom:8px;">Análise da justa causa</p>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Qual foi a acusação da empresa?</label>' +
+            '<textarea id="tg-res-jc-acusacao" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.jc_acusacao || '') + '</textarea>' +
+            '<div class="procficha-editar-grid" style="margin-top:10px;">' +
+              '<div><label>Dias entre o fato e a demissão</label><input id="tg-res-jc-tempo" value="' + esc(d.jc_tempo_fato_demissao_dias || '') + '"></div>' +
+            '</div>' +
+            '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">' +
+              htmlSimNaoTriagem('tg-res-jc-adv', 'Existe advertência/suspensão anterior?', d.jc_advertencias_previas) +
+              htmlSimNaoTriagem('tg-res-jc-invest', 'Houve investigação formal?', d.jc_investigacao_formal) +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        montarPainelEstabilidadesTriagem(d.estabilidades_detectadas);
+
+      setSelectValueComFallback(document.getElementById('tg-res-forma'), d.forma_rescisao || '');
+      ['tg-res-trct', 'tg-res-fgts', 'tg-res-seguro', 'tg-res-multa', 'tg-res-jc-adv', 'tg-res-jc-invest'].forEach(function (id) { wireSimNaoTriagem(id); });
+      wireSimNaoTriagem('tg-res-terminou', function (valor) {
+        document.getElementById('tg-res-detalhe-wrap').classList.toggle('hidden', valor !== true);
+      });
+      var selectForma = document.getElementById('tg-res-forma');
+      function atualizarJustaCausaTriagem() {
+        document.getElementById('tg-res-jc-wrap').classList.toggle('hidden', selectForma.value !== 'justa_causa');
+      }
+      selectForma.addEventListener('change', atualizarJustaCausaTriagem);
+      atualizarJustaCausaTriagem();
+    }
+
+    function coletarPassoRescisaoTriagem() {
+      return {
+        contrato_terminou: lerSimNaoTriagem('tg-res-terminou'),
+        data_rescisao: document.getElementById('tg-res-data').value || null,
+        forma_rescisao: document.getElementById('tg-res-forma').value,
+        aviso_previo_tipo: document.getElementById('tg-res-aviso').value.trim(),
+        trct_recebido: lerSimNaoTriagem('tg-res-trct'),
+        fgts_guias_entregues: lerSimNaoTriagem('tg-res-fgts'),
+        seguro_desemprego_liberado: lerSimNaoTriagem('tg-res-seguro'),
+        multa_40_paga: lerSimNaoTriagem('tg-res-multa'),
+        jc_acusacao: document.getElementById('tg-res-jc-acusacao').value.trim(),
+        jc_tempo_fato_demissao_dias: document.getElementById('tg-res-jc-tempo').value.trim(),
+        jc_advertencias_previas: lerSimNaoTriagem('tg-res-jc-adv'),
+        jc_investigacao_formal: lerSimNaoTriagem('tg-res-jc-invest'),
+      };
+    }
+
     function renderPassoAtualTriagem(dadosExistentes) {
       renderBarraPassosTriagem();
       var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
@@ -9733,6 +9958,9 @@
       else if (passo === 'jornada') renderPassoJornadaTriagem(dadosExistentes);
       else if (passo === 'remuneracao') renderPassoRemuneracaoTriagem(dadosExistentes);
       else if (passo === 'irregularidades') renderPassoIrregularidadesTriagem(dadosExistentes);
+      else if (passo === 'saude') renderPassoSaudeTriagem(dadosExistentes);
+      else if (passo === 'assedio') renderPassoAssedioTriagem(dadosExistentes);
+      else if (passo === 'rescisao') renderPassoRescisaoTriagem(dadosExistentes);
     }
 
     function salvarPassoAtualEAvancarTriagem() {
@@ -9811,9 +10039,33 @@
         return;
       }
 
+      if (passo === 'saude') {
+        var corpoSaude = coletarPassoSaudeTriagem();
+        corpoSaude.id = estado.triagemId;
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'saude', percentual_conclusao: percentual }),
+          apiPostJson('/api/painel?acao=triagem_saude_salvar', corpoSaude),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
+      if (passo === 'assedio') {
+        var episodiosColetados = coletarPassoAssedioTriagem();
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'assedio', percentual_conclusao: percentual }),
+          apiPostJson('/api/painel?acao=triagem_assedio_salvar', { id: estado.triagemId, episodios: episodiosColetados }),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
       var corpo = passo === 'empresa' ? coletarPassoEmpresaTriagem()
         : passo === 'contrato' ? coletarPassoContratoTriagem()
-        : coletarPassoRemuneracaoTriagem();
+        : passo === 'remuneracao' ? coletarPassoRemuneracaoTriagem()
+        : coletarPassoRescisaoTriagem();
       corpo.id = estado.triagemId;
       if (proximoPasso) corpo.passo_atual = proximoPasso;
       corpo.percentual_conclusao = percentual;
