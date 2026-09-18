@@ -752,9 +752,10 @@ module.exports = async (req, res) => {
       res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
       return;
     }
+    var qsTriagemListar = (req.query && req.query.incluir_arquivadas) ? '&incluir_arquivadas=' + encodeURIComponent(req.query.incluir_arquivadas) : '';
     try {
       const resposta = await fetch(
-        base + '?action=triagem_listar&token=' + encodeURIComponent(tokenSessaoTriagemListar) + segredoQS
+        base + '?action=triagem_listar' + qsTriagemListar + '&token=' + encodeURIComponent(tokenSessaoTriagemListar) + segredoQS
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -883,6 +884,7 @@ module.exports = async (req, res) => {
     triagem_testemunhas_salvar: 'Erro de conexao ao salvar as testemunhas.',
     triagem_provas_salvar: 'Erro de conexao ao salvar as provas.',
     triagem_converter_processo: 'Erro de conexao ao converter a triagem em processo.',
+    triagem_restaurar: 'Erro de conexao ao restaurar a triagem.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

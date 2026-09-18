@@ -3015,6 +3015,7 @@
                 '<option value="aguardando_informacoes">Aguardando informações</option>' +
                 '<option value="concluida">Concluída</option>' +
                 '<option value="convertida">Convertida em caso/processo</option>' +
+                '<option value="arquivada">Arquivadas</option>' +
               '</select></div>' +
               '<div class="procpage-filtros-botoes">' +
                 '<button type="button" class="procpage-btn" id="triagem-filtro-limpar">Limpar</button>' +
@@ -9100,8 +9101,12 @@
   var _triagensTodasCarregadas = [];
 
   function _passaNosFiltrosTriagem(t, f) {
-    if (f.status && t.status !== f.status) return false;
-    if (!f.status && t.arquivado_em) return false;
+    if (f.status === 'arquivada') {
+      if (!t.arquivado_em) return false;
+    } else {
+      if (t.arquivado_em) return false;
+      if (f.status && t.status !== f.status) return false;
+    }
     if (f.busca) {
       var alvo = ((t.cliente_nome || '') + ' ' + (t.empresa_razao_social || '') + ' ' + (t.empresa_nome_fantasia || '')).toLowerCase();
       if (alvo.indexOf(f.busca) === -1) return false;
@@ -9134,7 +9139,8 @@
           '<td><a class="procpage-numero-link" href="painel-criar-triagem.html?id=' + t.id + '#sec-criar-triagem">' + esc(t.cliente_nome || 'Cliente não definido') + '</a></td>' +
           '<td>' + esc(t.empresa_razao_social || t.empresa_nome_fantasia || '—') + '</td>' +
           '<td style="color:var(--ink-faint);">' + esc(t.responsavel_email || '—') + '</td>' +
-          '<td><span class="chip triagem-chip-status ' + (CHIP_STATUS_TRIAGEM[t.status] || 'neutral') + '">' + esc(ROTULO_STATUS_TRIAGEM[t.status] || t.status) + '</span></td>' +
+          '<td><span class="chip triagem-chip-status ' + (CHIP_STATUS_TRIAGEM[t.status] || 'neutral') + '">' + esc(ROTULO_STATUS_TRIAGEM[t.status] || t.status) + '</span>' +
+            (t.arquivado_em ? ' <span class="chip neutral">Arquivada</span>' : '') + '</td>' +
           '<td style="color:var(--ink-faint);">' + (t.percentual_conclusao || 0) + '%</td>' +
           '<td style="color:var(--ink-faint);">' + fmtDataProcesso(String(t.atualizado_em || '').slice(0, 10)) + '</td>' +
           '<td>' +
@@ -9147,7 +9153,9 @@
                 '<div class="procman-acoes-menu hidden" data-triagem-menu="' + indice + '">' +
                   (t.convertido_processo_id ? '' : '<button type="button" data-triagem-converter="' + indice + '">Converter em Caso</button>') +
                   '<button type="button" data-triagem-duplicar="' + indice + '">Duplicar</button>' +
-                  '<button type="button" data-triagem-arquivar="' + indice + '">Arquivar</button>' +
+                  (t.arquivado_em
+                    ? '<button type="button" data-triagem-restaurar="' + indice + '">Restaurar</button>'
+                    : '<button type="button" data-triagem-arquivar="' + indice + '">Arquivar</button>') +
                   '<button type="button" class="procman-acao-excluir" data-triagem-excluir="' + indice + '">Excluir</button>' +
                 '</div>' +
               '</span>' +
@@ -9161,7 +9169,7 @@
   function carregarTriagens() {
     var lista = document.getElementById('triagem-lista');
     if (!lista) return;
-    apiGetJson('/api/painel?acao=triagem_listar')
+    apiGetJson('/api/painel?acao=triagem_listar&incluir_arquivadas=1')
       .then(function (dados) {
         _triagensTodasCarregadas = dados.triagens || [];
         var f = _lerFiltrosTriagemAtuais();
@@ -9235,6 +9243,15 @@
             .then(function () { carregarTriagens(); })
             .catch(function (e) { mostrarAviso(e.message || 'Não foi possível arquivar agora.'); });
         });
+        return;
+      }
+
+      var btnRestaurar = ev.target.closest('[data-triagem-restaurar]');
+      if (btnRestaurar) {
+        var tr = _triagensTodasCarregadas[btnRestaurar.getAttribute('data-triagem-restaurar')];
+        apiPostJson('/api/painel?acao=triagem_restaurar', { id: tr.id })
+          .then(function () { carregarTriagens(); })
+          .catch(function (e) { mostrarAviso(e.message || 'Não foi possível restaurar agora.'); });
         return;
       }
 
