@@ -3045,12 +3045,14 @@
               '</a>' +
               '<h2 class="procficha-numero" id="triagem-wizard-titulo">Nova Triagem Trabalhista</h2>' +
             '</div>' +
+            '<button type="button" class="procpage-btn" id="triagem-btn-pendencias">Verificar pendências</button>' +
           '</div>' +
 
           '<div class="triagem-passos" id="triagem-passos-barra"></div>' +
           '<div class="triagem-passo-legenda"><span id="triagem-passo-atual-label"></span><span id="triagem-passo-pct-label"></span></div>' +
 
           '<div id="triagem-wizard-erro"></div>' +
+          '<div id="triagem-painel-pendencias" class="triagem-campo-condicional hidden" style="margin-bottom:16px;"></div>' +
           '<div id="triagem-wizard-conteudo" class="procficha-painel"></div>' +
 
           '<div class="triagem-nav-passos">' +
@@ -10306,6 +10308,64 @@
       if (estado.passoIndex === 0) return;
       estado.passoIndex -= 1;
       renderPassoAtualTriagem(null);
+    });
+
+    // ---- Alertas e pendencias (fase 6) -- calculados no backend (triagem_regras.py) a partir
+    // dos dados atuais, sempre na hora (nao ficam guardados em tabela -- ver o modulo pra saber
+    // por que). O botao so busca a triagem de novo e mostra o que voltou; cada pendencia e
+    // clicavel e leva direto pro passo certo (clique-pro-campo pedido no plano original).
+    function _saltarParaPassoTriagem(nomePasso, dadosTriagem) {
+      var idx = PASSOS_WIZARD_TRIAGEM.indexOf(nomePasso);
+      if (idx === -1) return;
+      estado.passoIndex = idx;
+      document.getElementById('triagem-painel-pendencias').classList.add('hidden');
+      renderPassoAtualTriagem(dadosTriagem);
+    }
+
+    function _renderPainelPendenciasTriagem(triagem) {
+      var painel = document.getElementById('triagem-painel-pendencias');
+      var alertas = triagem.alertas || [];
+      var pendencias = triagem.pendencias || [];
+      if (!alertas.length && !pendencias.length) {
+        painel.innerHTML = '<p style="margin:0;font-size:13px;color:var(--ink-soft);">Nenhum alerta ou pendência identificado até agora. ✅</p>';
+      } else {
+        painel.innerHTML =
+          (alertas.length ? '<p style="font-weight:600;margin:0 0 8px;">Alertas</p>' +
+            alertas.map(function (a) {
+              var emoji = a.severidade === 'critico' ? '🔴' : '🟠';
+              return '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">' +
+                '<span>' + emoji + '</span>' +
+                '<span style="font-size:13px;color:var(--ink);flex:1;">' + esc(a.mensagem) + '</span>' +
+                '<button type="button" class="procpage-btn" data-triagem-ir-passo="' + esc(a.passo) + '" style="font-size:11.5px;padding:4px 10px;">Ver passo</button>' +
+              '</div>';
+            }).join('') : '') +
+          (pendencias.length ? '<p style="font-weight:600;margin:14px 0 8px;">Pendências</p>' +
+            pendencias.map(function (p) {
+              return '<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">' +
+                '<span style="font-size:13px;color:var(--ink);flex:1;">' + esc(p.mensagem) + '</span>' +
+                '<button type="button" class="procpage-btn" data-triagem-ir-passo="' + esc(p.passo) + '" style="font-size:11.5px;padding:4px 10px;">Ver passo</button>' +
+              '</div>';
+            }).join('') : '');
+      }
+      painel.classList.remove('hidden');
+      painel.querySelectorAll('[data-triagem-ir-passo]').forEach(function (btn) {
+        btn.addEventListener('click', function () { _saltarParaPassoTriagem(btn.getAttribute('data-triagem-ir-passo'), triagem); });
+      });
+    }
+
+    document.getElementById('triagem-btn-pendencias').addEventListener('click', function () {
+      var painel = document.getElementById('triagem-painel-pendencias');
+      if (!painel.classList.contains('hidden')) { painel.classList.add('hidden'); return; }
+      if (!estado.triagemId) {
+        erroWizardTriagem('Salve o passo Cliente primeiro pra poder verificar pendências.');
+        return;
+      }
+      var btn = document.getElementById('triagem-btn-pendencias');
+      btn.disabled = true;
+      apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId)
+        .then(function (d) { _renderPainelPendenciasTriagem(d.triagem); })
+        .catch(function () { erroWizardTriagem('Não foi possível verificar as pendências agora.'); })
+        .then(function () { btn.disabled = false; });
     });
 
     // Retomando uma triagem existente (?id=X na URL) -- busca tudo de uma vez e pula pro passo
