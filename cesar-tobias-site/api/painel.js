@@ -552,9 +552,11 @@ module.exports = async (req, res) => {
       return;
     }
     var processoIdDoc = (req.query && req.query.processo_id) || '';
+    var triagemIdDoc = (req.query && req.query.triagem_id) || '';
+    var qsDocListar = processoIdDoc ? '&processo_id=' + encodeURIComponent(processoIdDoc) : '&triagem_id=' + encodeURIComponent(triagemIdDoc);
     try {
       const resposta = await fetch(
-        base + '?action=documento_processo_listar&processo_id=' + encodeURIComponent(processoIdDoc) +
+        base + '?action=documento_processo_listar' + qsDocListar +
         '&token=' + encodeURIComponent(tokenSessaoDocListar) + segredoQS
       );
       const dados = await resposta.json();
@@ -878,6 +880,8 @@ module.exports = async (req, res) => {
     triagem_insalubridade_salvar: 'Erro de conexao ao salvar a insalubridade.',
     triagem_saude_salvar: 'Erro de conexao ao salvar a saude/seguranca.',
     triagem_assedio_salvar: 'Erro de conexao ao salvar os episodios de assedio.',
+    triagem_testemunhas_salvar: 'Erro de conexao ao salvar as testemunhas.',
+    triagem_provas_salvar: 'Erro de conexao ao salvar as provas.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

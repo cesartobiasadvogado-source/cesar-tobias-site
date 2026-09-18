@@ -9277,12 +9277,19 @@
     return v === 'sim' ? true : (v === 'nao' ? false : null);
   }
 
-  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades', 'saude', 'assedio', 'rescisao'];
+  var PASSOS_WIZARD_TRIAGEM = ['cliente', 'empresa', 'contrato', 'jornada', 'remuneracao', 'irregularidades', 'saude', 'assedio', 'rescisao', 'testemunhas', 'provas'];
   var ROTULOS_PASSO_WIZARD_TRIAGEM = {
     cliente: 'Cliente', empresa: 'Empresa', contrato: 'Contrato', jornada: 'Jornada',
     remuneracao: 'Remuneração', irregularidades: 'Irregularidades', saude: 'Saúde e Segurança',
-    assedio: 'Assédio e Discriminação', rescisao: 'Rescisão',
+    assedio: 'Assédio e Discriminação', rescisao: 'Rescisão', testemunhas: 'Testemunhas', provas: 'Provas',
   };
+  var CATEGORIAS_PROVA_TRIAGEM = [
+    { chave: 'documento', rotulo: 'Documento' }, { chave: 'whatsapp', rotulo: 'WhatsApp' },
+    { chave: 'email', rotulo: 'E-mail' }, { chave: 'audio', rotulo: 'Áudio' },
+    { chave: 'foto', rotulo: 'Foto' }, { chave: 'video', rotulo: 'Vídeo' },
+    { chave: 'comprovante_pagamento', rotulo: 'Comprovante de pagamento' }, { chave: 'ponto', rotulo: 'Cartão de ponto' },
+    { chave: 'testemunhal', rotulo: 'Prova testemunhal' }, { chave: 'outro', rotulo: 'Outro' },
+  ];
   var TIPOS_ASSEDIO_TRIAGEM = [
     { chave: 'assedio_moral', rotulo: 'Assédio moral' }, { chave: 'assedio_sexual', rotulo: 'Assédio sexual' },
     { chave: 'discriminacao_genero', rotulo: 'Discriminação de gênero' }, { chave: 'discriminacao_racial', rotulo: 'Discriminação racial' },
@@ -9320,6 +9327,8 @@
 
     var estado = { triagemId: null, passoIndex: 0, clienteModo: 'existente', clienteSelecionadoId: null };
     var _episodiosAssedioTriagem = [];
+    var _testemunhasTriagem = [];
+    var _provasTriagem = [];
     var _clientesCacheTriagem = null;
 
     function renderBarraPassosTriagem() {
@@ -9949,6 +9958,200 @@
       };
     }
 
+    // ---- passo Testemunhas (fase 5) -- lista dinamica, mesmo padrao "+ adicionar" do assedio.
+    function renderPassoTestemunhasTriagem(d) {
+      d = d || {};
+      _testemunhasTriagem = (d.testemunhas || []).slice();
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Testemunhas</p>' +
+        '<p class="triagem-passo-sub">Pessoas que podem confirmar os fatos relatados — pode adicionar quantas precisar.</p>' +
+        '<div id="tg-test-lista"></div>' +
+        '<button type="button" class="procpage-btn" id="tg-test-adicionar" style="margin-top:10px;">+ Adicionar testemunha</button>';
+      _renderListaTestemunhasTriagem();
+      document.getElementById('tg-test-adicionar').addEventListener('click', function () {
+        _testemunhasTriagem.push({});
+        _renderListaTestemunhasTriagem();
+      });
+    }
+
+    function _renderListaTestemunhasTriagem() {
+      var lista = document.getElementById('tg-test-lista');
+      if (!_testemunhasTriagem.length) {
+        lista.innerHTML = '<p style="color:var(--ink-faint);font-size:13px;">Nenhuma testemunha cadastrada ainda.</p>';
+        return;
+      }
+      lista.innerHTML = _testemunhasTriagem.map(function (t, i) {
+        return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
+          '<button type="button" class="procman-acao-excluir" data-test-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Nome</label><input id="tg-test-nome-' + i + '" value="' + esc(t.nome || '') + '"></div>' +
+            '<div><label>Telefone</label><input id="tg-test-tel-' + i + '" value="' + esc(t.telefone || '') + '"></div>' +
+            '<div><label>Empresa em que trabalhou junto</label><input id="tg-test-emp-' + i + '" value="' + esc(t.empresa_trabalhou || '') + '"></div>' +
+            '<div><label>Cargo</label><input id="tg-test-cargo-' + i + '" value="' + esc(t.cargo || '') + '"></div>' +
+            '<div><label>Período que conviveram</label><input id="tg-test-periodo-' + i + '" value="' + esc(t.periodo_conviveu || '') + '"></div>' +
+            '<div><label>Relação com o cliente</label><input id="tg-test-relacao-' + i + '" value="' + esc(t.relacao_com_cliente || '') + '"></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            htmlSimNaoTriagem('tg-test-ativa-' + i, 'Ainda trabalha na empresa?', t.ainda_trabalha_na_empresa) +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Fatos que pode presenciar/confirmar</label>' +
+            '<textarea id="tg-test-fatos-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(t.fatos_presenciados || '') + '</textarea>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      _testemunhasTriagem.forEach(function (t, i) { wireSimNaoTriagem('tg-test-ativa-' + i); });
+
+      lista.querySelectorAll('[data-test-remover]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          _testemunhasTriagem.splice(parseInt(btn.getAttribute('data-test-remover'), 10), 1);
+          _renderListaTestemunhasTriagem();
+        });
+      });
+    }
+
+    function coletarPassoTestemunhasTriagem() {
+      return _testemunhasTriagem.map(function (t, i) {
+        return {
+          nome: document.getElementById('tg-test-nome-' + i).value.trim(),
+          telefone: document.getElementById('tg-test-tel-' + i).value.trim(),
+          empresa_trabalhou: document.getElementById('tg-test-emp-' + i).value.trim(),
+          cargo: document.getElementById('tg-test-cargo-' + i).value.trim(),
+          periodo_conviveu: document.getElementById('tg-test-periodo-' + i).value.trim(),
+          relacao_com_cliente: document.getElementById('tg-test-relacao-' + i).value.trim(),
+          fatos_presenciados: document.getElementById('tg-test-fatos-' + i).value.trim(),
+          ainda_trabalha_na_empresa: lerSimNaoTriagem('tg-test-ativa-' + i),
+        };
+      });
+    }
+
+    // ---- passo Provas (fase 5) -- lista dinamica com upload opcional pro Drive por item,
+    // reaproveitando o mesmo mecanismo em pedacos ja usado pros documentos de processo
+    // (documento_processo_upload_iniciar/chunk/finalizar, so trocando processo_id por
+    // triagem_id -- ver documentos_processuais.py, que ganhou suporte a isso na fase 5).
+    function renderPassoProvasTriagem(d) {
+      d = d || {};
+      _provasTriagem = (d.provas || []).slice();
+      conteudo.innerHTML =
+        '<p class="triagem-passo-titulo">Central de provas</p>' +
+        '<p class="triagem-passo-sub">Cadastre cada prova (disponível ou ainda a obter) — pode anexar um arquivo quando já estiver disponível.</p>' +
+        '<div id="tg-prova-lista"></div>' +
+        '<button type="button" class="procpage-btn" id="tg-prova-adicionar" style="margin-top:10px;">+ Adicionar prova</button>';
+      _renderListaProvasTriagem();
+      document.getElementById('tg-prova-adicionar').addEventListener('click', function () {
+        _provasTriagem.push({ categoria: 'documento', status: 'a_obter' });
+        _renderListaProvasTriagem();
+      });
+    }
+
+    function _renderListaProvasTriagem() {
+      var lista = document.getElementById('tg-prova-lista');
+      if (!_provasTriagem.length) {
+        lista.innerHTML = '<p style="color:var(--ink-faint);font-size:13px;">Nenhuma prova cadastrada ainda.</p>';
+        return;
+      }
+      lista.innerHTML = _provasTriagem.map(function (p, i) {
+        var statusInfo = p.documento_id
+          ? '<span class="chip good" style="margin-left:8px;">Arquivo anexado</span>'
+          : '';
+        return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
+          '<button type="button" class="procman-acao-excluir" data-prova-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
+          '<div class="procficha-editar-grid">' +
+            '<div><label>Categoria</label><select id="tg-prova-cat-' + i + '">' +
+              CATEGORIAS_PROVA_TRIAGEM.map(function (c) { return '<option value="' + c.chave + '">' + esc(c.rotulo) + '</option>'; }).join('') +
+            '</select></div>' +
+            '<div><label>Relacionada a qual fato?</label><input id="tg-prova-fato-' + i + '" value="' + esc(p.fato_relacionado || '') + '"></div>' +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Descrição</label>' +
+            '<textarea id="tg-prova-desc-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(p.descricao || '') + '</textarea>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">' +
+            htmlSimNaoTriagem('tg-prova-disp-' + i, 'Já está disponível?', p.status === 'disponivel') +
+            '<label style="font-size:12.5px;color:var(--ink-soft);cursor:pointer;">Anexar arquivo <input type="file" data-prova-arquivo="' + i + '" style="display:none;"></label>' +
+            statusInfo +
+          '</div>' +
+          '<div id="tg-prova-upload-status-' + i + '" style="font-size:12px;color:var(--ink-faint);margin-top:4px;"></div>' +
+        '</div>';
+      }).join('');
+
+      _provasTriagem.forEach(function (p, i) {
+        setSelectValueComFallback(document.getElementById('tg-prova-cat-' + i), p.categoria || 'documento');
+        wireSimNaoTriagem('tg-prova-disp-' + i);
+      });
+
+      lista.querySelectorAll('[data-prova-remover]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          _provasTriagem.splice(parseInt(btn.getAttribute('data-prova-remover'), 10), 1);
+          _renderListaProvasTriagem();
+        });
+      });
+
+      lista.querySelectorAll('[data-prova-arquivo]').forEach(function (input) {
+        input.addEventListener('change', function () {
+          var i = parseInt(input.getAttribute('data-prova-arquivo'), 10);
+          if (input.files && input.files[0]) _enviarArquivoProvaTriagem(i, input.files[0]);
+        });
+      });
+    }
+
+    function _enviarArquivoProvaTriagem(i, arquivo) {
+      if (arquivo.size > 10 * 1024 * 1024) {
+        document.getElementById('tg-prova-upload-status-' + i).textContent = 'Arquivo maior que 10 MB.';
+        return;
+      }
+      var statusEl = document.getElementById('tg-prova-upload-status-' + i);
+      statusEl.textContent = 'Enviando…';
+      function enviarPedacos(uploadId, tamanhoChunk) {
+        var offset = 0;
+        function proximoPedaco() {
+          if (offset >= arquivo.size) return Promise.resolve(uploadId);
+          var pedaco = arquivo.slice(offset, offset + tamanhoChunk);
+          return pedaco.arrayBuffer().then(function (buffer) {
+            return apiPostJson('/api/painel?acao=documento_processo_upload_chunk', {
+              upload_id: uploadId, dados_base64: _arrayBufferParaBase64Doc(buffer)
+            });
+          }).then(function () {
+            offset += tamanhoChunk;
+            statusEl.textContent = Math.min(100, Math.round((offset / arquivo.size) * 100)) + '% enviado';
+            return proximoPedaco();
+          });
+        }
+        return proximoPedaco();
+      }
+      apiPostJson('/api/painel?acao=documento_processo_upload_iniciar', {
+        triagem_id: estado.triagemId, nome_arquivo: arquivo.name,
+        mimetype: arquivo.type || 'application/octet-stream', tamanho_total: arquivo.size,
+      })
+        .then(function (dados) { return enviarPedacos(dados.upload_id, dados.tamanho_chunk); })
+        .then(function (uploadId) {
+          statusEl.textContent = 'Concluindo…';
+          return apiPostJson('/api/painel?acao=documento_processo_upload_finalizar', { upload_id: uploadId });
+        })
+        .then(function (resp) {
+          _provasTriagem[i].documento_id = resp.id;
+          _provasTriagem[i].status = 'disponivel';
+          _renderListaProvasTriagem();
+        })
+        .catch(function (e) {
+          statusEl.textContent = 'Não foi possível enviar: ' + (e.message || 'erro desconhecido');
+        });
+    }
+
+    function coletarPassoProvasTriagem() {
+      return _provasTriagem.map(function (p, i) {
+        var disponivel = lerSimNaoTriagem('tg-prova-disp-' + i);
+        return {
+          categoria: document.getElementById('tg-prova-cat-' + i).value,
+          fato_relacionado: document.getElementById('tg-prova-fato-' + i).value.trim(),
+          descricao: document.getElementById('tg-prova-desc-' + i).value.trim(),
+          status: disponivel ? 'disponivel' : 'a_obter',
+          documento_id: p.documento_id || null,
+        };
+      });
+    }
+
     function renderPassoAtualTriagem(dadosExistentes) {
       renderBarraPassosTriagem();
       var passo = PASSOS_WIZARD_TRIAGEM[estado.passoIndex];
@@ -9961,6 +10164,8 @@
       else if (passo === 'saude') renderPassoSaudeTriagem(dadosExistentes);
       else if (passo === 'assedio') renderPassoAssedioTriagem(dadosExistentes);
       else if (passo === 'rescisao') renderPassoRescisaoTriagem(dadosExistentes);
+      else if (passo === 'testemunhas') renderPassoTestemunhasTriagem(dadosExistentes);
+      else if (passo === 'provas') renderPassoProvasTriagem(dadosExistentes);
     }
 
     function salvarPassoAtualEAvancarTriagem() {
@@ -10056,6 +10261,28 @@
         Promise.all([
           apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'assedio', percentual_conclusao: percentual }),
           apiPostJson('/api/painel?acao=triagem_assedio_salvar', { id: estado.triagemId, episodios: episodiosColetados }),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
+      if (passo === 'testemunhas') {
+        var testemunhasColetadas = coletarPassoTestemunhasTriagem();
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'testemunhas', percentual_conclusao: percentual }),
+          apiPostJson('/api/painel?acao=triagem_testemunhas_salvar', { id: estado.triagemId, testemunhas: testemunhasColetadas }),
+        ])
+          .then(irParaProximoPasso)
+          .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
+        return;
+      }
+
+      if (passo === 'provas') {
+        var provasColetadas = coletarPassoProvasTriagem();
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_atualizar', { id: estado.triagemId, passo_atual: proximoPasso || 'provas', percentual_conclusao: percentual }),
+          apiPostJson('/api/painel?acao=triagem_provas_salvar', { id: estado.triagemId, provas: provasColetadas }),
         ])
           .then(irParaProximoPasso)
           .catch(function (e) { btnAvancar.disabled = false; erroWizardTriagem(e.message || 'Não foi possível salvar agora.'); });
