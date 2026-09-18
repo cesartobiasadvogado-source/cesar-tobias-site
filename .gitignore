@@ -1,0 +1,12 @@
+# Arquivo solto de mockup/referencia visual, nao linkado em nenhuma navegacao do site --
+# ja entrou por engano no git 2x nesta sessao via um glob cesar-tobias-site/*.html. Fica no
+# disco (o Cesar as vezes usa como referencia), mas nunca deve ser versionado/publicado.
+cesar-tobias-site/mapa-estelar-financeiro.html
+
+# Dependencias/artefatos locais que nao fazem parte do site publicado.
+node_modules/
+package.json
+package-lock.json
+
+# Logs de scripts locais (manutencao do Windows/Google Drive), nao fazem parte do repo.
+*_log.txt
