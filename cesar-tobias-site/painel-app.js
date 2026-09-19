@@ -10452,7 +10452,8 @@
       });
     }
 
-    function _montarDocDefinicaoPdfTriagem(t) {
+    function _montarDocDefinicaoPdfTriagem(t, documentosPorId) {
+      documentosPorId = documentosPorId || {};
       var conteudo = [];
       var agora = new Date();
       var dataHoraGeracao = fmtDataProcesso(agora.toISOString().slice(0, 10)) + ' às ' +
@@ -10650,7 +10651,13 @@
         conteudo.push({ text: '19. Documentos/provas apresentados', style: 'subsecao' });
         if (provasDisponiveis.length) {
           provasDisponiveis.forEach(function (p) {
-            conteudo.push({ text: '• ' + _rotuloPorChaveTriagem(CATEGORIAS_PROVA_TRIAGEM, p.categoria) + (p.descricao ? ' -- ' + p.descricao : '') + (p.documento_id ? ' (arquivo anexado na plataforma)' : ''), style: 'corpo' });
+            conteudo.push({ text: '• ' + _rotuloPorChaveTriagem(CATEGORIAS_PROVA_TRIAGEM, p.categoria) + (p.descricao ? ' -- ' + p.descricao : ''), style: 'corpo' });
+            var doc = p.documento_id ? documentosPorId[p.documento_id] : null;
+            if (doc) {
+              conteudo.push({ text: [{ text: '↳ Arquivo: ', italics: true }, { text: doc.nome_arquivo, link: doc.link, color: '#2c5ce0', decoration: 'underline' }], style: 'corpo', margin: [10, 0, 0, 4] });
+            } else if (p.documento_id) {
+              conteudo.push({ text: '↳ Arquivo anexado na plataforma (não foi possível recuperar o link agora).', style: 'corpo', italics: true, margin: [10, 0, 0, 4] });
+            }
           });
         } else {
           conteudo.push({ text: 'Nenhuma prova/documento disponível cadastrado.', style: 'corpo' });
@@ -10722,10 +10729,20 @@
       btn.disabled = true;
       btn.textContent = 'Gerando PDF...';
       erroWizardTriagem('');
-      apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId)
-        .then(function (d) { return _garantirPdfMakeCarregado().then(function () { return d.triagem; }); })
-        .then(function (triagem) {
-          var docDefinicao = _montarDocDefinicaoPdfTriagem(triagem);
+      Promise.all([
+        apiGetJson('/api/painel?acao=triagem_obter&id=' + estado.triagemId),
+        // Busca os documentos ja enviados pro Drive ligados a essa triagem, pra poder mostrar
+        // nome do arquivo + link clicavel no PDF (sem isso, uma prova com arquivo anexado so
+        // aparecia com um texto generico "(arquivo anexado)", sem identificar QUAL arquivo --
+        // bug real reportado pelo usuario).
+        apiGetJson('/api/painel?acao=documento_processo_listar&triagem_id=' + estado.triagemId).catch(function () { return { documentos: [] }; }),
+        _garantirPdfMakeCarregado(),
+      ])
+        .then(function (resultados) {
+          var triagem = resultados[0].triagem;
+          var documentosPorId = {};
+          (resultados[1].documentos || []).forEach(function (doc) { documentosPorId[doc.id] = doc; });
+          var docDefinicao = _montarDocDefinicaoPdfTriagem(triagem, documentosPorId);
           var pdf = pdfMake.createPdf(docDefinicao);
           if (modo === 'baixar') pdf.download(_nomeArquivoPdfTriagem(triagem));
           else pdf.open();
