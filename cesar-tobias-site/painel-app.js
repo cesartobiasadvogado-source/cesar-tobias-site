@@ -873,6 +873,7 @@
       if (!r.ok) {
         var erro = new Error((dados && dados.erro) || ('Erro ' + r.status));
         erro.status = r.status;
+        erro.dados = dados || {};  // corpo completo do erro (ex: processo_id_existente no 409)
         throw erro;
       }
       return dados;
@@ -11527,12 +11528,20 @@
             btnImportar.disabled = true;
             var total = linhasSelecionadas.length;
             var concluidos = 0;
+            var jaExistiam = 0;
             var falhas = 0;
 
             function importarProximo(pos) {
               if (pos >= linhasSelecionadas.length) {
                 btnImportar.disabled = false;
-                statusEl.textContent = concluidos + ' de ' + total + ' importado(s)' + (falhas ? ', ' + falhas + ' falhou(aram)' : '') + '.';
+                // "pula os repetidos e segue com os demais" -- cada linha e uma chamada
+                // independente (uma por processo selecionado), entao um 409 numa nao interrompe
+                // as seguintes; o resumo final separa "ja existia" de falha de verdade, em vez de
+                // misturar os dois num "falhou" generico.
+                var partes = [concluidos + ' de ' + total + ' importado(s)'];
+                if (jaExistiam) partes.push(jaExistiam + ' já existia(m)');
+                if (falhas) partes.push(falhas + ' falhou(aram)');
+                statusEl.textContent = partes.join(', ') + '.';
                 if (concluidos > 0) carregarProcessosManuais();
                 return;
               }
@@ -11547,7 +11556,10 @@
                 origem: 'oab',
               })
                 .then(function () { concluidos += 1; importarProximo(pos + 1); })
-                .catch(function () { falhas += 1; importarProximo(pos + 1); });
+                .catch(function (e) {
+                  if (e.status === 409) jaExistiam += 1; else falhas += 1;
+                  importarProximo(pos + 1);
+                });
             }
             importarProximo(0);
           });
@@ -11683,7 +11695,11 @@
         })
         .catch(function (e) {
           btnSalvar.disabled = false; btnSalvar.textContent = estaEditando ? 'Salvar alterações' : 'Salvar processo';
-          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
+          var idExistente = e.status === 409 ? (e.dados || {}).processo_id_existente : null;
+          erroDiv.innerHTML = idExistente
+            ? '<div class="aviso-tenant">' + esc(e.message || 'Já existe um processo cadastrado com esse número.') +
+                ' <a href="painel-processos.html?processo=' + idExistente + '#sec-processos" style="color:inherit;font-weight:600;">Abrir a ficha dele</a></div>'
+            : '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar agora.') + '</div>';
         });
     });
 
