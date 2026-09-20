@@ -2438,6 +2438,16 @@
     if (p.ultima_consulta_ok_em) {
       partes.push('Última consulta ao DataJud com sucesso: <strong>' + _fmtDataHoraSaoPaulo(p.ultima_consulta_ok_em) + '</strong>.');
     }
+    if (p.status_sincronizacao === 'sem_dados') {
+      // A consulta funcionou (por isso ultima_consulta_ok_em esta preenchida acima), mas o
+      // DataJud nao tem esse processo na base publica -- sem isso, a ficha so mostrava "ultima
+      // consulta com sucesso" e dava a falsa impressao de que o processo estava monitorado, sem
+      // deixar claro que nenhum andamento sera capturado automaticamente enquanto isso persistir.
+      partes.push(
+        '<span style="background:var(--accent-soft); color:var(--accent); padding:2px 8px; border-radius:5px; display:inline-block;">' +
+        'Processo não localizado na base pública do CNJ. Sem monitoramento automático. Acompanhe pelo PJe.</span>'
+      );
+    }
     if (p.base_datajud_atualizada_em) {
       var textoBase = 'Base do CNJ atualizada até ' + _fmtDataSemHora(p.base_datajud_atualizada_em) + '.';
       var diasBase = _diasDesde(p.base_datajud_atualizada_em);
@@ -3063,6 +3073,7 @@
 
             '<div id="procpage-aviso-nao-cadastrados"></div>' +
             '<div id="procpage-aviso-sincronizacao"></div>' +
+            '<div id="procpage-aviso-sem-monitoramento"></div>' +
 
             '<div class="procpage-filtros">' +
               '<p class="procpage-filtros-titulo">Busca avançada</p>' +
@@ -8593,6 +8604,7 @@
         var f = _lerFiltrosProcessoAtuais();
         _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
         _renderAvisoSincronizacaoComProblema(_processosManuaisTodos);
+        _renderAvisoSemMonitoramento(_processosManuaisTodos);
         var idProcessoNaUrl = new URLSearchParams(window.location.search).get('processo');
         if (idProcessoNaUrl) {
           var processoDaUrl = _processosManuaisTodos.filter(function (p) { return String(p.id) === idProcessoNaUrl; })[0];
@@ -8632,6 +8644,27 @@
     var resto = problematicos.length > 8 ? '<li>e mais ' + (problematicos.length - 8) + ' processo(s)...</li>' : '';
     alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px; background:var(--crit-soft); color:var(--crit);">' +
       '<strong>⚠️ Sincronização com problema (' + problematicos.length + ' processo(s)):</strong>' +
+      '<ul style="margin:6px 0 0; padding-left:18px; line-height:1.6;">' + linhas + resto + '</ul>' +
+    '</div>';
+  }
+
+  // Separado do bloco de "problema" de proposito: sem_dados nao e uma falha (a consulta ao
+  // DataJud funcionou certinho), e sim um processo que a base publica do CNJ simplesmente nao
+  // tem -- misturar com erro_fonte/numero_invalido passaria a impressao errada de que precisa de
+  // acao corretiva. Aqui e so um aviso informativo de que esses processos nao tem monitoramento
+  // automatico, pra o advogado saber que precisa acompanhar pelo PJe manualmente.
+  function _renderAvisoSemMonitoramento(processos) {
+    var alvo = document.getElementById('procpage-aviso-sem-monitoramento');
+    if (!alvo) return;
+    var semMonitoramento = processos.filter(function (p) { return p.status_sincronizacao === 'sem_dados'; });
+    if (!semMonitoramento.length) { alvo.innerHTML = ''; return; }
+    var linhas = semMonitoramento.slice(0, 8).map(function (p) {
+      return '<li>' + esc(p.numero_cnj || p.cliente_nome) + '</li>';
+    }).join('');
+    var resto = semMonitoramento.length > 8 ? '<li>e mais ' + (semMonitoramento.length - 8) + ' processo(s)...</li>' : '';
+    alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px; background:var(--accent-soft); color:var(--accent);">' +
+      '<strong>Sem monitoramento automático (' + semMonitoramento.length + ' processo(s)):</strong> ' +
+      'não localizados na base pública do CNJ — acompanhe pelo PJe.' +
       '<ul style="margin:6px 0 0; padding-left:18px; line-height:1.6;">' + linhas + resto + '</ul>' +
     '</div>';
   }
