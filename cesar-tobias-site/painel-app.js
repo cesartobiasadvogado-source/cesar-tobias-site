@@ -2374,6 +2374,74 @@
     return d.toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  // Fase 1 do diagnostico de sincronizacao (ver processos_manuais.py, migrations/034): quantos
+  // dias inteiros se passaram desde uma data ISO -- usado tanto na ficha do processo (item 3)
+  // quanto no bloco "Sincronizacao com problema" do painel (item 4), pra achar processo parado
+  // ha mais de N dias.
+  function _diasDesde(iso) {
+    if (!iso) return null;
+    return (Date.now() - new Date(iso).getTime()) / 86400000;
+  }
+
+  function _fmtTempoDesde(iso) {
+    var dias = _diasDesde(iso);
+    if (dias === null) return '';
+    if (dias < 1) return 'há poucas horas';
+    var inteiro = Math.floor(dias);
+    return 'há ' + inteiro + (inteiro === 1 ? ' dia' : ' dias');
+  }
+
+  function _fmtDataSemHora(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  // Ajuste do item 2 (Fase 1, apos revisao): ha quantos dias a base publica do DataJud/CNJ foi
+  // atualizada pela ultima vez pra este processo, alem de quantos dias desde a NOSSA ultima
+  // consulta bem-sucedida. O limiar de 7 dias so decide o destaque visual (amarelo) -- nao muda
+  // nenhum dado, so chama atencao porque o DataJud tem defasagem propria (ver datajud.py) e um
+  // processo "sincronizado" pode mesmo assim estar com a base do tribunal desatualizada havia
+  // semanas.
+  var LIMIAR_DIAS_BASE_DATAJUD_DESATUALIZADA = 7;
+
+  // Resumo do status da sincronizacao automatica via DataJud pra exibir na aba Andamentos da
+  // ficha, ao lado do botao "Sincronizar agora" -- status_sincronizacao/ultima_consulta_ok_em/
+  // ultimo_erro_em/ultimo_erro_msg/base_datajud_atualizada_em vem de
+  // processos_manuais.listar_processos_manuais (migrations 034 e 035). status_sincronizacao NULL
+  // (processo nunca passou pelo ciclo automatico, ou foi cadastrado antes dessa migration) mostra
+  // "Nunca sincronizado".
+  function _htmlStatusSincronizacaoDatajud(p) {
+    if (!p.status_sincronizacao) {
+      return '<span style="color:var(--ink-faint);">Nunca sincronizado.</span>';
+    }
+    var partes = [];
+    if (p.ultima_consulta_ok_em) {
+      partes.push('Última consulta ao DataJud com sucesso: <strong>' + fmtDataHora(p.ultima_consulta_ok_em) + '</strong>.');
+    }
+    if (p.base_datajud_atualizada_em) {
+      var textoBase = 'Base do CNJ atualizada até ' + _fmtDataSemHora(p.base_datajud_atualizada_em) + '.';
+      var diasBase = _diasDesde(p.base_datajud_atualizada_em);
+      if (diasBase !== null && diasBase > LIMIAR_DIAS_BASE_DATAJUD_DESATUALIZADA) {
+        partes.push(
+          '<span style="background:var(--warn-soft); color:var(--warn); padding:2px 8px; border-radius:5px; display:inline-block;">' +
+          textoBase + ' Dados do tribunal podem estar desatualizados. Confira no PJe.</span>'
+        );
+      } else {
+        partes.push(textoBase);
+      }
+    }
+    if (p.ultimo_erro_em) {
+      partes.push(
+        '<span style="color:var(--crit);">⚠️ Falha na sincronização ' + _fmtTempoDesde(p.ultimo_erro_em) +
+        ' (' + fmtDataHora(p.ultimo_erro_em) + '): ' + esc(p.ultimo_erro_msg || 'erro desconhecido') + '</span>'
+      );
+    }
+    if (!partes.length) {
+      partes.push('<span style="color:var(--ink-faint);">Nunca sincronizado.</span>');
+    }
+    return partes.join('<br>');
+  }
+
   function renderPainel(dados) {
     var avisoTenant = document.getElementById('aviso-tenant-incompleto');
     if (avisoTenant) avisoTenant.remove();
@@ -2961,6 +3029,7 @@
             '</div>' +
 
             '<div id="procpage-aviso-nao-cadastrados"></div>' +
+            '<div id="procpage-aviso-sincronizacao"></div>' +
 
             '<div class="procpage-filtros">' +
               '<p class="procpage-filtros-titulo">Busca avançada</p>' +
@@ -8490,6 +8559,7 @@
         _processosManuaisTodos = dados.processos || [];
         var f = _lerFiltrosProcessoAtuais();
         _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
+        _renderAvisoSincronizacaoComProblema(_processosManuaisTodos);
         var idProcessoNaUrl = new URLSearchParams(window.location.search).get('processo');
         if (idProcessoNaUrl) {
           var processoDaUrl = _processosManuaisTodos.filter(function (p) { return String(p.id) === idProcessoNaUrl; })[0];
@@ -8499,6 +8569,38 @@
       .catch(function () {
         lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar os processos agora.</div></div>';
       });
+  }
+
+  // Fase 1 do diagnostico de sincronizacao: junta num so lugar os processos cuja sincronizacao
+  // automatica via DataJud esta com problema -- erro_fonte (falha HTTP/rede/timeout),
+  // numero_invalido (numero_cnj/tribunal mal cadastrado), ou parado ha mais de 3 dias sem
+  // conseguir consultar com sucesso (ultima_consulta_ok_em velha ou nunca preenchida em processo
+  // monitorado). So conta "parado" quem de fato deveria estar sendo monitorado (numero_cnj e
+  // tribunal preenchidos) -- processo sem numero_cnj ja cai no caso 'numero_invalido' acima.
+  var LIMIAR_DIAS_SINCRONIZACAO_PARADA = 3;
+
+  function _renderAvisoSincronizacaoComProblema(processos) {
+    var alvo = document.getElementById('procpage-aviso-sincronizacao');
+    if (!alvo) return;
+    var problematicos = processos.filter(function (p) {
+      if (p.status_sincronizacao === 'erro_fonte' || p.status_sincronizacao === 'numero_invalido') return true;
+      if (!_numeroCnjValidoParaDatajud(p.numero_cnj) || !p.tribunal) return false;
+      var dias = _diasDesde(p.ultima_consulta_ok_em);
+      return dias !== null && dias > LIMIAR_DIAS_SINCRONIZACAO_PARADA;
+    });
+    if (!problematicos.length) { alvo.innerHTML = ''; return; }
+    var linhas = problematicos.slice(0, 8).map(function (p) {
+      var motivo;
+      if (p.status_sincronizacao === 'erro_fonte') motivo = 'erro: ' + (p.ultimo_erro_msg || 'falha na consulta ao DataJud');
+      else if (p.status_sincronizacao === 'numero_invalido') motivo = 'número do processo ou tribunal inválido: ' + (p.ultimo_erro_msg || '');
+      else motivo = 'sem conseguir sincronizar ' + _fmtTempoDesde(p.ultima_consulta_ok_em);
+      return '<li>' + esc(p.numero_cnj || p.cliente_nome) + ' — ' + esc(motivo) + '</li>';
+    }).join('');
+    var resto = problematicos.length > 8 ? '<li>e mais ' + (problematicos.length - 8) + ' processo(s)...</li>' : '';
+    alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px; background:var(--crit-soft); color:var(--crit);">' +
+      '<strong>⚠️ Sincronização com problema (' + problematicos.length + ' processo(s)):</strong>' +
+      '<ul style="margin:6px 0 0; padding-left:18px; line-height:1.6;">' + linhas + resto + '</ul>' +
+    '</div>';
   }
 
   var ABAS_FICHA_PROCESSO = [
@@ -8665,6 +8767,7 @@
               '<button type="button" class="procpage-btn" id="procficha-btn-sincronizar-agora">Sincronizar agora</button>' +
               '<span id="procficha-sincronizar-status" style="font-size:12.5px; color:var(--ink-faint); align-self:center;"></span>' +
             '</div>' +
+            '<p id="procficha-sincronizacao-info" style="font-size:12.5px; margin:-6px 0 14px; line-height:1.6;">' + _htmlStatusSincronizacaoDatajud(p) + '</p>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
             (p.numero_cnj ? (
               '<div style="margin-top:10px; font-size:12.5px; color:var(--ink-faint);">' +
