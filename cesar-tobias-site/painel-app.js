@@ -2391,9 +2391,29 @@
     return 'há ' + inteiro + (inteiro === 1 ? ' dia' : ' dias');
   }
 
+  // Os 3 formatadores abaixo sao de uso EXCLUSIVO dos campos novos da Fase 1
+  // (ultima_consulta_ok_em/ultimo_erro_em/base_datajud_atualizada_em, todos TIMESTAMPTZ vindos
+  // do Postgres com offset real na string) -- por isso especificam timeZone: 'America/Sao_Paulo'
+  // explicitamente, em vez de depender do fuso do sistema operacional de quem esta vendo a tela.
+  // Nao reaproveita fmtDataHora (usada em varios outros lugares do painel, inclusive no "Gerado
+  // em" do masthead) de proposito -- mudar o fmtDataHora compartilhado mudaria esses outros
+  // lugares tambem, o que nao foi pedido nem avaliado aqui.
+  function _fmtDataHoraSaoPaulo(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Sao_Paulo',
+    });
+  }
+
   function _fmtDataSemHora(iso) {
     if (!iso) return '';
-    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+  }
+
+  function _fmtDataDiaMes(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
   }
 
   // Ajuste do item 2 (Fase 1, apos revisao): ha quantos dias a base publica do DataJud/CNJ foi
@@ -2416,7 +2436,7 @@
     }
     var partes = [];
     if (p.ultima_consulta_ok_em) {
-      partes.push('Última consulta ao DataJud com sucesso: <strong>' + fmtDataHora(p.ultima_consulta_ok_em) + '</strong>.');
+      partes.push('Última consulta ao DataJud com sucesso: <strong>' + _fmtDataHoraSaoPaulo(p.ultima_consulta_ok_em) + '</strong>.');
     }
     if (p.base_datajud_atualizada_em) {
       var textoBase = 'Base do CNJ atualizada até ' + _fmtDataSemHora(p.base_datajud_atualizada_em) + '.';
@@ -2431,10 +2451,23 @@
       }
     }
     if (p.ultimo_erro_em) {
-      partes.push(
-        '<span style="color:var(--crit);">⚠️ Falha na sincronização ' + _fmtTempoDesde(p.ultimo_erro_em) +
-        ' (' + fmtDataHora(p.ultimo_erro_em) + '): ' + esc(p.ultimo_erro_msg || 'erro desconhecido') + '</span>'
-      );
+      // So e "problema atual" se o erro for mais recente que a ultima consulta bem-sucedida (ou
+      // se nunca houve consulta bem-sucedida nenhuma) -- o backend nunca limpa ultimo_erro_em
+      // num sucesso seguinte (proposital, ver migration 034), entao sem essa comparacao um erro
+      // de semanas atras, ja corrigido, ficaria mostrando alerta vermelho pra sempre.
+      var erroEhAtual = !p.ultima_consulta_ok_em ||
+        new Date(p.ultimo_erro_em).getTime() > new Date(p.ultima_consulta_ok_em).getTime();
+      if (erroEhAtual) {
+        partes.push(
+          '<span style="color:var(--crit);">⚠️ Falha na sincronização ' + _fmtTempoDesde(p.ultimo_erro_em) +
+          ' (' + _fmtDataHoraSaoPaulo(p.ultimo_erro_em) + '): ' + esc(p.ultimo_erro_msg || 'erro desconhecido') + '</span>'
+        );
+      } else {
+        partes.push(
+          '<span style="color:var(--ink-faint); font-size:11.5px;">Falhou em ' + _fmtDataDiaMes(p.ultimo_erro_em) +
+          ', resolvido em ' + _fmtDataDiaMes(p.ultima_consulta_ok_em) + '.</span>'
+        );
+      }
     }
     if (!partes.length) {
       partes.push('<span style="color:var(--ink-faint);">Nunca sincronizado.</span>');
