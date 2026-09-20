@@ -9136,9 +9136,29 @@
             var mensagem = resultado.novos > 0
               ? resultado.novos + ' andamento(s) novo(s) encontrado(s).'
               : 'Sincronizado — nenhum andamento novo encontrado.';
-            abrirFichaProcesso(processo);
-            mostrarAba('andamentos');
-            document.getElementById('procficha-sincronizar-status').textContent = mensagem;
+            function mostrarFicha(processoParaExibir) {
+              abrirFichaProcesso(processoParaExibir);
+              mostrarAba('andamentos');
+              document.getElementById('procficha-sincronizar-status').textContent = mensagem;
+            }
+            // Rebusca a lista antes de reabrir a ficha -- sem isso, abrirFichaProcesso(processo)
+            // reaproveitava o objeto "processo" capturado em memoria de ANTES do clique (sem
+            // status_sincronizacao/ultima_consulta_ok_em preenchidos), entao a tela continuava
+            // mostrando "Nunca sincronizado" mesmo o banco ja tendo gravado os campos da
+            // sincronizacao que acabou de rodar (bug reportado: "respondeu 'Sincronizado' mas
+            // continua mostrando 'Nunca sincronizado'").
+            apiGetJson('/api/painel?acao=processo_manual_listar')
+              .then(function (dados) {
+                _processosManuaisTodos = dados.processos || _processosManuaisTodos;
+                var processoAtualizado = _processosManuaisTodos.filter(function (p) { return String(p.id) === String(processo.id); })[0];
+                mostrarFicha(processoAtualizado || processo);
+              })
+              .catch(function () {
+                // rebusca falhou, mas a sincronizacao em si deu certo -- melhor mostrar a ficha
+                // antiga com o aviso de sucesso do que travar o usuario numa tela de erro por
+                // causa disso.
+                mostrarFicha(processo);
+              });
           })
           .catch(function (e) {
             btnSincronizarAgora.disabled = false;
