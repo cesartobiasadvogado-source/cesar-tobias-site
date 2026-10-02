@@ -3626,18 +3626,10 @@
     // e nao usa esse fluxo). Ver correcao de seguranca: essas acoes agora exigem sessao
     // valida no backend, nao aceitam mais so um tenant_id (que e a OAB do advogado, publica).
     var sessaoEhTenant = (sessionStorage.getItem('painel_token') || '').indexOf(':') !== -1;
-    var htmlConexoes = (!dados.usuario_admin || !sessaoEhTenant) ? '' :
-      '<section id="sec-conexoes"><p class="section-label">Conexões do escritório</p>' +
-        '<div class="panel">' +
-          '<div class="panel-header"><span class="panel-title">WhatsApp</span>' +
-            '<span class="chip neutral" id="conexao-status-wa">Verificando...</span></div>' +
-          '<div style="padding:16px 20px;">' +
-            '<p style="margin:0 0 12px; font-size:13px; color:var(--ink-soft);">Conecte o número que vai atender seus clientes.</p>' +
-            '<div id="conexao-erro-wa" style="margin-bottom:10px;"></div>' +
-            '<button class="btn-conexao" id="btn-conexao-wa-qr">Mostrar QR code</button>' +
-            '<button class="btn-conexao-secundario" id="btn-conexao-wa-verificar">Verificar conexão</button>' +
-          '</div>' +
-        '</div>' +
+    // WhatsApp (estado + QR code dentro do painel) vale pra qualquer administrador, inclusive a
+    // conta classica (instancia `escritorio`); Asaas e papel timbrado continuam so pra escritorio
+    // novo (sessao "tenant_id:sessao"), porque a conta classica tem esses dados configurados a parte.
+    var htmlConexoesTenant = !sessaoEhTenant ? '' :
         '<div class="panel" style="margin-top:14px;">' +
           '<div class="panel-header"><span class="panel-title">Asaas (cobrança Pix/boleto/cartão)</span></div>' +
           '<div style="padding:16px 20px;">' +
@@ -3655,7 +3647,21 @@
             '<div id="conexao-logo-previa" style="margin-bottom:10px;"></div>' +
             '<button class="btn-conexao" id="btn-conexao-logo">Enviar</button>' +
           '</div>' +
+        '</div>';
+    var htmlConexoes = !dados.usuario_admin ? '' :
+      '<section id="sec-conexoes"><p class="section-label">Conexões do escritório</p>' +
+        '<div class="panel">' +
+          '<div class="panel-header"><span class="panel-title">WhatsApp</span>' +
+            '<span class="chip neutral" id="conexao-status-wa">Verificando...</span></div>' +
+          '<div style="padding:16px 20px;">' +
+            '<p style="margin:0 0 12px; font-size:13px; color:var(--ink-soft);">Conecte o número que vai atender seus clientes. Se a conexão cair, gere o QR code de novo aqui e escaneie.</p>' +
+            '<div id="conexao-erro-wa" style="margin-bottom:10px;"></div>' +
+            '<div id="conexao-wa-qr" style="margin-bottom:10px; text-align:center;"></div>' +
+            '<button class="btn-conexao" id="btn-conexao-wa-qr">Conectar WhatsApp</button>' +
+            '<button class="btn-conexao-secundario" id="btn-conexao-wa-verificar">Verificar conexão</button>' +
+          '</div>' +
         '</div>' +
+        htmlConexoesTenant +
       '</section>';
 
     // "Escritorios da plataforma" -- so aparece pra voce (Cesar), nao pra outros tenants: eles
@@ -5093,54 +5099,151 @@
       });
   }
 
-  function wireConexoes() {
-    var LAMBDA_BASE = 'https://63quf5pqd4t5hgjuvi67r3juzq0mawnb.lambda-url.us-east-1.on.aws/';
+  // WHATSAPP-CONEXAO:inicio (trecho extraido pelo teste tests/whatsapp-conexao.test.js)
+  function _chipEstadoWhatsApp(estado) {
+    if (estado === 'open') return { texto: 'Conectado', classe: 'chip good' };
+    if (estado === 'connecting') return { texto: 'Aguardando conexão', classe: 'chip neutral' };
+    if (estado === 'close') return { texto: 'Desconectado', classe: 'chip warn' };
+    return { texto: 'Não foi possível checar', classe: 'chip warn' };
+  }
 
-    function verificarWhatsApp() {
+  // So aceita imagem em data URL (e o que a Evolution devolve) -- nunca um endereco ou script.
+  function _qrWhatsAppValido(qr) {
+    return typeof qr === 'string' && qr.indexOf('data:image/') === 0;
+  }
+  // WHATSAPP-CONEXAO:fim
+
+  function wireConexoes() {
+    // WHATSAPP-CONTROLADOR:inicio (trecho extraido pelo teste tests/whatsapp-conexao.test.js)
+    function ouvirSeExiste(id, evento, fn) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener(evento, fn);
+    }
+
+    var DURACAO_QR_MS = 5 * 60 * 1000;
+    var timerEstadoWa = null;
+    var timerQrWa = null;
+    var expiraQrEm = 0;
+
+    function pintarChipWa(estado) {
       var chipWa = document.getElementById('conexao-status-wa');
-      apiGetJson('/api/painel?acao=whatsapp_status')
-        .then(function (dados) {
-          if (dados.conectado) {
-            chipWa.textContent = 'Conectado';
-            chipWa.className = 'chip good';
+      if (!chipWa) return;
+      var c = _chipEstadoWhatsApp(estado);
+      chipWa.textContent = c.texto;
+      chipWa.className = c.classe;
+    }
+
+    function mostrarAvisoWa(texto, bom) {
+      var erroWa = document.getElementById('conexao-erro-wa');
+      if (!erroWa) return;
+      erroWa.textContent = '';
+      if (!texto) return;
+      var div = document.createElement('div');
+      div.className = 'aviso-tenant';
+      if (bom) { div.style.background = 'var(--good-soft)'; div.style.color = 'var(--good)'; }
+      div.textContent = texto;
+      erroWa.appendChild(div);
+    }
+
+    function pararQrWa() {
+      if (timerEstadoWa) clearInterval(timerEstadoWa);
+      if (timerQrWa) clearInterval(timerQrWa);
+      timerEstadoWa = null;
+      timerQrWa = null;
+    }
+
+    function qrWaNaTela() { return !!document.getElementById('conexao-wa-qr'); }
+
+    function conectouWa() {
+      pararQrWa();
+      var area = document.getElementById('conexao-wa-qr');
+      if (area) area.textContent = '';
+      pintarChipWa('open');
+      mostrarAvisoWa('WhatsApp conectado com sucesso.', true);
+    }
+
+    function desenharQrWa(qr) {
+      var area = document.getElementById('conexao-wa-qr');
+      if (!area) return;
+      area.textContent = '';
+      var img = document.createElement('img');
+      img.src = qr;
+      img.alt = 'QR code do WhatsApp';
+      img.style.width = '260px';
+      img.style.height = '260px';
+      var dica = document.createElement('p');
+      dica.style.cssText = 'margin:8px 0 0; font-size:12.5px; color:var(--ink-soft);';
+      dica.textContent = 'No celular: WhatsApp > Aparelhos conectados > Conectar um aparelho. Este código se renova sozinho e a conexão é detectada automaticamente.';
+      area.appendChild(img);
+      area.appendChild(dica);
+    }
+
+    function buscarQrWa() {
+      return apiGetJson('/api/painel?acao=whatsapp_qr')
+        .then(function (d) {
+          if (!qrWaNaTela()) { pararQrWa(); return; }
+          if (d.conectado) { conectouWa(); return; }
+          if (_qrWhatsAppValido(d.qr)) {
+            desenharQrWa(d.qr);
+            mostrarAvisoWa('');
           } else {
-            chipWa.textContent = 'Não conectado';
-            chipWa.className = 'chip neutral';
+            mostrarAvisoWa(d.erro || 'Ainda não consegui gerar o QR code. Tentando de novo…');
           }
         })
         .catch(function () {
-          chipWa.textContent = 'Não foi possível checar';
-          chipWa.className = 'chip warn';
+          if (qrWaNaTela()) mostrarAvisoWa('Não foi possível gerar o QR code agora. Tentando de novo…');
         });
+    }
+
+    function checarEstadoDuranteQrWa() {
+      apiGetJson('/api/painel?acao=whatsapp_estado')
+        .then(function (d) {
+          if (!qrWaNaTela()) { pararQrWa(); return; }
+          pintarChipWa(d.estado);
+          if (d.conectado) { conectouWa(); return; }
+          if (Date.now() > expiraQrEm) {
+            pararQrWa();
+            var area = document.getElementById('conexao-wa-qr');
+            if (area) area.textContent = '';
+            mostrarAvisoWa('O QR code expirou. Clique em "Conectar WhatsApp" para gerar outro.');
+          }
+        })
+        .catch(function () {});
+    }
+
+    function iniciarQrWa() {
+      pararQrWa();
+      expiraQrEm = Date.now() + DURACAO_QR_MS;
+      mostrarAvisoWa('');
+      var area = document.getElementById('conexao-wa-qr');
+      if (area) area.textContent = 'Gerando QR code…';
+      buscarQrWa();
+      timerQrWa = setInterval(buscarQrWa, 25000);
+      timerEstadoWa = setInterval(checarEstadoDuranteQrWa, 3000);
+    }
+
+    function verificarWhatsApp() {
+      return apiGetJson('/api/painel?acao=whatsapp_estado')
+        .then(function (d) { pintarChipWa(d.estado); return d; })
+        .catch(function () { pintarChipWa(); return null; });
     }
     verificarWhatsApp();
 
-    document.getElementById('btn-conexao-wa-qr').addEventListener('click', function () {
-      var token = sessionStorage.getItem('painel_token');
-      window.open(LAMBDA_BASE + '?action=whatsapp_conectar_iniciar&token=' + encodeURIComponent(token), '_blank');
-    });
-    document.getElementById('btn-conexao-wa-verificar').addEventListener('click', function () {
+    ouvirSeExiste('btn-conexao-wa-qr', 'click', iniciarQrWa);
+    ouvirSeExiste('btn-conexao-wa-verificar', 'click', function () {
       var btn = this;
-      var erroDiv = document.getElementById('conexao-erro-wa');
-      erroDiv.innerHTML = '';
       btn.disabled = true; btn.textContent = 'Verificando...';
-      apiGetJson('/api/painel?acao=whatsapp_status')
-        .then(function (dados) {
-          btn.disabled = false; btn.textContent = 'Verificar conexão';
-          if (dados.conectado) {
-            erroDiv.innerHTML = '<div class="aviso-tenant" style="background:var(--good-soft); color:var(--good);">WhatsApp conectado com sucesso.</div>';
-          } else {
-            erroDiv.innerHTML = '<div class="aviso-tenant">Ainda não detectei a conexão. Escaneie o QR code na aba aberta e tente de novo.</div>';
-          }
-          verificarWhatsApp();
-        })
-        .catch(function () {
-          btn.disabled = false; btn.textContent = 'Verificar conexão';
-          erroDiv.innerHTML = '<div class="aviso-tenant">Não foi possível checar agora. Tente de novo.</div>';
-        });
+      verificarWhatsApp().then(function (d) {
+        btn.disabled = false; btn.textContent = 'Verificar conexão';
+        if (d && d.conectado) mostrarAvisoWa('WhatsApp conectado.', true);
+        else if (d) mostrarAvisoWa('O WhatsApp não está conectado. Clique em "Conectar WhatsApp" e escaneie o QR code.');
+        else mostrarAvisoWa('Não foi possível checar agora. Tente de novo.');
+      });
     });
 
-    document.getElementById('btn-conexao-asaas').addEventListener('click', function () {
+    // WHATSAPP-CONTROLADOR:fim
+
+    ouvirSeExiste('btn-conexao-asaas', 'click', function () {
       var btn = this;
       var chave = document.getElementById('conexao-asaas-key').value.trim();
       var erroDiv = document.getElementById('conexao-erro-asaas');
@@ -5178,7 +5281,7 @@
         });
     });
 
-    document.getElementById('conexao-logo-input').addEventListener('change', function (ev) {
+    ouvirSeExiste('conexao-logo-input', 'change', function (ev) {
       var arquivo = ev.target.files[0];
       var previa = document.getElementById('conexao-logo-previa');
       previa.innerHTML = '';
@@ -5197,7 +5300,7 @@
       leitor.readAsDataURL(arquivo);
     });
 
-    document.getElementById('btn-conexao-logo').addEventListener('click', function () {
+    ouvirSeExiste('btn-conexao-logo', 'click', function () {
       var btn = this;
       var arquivo = document.getElementById('conexao-logo-input').files[0];
       var erroDiv = document.getElementById('conexao-erro-logo');
