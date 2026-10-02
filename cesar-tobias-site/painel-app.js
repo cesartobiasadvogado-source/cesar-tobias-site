@@ -9133,9 +9133,14 @@
         statusEl.textContent = 'Sincronizando (pode levar alguns segundos)...';
         apiPostJson('/api/painel?acao=processo_datajud_sincronizar', { id: processo.id })
           .then(function (resultado) {
-            var mensagem = resultado.novos > 0
-              ? resultado.novos + ' andamento(s) novo(s) encontrado(s).'
-              : 'Sincronizado — nenhum andamento novo encontrado.';
+            var mensagem;
+            if (resultado.novos > 0) {
+              mensagem = resultado.novos + ' andamento(s) novo(s) encontrado(s).';
+            } else if (resultado.status_sincronizacao === 'sem_dados') {
+              mensagem = 'Processo não localizado na base pública do CNJ (pode estar em segredo de justiça ou recém-distribuído). Confira no PJe.';
+            } else {
+              mensagem = 'Sincronizado — nenhum andamento novo encontrado.';
+            }
             function mostrarFicha(processoParaExibir) {
               abrirFichaProcesso(processoParaExibir);
               mostrarAba('andamentos');
