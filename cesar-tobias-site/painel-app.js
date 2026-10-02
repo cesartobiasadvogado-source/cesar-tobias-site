@@ -2379,9 +2379,10 @@
   // dias inteiros se passaram desde uma data ISO -- usado tanto na ficha do processo (item 3)
   // quanto no bloco "Sincronizacao com problema" do painel (item 4), pra achar processo parado
   // ha mais de N dias.
-  function _diasDesde(iso) {
+  // MENSAGEM-SINCRONIZAR:inicio (trecho extraido pelo teste tests/mensagem-sincronizar.test.js)
+  function _diasDesde(iso, agoraMs) {
     if (!iso) return null;
-    return (Date.now() - new Date(iso).getTime()) / 86400000;
+    return ((agoraMs === undefined ? Date.now() : agoraMs) - new Date(iso).getTime()) / 86400000;
   }
 
   function _fmtTempoDesde(iso) {
@@ -2424,6 +2425,34 @@
   // processo "sincronizado" pode mesmo assim estar com a base do tribunal desatualizada havia
   // semanas.
   var LIMIAR_DIAS_BASE_DATAJUD_DESATUALIZADA = 7;
+
+  // Mensagem do toast apos "Sincronizar agora". Precedencia: erro_fonte > sem_dados > novos > base
+  // defasada (> LIMIAR, mesma regra estrita do selo da ficha) > base recente. Status ausente/nulo
+  // (leitura falhou no backend, ou backend antigo) sem novos cai numa mensagem NEUTRA -- nunca
+  // afirma "nenhum andamento novo" sem saber em que estado a fonte esta.
+  function _mensagemAposSincronizar(resultado, agoraMs) {
+    var status = resultado.status_sincronizacao;
+    if (status === 'erro_fonte') {
+      return 'Não foi possível consultar o DataJud agora (instabilidade da fonte). Seus andamentos NÃO foram atualizados. Tente novamente em alguns minutos.';
+    }
+    if (status === 'sem_dados') {
+      return 'Processo não localizado na base pública do CNJ (pode estar em segredo de justiça ou recém-distribuído). Confira no PJe.';
+    }
+    if (resultado.novos > 0) {
+      return resultado.novos + ' andamento(s) novo(s) encontrado(s).';
+    }
+    if (!status) {
+      return 'Sincronização concluída. Confira os andamentos na ficha.';
+    }
+    var dias = _diasDesde(resultado.base_datajud_atualizada_em, agoraMs);
+    if (dias !== null && dias > LIMIAR_DIAS_BASE_DATAJUD_DESATUALIZADA) {
+      return 'Sincronizado. Nenhum andamento novo na fonte, mas a base do CNJ só vai até ' +
+        _fmtDataDiaMes(resultado.base_datajud_atualizada_em) + ' (' + Math.floor(dias) +
+        ' dias atrás): movimentações recentes podem não aparecer. Confira no PJe.';
+    }
+    return 'Sincronizado — nenhum andamento novo encontrado.';
+  }
+  // MENSAGEM-SINCRONIZAR:fim
 
   // Resumo do status da sincronizacao automatica via DataJud pra exibir na aba Andamentos da
   // ficha, ao lado do botao "Sincronizar agora" -- status_sincronizacao/ultima_consulta_ok_em/
@@ -9133,14 +9162,7 @@
         statusEl.textContent = 'Sincronizando (pode levar alguns segundos)...';
         apiPostJson('/api/painel?acao=processo_datajud_sincronizar', { id: processo.id })
           .then(function (resultado) {
-            var mensagem;
-            if (resultado.novos > 0) {
-              mensagem = resultado.novos + ' andamento(s) novo(s) encontrado(s).';
-            } else if (resultado.status_sincronizacao === 'sem_dados') {
-              mensagem = 'Processo não localizado na base pública do CNJ (pode estar em segredo de justiça ou recém-distribuído). Confira no PJe.';
-            } else {
-              mensagem = 'Sincronizado — nenhum andamento novo encontrado.';
-            }
+            var mensagem = _mensagemAposSincronizar(resultado);
             function mostrarFicha(processoParaExibir) {
               abrirFichaProcesso(processoParaExibir);
               mostrarAba('andamentos');
