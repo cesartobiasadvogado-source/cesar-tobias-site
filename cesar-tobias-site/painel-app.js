@@ -2454,6 +2454,43 @@
   }
   // MENSAGEM-SINCRONIZAR:fim
 
+  // ULTIMO-ANDAMENTO:inicio (trecho extraido pelo teste tests/ultimo-andamento.test.js)
+  // Ultimo andamento do tribunal ja registrado pra este processo (atos com origem 'Tribunal':
+  // DataJud e Comunica PJe). O "Base do CNJ atualizada ate" acima e so o carimbo que o proprio
+  // DataJud grava e pode avancar sem trazer movimento novo -- esta data mostra ate onde os
+  // andamentos de verdade chegaram. So informa por padrao; vira alerta acima do limite porque um
+  // processo parado de verdade tambem tem o ultimo andamento antigo (nao da pra distinguir so
+  // pelos dados do DataJud).
+  var LIMIAR_DIAS_ULTIMO_ANDAMENTO_DEFASADO = 30;
+
+  function _htmlUltimoAndamentoTribunal(atos, agoraMs) {
+    var maisRecente = null;
+    (atos || []).forEach(function (a) {
+      if (!a || a.origem !== 'Tribunal') return;
+      var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(a.data || ''));
+      if (!m) return;
+      var ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      if (isNaN(ms)) return;
+      if (maisRecente === null || ms > maisRecente.ms) maisRecente = { ms: ms, dia: m[3], mes: m[2], ano: m[1] };
+    });
+    if (maisRecente === null) return '';
+    var hoje = new Date(agoraMs === undefined ? Date.now() : agoraMs)
+      .toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    var h = /^(\d{4})-(\d{2})-(\d{2})$/.exec(hoje);
+    if (!h) return '';
+    var dias = Math.round((Date.UTC(Number(h[1]), Number(h[2]) - 1, Number(h[3])) - maisRecente.ms) / 86400000);
+    if (dias < 0) dias = 0;
+    var data = maisRecente.dia + '/' + maisRecente.mes + '/' + maisRecente.ano;
+    var quando = dias === 0 ? 'hoje' : (dias + (dias === 1 ? ' dia atrás' : ' dias atrás'));
+    var texto = 'Último andamento do tribunal registrado: <strong>' + data + '</strong> (' + quando + ').';
+    if (dias > LIMIAR_DIAS_ULTIMO_ANDAMENTO_DEFASADO) {
+      return '<span style="background:var(--warn-soft); color:var(--warn); padding:2px 8px; border-radius:5px; display:inline-block;">' +
+        texto + ' Pode ser processo parado ou base incompleta. Confira no PJe.</span>';
+    }
+    return texto;
+  }
+  // ULTIMO-ANDAMENTO:fim
+
   // Resumo do status da sincronizacao automatica via DataJud pra exibir na aba Andamentos da
   // ficha, ao lado do botao "Sincronizar agora" -- status_sincronizacao/ultima_consulta_ok_em/
   // ultimo_erro_em/ultimo_erro_msg/base_datajud_atualizada_em vem de
@@ -8864,6 +8901,7 @@
               '<span id="procficha-sincronizar-status" style="font-size:12.5px; color:var(--ink-faint); align-self:center;"></span>' +
             '</div>' +
             '<p id="procficha-sincronizacao-info" style="font-size:12.5px; margin:-6px 0 14px; line-height:1.6;">' + _htmlStatusSincronizacaoDatajud(p) + '</p>' +
+            '<p id="procficha-ultimo-andamento" style="font-size:12.5px; margin:-6px 0 14px; line-height:1.6;"></p>' +
             '<div id="procficha-lista-atos"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
             (p.numero_cnj ? (
               '<div style="margin-top:10px; font-size:12.5px; color:var(--ink-faint);">' +
@@ -9029,6 +9067,8 @@
         if (geralEl) geralEl.innerHTML = _htmlListaAtosInline(atos.slice(0, 3));
         var listaEl = document.getElementById('procficha-lista-atos');
         if (listaEl) listaEl.innerHTML = _htmlListaAtosInline(atos);
+        var ultimoAndamentoEl = document.getElementById('procficha-ultimo-andamento');
+        if (ultimoAndamentoEl) ultimoAndamentoEl.innerHTML = _htmlUltimoAndamentoTribunal(atos);
       })
       .catch(function () {
         document.getElementById('procficha-resumo-atos').textContent = '—';
