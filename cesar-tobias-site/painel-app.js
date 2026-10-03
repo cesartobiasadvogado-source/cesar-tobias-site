@@ -8665,6 +8665,15 @@
     document.getElementById('modal-documentos-processo')._abrirParaProcesso(processo);
   }
 
+  // ACOES-STATUS-PROCESSO:inicio (trecho extraido pelo teste tests/acoes-status-processo.test.js)
+  // Acoes de status do menu do processo (lista e ficha). Arquivado so oferece "Desarquivar", que
+  // devolve pra "Em andamento" (o status de antes do arquivamento nao e guardado em lugar nenhum).
+  function _acoesStatusProcesso(status) {
+    if (status === 'Arquivado') return [{ rotulo: 'Desarquivar', status: 'Em andamento' }];
+    return [{ rotulo: 'Encerrar', status: 'Finalizado' }, { rotulo: 'Arquivar', status: 'Arquivado' }];
+  }
+  // ACOES-STATUS-PROCESSO:fim
+
   function _chipStatusProcesso(status) {
     if (status === 'Finalizado') return 'good';
     if (status === 'Suspenso') return 'warn';
@@ -8742,8 +8751,9 @@
                 '<button type="button" class="procpage-icone-btn" data-procman-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
                 '<div class="procman-acoes-menu hidden" data-procman-menu="' + indice + '">' +
                   '<a href="painel-criar-processo.html?editar=' + p.id + '#sec-criar-processo">Editar</a>' +
-                  '<button type="button" data-procman-status-acao="Finalizado" data-procman-indice="' + indice + '">Encerrar</button>' +
-                  '<button type="button" data-procman-status-acao="Arquivado" data-procman-indice="' + indice + '">Arquivar</button>' +
+                  _acoesStatusProcesso(p.status).map(function (acao) {
+                    return '<button type="button" data-procman-status-acao="' + acao.status + '" data-procman-indice="' + indice + '">' + acao.rotulo + '</button>';
+                  }).join('') +
                   '<button type="button" class="procman-acao-excluir" data-procman-excluir="' + indice + '">Excluir</button>' +
                 '</div>' +
               '</span>' +
@@ -8890,8 +8900,9 @@
           '<button type="button" class="procpage-btn" id="procficha-btn-acoes">Ações ▾</button>' +
           '<div class="procman-acoes-menu hidden" id="procficha-menu-acoes" style="right:0;">' +
             '<a href="painel-criar-processo.html?editar=' + p.id + '#sec-criar-processo">Editar</a>' +
-            '<button type="button" data-procficha-status="Finalizado">Encerrar</button>' +
-            '<button type="button" data-procficha-status="Arquivado">Arquivar</button>' +
+            _acoesStatusProcesso(p.status).map(function (acao) {
+              return '<button type="button" data-procficha-status="' + acao.status + '">' + acao.rotulo + '</button>';
+            }).join('') +
             '<button type="button" class="procman-acao-excluir" id="procficha-btn-excluir">Excluir</button>' +
           '</div>' +
         '</span>' +
