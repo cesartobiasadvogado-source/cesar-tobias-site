@@ -7763,7 +7763,7 @@
           var processos = dados.processos || [];
           selectEl.innerHTML = '<option value="">Selecione o processo</option>' +
             processos.map(function (p) {
-              return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>';
+              return '<option value="' + p.id + '">' + esc(_rotuloProcessoParaSelect(p)) + '</option>';
             }).join('');
           if (prazoExistente) selectEl.value = prazoExistente.processo_id;
         });
@@ -7999,7 +7999,7 @@
       apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
         var processos = dados.processos || [];
         selectProc.innerHTML = '<option value="">Nenhum</option>' +
-          processos.map(function (p) { return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>'; }).join('');
+          processos.map(function (p) { return '<option value="' + p.id + '">' + esc(_rotuloProcessoParaSelect(p)) + '</option>'; }).join('');
         if (tarefaExistente) selectProc.value = tarefaExistente.processo_id || '';
       });
 
@@ -8137,7 +8137,7 @@
     apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
       var processos = dados.processos || [];
       document.getElementById('ag-form-processo').innerHTML = '<option value="">Nenhum</option>' +
-        processos.map(function (p) { return '<option value="' + p.id + '">' + esc(p.numero_cnj || p.cliente_nome) + '</option>'; }).join('');
+        processos.map(function (p) { return '<option value="' + p.id + '">' + esc(_rotuloProcessoParaSelect(p)) + '</option>'; }).join('');
     });
 
     document.querySelectorAll('[data-ag-view]').forEach(function (btn) {
@@ -8664,6 +8664,17 @@
     _garantirModalDocumentosProcesso();
     document.getElementById('modal-documentos-processo')._abrirParaProcesso(processo);
   }
+
+  // ROTULO-PROCESSO:inicio (trecho extraido pelo teste tests/rotulo-processo.test.js)
+  // Texto de um processo nas listas de escolha (prazo, tarefa, agenda): numero e cliente juntos,
+  // pra nao ser preciso lembrar de quem e cada numero.
+  function _rotuloProcessoParaSelect(p) {
+    var numero = (p && p.numero_cnj) || '';
+    var cliente = (p && p.cliente_nome) || '';
+    if (numero && cliente) return numero + ' — ' + cliente;
+    return numero || cliente || 'Processo sem número';
+  }
+  // ROTULO-PROCESSO:fim
 
   // ACOES-STATUS-PROCESSO:inicio (trecho extraido pelo teste tests/acoes-status-processo.test.js)
   // Acoes de status do menu do processo (lista e ficha). Arquivado so oferece "Desarquivar", que
