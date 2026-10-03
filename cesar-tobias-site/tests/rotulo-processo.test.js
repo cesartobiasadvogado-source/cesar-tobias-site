@@ -27,5 +27,12 @@ t('os 3 seletores (prazo, tarefa, agenda) usam o rotulo e nenhum mostra so o num
   assert(!/<option value="' \+ p\.id \+ '">' \+ esc\(p\.numero_cnj \|\| p\.cliente_nome\)/.test(fonte), 'ainda existe seletor so com o numero');
 });
 
+t('prazos: cartao, resultado da busca e modal usam o rotulo; a busca global acha pelo nome do cliente', () => {
+  assert((fonte.match(/_rotuloProcessoParaSelect\(pz\)/g) || []).length >= 2, 'cartao e busca global');
+  assert(fonte.includes("'Processo: ' + _rotuloProcessoParaSelect(processoFixo)"), 'modal do prazo');
+  assert(fonte.includes("(pz.cliente_nome || '').toLowerCase().indexOf(termoLower) !== -1"), 'busca por cliente');
+  assert(fonte.includes('cliente_nome: pz.cliente_nome }, pz, carregar'), 'editar passa o cliente ao modal');
+});
+
 if (falhas) { console.log(falhas + ' falha(s)'); process.exit(1); }
 console.log('todos os testes passaram');

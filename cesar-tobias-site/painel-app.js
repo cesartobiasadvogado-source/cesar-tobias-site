@@ -319,7 +319,7 @@
         return (t.titulo || '').toLowerCase().indexOf(termoLower) !== -1;
       }).slice(0, 5);
       var prazosAchados = prazosCache.filter(function (pz) {
-        return (pz.titulo || '').toLowerCase().indexOf(termoLower) !== -1 || (pz.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1;
+        return (pz.titulo || '').toLowerCase().indexOf(termoLower) !== -1 || (pz.numero_cnj || '').toLowerCase().indexOf(termoLower) !== -1 || (pz.cliente_nome || '').toLowerCase().indexOf(termoLower) !== -1;
       }).slice(0, 5);
       var audienciasAchadas = audienciasCache.filter(function (a) {
         return (a.cliente || '').toLowerCase().indexOf(termoLower) !== -1 || (a.numero_processo || '').toLowerCase().indexOf(termoLower) !== -1;
@@ -348,7 +348,7 @@
         return '<a href="painel-tarefas.html#sec-tarefas">' + esc(t.titulo) + '</a>';
       }));
       html += _grupoBusca('Prazos', prazosAchados.map(function (pz) {
-        return '<a href="painel-prazos.html#sec-prazos">' + esc(pz.titulo) + (pz.numero_cnj ? ' — ' + esc(pz.numero_cnj) : '') + '</a>';
+        return '<a href="painel-prazos.html#sec-prazos">' + esc(pz.titulo) + (pz.numero_cnj ? ' — ' + esc(_rotuloProcessoParaSelect(pz)) : '') + '</a>';
       }));
       html += _grupoBusca('Audiências', audienciasAchadas.map(function (a) {
         return '<a href="painel-audiencias.html#sec-audiencias">' + esc(a.cliente || a.tipo_audiencia || '—') +
@@ -7752,7 +7752,7 @@
       if (processoFixo) {
         wrapSelect.classList.add('hidden');
         fixoEl.classList.remove('hidden');
-        fixoEl.textContent = 'Processo: ' + (processoFixo.numero_cnj || processoFixo.cliente_nome);
+        fixoEl.textContent = 'Processo: ' + _rotuloProcessoParaSelect(processoFixo);
         overlay.classList.remove('hidden');
       } else {
         fixoEl.classList.add('hidden');
@@ -7821,7 +7821,7 @@
           '<div class="prazo-card-topo">' +
             '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' +
               '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong>' +
-              '<div style="font-size:12px; color:var(--ink-faint); margin-top:2px;">' + esc(pz.numero_cnj || '') + '</div></div>' +
+              '<div style="font-size:12px; color:var(--ink-faint); margin-top:2px;">' + esc(pz.numero_cnj ? _rotuloProcessoParaSelect(pz) : '') + '</div></div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(pz.data_limite) + '</span>' +
           '</div>' +
           (pz.observacao ? '<div class="prazo-resumo" style="color:var(--ink-soft);">' + esc(pz.observacao) + '</div>' : '') +
@@ -7840,7 +7840,7 @@
       container.querySelectorAll('[data-prazo-editar]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var pz = prazosCarregados.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-editar'); })[0];
-          if (pz) abrirModalPrazo({ id: pz.processo_id, numero_cnj: pz.numero_cnj }, pz, carregar);
+          if (pz) abrirModalPrazo({ id: pz.processo_id, numero_cnj: pz.numero_cnj, cliente_nome: pz.cliente_nome }, pz, carregar);
         });
       });
       container.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
