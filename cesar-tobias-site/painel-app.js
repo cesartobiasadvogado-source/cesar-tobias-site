@@ -7649,6 +7649,68 @@
     return '<span class="chip ' + par[0] + '">' + par[1] + '</span>';
   }
 
+  // RECORRENCIA:inicio
+  // ---- Recorrência (tarefas e prazos): "Repete" + "Termina". O servidor cria uma tarefa/prazo por
+  // ocorrência (cada uma editável/excluível sozinha) e um único evento recorrente na Agenda.
+  var _OPCOES_RECORRENCIA = [
+    ['diaria', 'Repetir todos os dias'],
+    ['dias_uteis', 'Repetir de segunda a sexta'],
+    ['semanal', 'Repetir toda semana'],
+    ['mensal', 'Repetir todo mês'],
+    ['anual', 'Repetir todo ano'],
+    ['quinzenal', 'Repetir a cada 2 semanas'],
+    ['trimestral', 'Repetir a cada 3 meses'],
+    ['semestral', 'Repetir a cada 6 meses'],
+  ];
+
+  function _htmlRecorrencia(p) {
+    var estiloCampo = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:12px;';
+    return '<div id="' + p + '-rec-wrap" style="margin:-6px 0 14px;">' +
+      '<button type="button" id="' + p + '-rec-abrir" style="background:none;border:none;padding:0;color:var(--accent);font-size:13px;cursor:pointer;">+ Adicionar recorrência</button>' +
+      '<div id="' + p + '-rec-campos" class="hidden" style="margin-top:10px;padding:12px 12px 4px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);">' +
+        '<label>Repete</label>' +
+        '<select id="' + p + '-rec-freq" style="' + estiloCampo + '">' +
+          _OPCOES_RECORRENCIA.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
+        '</select>' +
+        '<label>Termina</label>' +
+        '<input type="date" id="' + p + '-rec-termina" style="' + estiloCampo + '">' +
+        '<button type="button" id="' + p + '-rec-remover" style="background:none;border:none;padding:0 0 10px;color:var(--ink-soft);font-size:12.5px;cursor:pointer;text-decoration:underline;">Remover recorrência</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _wireRecorrencia(p) {
+    var campos = document.getElementById(p + '-rec-campos');
+    var abrir = document.getElementById(p + '-rec-abrir');
+    _abrirCalendarioAoClicar(p + '-rec-termina');
+    abrir.addEventListener('click', function () {
+      campos.classList.remove('hidden');
+      abrir.classList.add('hidden');
+    });
+    document.getElementById(p + '-rec-remover').addEventListener('click', function () {
+      _resetRecorrencia(p, false);
+    });
+  }
+
+  // Fecha e limpa a recorrência; em edição esconde o bloco todo (editar mexe só naquela ocorrência).
+  function _resetRecorrencia(p, emEdicao) {
+    document.getElementById(p + '-rec-wrap').classList.toggle('hidden', !!emEdicao);
+    document.getElementById(p + '-rec-campos').classList.add('hidden');
+    document.getElementById(p + '-rec-abrir').classList.remove('hidden');
+    document.getElementById(p + '-rec-freq').value = 'diaria';
+    document.getElementById(p + '-rec-termina').value = '';
+  }
+
+  // { rec: {frequencia, termina} } com recorrência preenchida, {} sem recorrência, { erro: '...' } se faltar a data final.
+  function _lerRecorrencia(p) {
+    if (document.getElementById(p + '-rec-campos').classList.contains('hidden')) return {};
+    var termina = document.getElementById(p + '-rec-termina').value;
+    if (!termina) return { erro: 'Escolha quando a recorrência termina.' };
+    return { rec: { frequencia: document.getElementById(p + '-rec-freq').value, termina: termina } };
+  }
+
+  // RECORRENCIA:fim
+
   function _garantirModalPrazo() {
     if (document.getElementById('modal-prazo')) return;
     var div = document.createElement('div');
@@ -7675,6 +7737,7 @@
               '<input type="date" id="prazo-form-data" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
               '<button type="button" id="prazo-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
             '</div>' +
+            _htmlRecorrencia('prazo') +
             '<label>Tipo</label>' +
             '<select id="prazo-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="legal">Legal</option>' +
@@ -7701,6 +7764,7 @@
     document.getElementById('prazo-btn-cancelar').addEventListener('click', fechar);
     overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
     _abrirCalendarioAoClicar('prazo-form-data');
+    _wireRecorrencia('prazo');
     document.getElementById('prazo-btn-hoje').addEventListener('click', function () {
       document.getElementById('prazo-form-data').value = new Date().toISOString().slice(0, 10);
     });
@@ -7722,6 +7786,14 @@
         observacao: document.getElementById('prazo-form-observacao').value.trim(),
       };
       if (prazoEmEdicao) corpo.id = prazoEmEdicao.id;
+      else {
+        var recPrazo = _lerRecorrencia('prazo');
+        if (recPrazo.erro) {
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(recPrazo.erro) + '</div>';
+          return;
+        }
+        if (recPrazo.rec) corpo.recorrencia = recPrazo.rec;
+      }
       var acao = prazoEmEdicao ? 'prazo_atualizar' : 'prazo_criar';
       btn.disabled = true; btn.textContent = 'Salvando...';
       apiPostJson('/api/painel?acao=' + acao, corpo)
@@ -7741,6 +7813,7 @@
       prazoEmEdicao = prazoExistente || null;
       callbackSalvo = onSalvo || null;
       document.getElementById('prazo-modal-titulo').textContent = prazoExistente ? 'Editar prazo' : 'Novo prazo';
+      _resetRecorrencia('prazo', !!prazoExistente);
       document.getElementById('prazo-form-erro').innerHTML = '';
       document.getElementById('prazo-form-titulo').value = prazoExistente ? prazoExistente.titulo : '';
       document.getElementById('prazo-form-data').value = prazoExistente ? prazoExistente.data_limite : '';
@@ -7906,6 +7979,7 @@
               '<input type="date" id="tarefa-form-vencimento" style="flex:1;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
               '<button type="button" id="tarefa-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
             '</div>' +
+            _htmlRecorrencia('tarefa') +
             '<label>Cliente</label>' +
             '<input type="text" id="tarefa-form-cliente" placeholder="Opcional" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
             '<label>Processo</label>' +
@@ -7932,6 +8006,7 @@
     document.getElementById('tarefa-btn-cancelar').addEventListener('click', fechar);
     overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
     _abrirCalendarioAoClicar('tarefa-form-vencimento');
+    _wireRecorrencia('tarefa');
     document.getElementById('tarefa-btn-hoje').addEventListener('click', function () {
       document.getElementById('tarefa-form-vencimento').value = new Date().toISOString().slice(0, 10);
     });
@@ -7954,6 +8029,13 @@
         corpo.id = tarefaEmEdicao.id;
         corpo.status = document.getElementById('tarefa-form-status').value;
         acao = 'tarefa_atualizar';
+      } else {
+        var recTarefa = _lerRecorrencia('tarefa');
+        if (recTarefa.erro) {
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(recTarefa.erro) + '</div>';
+          return;
+        }
+        if (recTarefa.rec) corpo.recorrencia = recTarefa.rec;
       }
       btn.disabled = true; btn.textContent = 'Salvando...';
       apiPostJson('/api/painel?acao=' + acao, corpo)
@@ -7972,6 +8054,7 @@
       tarefaEmEdicao = tarefaExistente || null;
       callbackSalvo = onSalvo || null;
       document.getElementById('tarefa-modal-titulo').textContent = tarefaExistente ? 'Editar tarefa' : 'Nova tarefa';
+      _resetRecorrencia('tarefa', !!tarefaExistente);
       document.getElementById('tarefa-form-erro').innerHTML = '';
       document.getElementById('tarefa-form-titulo').value = tarefaExistente ? tarefaExistente.titulo : '';
       document.getElementById('tarefa-form-prioridade').value = tarefaExistente ? tarefaExistente.prioridade : 'media';
