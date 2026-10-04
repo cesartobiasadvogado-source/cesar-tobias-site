@@ -7711,6 +7711,10 @@
 
   // RECORRENCIA:fim
 
+  function _htmlResponsavelPrazo(pz) {
+    return pz.responsavel ? ' <span style="font-size:12px;color:var(--ink-faint);">· ' + esc(pz.responsavel) + '</span>' : '';
+  }
+
   function _garantirModalPrazo() {
     if (document.getElementById('modal-prazo')) return;
     var div = document.createElement('div');
@@ -7742,6 +7746,10 @@
             '<select id="prazo-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="legal">Legal</option>' +
               '<option value="interno">Interno</option>' +
+            '</select>' +
+            '<label>Responsável</label>' +
+            '<select id="prazo-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="">Selecione</option>' +
             '</select>' +
             '<label>Prioridade</label>' +
             '<select id="prazo-form-prioridade" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
@@ -7788,6 +7796,7 @@
         data_limite: document.getElementById('prazo-form-data').value,
         tipo: document.getElementById('prazo-form-tipo').value,
         prioridade: document.getElementById('prazo-form-prioridade').value,
+        responsavel: document.getElementById('prazo-form-responsavel').value,
         observacao: document.getElementById('prazo-form-observacao').value.trim(),
       };
       if (prazoEmEdicao) corpo.id = prazoEmEdicao.id;
@@ -7824,6 +7833,14 @@
       document.getElementById('prazo-form-data').value = prazoExistente ? prazoExistente.data_limite : '';
       document.getElementById('prazo-form-tipo').value = prazoExistente ? prazoExistente.tipo : 'legal';
       document.getElementById('prazo-form-prioridade').value = prazoExistente ? (prazoExistente.prioridade || 'baixa') : 'baixa';
+      var selectRespPrazo = document.getElementById('prazo-form-responsavel');
+      selectRespPrazo.value = '';
+      apiGetJson('/api/painel?acao=usuarios_nomes').then(function (dados) {
+        var usuarios = dados.usuarios || [];
+        selectRespPrazo.innerHTML = '<option value="">Selecione</option>' +
+          usuarios.map(function (u) { return '<option value="' + esc(u.usuario) + '">' + esc(u.nome) + '</option>'; }).join('');
+        selectRespPrazo.value = prazoExistente ? (prazoExistente.responsavel || '') : '';
+      });
       document.getElementById('prazo-form-observacao').value = prazoExistente ? (prazoExistente.observacao || '') : '';
 
       var wrapSelect = document.getElementById('prazo-form-processo-select-wrap');
@@ -7899,7 +7916,7 @@
         return '<div class="prazo-card" style="background:var(--bg);border-color:var(--line); margin-bottom:10px;">' +
           '<div class="prazo-card-topo">' +
             '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' + _chipPrioridadeTarefa(pz.prioridade || 'baixa') + ' ' +
-              '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong>' +
+              '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong>' + _htmlResponsavelPrazo(pz) +
               '<div style="font-size:12px; color:var(--ink-faint); margin-top:2px;">' + esc(pz.numero_cnj ? _rotuloProcessoParaSelect(pz) : '') + '</div></div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(pz.data_limite) + '</span>' +
           '</div>' +
@@ -9296,7 +9313,7 @@
         return '<div class="prazo-card" style="background:var(--bg);border-color:var(--line);">' +
           '<div class="prazo-card-topo">' +
             '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' + _chipPrioridadeTarefa(pz.prioridade || 'baixa') + ' ' +
-              '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong></div>' +
+              '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong>' + _htmlResponsavelPrazo(pz) + '</div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(pz.data_limite) + '</span>' +
           '</div>' +
           (pz.observacao ? '<div class="prazo-resumo" style="color:var(--ink-soft);">' + esc(pz.observacao) + '</div>' : '') +
