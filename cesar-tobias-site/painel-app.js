@@ -7743,6 +7743,10 @@
               '<option value="legal">Legal</option>' +
               '<option value="interno">Interno</option>' +
             '</select>' +
+            '<label>Prioridade</label>' +
+            '<select id="prazo-form-prioridade" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
+              '<option value="baixa" selected>Baixa</option><option value="media">Média</option><option value="alta">Alta</option>' +
+            '</select>' +
             '<label>Observação</label>' +
             '<textarea id="prazo-form-observacao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:18px;"></textarea>' +
             '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
@@ -7783,6 +7787,7 @@
         titulo: document.getElementById('prazo-form-titulo').value.trim(),
         data_limite: document.getElementById('prazo-form-data').value,
         tipo: document.getElementById('prazo-form-tipo').value,
+        prioridade: document.getElementById('prazo-form-prioridade').value,
         observacao: document.getElementById('prazo-form-observacao').value.trim(),
       };
       if (prazoEmEdicao) corpo.id = prazoEmEdicao.id;
@@ -7818,6 +7823,7 @@
       document.getElementById('prazo-form-titulo').value = prazoExistente ? prazoExistente.titulo : '';
       document.getElementById('prazo-form-data').value = prazoExistente ? prazoExistente.data_limite : '';
       document.getElementById('prazo-form-tipo').value = prazoExistente ? prazoExistente.tipo : 'legal';
+      document.getElementById('prazo-form-prioridade').value = prazoExistente ? (prazoExistente.prioridade || 'baixa') : 'baixa';
       document.getElementById('prazo-form-observacao').value = prazoExistente ? (prazoExistente.observacao || '') : '';
 
       var wrapSelect = document.getElementById('prazo-form-processo-select-wrap');
@@ -7892,7 +7898,7 @@
       container.innerHTML = prazosCarregados.map(function (pz) {
         return '<div class="prazo-card" style="background:var(--bg);border-color:var(--line); margin-bottom:10px;">' +
           '<div class="prazo-card-topo">' +
-            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' +
+            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' + _chipPrioridadeTarefa(pz.prioridade || 'baixa') + ' ' +
               '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong>' +
               '<div style="font-size:12px; color:var(--ink-faint); margin-top:2px;">' + esc(pz.numero_cnj ? _rotuloProcessoParaSelect(pz) : '') + '</div></div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(pz.data_limite) + '</span>' +
@@ -9289,7 +9295,7 @@
       return prazos.map(function (pz) {
         return '<div class="prazo-card" style="background:var(--bg);border-color:var(--line);">' +
           '<div class="prazo-card-topo">' +
-            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' +
+            '<div>' + _chipStatusPrazo(pz.status) + ' <span class="chip neutral">' + esc(pz.tipo === 'interno' ? 'Interno' : 'Legal') + '</span> ' + _chipPrioridadeTarefa(pz.prioridade || 'baixa') + ' ' +
               '<strong style="font-size:13px;color:var(--ink);">' + esc(pz.titulo) + '</strong></div>' +
             '<span class="prazo-meta" style="color:var(--ink-faint);">' + fmtDataProcesso(pz.data_limite) + '</span>' +
           '</div>' +
