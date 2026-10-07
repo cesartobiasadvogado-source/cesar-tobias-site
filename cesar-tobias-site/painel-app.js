@@ -4006,6 +4006,10 @@
               '<option value="vinculado_processo">Vinculado ao processo</option>' +
             '</select>' +
           '</div>' +
+          '<div class="ncontrato-campo">' +
+            '<label for="ncontrato-servico">Serviço prestado</label>' +
+            '<input type="text" id="ncontrato-servico" maxlength="200" placeholder="Ex.: Elaboração de contrato de locação" autocomplete="off">' +
+          '</div>' +
           '<div class="ncontrato-campo" id="ncontrato-campo-valor">' +
             '<label for="ncontrato-valor">Valor base (R$)</label>' +
             '<input type="text" id="ncontrato-valor" placeholder="0,00">' +
@@ -7018,6 +7022,7 @@
       document.getElementById('ncontrato-periodicidade').value = 'Mensal';
       inputDataInicio.value = new Date().toISOString().slice(0, 10);
       selectCliente.value = '';
+      document.getElementById('ncontrato-servico').value = '';
       atualizarAvisoCliente();
       selectProcesso.value = '';
       atualizarCamposPorTipo();
@@ -7077,6 +7082,7 @@
         nome: nome,
         tipo_contrato: selectTipo.value,
         processo_numero: selectProcesso.value,
+        servico: document.getElementById('ncontrato-servico').value.trim(),
         valor_total: document.getElementById('ncontrato-valor').value,
         percentual_exito: document.getElementById('ncontrato-percentual').value,
         valor_causa: document.getElementById('ncontrato-valor-causa').value,
