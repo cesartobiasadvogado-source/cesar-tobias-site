@@ -5691,7 +5691,14 @@
   // Vencimento da fatura em que cai uma compra: até o dia do fechamento (inclusive) entra na fatura deste mês;
   // depois dele, na do mês seguinte. O vencimento cai no mês do fechamento se o dia de vencimento for maior que o
   // de fechamento (fecha 21, vence 28), senão no mês seguinte.
-  function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
+  // Data de hoje no relogio do usuario (toISOString usa UTC e, de noite no Brasil, ja devolveria o dia seguinte).
+function _gastoHojeLocal(agora) {
+  var d = agora || new Date();
+  var dois = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + dois(d.getMonth() + 1) + '-' + dois(d.getDate());
+}
+
+function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     var p = String(dataISO).split('-');
     var ano = +p[0], mes = +p[1], dia = +p[2];
     if (dia > fechamento) { mes += 1; if (mes > 12) { mes = 1; ano += 1; } }
@@ -5797,7 +5804,7 @@
           var parcelado = g.total_parcelas > 1;
           return '<tr style="border-top:1px solid var(--line);">' +
             '<td style="padding:8px 6px;">' + esc(fmtDataCurta(g.vencimento)) + '</td>' +
-            '<td style="padding:8px 6px;">' + esc(g.descricao) + (g.origem === 'whatsapp' ? ' <span class="chip neutral">WhatsApp</span>' : '') + '</td>' +
+            '<td style="padding:8px 6px;">' + esc(g.descricao) + (g.origem === 'whatsapp' ? ' <span class="chip neutral" title="Lançado pelo WhatsApp ou Telegram">Mensagem</span>' : '') + '</td>' +
             '<td style="padding:8px 6px;">' + esc(g.categoria || '—') + '</td>' +
             '<td style="padding:8px 6px;">' + esc(GASTO_FORMAS[g.forma_pagamento] || g.forma_pagamento || '—') + '</td>' +
             '<td style="padding:8px 6px;">' + (parcelado ? g.parcela_numero + '/' + g.total_parcelas : '—') + '</td>' +
@@ -5988,7 +5995,7 @@
     document.getElementById('gasto-modal-titulo').textContent = gastosEstado.natureza === 'pessoal' ? 'Novo gasto pessoal' : 'Novo gasto do escritório';
     document.getElementById('gasto-form-erro').innerHTML = '';
     ['gasto-form-descricao', 'gasto-form-valor', 'gasto-form-categoria', 'gasto-form-valor-parcela', 'gasto-form-observacao'].forEach(function (id) { document.getElementById(id).value = ''; });
-    document.getElementById('gasto-form-data').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('gasto-form-data').value = _gastoHojeLocal();
     document.getElementById('gasto-form-forma').value = 'pix';
     document.getElementById('gasto-form-parcelas').value = '1';
     document.getElementById('gasto-categorias-lista').innerHTML = (categorias || []).map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('');

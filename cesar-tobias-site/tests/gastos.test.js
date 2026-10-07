@@ -10,7 +10,7 @@ const proxy = fs.readFileSync(path.join(__dirname, '..', 'api', 'painel.js'), 'u
 const ini = fonte.indexOf('// GASTOS:inicio');
 const fim = fonte.indexOf('// GASTOS:fim');
 assert(ini > 0 && fim > ini, 'marcadores nao encontrados em painel-app.js');
-const g = new Function(fonte.slice(ini, fim) + '; return { venc: _gastoVencimentoFatura, parcelas: _gastoVencimentosParcelas, dividir: _gastoDividirParcelas, numero: _gastoNumero };')();
+const g = new Function(fonte.slice(ini, fim) + '; return { venc: _gastoVencimentoFatura, parcelas: _gastoVencimentosParcelas, dividir: _gastoDividirParcelas, numero: _gastoNumero, hoje: _gastoHojeLocal };')();
 
 let falhas = 0;
 function t(nome, fn) { try { fn(); console.log('ok  ' + nome); } catch (e) { falhas++; console.log('FALHA ' + nome + ': ' + e.message); } }
@@ -95,6 +95,17 @@ t('o proxy da Vercel repassa as 7 ações de gastos/cartões, com o corpo inteir
   ['gasto_criar', 'gasto_atualizar', 'gasto_excluir', 'cartao_criar', 'cartao_atualizar'].forEach(a => assert(proxy.includes(a + ': '), a));
   const bloco = proxy.slice(proxy.indexOf('var acoesGastoPost'), proxy.indexOf("if (acao === 'tarefa_listar')"));
   assert(bloco.includes('body: JSON.stringify(corpo)'), 'corpo inteiro');
+});
+
+
+t('data padrao do gasto e a de hoje no relogio local, nao a de UTC', () => {
+  const noite = new Date(2026, 9, 7, 22, 30);          // 07/10 as 22h30 locais (em UTC ja seria 08/10 no Brasil)
+  assert.strictEqual(g.hoje(noite), '2026-10-07');
+  assert.strictEqual(g.hoje(new Date(2026, 0, 5, 0, 5)), '2026-01-05');
+});
+t('o modal de gasto usa a data local e o chip de origem diz Mensagem', () => {
+  assert(fonte.includes("document.getElementById('gasto-form-data').value = _gastoHojeLocal();"));
+  assert(fonte.includes('>Mensagem</span>') && !fonte.includes('chip neutral">WhatsApp</span>'));
 });
 
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
