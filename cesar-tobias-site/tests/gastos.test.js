@@ -59,6 +59,10 @@ t('número: aceita 1.234,56 / 45,5 / 45.50 / R$ 300,00 e recusa vazio, texto e z
   assert.strictEqual(g.numero('45,5'), 45.5);
   assert.strictEqual(g.numero('45.50'), 45.5);
   assert.strictEqual(g.numero('R$ 300,00'), 300);
+  assert.strictEqual(g.numero('1.200'), 1200);          // milhar brasileiro, não 1,2
+  assert.strictEqual(g.numero('1.200.000'), 1200000);
+  assert.strictEqual(g.numero('1.200,50'), 1200.5);
+  assert.strictEqual(g.numero('12.34'), 12.34);          // ponto com 2 casas continua sendo decimal
   ['', 'abc', '0', '0,00', null, undefined, '-5'].forEach(v => assert(isNaN(g.numero(v)), String(v)));
 });
 

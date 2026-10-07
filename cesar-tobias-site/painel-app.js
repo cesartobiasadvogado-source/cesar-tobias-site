@@ -5724,6 +5724,7 @@
     var t = String(texto == null ? '' : texto).replace(/R\$|\s/g, '');
     if (!t) return NaN;
     if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');   // '1.200' = mil e duzentos, não 1,2
     var n = Number(t);
     return n > 0 ? Math.round(n * 100) / 100 : NaN;
   }
