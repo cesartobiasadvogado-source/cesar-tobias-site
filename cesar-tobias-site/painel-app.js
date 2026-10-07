@@ -4560,6 +4560,19 @@
         '</div>' +
       '</section>';
 
+    var htmlGastos =
+      '<div class="panel">' +
+        '<div class="panel-header"><span class="panel-title">Gastos</span></div>' +
+        '<div style="padding:16px 20px;">' +
+          '<div class="subtabs" style="margin-bottom:14px;">' +
+            '<button type="button" class="subtab-btn ativo" data-gnat="escritorio">Escritório</button>' +
+            '<button type="button" class="subtab-btn" data-gnat="pessoal">Pessoal</button>' +
+            '<button type="button" class="subtab-btn" data-gnat="cartoes">Cartões</button>' +
+          '</div>' +
+          '<div id="gastos-conteudo"></div>' +
+        '</div>' +
+      '</div>';
+
     var htmlFinanceiroNovo =
       '<section id="sec-financeiro-novo">' +
         '<p class="section-label">Financeiro</p>' +
@@ -4570,6 +4583,7 @@
           '<button type="button" class="subtab-btn" data-fin-tab="despesas">Despesas do Processo</button>' +
           '<button type="button" class="subtab-btn" data-fin-tab="pagar">Contas a pagar</button>' +
           '<button type="button" class="subtab-btn" data-fin-tab="recorrentes">Contas recorrentes</button>' +
+          '<button type="button" class="subtab-btn" data-fin-tab="gastos">Gastos</button>' +
         '</div>' +
         // htmlFinanceiro (Visao Financeira antiga) e htmlExito (Casos cadastrados + "Registrar
         // valor recebido pelo cliente") NAO entram mais aqui -- o Painel Executivo cobre a
@@ -4587,6 +4601,7 @@
         '<div class="fin-tab-panel hidden" data-fin-panel="despesas">' + htmlDespesasProcesso + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="pagar">' + htmlContasPagar + '</div>' +
         '<div class="fin-tab-panel hidden" data-fin-panel="recorrentes">' + htmlContasRecorrentes + '</div>' +
+        '<div class="fin-tab-panel hidden" data-fin-panel="gastos">' + htmlGastos + '</div>' +
         htmlModalEditarParcela +
       '</section>';
 
@@ -4691,7 +4706,7 @@
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
-      wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
+      wireFinTabs(); wireGastos(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
       wireEditarParcelaModal(); carregarParcelasAReceber();
       wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
@@ -5669,6 +5684,334 @@
     mapa.forEach(function (m) { observer.observe(m.alvo); });
   }
 
+  // GASTOS:inicio
+  // Cálculo das parcelas no navegador (só pra PRÉVIA no formulário; quem grava é o servidor, com a mesma regra).
+  function _gastoPad(n) { return (n < 10 ? '0' : '') + n; }
+  function _gastoUltimoDia(ano, mes) { return new Date(ano, mes, 0).getDate(); }
+  // Vencimento da fatura em que cai uma compra: até o dia do fechamento (inclusive) entra na fatura deste mês;
+  // depois dele, na do mês seguinte. O vencimento cai no mês do fechamento se o dia de vencimento for maior que o
+  // de fechamento (fecha 21, vence 28), senão no mês seguinte.
+  function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
+    var p = String(dataISO).split('-');
+    var ano = +p[0], mes = +p[1], dia = +p[2];
+    if (dia > fechamento) { mes += 1; if (mes > 12) { mes = 1; ano += 1; } }
+    if (vencimento <= fechamento) { mes += 1; if (mes > 12) { mes = 1; ano += 1; } }
+    return ano + '-' + _gastoPad(mes) + '-' + _gastoPad(Math.min(vencimento, _gastoUltimoDia(ano, mes)));
+  }
+  // Um vencimento por parcela, sempre ancorado no dia de vencimento do cartão (dia 31 em fevereiro cai no 28 e volta ao 31).
+  function _gastoVencimentosParcelas(primeiroISO, diaVencimento, n) {
+    var p = String(primeiroISO).split('-');
+    var indice = (+p[0]) * 12 + (+p[1] - 1);
+    var saida = [];
+    for (var i = 0; i < n; i++) {
+      var ano = Math.floor((indice + i) / 12), mes = ((indice + i) % 12) + 1;
+      saida.push(ano + '-' + _gastoPad(mes) + '-' + _gastoPad(Math.min(diaVencimento, _gastoUltimoDia(ano, mes))));
+    }
+    return saida;
+  }
+  // Valores das parcelas: com valor da parcela informado, todas valem isso; senão divide e a última absorve os centavos.
+  function _gastoDividirParcelas(total, n, valorParcela) {
+    var valores = [];
+    if (valorParcela) { for (var i = 0; i < n; i++) valores.push(Math.round(valorParcela * 100) / 100); return valores; }
+    var centavos = Math.round(total * 100);
+    var base = Math.floor(centavos / n);
+    for (var j = 0; j < n - 1; j++) valores.push(base / 100);
+    valores.push((centavos - base * (n - 1)) / 100);
+    return valores;
+  }
+  // '1.234,56' / '45,5' / '45.50' -> número; NaN se vazio, inválido ou <= 0
+  function _gastoNumero(texto) {
+    var t = String(texto == null ? '' : texto).replace(/R\$|\s/g, '');
+    if (!t) return NaN;
+    if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.');
+    var n = Number(t);
+    return n > 0 ? Math.round(n * 100) / 100 : NaN;
+  }
+  // GASTOS:fim
+
+  var GASTO_FORMAS = { dinheiro: 'Dinheiro', pix: 'Pix', debito: 'Débito', credito: 'Cartão de crédito', boleto: 'Boleto', outro: 'Outro' };
+  var gastosEstado = { natureza: 'escritorio', mes: '', cartoes: [], listaCarregada: false };
+
+  function _gastosMesAtual() {
+    var d = new Date();
+    return d.getFullYear() + '-' + _gastoPad(d.getMonth() + 1);
+  }
+
+  function _gastosMesDeslocado(mes, delta) {
+    var p = mes.split('-');
+    var indice = (+p[0]) * 12 + (+p[1] - 1) + delta;
+    return Math.floor(indice / 12) + '-' + _gastoPad((indice % 12) + 1);
+  }
+
+  var _GASTO_ESTILO_CAMPO = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;';
+
+  function carregarGastos() {
+    var area = document.getElementById('gastos-conteudo');
+    if (!area) return;
+    if (!gastosEstado.mes) gastosEstado.mes = _gastosMesAtual();
+    document.querySelectorAll('[data-gnat]').forEach(function (b) {
+      b.classList.toggle('ativo', b.getAttribute('data-gnat') === gastosEstado.natureza);
+    });
+    area.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div>';
+    if (gastosEstado.natureza === 'cartoes') { carregarCartoesGastos(); return; }
+    apiGetJson('/api/painel?acao=gasto_listar&natureza=' + gastosEstado.natureza + '&mes=' + gastosEstado.mes)
+      .then(renderGastos)
+      .catch(function () {
+        area.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar os gastos agora.</div></div>';
+      });
+  }
+
+  function renderGastos(d) {
+    var area = document.getElementById('gastos-conteudo');
+    var pessoal = gastosEstado.natureza === 'pessoal';
+    var itens = d.itens || [];
+    var maior = (d.por_categoria || []).reduce(function (m, c) { return Math.max(m, c.total); }, 0) || 1;
+    var html =
+      (pessoal ? '<div class="aviso-tenant" style="margin-bottom:12px;">Só você vê estes gastos. Eles não entram em nenhum gráfico nem saldo do escritório.</div>' : '') +
+      '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">' +
+        '<button type="button" class="btn-conexao-secundario" id="gastos-mes-ant" aria-label="Mês anterior">‹</button>' +
+        '<input type="month" id="gastos-mes" value="' + esc(d.mes) + '" style="padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:var(--bg);color:var(--ink);">' +
+        '<button type="button" class="btn-conexao-secundario" id="gastos-mes-prox" aria-label="Próximo mês">›</button>' +
+        '<span style="flex:1;"></span>' +
+        '<button type="button" class="btn-conexao" id="gastos-btn-novo">+ Novo gasto</button>' +
+      '</div>' +
+      '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">' +
+        '<div class="stat-card"><div class="stat-value money">' + fmtMoeda(d.total) + '</div><div class="stat-label">Gastos do mês</div></div>' +
+        '<div class="stat-card"><div class="stat-value money" style="color:var(--warn);">' + fmtMoeda(d.comprometido_futuro) + '</div><div class="stat-label">Já comprometido nos próximos meses</div></div>' +
+      '</div>' +
+      ((d.por_categoria || []).length
+        ? '<div style="margin-bottom:16px;">' + d.por_categoria.map(function (c) {
+            return '<div style="display:flex; align-items:center; gap:10px; font-size:12.5px; margin-bottom:6px;">' +
+              '<span style="width:170px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(c.categoria) + '</span>' +
+              '<span style="flex:1; background:var(--surface-sunken); border-radius:4px; height:8px;"><span style="display:block; height:8px; border-radius:4px; background:var(--accent); width:' + Math.max(2, Math.round(c.total / maior * 100)) + '%;"></span></span>' +
+              '<span style="width:110px; text-align:right; color:var(--ink);">R$ ' + fmtMoeda(c.total) + '</span></div>';
+          }).join('') + '</div>'
+        : '');
+    if (!itens.length) {
+      html += '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Nenhum gasto neste mês.</div></div>';
+    } else {
+      html += '<div style="overflow-x:auto;"><table class="tabela-simples" style="width:100%; border-collapse:collapse; font-size:13px;">' +
+        '<thead><tr style="text-align:left; color:var(--ink-faint); font-size:12px;"><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Parcela</th>' + (pessoal ? '' : '<th>Status</th>') + '<th style="text-align:right;">Valor</th><th></th></tr></thead><tbody>' +
+        itens.map(function (g) {
+          var parcelado = g.total_parcelas > 1;
+          return '<tr style="border-top:1px solid var(--line);">' +
+            '<td style="padding:8px 6px;">' + esc(fmtDataCurta(g.vencimento)) + '</td>' +
+            '<td style="padding:8px 6px;">' + esc(g.descricao) + (g.origem === 'whatsapp' ? ' <span class="chip neutral">WhatsApp</span>' : '') + '</td>' +
+            '<td style="padding:8px 6px;">' + esc(g.categoria || '—') + '</td>' +
+            '<td style="padding:8px 6px;">' + esc(GASTO_FORMAS[g.forma_pagamento] || g.forma_pagamento || '—') + '</td>' +
+            '<td style="padding:8px 6px;">' + (parcelado ? g.parcela_numero + '/' + g.total_parcelas : '—') + '</td>' +
+            (pessoal ? '' : '<td style="padding:8px 6px;">' + esc(g.status || '') + '</td>') +
+            '<td style="padding:8px 6px; text-align:right;">R$ ' + fmtMoeda(g.valor) + '</td>' +
+            '<td style="padding:8px 6px; white-space:nowrap;">' +
+              '<button type="button" class="btn-conexao-secundario" data-gasto-excluir="' + g.id + '" style="padding:3px 9px; font-size:12px;">' + (parcelado ? 'Excluir parcela' : 'Excluir') + '</button>' +
+              (parcelado && g.compra_id ? ' <button type="button" class="btn-conexao-secundario" data-gasto-excluir-compra="' + esc(g.compra_id) + '" style="padding:3px 9px; font-size:12px;">Excluir compra</button>' : '') +
+            '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    area.innerHTML = html;
+
+    function irParaMes(mes) { gastosEstado.mes = mes; carregarGastos(); }
+    document.getElementById('gastos-mes-ant').addEventListener('click', function () { irParaMes(_gastosMesDeslocado(gastosEstado.mes, -1)); });
+    document.getElementById('gastos-mes-prox').addEventListener('click', function () { irParaMes(_gastosMesDeslocado(gastosEstado.mes, 1)); });
+    document.getElementById('gastos-mes').addEventListener('change', function () { if (this.value) irParaMes(this.value); });
+    document.getElementById('gastos-btn-novo').addEventListener('click', function () { abrirModalGasto(d.categorias_sugeridas || []); });
+    area.querySelectorAll('[data-gasto-excluir]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-gasto-excluir');
+        confirmarModal('Excluir este lançamento?').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=gasto_excluir', { natureza: gastosEstado.natureza, id: id }).then(carregarGastos).catch(function (e) { alert(e.message || 'Não foi possível excluir.'); });
+        });
+      });
+    });
+    area.querySelectorAll('[data-gasto-excluir-compra]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var compra = b.getAttribute('data-gasto-excluir-compra');
+        confirmarModal('Excluir a compra inteira, com todas as parcelas (de todos os meses)?').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=gasto_excluir', { natureza: gastosEstado.natureza, compra_id: compra }).then(carregarGastos).catch(function (e) { alert(e.message || 'Não foi possível excluir.'); });
+        });
+      });
+    });
+  }
+
+  function carregarCartoesGastos() {
+    var area = document.getElementById('gastos-conteudo');
+    apiGetJson('/api/painel?acao=cartao_listar').then(function (d) {
+      gastosEstado.cartoes = d.cartoes || [];
+      var html =
+        '<p style="font-size:13px; color:var(--ink-soft); margin:0 0 12px;">Cadastre os seus cartões de crédito. O sistema usa o dia de fechamento para saber em qual fatura cai cada compra (compra até o dia do fechamento entra na fatura do mês; depois dele, na do mês seguinte).</p>' +
+        (gastosEstado.cartoes.length
+          ? '<div style="overflow-x:auto; margin-bottom:16px;"><table class="tabela-simples" style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="text-align:left; color:var(--ink-faint); font-size:12px;"><th>Cartão</th><th>Fecha dia</th><th>Vence dia</th><th></th></tr></thead><tbody>' +
+            gastosEstado.cartoes.map(function (c) {
+              return '<tr style="border-top:1px solid var(--line);"><td style="padding:8px 6px;">' + esc(c.nome) + (c.ativo ? '' : ' <span class="chip neutral">Desativado</span>') + '</td>' +
+                '<td style="padding:8px 6px;">' + c.dia_fechamento + '</td><td style="padding:8px 6px;">' + c.dia_vencimento + '</td>' +
+                '<td style="padding:8px 6px;"><button type="button" class="btn-conexao-secundario" data-cartao-ativo="' + c.id + '" data-ativo="' + (c.ativo ? '0' : '1') + '" style="padding:3px 9px; font-size:12px;">' + (c.ativo ? 'Desativar' : 'Ativar') + '</button></td></tr>';
+            }).join('') + '</tbody></table></div>'
+          : '<div class="empty-state" style="margin-bottom:12px;"><div class="msg" style="color:var(--ink-faint);">Nenhum cartão cadastrado.</div></div>') +
+        '<div id="cartao-form-erro"></div>' +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">' +
+          '<div style="flex:2; min-width:160px;"><label>Nome do cartão</label><input type="text" id="cartao-form-nome" placeholder="Ex.: Nubank" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<div style="flex:1; min-width:110px;"><label>Fecha no dia</label><input type="number" min="1" max="31" id="cartao-form-fechamento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<div style="flex:1; min-width:110px;"><label>Vence no dia</label><input type="number" min="1" max="31" id="cartao-form-vencimento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<button type="button" class="btn-conexao" id="cartao-btn-salvar">Adicionar cartão</button>' +
+        '</div>';
+      area.innerHTML = html;
+      document.getElementById('cartao-btn-salvar').addEventListener('click', function () {
+        var erro = document.getElementById('cartao-form-erro');
+        erro.innerHTML = '';
+        apiPostJson('/api/painel?acao=cartao_criar', {
+          nome: document.getElementById('cartao-form-nome').value.trim(),
+          dia_fechamento: document.getElementById('cartao-form-fechamento').value,
+          dia_vencimento: document.getElementById('cartao-form-vencimento').value,
+        }).then(carregarGastos).catch(function (e) { erro.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o cartão.') + '</div>'; });
+      });
+      area.querySelectorAll('[data-cartao-ativo]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          apiPostJson('/api/painel?acao=cartao_atualizar', { id: b.getAttribute('data-cartao-ativo'), ativo: b.getAttribute('data-ativo') === '1' }).then(carregarGastos);
+        });
+      });
+    }).catch(function () {
+      area.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar os cartões agora.</div></div>';
+    });
+  }
+
+  function _garantirModalGasto() {
+    if (document.getElementById('modal-gasto')) return;
+    var div = document.createElement('div');
+    div.innerHTML =
+      '<div id="modal-gasto" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:480px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="gasto-modal-titulo">Novo gasto</span>' +
+            '<button type="button" class="modal-drill-fechar" id="gasto-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div style="padding:18px 20px; max-height:72vh; overflow-y:auto;">' +
+            '<div id="gasto-form-erro"></div>' +
+            '<label>Descrição</label>' +
+            '<input type="text" id="gasto-form-descricao" placeholder="Ex.: Aluguel da sala" style="' + _GASTO_ESTILO_CAMPO + '">' +
+            '<div style="display:flex; gap:10px;">' +
+              '<div style="flex:1;"><label>Valor (R$)</label><input type="text" id="gasto-form-valor" placeholder="0,00" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+              '<div style="flex:1;"><label>Data da compra</label><input type="date" id="gasto-form-data" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+            '</div>' +
+            '<label>Categoria</label>' +
+            '<input type="text" id="gasto-form-categoria" list="gasto-categorias-lista" placeholder="Escolha ou digite" autocomplete="off" style="' + _GASTO_ESTILO_CAMPO + '">' +
+            '<datalist id="gasto-categorias-lista"></datalist>' +
+            '<label>Forma de pagamento</label>' +
+            '<select id="gasto-form-forma" style="' + _GASTO_ESTILO_CAMPO + '">' +
+              Object.keys(GASTO_FORMAS).map(function (k) { return '<option value="' + k + '"' + (k === 'pix' ? ' selected' : '') + '>' + GASTO_FORMAS[k] + '</option>'; }).join('') +
+            '</select>' +
+            '<div id="gasto-credito-wrap" class="hidden">' +
+              '<label>Cartão</label>' +
+              '<select id="gasto-form-cartao" style="' + _GASTO_ESTILO_CAMPO + '"></select>' +
+              '<div style="display:flex; gap:10px;">' +
+                '<div style="flex:1;"><label>Parcelas</label><input type="number" min="1" max="60" id="gasto-form-parcelas" value="1" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+                '<div style="flex:1;"><label>Valor da parcela (se houver juros)</label><input type="text" id="gasto-form-valor-parcela" placeholder="Opcional" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+              '</div>' +
+              '<div id="gasto-preview" style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px;"></div>' +
+            '</div>' +
+            '<label>Observação</label>' +
+            '<textarea id="gasto-form-observacao" rows="2" style="' + _GASTO_ESTILO_CAMPO + 'font-family:inherit;resize:vertical;margin-bottom:18px;"></textarea>' +
+            '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+              '<button type="button" id="gasto-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+              '<button type="button" id="gasto-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-gasto');
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('gasto-modal-fechar').addEventListener('click', fechar);
+    document.getElementById('gasto-btn-cancelar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    _abrirCalendarioAoClicar('gasto-form-data');
+
+    function atualizarCredito() {
+      var credito = document.getElementById('gasto-form-forma').value === 'credito';
+      document.getElementById('gasto-credito-wrap').classList.toggle('hidden', !credito);
+      atualizarPreviaGasto();
+    }
+    ['gasto-form-forma', 'gasto-form-cartao'].forEach(function (id) { document.getElementById(id).addEventListener('change', atualizarCredito); });
+    ['gasto-form-valor', 'gasto-form-data', 'gasto-form-parcelas', 'gasto-form-valor-parcela'].forEach(function (id) { document.getElementById(id).addEventListener('input', atualizarPreviaGasto); });
+
+    document.getElementById('gasto-btn-salvar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('gasto-form-erro');
+      erroDiv.innerHTML = '';
+      var credito = document.getElementById('gasto-form-forma').value === 'credito';
+      var corpo = {
+        natureza: gastosEstado.natureza,
+        descricao: document.getElementById('gasto-form-descricao').value.trim(),
+        valor: document.getElementById('gasto-form-valor').value.trim(),
+        data_gasto: document.getElementById('gasto-form-data').value,
+        categoria: document.getElementById('gasto-form-categoria').value.trim(),
+        forma_pagamento: document.getElementById('gasto-form-forma').value,
+        observacoes: document.getElementById('gasto-form-observacao').value.trim(),
+      };
+      if (credito) {
+        corpo.cartao_id = document.getElementById('gasto-form-cartao').value;
+        corpo.parcelas = document.getElementById('gasto-form-parcelas').value || '1';
+        corpo.valor_parcela = document.getElementById('gasto-form-valor-parcela').value.trim();
+        if (!corpo.cartao_id) { erroDiv.innerHTML = '<div class="aviso-tenant">Escolha o cartão (cadastre em Gastos › Cartões).</div>'; return; }
+        if (corpo.valor_parcela) corpo.valor = '';
+      }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=gasto_criar', corpo)
+        .then(function () { btn.disabled = false; btn.textContent = 'Salvar'; fechar(); carregarGastos(); })
+        .catch(function (e) { btn.disabled = false; btn.textContent = 'Salvar'; erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o gasto agora.') + '</div>'; });
+    });
+  }
+
+  function atualizarPreviaGasto() {
+    var previa = document.getElementById('gasto-preview');
+    if (!previa) return;
+    previa.textContent = '';
+    if (document.getElementById('gasto-form-forma').value !== 'credito') return;
+    var cartao = gastosEstado.cartoes.filter(function (c) { return String(c.id) === document.getElementById('gasto-form-cartao').value; })[0];
+    var data = document.getElementById('gasto-form-data').value;
+    var n = parseInt(document.getElementById('gasto-form-parcelas').value, 10) || 1;
+    var valorParcela = _gastoNumero(document.getElementById('gasto-form-valor-parcela').value);
+    var total = _gastoNumero(document.getElementById('gasto-form-valor').value);
+    if (!cartao || !data || n < 1 || n > 60 || (isNaN(total) && isNaN(valorParcela))) return;
+    var valores = _gastoDividirParcelas(total, n, isNaN(valorParcela) ? 0 : valorParcela);
+    var primeiro = _gastoVencimentoFatura(data, cartao.dia_fechamento, cartao.dia_vencimento);
+    var venc = _gastoVencimentosParcelas(primeiro, cartao.dia_vencimento, n);
+    previa.textContent = n + 'x de R$ ' + fmtMoeda(valores[0]) + ' (total R$ ' + fmtMoeda(valores.reduce(function (a, b) { return a + b; }, 0)) + ') · 1ª parcela vence em ' + fmtDataCurta(venc[0]) + (n > 1 ? ' · última em ' + fmtDataCurta(venc[n - 1]) : '');
+  }
+
+  function abrirModalGasto(categorias) {
+    _garantirModalGasto();
+    var overlay = document.getElementById('modal-gasto');
+    document.getElementById('gasto-modal-titulo').textContent = gastosEstado.natureza === 'pessoal' ? 'Novo gasto pessoal' : 'Novo gasto do escritório';
+    document.getElementById('gasto-form-erro').innerHTML = '';
+    ['gasto-form-descricao', 'gasto-form-valor', 'gasto-form-categoria', 'gasto-form-valor-parcela', 'gasto-form-observacao'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('gasto-form-data').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('gasto-form-forma').value = 'pix';
+    document.getElementById('gasto-form-parcelas').value = '1';
+    document.getElementById('gasto-categorias-lista').innerHTML = (categorias || []).map(function (c) { return '<option value="' + esc(c) + '"></option>'; }).join('');
+    document.getElementById('gasto-credito-wrap').classList.add('hidden');
+    document.getElementById('gasto-preview').textContent = '';
+    var selectCartao = document.getElementById('gasto-form-cartao');
+    selectCartao.innerHTML = '<option value="">Carregando…</option>';
+    apiGetJson('/api/painel?acao=cartao_listar').then(function (d) {
+      gastosEstado.cartoes = d.cartoes || [];
+      var ativos = gastosEstado.cartoes.filter(function (c) { return c.ativo; });
+      selectCartao.innerHTML = ativos.length
+        ? ativos.map(function (c) { return '<option value="' + c.id + '">' + esc(c.nome) + ' (fecha ' + c.dia_fechamento + ' · vence ' + c.dia_vencimento + ')</option>'; }).join('')
+        : '<option value="">Nenhum cartão cadastrado</option>';
+      atualizarPreviaGasto();
+    }).catch(function () { selectCartao.innerHTML = '<option value="">Não foi possível carregar os cartões</option>'; });
+    overlay.classList.remove('hidden');
+  }
+
+  function wireGastos() {
+    document.querySelectorAll('[data-gnat]').forEach(function (b) {
+      b.addEventListener('click', function () { gastosEstado.natureza = b.getAttribute('data-gnat'); carregarGastos(); });
+    });
+  }
+
   function wireFinTabs() {
     var botoes = document.querySelectorAll('.subtabs [data-fin-tab]');
     if (!botoes.length) return;
@@ -5683,6 +6026,7 @@
         // torre do grafico "crescer" na hora, se algo foi recebido/lancado enquanto o usuario
         // estava numa aba diferente (pedido do usuario).
         if (alvo === 'dashboard') carregarPainelExecutivo();
+        if (alvo === 'gastos') carregarGastos();
       });
     });
   }

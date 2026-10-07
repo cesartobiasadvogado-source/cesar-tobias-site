@@ -309,6 +309,47 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // Gastos (escritorio/pessoais) e cartoes: o corpo vai INTEIRO pra Lambda (sem lista de campos).
+  if (acao === 'gasto_listar' || acao === 'cartao_listar') {
+    var qsGasto = '';
+    ['natureza', 'mes'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsGasto += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(base + '?action=' + acao + qsGasto + '&token=' + encodeURIComponent(tokenSessao) + segredoQS);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao carregar os gastos.' });
+    }
+    return;
+  }
+
+  var acoesGastoPost = {
+    gasto_criar: 'Erro de conexao ao salvar o gasto.',
+    gasto_atualizar: 'Erro de conexao ao atualizar o gasto.',
+    gasto_excluir: 'Erro de conexao ao excluir o gasto.',
+    cartao_criar: 'Erro de conexao ao salvar o cartao.',
+    cartao_atualizar: 'Erro de conexao ao atualizar o cartao.',
+  };
+  if (acoesGastoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessao) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesGastoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'tarefa_listar') {
     var qsTarefa = '';
     ['responsavel', 'status', 'prioridade', 'vencimento_de', 'vencimento_ate'].forEach(function (campo) {
