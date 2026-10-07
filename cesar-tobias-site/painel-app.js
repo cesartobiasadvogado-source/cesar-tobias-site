@@ -3992,7 +3992,9 @@
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncontrato-cliente">Cliente *</label>' +
-            '<select id="ncontrato-cliente"><option value="">Selecione o cliente</option></select>' +
+            '<input type="text" id="ncontrato-cliente" list="ncontrato-clientes-lista" placeholder="Digite o nome ou escolha um cliente da lista" autocomplete="off">' +
+            '<datalist id="ncontrato-clientes-lista"></datalist>' +
+            '<div class="ncontrato-aviso-valores hidden" id="ncontrato-cliente-aviso">Cliente não cadastrado: o contrato ficará salvo só com este nome. Para ele aparecer em Clientes, cadastre-o depois com este mesmo nome.</div>' +
           '</div>' +
           '<div class="ncontrato-campo">' +
             '<label for="ncontrato-tipo">Tipo</label>' +
@@ -6944,11 +6946,32 @@
     });
   }
 
+  // CLIENTE-CONTRATO:inicio
+  // Nome digitado no contrato: se bate com um cliente cadastrado (ignorando maiúsculas, acentos e
+  // espaços repetidos) usa a grafia do cadastro, pra o contrato ficar ligado ao mesmo cliente; senão
+  // vale o que foi digitado (contrato sem cadastro, ex: um serviço avulso para um conhecido).
+  function _resolverClienteContrato(digitado, nomesCadastrados) {
+    var limpo = String(digitado || '').replace(/\s+/g, ' ').trim();
+    var chave = function (t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+    var alvo = chave(limpo);
+    var achado = null;
+    (nomesCadastrados || []).some(function (n) { if (chave(String(n).trim()) === alvo) { achado = n; return true; } return false; });
+    return { nome: achado || limpo, cadastrado: !!achado };
+  }
+  // CLIENTE-CONTRATO:fim
+
   function wireNovoContratoModal() {
     var btnAbrir = document.getElementById('btn-novo-contrato-honorarios');
     var modal = document.getElementById('modal-novo-contrato');
     if (!btnAbrir || !modal) return;
     var selectCliente = document.getElementById('ncontrato-cliente');
+    var listaClientes = document.getElementById('ncontrato-clientes-lista');
+    var avisoCliente = document.getElementById('ncontrato-cliente-aviso');
+    var nomesClientes = [];
+    function atualizarAvisoCliente() {
+      var digitado = selectCliente.value.trim();
+      avisoCliente.classList.toggle('hidden', !digitado || _resolverClienteContrato(digitado, nomesClientes).cadastrado);
+    }
     var selectProcesso = document.getElementById('ncontrato-processo');
     var selectTipo = document.getElementById('ncontrato-tipo');
     var campoValor = document.getElementById('ncontrato-campo-valor');
@@ -6995,6 +7018,7 @@
       document.getElementById('ncontrato-periodicidade').value = 'Mensal';
       inputDataInicio.value = new Date().toISOString().slice(0, 10);
       selectCliente.value = '';
+      atualizarAvisoCliente();
       selectProcesso.value = '';
       atualizarCamposPorTipo();
       atualizarPeriodicidade();
@@ -7002,8 +7026,9 @@
       if (!opcoesCarregadas) {
         opcoesCarregadas = true;
         apiGetJson('/api/painel?acao=cliente_cadastro_listar').then(function (d) {
-          selectCliente.innerHTML = '<option value="">Selecione o cliente</option>' +
-            (d.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">' + esc(c.nome) + '</option>'; }).join('');
+          nomesClientes = (d.clientes || []).map(function (c) { return c.nome; });
+          listaClientes.innerHTML = nomesClientes.map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join('');
+          atualizarAvisoCliente();
         }).catch(function () {});
         Promise.all([
           apiGetJson('/api/painel?acao=processo_manual_listar').catch(function () { return { processos: [] }; }),
@@ -7039,15 +7064,14 @@
     selectProcesso.addEventListener('change', function () {
       var nomeCliente = clientePorProcesso[selectProcesso.value];
       if (!nomeCliente) return;
-      // so seleciona se o cliente do processo estiver mesmo na lista (evita deixar o campo
-      // apontando pra um nome que nao existe como <option>).
-      var existe = Array.prototype.some.call(selectCliente.options, function (o) { return o.value === nomeCliente; });
-      if (existe) selectCliente.value = nomeCliente;
+      selectCliente.value = _resolverClienteContrato(nomeCliente, nomesClientes).nome;
+      atualizarAvisoCliente();
     });
+    selectCliente.addEventListener('input', atualizarAvisoCliente);
 
     btnSalvar.addEventListener('click', function () {
-      var nome = selectCliente.value;
-      if (!nome) { erroEl.textContent = 'Selecione o cliente.'; return; }
+      var nome = _resolverClienteContrato(selectCliente.value, nomesClientes).nome;
+      if (!nome) { erroEl.textContent = 'Informe o nome do cliente.'; return; }
       var corpo = {
         tipo: 'financeiro_contrato_criar',
         nome: nome,
