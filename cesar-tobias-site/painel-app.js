@@ -2574,7 +2574,7 @@
         '<div class="inicio-suporte" id="inicio-suporte">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17" style="flex-shrink:0;"><path d="M4 4h16v13H7l-3 3z"></path><path d="M8 9h8M8 13h5"></path></svg>' +
           '<span>Alguma dúvida ou precisa de ajuda pra configurar seu escritório? Fale diretamente com a gente.</span>' +
-          '<a class="inicio-suporte-btn" href="https://wa.me/5596991745909?text=' +
+          '<a class="inicio-suporte-btn" href="https://wa.me/5596991625462?text=' +
             encodeURIComponent('Olá! Preciso de ajuda com a plataforma Vero Jurídico.') +
             '" target="_blank" rel="noopener">Falar conosco</a>' +
           '<button type="button" class="inicio-suporte-fechar" id="btn-fechar-suporte-inicio" aria-label="Fechar aviso">✕</button>' +
