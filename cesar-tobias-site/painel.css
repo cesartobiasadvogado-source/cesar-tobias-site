@@ -347,6 +347,12 @@
   .stat-sub { margin-top: 2px; font-size: 12px; color: var(--ink-faint); }
   .btn-olho { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
   .btn-olho:hover { opacity: 1; }
+  /* Olhinho dos cartoes do Financeiro: a mascara e CSS (continua valendo quando o texto e reescrito depois). O texto real fica invisivel e ocupa o mesmo espaco;
+     os pontos assumem a cor original do valor (currentColor). */
+  [data-oculto="1"] { position: relative; -webkit-text-fill-color: transparent; user-select: none; }
+  [data-oculto="1"]::after { content: '\2022\2022\2022\2022\2022\2022'; position: absolute; left: 0; top: 0; -webkit-text-fill-color: currentColor; }
+  .exec-stat-foot[data-oculto="1"]::after { top: 8px; }
+  .exec-stat-direita { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); }

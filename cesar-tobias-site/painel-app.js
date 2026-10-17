@@ -912,6 +912,58 @@
     '</div>';
   }
 
+  // OLHINHOS:inicio
+  // Olhinho dos cartoes de valor do Financeiro cujo numero e preenchido DEPOIS (por id) ou muda sem recarregar a pagina. O estado fica no mesmo
+  // localStorage dos cartoes da pagina inicial ('painel_oculto_<chave>') e a mascara e CSS puro (atributo data-oculto): continua valendo quando o
+  // texto do valor e reescrito. Nada aqui chama o servidor.
+  function olhoCssRotulo(oculto) { return oculto ? 'Mostrar valor' : 'Ocultar valor'; }
+
+  function olhoCssAtributoValor(chave) {
+    return ' data-oculto-chave="' + chave + '"' + (valorOculto(chave) ? ' data-oculto="1" aria-hidden="true"' : '');
+  }
+
+  function olhoCssBotao(chave) {
+    var oculto = valorOculto(chave);
+    return '<button type="button" class="btn-olho" data-olho-css="' + chave + '" title="' + olhoCssRotulo(oculto) + '" aria-label="' + olhoCssRotulo(oculto) +
+      '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' + (oculto ? '\uD83D\uDE48' : '\uD83D\uDC41') + '</button>';
+  }
+
+  function cardValorCss(o) {
+    return '<div class="stat-card"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+      '<div class="stat-value money"' + (o.id ? ' id="' + o.id + '"' : '') + (o.cor ? ' style="color:' + o.cor + ';"' : '') + olhoCssAtributoValor(o.chave) + '>' + o.valor + '</div>' +
+      olhoCssBotao(o.chave) + '</div><div class="stat-label">' + o.rotulo + '</div></div>';
+  }
+
+  function alternarOlhoCss(raiz, chave) {
+    var oculto = !valorOculto(chave);
+    try {
+      if (oculto) localStorage.setItem('painel_oculto_' + chave, '1');
+      else localStorage.removeItem('painel_oculto_' + chave);
+    } catch (e) { /* sem armazenamento: vale so ate recarregar */ }
+    raiz.querySelectorAll('[data-oculto-chave="' + chave + '"]').forEach(function (el) {
+      if (oculto) { el.setAttribute('data-oculto', '1'); el.setAttribute('aria-hidden', 'true'); }
+      else { el.removeAttribute('data-oculto'); el.removeAttribute('aria-hidden'); }
+    });
+    raiz.querySelectorAll('[data-olho-css="' + chave + '"]').forEach(function (btn) {
+      btn.setAttribute('title', olhoCssRotulo(oculto));
+      btn.setAttribute('aria-label', olhoCssRotulo(oculto));
+      btn.setAttribute('aria-pressed', oculto ? 'true' : 'false');
+      btn.textContent = oculto ? '\uD83D\uDE48' : '\uD83D\uDC41';
+    });
+    return oculto;
+  }
+  // OLHINHOS:fim
+
+  var olhinhosCssInstalados = false;
+  function wireOlhinhosCss() {
+    if (olhinhosCssInstalados) return;
+    olhinhosCssInstalados = true;
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-olho-css]') : null;
+      if (btn) alternarOlhoCss(document, btn.getAttribute('data-olho-css'));
+    });
+  }
+
   var NOMES_MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var NOMES_MES_EXTENSO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -4276,9 +4328,9 @@
 
     var htmlContasPagar =
       '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">' +
-        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-pendente" style="color:var(--warn);">0,00</div><div class="stat-label">Total pendente</div></div>' +
-        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-pago" style="color:var(--good);">0,00</div><div class="stat-label">Total pago</div></div>' +
-        '<div class="stat-card"><div class="stat-value money" id="cpagar-total-atraso" style="color:var(--crit);">0,00</div><div class="stat-label">Total em atraso</div></div>' +
+        cardValorCss({ id: 'cpagar-total-pendente', chave: 'cpagar_pendente', cor: 'var(--warn)', valor: '0,00', rotulo: 'Total pendente' }) +
+        cardValorCss({ id: 'cpagar-total-pago', chave: 'cpagar_pago', cor: 'var(--good)', valor: '0,00', rotulo: 'Total pago' }) +
+        cardValorCss({ id: 'cpagar-total-atraso', chave: 'cpagar_atraso', cor: 'var(--crit)', valor: '0,00', rotulo: 'Total em atraso' }) +
       '</div>' +
       '<div class="panel" style="margin-bottom:14px;">' +
         '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
@@ -4481,11 +4533,16 @@
     function execStatCard(opts) {
       var corValor = opts.cor ? (' style="color:' + opts.cor + ';"') : '';
       var money = opts.money !== false ? ' money' : '';
+      // Olhinho: esconde o valor e, com subMoney, o rodape que traz valores em R$ (ver OLHINHOS).
+      var chave = 'exec_' + opts.id.replace(/^exec-kpi-/, '').replace(/-/g, '_');
+      var attrValor = opts.money !== false ? olhoCssAtributoValor(chave) : '';
+      var attrSub = opts.subMoney ? olhoCssAtributoValor(chave) : '';
+      var botaoOlho = (opts.money !== false || opts.subMoney) ? olhoCssBotao(chave) : '';
       return '<div class="exec-stat-card">' +
         '<div class="exec-stat-top"><span class="exec-stat-label">' + esc(opts.label) + '</span>' +
-          '<span class="exec-stat-icon">' + opts.icone + '</span></div>' +
-        '<div class="exec-stat-value' + money + '" id="' + opts.id + '"' + corValor + '>0,00</div>' +
-        '<div class="exec-stat-foot" id="' + opts.idSub + '">' + esc(opts.subInicial || '—') + '</div>' +
+          '<span class="exec-stat-direita">' + botaoOlho + '<span class="exec-stat-icon">' + opts.icone + '</span></span></div>' +
+        '<div class="exec-stat-value' + money + '" id="' + opts.id + '"' + corValor + attrValor + '>0,00</div>' +
+        '<div class="exec-stat-foot" id="' + opts.idSub + '"' + attrSub + '>' + esc(opts.subInicial || '—') + '</div>' +
       '</div>';
     }
 
@@ -4493,10 +4550,10 @@
       '<section id="sec-painel-executivo" style="margin-top:28px;">' +
         '<p class="section-label">Painel Executivo</p>' +
         '<div class="exec-stat-grid">' +
-          execStatCard({ id: 'exec-kpi-saldo', idSub: 'exec-kpi-saldo-sub', label: 'Saldo do mês', icone: ICONE_EXEC_SALDO }) +
-          execStatCard({ id: 'exec-kpi-projetado-90d', idSub: 'exec-kpi-projetado-90d-sub', label: 'Previsto (90 dias)', icone: ICONE_EXEC_PROJETADO, cor: 'var(--accent)' }) +
+          execStatCard({ id: 'exec-kpi-saldo', idSub: 'exec-kpi-saldo-sub', label: 'Saldo do mês', icone: ICONE_EXEC_SALDO, subMoney: true }) +
+          execStatCard({ id: 'exec-kpi-projetado-90d', idSub: 'exec-kpi-projetado-90d-sub', label: 'Previsto (90 dias)', icone: ICONE_EXEC_PROJETADO, cor: 'var(--accent)', subMoney: true }) +
           execStatCard({ id: 'exec-kpi-pendente', idSub: 'exec-kpi-pendente-sub', label: 'A receber previsto', icone: ICONE_EXEC_PENDENTE, subInicial: 'pelo vencimento' }) +
-          execStatCard({ id: 'exec-kpi-a-pagar', idSub: 'exec-kpi-vencido-sub', label: 'A pagar previsto', icone: ICONE_EXEC_A_PAGAR }) +
+          execStatCard({ id: 'exec-kpi-a-pagar', idSub: 'exec-kpi-vencido-sub', label: 'A pagar previsto', icone: ICONE_EXEC_A_PAGAR, subMoney: true }) +
           execStatCard({ id: 'exec-kpi-atraso', idSub: 'exec-kpi-atraso-sub', label: 'Em atraso', icone: ICONE_EXEC_ATRASO, cor: 'var(--crit)' }) +
           execStatCard({ id: 'exec-kpi-contratos-ativos', idSub: 'exec-kpi-contratos-ativos-sub', label: 'Contratos ativos', icone: ICONE_EXEC_ATIVOS, money: false, subInicial: 'em andamento agora' }) +
         '</div>' +
@@ -4504,7 +4561,7 @@
         '<div class="exec-stat-grid exec-stat-grid-secundaria">' +
           execStatCard({ id: 'exec-kpi-valor-total', idSub: 'exec-kpi-valor-total-sub', label: 'Valor total de contratos', icone: ICONE_EXEC_CONTRATO, subInicial: 'fechados até hoje' }) +
           execStatCard({ id: 'exec-kpi-recebido', idSub: 'exec-kpi-recebido-sub', label: 'Total recebido', icone: ICONE_EXEC_RECEBIDO, cor: 'var(--good)', subInicial: 'entradas + parcelas pagas' }) +
-          execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false }) +
+          execStatCard({ id: 'exec-kpi-recorrentes', idSub: 'exec-kpi-comprometido-sub', label: 'Contas recorrentes ativas', icone: ICONE_EXEC_RECORRENTE, money: false, subMoney: true }) +
         '</div>' +
         '<div class="exec-card exec-card-grafico-principal">' +
           '<div class="exec-card-titulo-row">' +
@@ -4706,6 +4763,7 @@
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
+      wireOlhinhosCss();
       wireFinTabs(); wireGastos(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
       wireEditarParcelaModal(); carregarParcelasAReceber();
@@ -5784,8 +5842,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<button type="button" class="btn-conexao" id="gastos-btn-novo">+ Novo gasto</button>' +
       '</div>' +
       '<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;">' +
-        '<div class="stat-card"><div class="stat-value money">' + fmtMoeda(d.total) + '</div><div class="stat-label">Gastos do mês</div></div>' +
-        '<div class="stat-card"><div class="stat-value money" style="color:var(--warn);">' + fmtMoeda(d.comprometido_futuro) + '</div><div class="stat-label">Já comprometido nos próximos meses</div></div>' +
+        cardValorCss({ chave: 'gastos_total', valor: fmtMoeda(d.total), rotulo: 'Gastos do mês' }) +
+        cardValorCss({ chave: 'gastos_comprometido', cor: 'var(--warn)', valor: fmtMoeda(d.comprometido_futuro), rotulo: 'Já comprometido nos próximos meses' }) +
       '</div>' +
       ((d.por_categoria || []).length
         ? '<div style="margin-bottom:16px;">' + d.por_categoria.map(function (c) {
