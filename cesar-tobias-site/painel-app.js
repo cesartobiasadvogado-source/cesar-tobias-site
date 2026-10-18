@@ -3133,11 +3133,17 @@
         '<div class="panel">' +
           '<div class="panel-header"><span class="panel-title">Clientes cadastrados</span></div>' +
           '<div style="padding:14px 20px 4px;"><a href="painel-novo-cliente.html#sec-novo-cliente" class="procpage-btn procpage-btn-primary" style="display:inline-block; text-decoration:none;">+ Novo cliente</a></div>' +
+          '<form id="clientes-cadastro-filtros" class="listagem-filtros">' +
+            '<label class="campo-label" for="clientes-cadastro-busca">Buscar cliente<input type="search" id="clientes-cadastro-busca" maxlength="200" placeholder="Nome, documento, telefone ou e-mail"></label>' +
+            '<label class="campo-label" for="clientes-cadastro-tipo">Tipo<select id="clientes-cadastro-tipo"><option value="">Todos</option><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></label>' +
+            '<button type="submit" class="btn-conexao">Buscar</button><button type="button" class="btn-conexao-secundario" id="clientes-cadastro-limpar">Limpar</button>' +
+          '</form>' +
+          '<div id="clientes-cadastro-paginacao" class="listagem-paginacao"></div>' +
           '<div id="clientes-cadastrados-lista" style="padding:6px 20px 18px;"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
         '</div>' +
         '<div class="panel" style="margin-top:14px;"><div class="panel-header"><span class="panel-title">Visão consolidada</span></div>' +
-          '<input type="text" id="clientes-busca" class="input-flush" placeholder="Buscar cliente pelo nome...">' +
-          '<div id="clientes-lista"><div class="empty-state"><div class="msg">Carregando…</div></div></div>' +
+          '<input type="text" id="clientes-busca" class="input-flush" aria-label="Buscar na visão consolidada" placeholder="Carregue a visão consolidada para buscar" disabled>' +
+          '<div id="clientes-lista"><div class="empty-state"><div class="msg">Consulte contratos e parcelas dos clientes quando precisar.</div><button type="button" class="btn-conexao-secundario" id="clientes-carregar-consolidado">Carregar visão consolidada</button></div></div>' +
         '</div></section>';
 
     var htmlPainelImportarOab =
@@ -3373,7 +3379,7 @@
               '<p class="procpage-filtros-titulo">Busca avançada</p>' +
               '<div class="procpage-filtros-grid">' +
                 '<div><label for="procpage-filtro-numero">Nº do processo</label><input type="text" id="procpage-filtro-numero"></div>' +
-                '<div><label for="procpage-filtro-cliente">Cliente</label><input type="text" id="procpage-filtro-cliente" list="procpage-clientes-lista"><datalist id="procpage-clientes-lista"></datalist></div>' +
+                '<div><label for="procpage-filtro-cliente">Cliente</label><input type="text" id="procpage-filtro-cliente" maxlength="200"></div>' +
                 '<div><label for="procpage-filtro-tribunal">Tribunal</label><input type="text" id="procpage-filtro-tribunal"></div>' +
                 '<div><label for="procpage-filtro-status">Status</label><select id="procpage-filtro-status">' +
                   '<option value="ativos_encerrados" selected>Ativos e encerrados</option>' +
@@ -3390,6 +3396,7 @@
               '</div>' +
             '</div>' +
 
+            '<div id="procpage-paginacao" class="listagem-paginacao"></div>' +
             '<div class="procpage-tabela-wrap">' +
               '<div id="procman-lista"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
             '</div>' +
@@ -4939,12 +4946,7 @@
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
       wireOlhinhosCss();
-      wireFinTabs(); wireGastos(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
-      carregarHonorariosContratos(); wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios();
-      wireEditarParcelaModal(); carregarParcelasAReceber();
-      wireFiltroDespesas(); wireNovaDespesaModal(); carregarDespesasProcesso();
-      wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); carregarContasPagar();
-      wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); carregarContasRecorrentes();
+      wireFinTabs(); wireCobranca(); wireOlhinhos(dados); wireVisaoFinanceira(); wireDevedoresMes(); wireFormExito();
       wireExecPeriodoFiltros(); carregarPainelExecutivo();
     }
     if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosHub(); }
@@ -4955,7 +4957,11 @@
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
     if (PAGINA_ATUAL === 'novo_cliente') { wireNovoCliente(); }
     if (PAGINA_ATUAL === 'prazos') { wireListaPrazos(); }
-    if (PAGINA_ATUAL === 'clientes') { carregarClientes(); carregarClientesCadastrados(); }
+    if (PAGINA_ATUAL === 'clientes') {
+      wireClientesCadastrados(); carregarClientesCadastrados();
+      document.getElementById('clientes-carregar-consolidado').addEventListener('click', carregarClientes);
+      if (new URLSearchParams(window.location.search).get('cliente')) carregarClientes();
+    }
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); wireAudienciaAoVivo(); carregarAudiencias(); carregarPautaAudiencias(); }
     if (PAGINA_ATUAL === 'inicio') {
@@ -6256,6 +6262,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   function wireFinTabs() {
     var botoes = document.querySelectorAll('.subtabs [data-fin-tab]');
     if (!botoes.length) return;
+    var inicializadas = {};
     botoes.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var alvo = btn.getAttribute('data-fin-tab');
@@ -6266,8 +6273,19 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         // Volta pro Dashboard busca os dados de novo (nao so troca a aba) -- e o que permite a
         // torre do grafico "crescer" na hora, se algo foi recebido/lancado enquanto o usuario
         // estava numa aba diferente (pedido do usuario).
-        if (alvo === 'dashboard') carregarPainelExecutivo();
-        if (alvo === 'gastos') carregarGastos();
+        if (!inicializadas[alvo]) {
+          if (alvo === 'contratos') { wireNovoContratoModal(); wireEditarContratoModal(); wireFiltroHonorarios(); }
+          if (alvo === 'receber') wireEditarParcelaModal();
+          if (alvo === 'despesas') { wireFiltroDespesas(); wireNovaDespesaModal(); }
+          if (alvo === 'pagar') { wireFiltroContasPagar(); wireNovaContaPagarModal(); wirePagarContaPagarModal(); }
+          if (alvo === 'recorrentes') { wireFiltroContasRecorrentes(); wireNovaContaRecorrenteModal(); }
+          if (alvo === 'gastos') wireGastos();
+          inicializadas[alvo] = true;
+        }
+        btn.setAttribute('data-carregada', '1');
+        var carregar = { dashboard: carregarPainelExecutivo, contratos: carregarHonorariosContratos, receber: carregarParcelasAReceber,
+          despesas: carregarDespesasProcesso, pagar: carregarContasPagar, recorrentes: carregarContasRecorrentes, gastos: carregarGastos };
+        if (carregar[alvo]) carregar[alvo]();
       });
     });
   }
@@ -6505,7 +6523,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         // se chamou depois de criar/excluir um contrato, recarrega Contas a receber tambem
         // (mesmos dados, aba diferente) -- assim o cadastro novo ja aparece la sem precisar
         // trocar de aba e voltar.
-        if (document.getElementById('financeiro-parcelas-lista')) carregarParcelasAReceber();
+        if (document.querySelector('[data-fin-tab="receber"][data-carregada="1"]')) carregarParcelasAReceber();
       })
       .catch(function () {
         container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os contratos agora.</div></div>';
@@ -7896,14 +7914,84 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     });
   }
 
-  function carregarClientesCadastrados() {
+  // LISTAGENS-PAGINADAS:inicio
+  var listaClientesEstado = { pagina: 1, tamanho: 25, busca: '', tipo: '', sequencia: 0 };
+  var listaProcessosEstado = { pagina: 1, tamanho: 25, filtros: null, sequencia: 0, scrollY: 0, retornoId: null, restaurarPosicao: false };
+
+  function parametrosListagem(estado, filtros) {
+    var params = new URLSearchParams({ pagina: estado.pagina, tamanho: estado.tamanho });
+    Object.keys(filtros).forEach(function (chave) { if (filtros[chave]) params.set(chave, filtros[chave]); });
+    return params.toString();
+  }
+
+  function validarPaginacao(dados) {
+    var m = dados.paginacao;
+    if (!m || !Number.isInteger(m.total) || m.total < 0 || !Number.isInteger(m.pagina) || m.pagina < 1 ||
+        !Number.isInteger(m.tamanho) || m.tamanho < 1 || m.tamanho > 100 || !Number.isInteger(m.paginas) || m.paginas < m.pagina) {
+      throw new Error('Listagem indisponível');
+    }
+    return m;
+  }
+
+  function renderPaginacao(id, meta, estado, carregar, focar) {
+    var alvo = document.getElementById(id);
+    if (!alvo) return;
+    estado.pagina = meta.pagina;
+    var inicio = meta.total ? (meta.pagina - 1) * meta.tamanho + 1 : 0;
+    var fim = Math.min(meta.total, meta.pagina * meta.tamanho);
+    alvo.innerHTML = '<span role="status" tabindex="-1">' + inicio + '–' + fim + ' de ' + meta.total + ' · Página ' + meta.pagina + ' de ' + meta.paginas + '</span>' +
+      '<div class="listagem-paginacao-acoes"><button type="button" class="btn-conexao-secundario" data-pagina-anterior' + (meta.pagina <= 1 ? ' disabled' : '') + '>Anterior</button>' +
+      '<button type="button" class="btn-conexao-secundario" data-pagina-proxima' + (meta.pagina >= meta.paginas ? ' disabled' : '') + '>Próxima</button>' +
+      '<label>Por página <select aria-label="Resultados por página">' + [25, 50, 100].map(function (n) { return '<option' + (n === meta.tamanho ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label></div>';
+    alvo.querySelector('[data-pagina-anterior]').addEventListener('click', function () { carregar(meta.pagina - 1); });
+    alvo.querySelector('[data-pagina-proxima]').addEventListener('click', function () { carregar(meta.pagina + 1); });
+    alvo.querySelector('select').addEventListener('change', function (ev) { estado.tamanho = Number(ev.target.value); carregar(1); });
+    if (focar) alvo.querySelector('[role="status"]').focus({ preventScroll: true });
+  }
+
+  function erroListagem(container, paginador, mensagem, tentar) {
+    container.setAttribute('aria-busy', 'false');
+    document.getElementById(paginador).replaceChildren();
+    container.innerHTML = '<div class="aviso-tenant aviso-carregamento" role="status"><span>' + esc(mensagem) + '</span><button type="button" class="btn-conexao-secundario">Tentar novamente</button></div>';
+    container.querySelector('button').addEventListener('click', function () { tentar(); });
+  }
+  // LISTAGENS-PAGINADAS:fim
+
+  function wireClientesCadastrados() {
+    var busca = document.getElementById('clientes-cadastro-busca');
+    var tipo = document.getElementById('clientes-cadastro-tipo');
+    busca.value = listaClientesEstado.busca;
+    tipo.value = listaClientesEstado.tipo;
+    document.getElementById('clientes-cadastro-filtros').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      listaClientesEstado.busca = busca.value.trim(); listaClientesEstado.tipo = tipo.value;
+      carregarClientesCadastrados(1);
+    });
+    document.getElementById('clientes-cadastro-limpar').addEventListener('click', function () {
+      busca.value = ''; tipo.value = ''; listaClientesEstado.busca = ''; listaClientesEstado.tipo = '';
+      carregarClientesCadastrados(1);
+    });
+  }
+
+  function carregarClientesCadastrados(pagina) {
     var container = document.getElementById('clientes-cadastrados-lista');
     if (!container) return;
-    apiGetJson('/api/painel?acao=cliente_cadastro_listar')
+    var focar = typeof pagina === 'number';
+    if (focar) listaClientesEstado.pagina = pagina;
+    var consulta = ++listaClientesEstado.sequencia;
+    container.setAttribute('aria-busy', 'true');
+    container.innerHTML = '<div class="empty-state" role="status">Carregando clientes…</div>';
+    document.getElementById('clientes-cadastro-paginacao').replaceChildren();
+    apiGetJson('/api/painel?acao=cliente_cadastro_listar&' + parametrosListagem(listaClientesEstado, { busca: listaClientesEstado.busca, tipo: listaClientesEstado.tipo }))
       .then(function (dados) {
+        if (consulta !== listaClientesEstado.sequencia || !container.isConnected) return;
+        var meta = validarPaginacao(dados);
         var lista = dados.clientes || [];
+        if (lista.length > meta.tamanho) throw new Error('Listagem inválida');
+        container.setAttribute('aria-busy', 'false');
+        renderPaginacao('clientes-cadastro-paginacao', meta, listaClientesEstado, carregarClientesCadastrados, focar);
         if (lista.length === 0) {
-          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente cadastrado ainda. Use "+ Novo cliente" pra adicionar.</div></div>';
+          container.innerHTML = '<div class="empty-state"><div class="msg">Nenhum cliente encontrado. Ajuste os filtros ou use "+ Novo cliente" pra adicionar.</div></div>';
           return;
         }
         container.innerHTML = '<div class="table-scroll"><table>' +
@@ -7932,17 +8020,21 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         });
       })
       .catch(function () {
-        container.innerHTML = '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes cadastrados.</div></div>';
+        if (consulta !== listaClientesEstado.sequencia || !container.isConnected) return;
+        erroListagem(container, 'clientes-cadastro-paginacao', 'Não foi possível carregar os clientes cadastrados. Seus filtros foram mantidos.', carregarClientesCadastrados);
       });
   }
 
   var clientesCarregados = [];
 
   function carregarClientes() {
+    var listaConsolidada = document.getElementById('clientes-lista');
+    listaConsolidada.innerHTML = '<div class="empty-state" role="status">Carregando visão consolidada…</div>';
     apiGetJson('/api/painel?acao=clientes')
       .then(function (dados) {
         clientesCarregados = dados.clientes || [];
         var busca = document.getElementById('clientes-busca');
+        if (busca) { busca.disabled = false; busca.placeholder = 'Buscar cliente pelo nome…'; }
         // veio de um link de outra pagina (ex: "Cobrança pendente" em Financeiro) apontando pra
         // um cliente especifico -- ja abre filtrado nele, em vez do usuario ter que buscar de novo.
         var clienteDaUrl = new URLSearchParams(window.location.search).get('cliente');
@@ -7961,7 +8053,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       })
       .catch(function () {
         document.getElementById('clientes-lista').innerHTML =
-          '<div class="empty-state"><div class="msg">Não foi possível carregar os clientes.</div></div>';
+          '<div class="empty-state" role="status"><div class="msg">Não foi possível carregar a visão consolidada.</div><button type="button" class="btn-conexao-secundario">Tentar novamente</button></div>';
+        document.querySelector('#clientes-lista button').addEventListener('click', carregarClientes);
       });
   }
 
@@ -9507,25 +9600,42 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     };
   }
 
-  function carregarProcessosManuais() {
+  function carregarProcessosManuais(pagina) {
     var lista = document.getElementById('procman-lista');
     if (!lista) return;
-    apiGetJson('/api/painel?acao=processo_manual_listar')
+    var focar = typeof pagina === 'number';
+    if (focar) listaProcessosEstado.pagina = pagina;
+    var consulta = ++listaProcessosEstado.sequencia;
+    lista.setAttribute('aria-busy', 'true');
+    lista.innerHTML = '<div class="empty-state" role="status">Carregando processos…</div>';
+    document.getElementById('procpage-paginacao').replaceChildren();
+    apiGetJson('/api/painel?acao=processo_manual_listar&' + parametrosListagem(listaProcessosEstado, listaProcessosEstado.filtros || _lerFiltrosProcessoAtuais()))
       .then(function (dados) {
+        if (consulta !== listaProcessosEstado.sequencia || !lista.isConnected) return;
+        var meta = validarPaginacao(dados);
+        if ((dados.processos || []).length > meta.tamanho || !dados.avisos) throw new Error('Listagem incompleta');
         _processosManuaisTodos = dados.processos || [];
-        var f = _lerFiltrosProcessoAtuais();
-        _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
-        _renderAvisoSincronizacaoComProblema(_processosManuaisTodos);
-        _renderAvisoSemMonitoramento(_processosManuaisTodos);
-        var idProcessoNaUrl = new URLSearchParams(window.location.search).get('processo');
-        if (idProcessoNaUrl) {
-          var processoDaUrl = _processosManuaisTodos.filter(function (p) { return String(p.id) === idProcessoNaUrl; })[0];
-          if (processoDaUrl) abrirFichaProcesso(processoDaUrl);
+        _renderTabelaProcessosManuais(_processosManuaisTodos);
+        lista.setAttribute('aria-busy', 'false');
+        renderPaginacao('procpage-paginacao', meta, listaProcessosEstado, carregarProcessosManuais, focar);
+        _renderAvisoSincronizacaoComProblema(dados.avisos.problemas.itens, dados.avisos.problemas.total);
+        _renderAvisoSemMonitoramento(dados.avisos.sem_monitoramento.itens, dados.avisos.sem_monitoramento.total);
+        if (listaProcessosEstado.restaurarPosicao) {
+          listaProcessosEstado.restaurarPosicao = false;
+          var indice = _processosManuaisTodos.findIndex(function (p) { return p.id === listaProcessosEstado.retornoId; });
+          var botao = lista.querySelector('[data-procpage-abrir="' + indice + '"]');
+          if (botao) botao.focus({ preventScroll: true });
+          window.scrollTo({ top: listaProcessosEstado.scrollY, behavior: 'instant' });
         }
       })
       .catch(function () {
-        lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar os processos agora.</div></div>';
+        if (consulta !== listaProcessosEstado.sequencia || !lista.isConnected) return;
+        erroListagem(lista, 'procpage-paginacao', 'Não foi possível carregar os processos. Seus filtros foram mantidos.', carregarProcessosManuais);
       });
+  }
+
+  function buscarProcessoPorId(id) {
+    return apiGetJson('/api/painel?acao=processo_manual_listar&pagina=1&tamanho=1&status=todos&id=' + encodeURIComponent(id));
   }
 
   // Fase 1 do diagnostico de sincronizacao: junta num so lugar os processos cuja sincronizacao
@@ -9536,7 +9646,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   // tribunal preenchidos) -- processo sem numero_cnj ja cai no caso 'numero_invalido' acima.
   var LIMIAR_DIAS_SINCRONIZACAO_PARADA = 3;
 
-  function _renderAvisoSincronizacaoComProblema(processos) {
+  function _renderAvisoSincronizacaoComProblema(processos, total) {
     var alvo = document.getElementById('procpage-aviso-sincronizacao');
     if (!alvo) return;
     var problematicos = processos.filter(function (p) {
@@ -9545,7 +9655,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var dias = _diasDesde(p.ultima_consulta_ok_em);
       return dias !== null && dias > LIMIAR_DIAS_SINCRONIZACAO_PARADA;
     });
-    if (!problematicos.length) { alvo.innerHTML = ''; return; }
+    var quantidade = typeof total === 'number' ? total : problematicos.length;
+    if (!quantidade) { alvo.innerHTML = ''; return; }
     var linhas = problematicos.slice(0, 8).map(function (p) {
       var motivo;
       if (p.status_sincronizacao === 'erro_fonte') motivo = 'erro: ' + (p.ultimo_erro_msg || 'falha na consulta ao DataJud');
@@ -9553,9 +9664,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       else motivo = 'sem conseguir sincronizar ' + _fmtTempoDesde(p.ultima_consulta_ok_em);
       return '<li>' + esc(p.numero_cnj || p.cliente_nome) + ' — ' + esc(motivo) + '</li>';
     }).join('');
-    var resto = problematicos.length > 8 ? '<li>e mais ' + (problematicos.length - 8) + ' processo(s)...</li>' : '';
+    var restante = Math.max(0, quantidade - Math.min(8, problematicos.length));
+    var resto = restante ? '<li>e mais ' + restante + ' processo(s)...</li>' : '';
     alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px; background:var(--crit-soft); color:var(--crit);">' +
-      '<strong>⚠️ Sincronização com problema (' + problematicos.length + ' processo(s)):</strong>' +
+      '<strong>⚠️ Sincronização com problema (' + quantidade + ' processo(s)):</strong>' +
       '<ul style="margin:6px 0 0; padding-left:18px; line-height:1.6;">' + linhas + resto + '</ul>' +
     '</div>';
   }
@@ -9565,17 +9677,19 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   // tem -- misturar com erro_fonte/numero_invalido passaria a impressao errada de que precisa de
   // acao corretiva. Aqui e so um aviso informativo de que esses processos nao tem monitoramento
   // automatico, pra o advogado saber que precisa acompanhar pelo PJe manualmente.
-  function _renderAvisoSemMonitoramento(processos) {
+  function _renderAvisoSemMonitoramento(processos, total) {
     var alvo = document.getElementById('procpage-aviso-sem-monitoramento');
     if (!alvo) return;
     var semMonitoramento = processos.filter(function (p) { return p.status_sincronizacao === 'sem_dados'; });
-    if (!semMonitoramento.length) { alvo.innerHTML = ''; return; }
+    var quantidade = typeof total === 'number' ? total : semMonitoramento.length;
+    if (!quantidade) { alvo.innerHTML = ''; return; }
     var linhas = semMonitoramento.slice(0, 8).map(function (p) {
       return '<li>' + esc(p.numero_cnj || p.cliente_nome) + '</li>';
     }).join('');
-    var resto = semMonitoramento.length > 8 ? '<li>e mais ' + (semMonitoramento.length - 8) + ' processo(s)...</li>' : '';
+    var restante = Math.max(0, quantidade - Math.min(8, semMonitoramento.length));
+    var resto = restante ? '<li>e mais ' + restante + ' processo(s)...</li>' : '';
     alvo.innerHTML = '<div class="aviso-tenant" style="margin-bottom:16px; background:var(--accent-soft); color:var(--accent);">' +
-      '<strong>Sem monitoramento automático (' + semMonitoramento.length + ' processo(s)):</strong> ' +
+      '<strong>Sem monitoramento automático (' + quantidade + ' processo(s)):</strong> ' +
       'não localizados na base pública do CNJ — acompanhe pelo PJe.' +
       '<ul style="margin:6px 0 0; padding-left:18px; line-height:1.6;">' + linhas + resto + '</ul>' +
     '</div>';
@@ -9815,10 +9929,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     var viewFicha = document.getElementById('procpage-view-ficha');
     if (!viewLista || !viewFicha) return;
 
+    if (!viewLista.classList.contains('hidden')) {
+      listaProcessosEstado.scrollY = window.scrollY;
+      listaProcessosEstado.retornoId = processo.id;
+    }
+
     viewFicha.innerHTML = _htmlFichaProcesso(processo);
     viewLista.classList.add('hidden');
     viewFicha.classList.remove('hidden');
-    viewFicha.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    viewFicha.scrollIntoView({ behavior: reduzMotion() ? 'instant' : 'smooth', block: 'start' });
 
     function mostrarAba(chave) {
       document.querySelectorAll('[data-procficha-painel]').forEach(function (el) {
@@ -9839,6 +9958,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     document.getElementById('procficha-btn-voltar').addEventListener('click', function () {
       viewFicha.classList.add('hidden');
       viewLista.classList.remove('hidden');
+      listaProcessosEstado.restaurarPosicao = true;
       carregarProcessosManuais();
     });
 
@@ -10060,7 +10180,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             // mostrando "Nunca sincronizado" mesmo o banco ja tendo gravado os campos da
             // sincronizacao que acabou de rodar (bug reportado: "respondeu 'Sincronizado' mas
             // continua mostrando 'Nunca sincronizado'").
-            apiGetJson('/api/painel?acao=processo_manual_listar')
+            buscarProcessoPorId(processo.id)
               .then(function (dados) {
                 _processosManuaisTodos = dados.processos || _processosManuaisTodos;
                 var processoAtualizado = _processosManuaisTodos.filter(function (p) { return String(p.id) === String(processo.id); })[0];
@@ -10083,11 +10203,22 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
 
     var datalistClienteFicha = document.getElementById('procficha-edit-clientes-lista');
     if (datalistClienteFicha) {
-      apiGetJson('/api/painel?acao=clientes')
-        .then(function (dados) {
-          datalistClienteFicha.innerHTML = (dados.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('');
-        })
-        .catch(function () { /* datalist so ajuda */ });
+      var campoClienteFicha = document.getElementById('procficha-edit-cliente');
+      var timerSugestoesCliente = null;
+      campoClienteFicha.addEventListener('input', function () {
+        clearTimeout(timerSugestoesCliente);
+        var termo = campoClienteFicha.value.trim();
+        datalistClienteFicha.replaceChildren();
+        if (termo.length < 2) return;
+        timerSugestoesCliente = setTimeout(function () {
+          apiGetJson('/api/painel?acao=cliente_cadastro_listar&pagina=1&tamanho=25&busca=' + encodeURIComponent(termo))
+            .then(function (dados) {
+              if (!campoClienteFicha.isConnected || campoClienteFicha.value.trim() !== termo) return;
+              validarPaginacao(dados);
+              datalistClienteFicha.innerHTML = (dados.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('');
+            }).catch(function () { /* Sugestoes opcionais: o nome continua digitavel. */ });
+        }, 300);
+      });
     }
     var btnSalvarDados = document.getElementById('procficha-btn-salvar-dados');
     if (btnSalvarDados) {
@@ -10122,7 +10253,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         };
         btnSalvarDados.disabled = true; btnSalvarDados.textContent = 'Salvando...';
         apiPostJson('/api/painel?acao=processo_manual_atualizar', corpo)
-          .then(function () { return apiGetJson('/api/painel?acao=processo_manual_listar'); })
+          .then(function () { return buscarProcessoPorId(processo.id); })
           .then(function (dados) {
             btnSalvarDados.disabled = false;
             var atualizado = (dados.processos || []).find(function (pr) { return String(pr.id) === String(processo.id); }) || processo;
@@ -12210,21 +12341,35 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   function wireProcessosHub() {
     var lista = document.getElementById('procman-lista');
     if (!lista) return;
-
+    if (listaProcessosEstado.filtros) {
+      Object.keys(listaProcessosEstado.filtros).forEach(function (k) {
+        var input = document.getElementById('procpage-filtro-' + k);
+        if (input) input.value = listaProcessosEstado.filtros[k];
+      });
+    } else listaProcessosEstado.filtros = _lerFiltrosProcessoAtuais();
     carregarProcessosManuais();
     carregarAvisoProcessosPjeNaoCadastrados();
-
-    var datalistFiltro = document.getElementById('procpage-clientes-lista');
-    apiGetJson('/api/painel?acao=clientes')
-      .then(function (dados) {
-        datalistFiltro.innerHTML = (dados.clientes || []).map(function (c) { return '<option value="' + esc(c.nome) + '">'; }).join('');
-      })
-      .catch(function () { /* datalist so ajuda, nao bloqueia a busca manual se falhar */ });
-
-    function aplicarFiltros() {
-      var f = _lerFiltrosProcessoAtuais();
-      _renderTabelaProcessosManuais(_processosManuaisTodos.filter(function (p) { return _passaNosFiltrosProcesso(p, f); }));
+    var idNaUrl = new URLSearchParams(window.location.search).get('processo');
+    if (idNaUrl) {
+      buscarProcessoPorId(idNaUrl).then(function (dados) {
+        var p = (dados.processos || [])[0];
+        if (p) abrirFichaProcesso(p);
+        else mostrarAviso('Processo não encontrado ou sem acesso. Você pode buscar outro processo na lista.');
+      }).catch(function () { mostrarAviso('Não foi possível abrir esta ficha. Tente novamente pela lista de processos.'); });
     }
+    function aplicarFiltros() {
+      listaProcessosEstado.filtros = _lerFiltrosProcessoAtuais();
+      carregarProcessosManuais(1);
+    }
+    lista.parentElement.addEventListener('scroll', function () {
+      lista.querySelectorAll('.procman-acoes-menu').forEach(function (menu) { menu.classList.add('hidden'); });
+    });
+    ['numero', 'cliente', 'tribunal', 'palavra'].forEach(function (k) {
+      document.getElementById('procpage-filtro-' + k).maxLength = 200;
+      document.getElementById('procpage-filtro-' + k).addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); aplicarFiltros(); }
+      });
+    });
     document.getElementById('procpage-filtro-buscar').addEventListener('click', aplicarFiltros);
     document.getElementById('procpage-filtro-limpar').addEventListener('click', function () {
       ['procpage-filtro-numero', 'procpage-filtro-cliente', 'procpage-filtro-tribunal', 'procpage-filtro-palavra'].forEach(function (id) {
@@ -12250,9 +12395,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         document.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); m.classList.remove('abre-para-cima'); });
         if (!jaAberto) {
           menuAlvo.classList.remove('hidden');
-          // se abrir pra baixo estourar a tela (ex: tabela grande, linha perto do rodape), abre pra cima
+          // Fixo na viewport para nao ser cortado pela rolagem horizontal da tabela.
+          var origem = btnMais.getBoundingClientRect();
+          menuAlvo.style.position = 'fixed';
+          menuAlvo.style.right = 'auto';
+          menuAlvo.style.maxHeight = 'calc(100vh - 16px)';
+          menuAlvo.style.overflowY = 'auto';
           var retangulo = menuAlvo.getBoundingClientRect();
-          if (retangulo.bottom > window.innerHeight) menuAlvo.classList.add('abre-para-cima');
+          menuAlvo.style.top = Math.max(8, Math.min(origem.bottom + 4, window.innerHeight - retangulo.height - 8)) + 'px';
+          menuAlvo.style.left = Math.max(8, Math.min(origem.right - retangulo.width, window.innerWidth - retangulo.width - 8)) + 'px';
         }
         return;
       }

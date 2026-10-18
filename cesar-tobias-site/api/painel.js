@@ -1,3 +1,13 @@
+// Somente filtros de leitura conhecidos atravessam o proxy. Tenant/permissoes continuam na sessao.
+function urlComFiltrosListagem(url, query, campos) {
+  campos.forEach(function (campo) {
+    if (query && Object.prototype.hasOwnProperty.call(query, campo)) {
+      url += '&' + campo + '=' + encodeURIComponent(String(query[campo]));
+    }
+  });
+  return url;
+}
+
 function obterIp(req) {
   const encaminhado = req.headers['x-forwarded-for'];
   if (encaminhado) return encaminhado.split(',')[0].trim();
@@ -459,7 +469,7 @@ module.exports = async (req, res) => {
     }
     try {
       const resposta = await fetch(
-        base + '?action=processo_manual_listar&token=' + encodeURIComponent(tokenSessaoProcManual) + segredoQS
+        urlComFiltrosListagem(base + '?action=processo_manual_listar&token=' + encodeURIComponent(tokenSessaoProcManual) + segredoQS, req.query, ['pagina', 'tamanho', 'numero', 'cliente', 'tribunal', 'status', 'palavra', 'id'])
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -777,7 +787,7 @@ module.exports = async (req, res) => {
     }
     try {
       const resposta = await fetch(
-        base + '?action=cliente_cadastro_listar&token=' + encodeURIComponent(tokenSessaoClienteListar) + segredoQS
+        urlComFiltrosListagem(base + '?action=cliente_cadastro_listar&token=' + encodeURIComponent(tokenSessaoClienteListar) + segredoQS, req.query, ['pagina', 'tamanho', 'busca', 'tipo'])
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);

@@ -70,8 +70,8 @@ t('o painel do Financeiro tem a sub-aba "Gastos" com Escritório, Pessoal e Cart
   assert(fonte.includes('<button type="button" class="subtab-btn" data-fin-tab="gastos">Gastos</button>'));
   assert(fonte.includes('data-fin-panel="gastos">\' + htmlGastos'));
   ['escritorio', 'pessoal', 'cartoes'].forEach(n => assert(fonte.includes('data-gnat="' + n + '"'), n));
-  assert(fonte.includes("if (alvo === 'gastos') carregarGastos();"));
-  assert(fonte.includes('wireFinTabs(); wireGastos();'));
+  assert(fonte.includes("gastos: carregarGastos") && fonte.includes("if (carregar[alvo]) carregar[alvo]();"));
+  assert(fonte.includes("if (alvo === 'gastos') wireGastos();"));
 });
 
 t('a aba Pessoal avisa que só o usuário vê e que não entra nos gráficos do escritório', () => {
