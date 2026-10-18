@@ -20,10 +20,10 @@
 <style>
   :root {
     --bg: #f6f4ef; --surface: #ffffff; --surface-sunken: #efece4;
-    --ink: #0f172a; --ink-soft: #475467; --ink-faint: #94a0b4; --line: #e2ded3;
+    --ink: #0f172a; --ink-soft: #475467; --ink-faint: #626e82; --line: #e2ded3;
     --brand: #16213e; --accent: #2c5ce0; --accent-soft: #e8edfc;
-    --good: #079455; --good-soft: #e3f6ec;
-    --warn: #ca8a04; --warn-soft: #fbf1da;
+    --good: #067443; --good-soft: #e3f6ec;
+    --warn: #865800; --warn-soft: #fbf1da;
     --crit: #b42318; --crit-soft: #fbe7e5;
     --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
     --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -56,6 +56,7 @@
   .card h2 { font-family: var(--font-display); font-size: 22px; color: var(--brand); margin: 0 0 8px; text-align: center; }
   .card .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 22px; line-height: 1.55; text-align: center; }
 
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 0 0 5px; }
   input, select {
     width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px;
@@ -159,11 +160,17 @@
     if (metodo === 'GET' && corpo) {
       Object.keys(corpo).forEach(function (k) { url += '&' + k + '=' + encodeURIComponent(corpo[k]); });
     }
-    var resposta = await fetch(url, metodo === 'POST' ? {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {})
-    } : undefined);
-    var dados = await resposta.json().catch(function () { return {}; });
-    return { ok: resposta.ok, dados: dados };
+    try {
+      var resposta = await fetch(url, metodo === 'POST' ? {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {})
+      } : undefined);
+      var dados = await resposta.json();
+      return { ok: resposta.ok, dados: dados };
+    } catch (e) {
+      // Mantem o contrato dos handlers: eles exibem o erro, reativam o botao e
+      // preservam os campos, inclusive quando fetch/JSON falha antes de responder.
+      return { ok: false, dados: { erro: 'Não foi possível conectar ao serviço. Seus campos foram mantidos. Verifique sua conexão e tente novamente.' } };
+    }
   }
 
   function renderBarraPassos() {
@@ -235,20 +242,20 @@
       '<h2>Seus dados</h2>' +
       '<p class="sub">Usamos o número da OAB como identificador único do seu cadastro. CPF, RG e cidade ' +
       'são usados pra preencher automaticamente os contratos e procurações gerados pela plataforma.</p>' +
-      '<div id="erro-p1"></div>' +
-      '<label>Nome completo</label>' +
+      '<div id="erro-p1" role="status" aria-live="polite"></div>' +
+      '<label for="in-nome">Nome completo</label>' +
       '<input id="in-nome" placeholder="Seu nome completo" value="' + (d.nome || '') + '">' +
       '<div class="linha">' +
-      '<div><label>Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345" value="' + (d.oabNum || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
-      '<div><label>UF</label><select id="in-oab-uf"' + (editando ? ' disabled' : '') + '>' + opcoesUf(d.oabUf || '') + '</select></div>' +
+      '<div><label for="in-oab-num">Número da OAB</label><input id="in-oab-num" placeholder="Ex: 12345" value="' + (d.oabNum || '') + '"' + (editando ? ' disabled' : '') + '></div>' +
+      '<div><label for="in-oab-uf">UF</label><select id="in-oab-uf"' + (editando ? ' disabled' : '') + '>' + opcoesUf(d.oabUf || '') + '</select></div>' +
       '</div>' +
       '<div class="linha">' +
-      '<div><label>CPF</label><input id="in-cpf" placeholder="000.000.000-00" value="' + (d.cpf || '') + '"></div>' +
-      '<div><label>RG</label><input id="in-rg" placeholder="Número do RG" value="' + (d.rg || '') + '"></div>' +
+      '<div><label for="in-cpf">CPF</label><input id="in-cpf" placeholder="000.000.000-00" value="' + (d.cpf || '') + '"></div>' +
+      '<div><label for="in-rg">RG</label><input id="in-rg" placeholder="Número do RG" value="' + (d.rg || '') + '"></div>' +
       '</div>' +
-      '<label>Cidade/UF do escritório</label>' +
+      '<label for="in-cidade">Cidade/UF do escritório</label>' +
       '<input id="in-cidade" placeholder="Ex: São Paulo/SP" value="' + (d.cidade || '') + '">' +
-      '<label>Nome do escritório (opcional)</label>' +
+      '<label for="in-escritorio">Nome do escritório (opcional)</label>' +
       '<input id="in-escritorio" placeholder="Nome do seu escritório" value="' + (d.escritorio || '') + '">' +
       (editando ? '<p class="sub" style="margin:-4px 0 16px;">O número e a UF da OAB não podem ser alterados aqui, porque são o identificador do seu cadastro.</p>' : '') +
       '<button class="principal" id="btn-p1"><span>' + (editando ? 'Salvar alterações' : 'Criar meu cadastro') + '</span>' +
@@ -301,7 +308,7 @@
       '<p class="sub">Sua conta do Google (Drive, Gmail, Agenda) é onde ficam guardados os documentos e clientes. ' +
       'Vamos abrir a tela oficial do Google numa aba nova.</p>' +
       '<div class="status-linha"><span class="status-pill" id="pill-google"><span class="bolinha" id="bolinha-google"></span><span id="texto-google">Ainda não conectado</span></span></div>' +
-      '<div id="erro-p2"></div>' +
+      '<div id="erro-p2" role="status" aria-live="polite"></div>' +
       '<button class="principal" id="btn-conectar-google">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.5.4l2-2a5 5 0 0 0-7-7l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.5-.4l-2 2a5 5 0 0 0 7 7l1.1-1.1"></path></svg>' +
       '<span>Conectar com o Google</span></button>' +
@@ -329,7 +336,13 @@
         erroDiv.innerHTML = '<div class="aviso ok">Google conectado com sucesso.</div>';
         setTimeout(avancar, 900);
       } else {
-        erroDiv.innerHTML = '<div class="aviso espera">Ainda não detectei a conexão. Conclua a autorização na aba do Google e tente de novo.</div>';
+        erroDiv.textContent = '';
+        var aviso = document.createElement('div');
+        aviso.className = 'aviso ' + (r.ok ? 'espera' : 'erro');
+        aviso.textContent = r.ok
+          ? 'Ainda não detectei a conexão. Conclua a autorização na aba do Google e tente de novo.'
+          : (r.dados.erro || 'Não foi possível verificar a conexão. Tente novamente.');
+        erroDiv.appendChild(aviso);
       }
     };
   }
@@ -340,13 +353,13 @@
       '<div class="card-icone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3 5 12l3 3 9-9-3-3Z"></path><path d="M12 5l7 7"></path><path d="M2 22l4-1 9-9-3-3-9 9-1 4Z"></path></svg></div>' +
       '<h2>Criar seu login</h2>' +
       '<p class="sub">Esse será o usuário e senha pra você entrar no painel.</p>' +
-      '<div id="erro-p5"></div>' +
-      '<label>Nome de usuário</label>' +
+      '<div id="erro-p5" role="status" aria-live="polite"></div>' +
+      '<label for="in-usuario">Nome de usuário</label>' +
       '<div class="campo-icone">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>' +
         '<input id="in-usuario" placeholder="ex: seunome">' +
       '</div>' +
-      '<label>Senha</label>' +
+      '<label for="in-senha">Senha</label>' +
       '<div class="campo-icone">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>' +
         '<input id="in-senha" type="password" placeholder="Escolha uma senha forte" style="padding-right:38px;">' +
@@ -360,6 +373,7 @@
     document.getElementById('btn-olho-senha').onclick = function () {
       var campo = document.getElementById('in-senha');
       campo.type = campo.type === 'password' ? 'text' : 'password';
+      this.setAttribute('aria-label', campo.type === 'password' ? 'Mostrar senha' : 'Ocultar senha');
     };
 
     document.getElementById('btn-p5').onclick = async function () {

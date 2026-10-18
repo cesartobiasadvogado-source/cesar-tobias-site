@@ -57,7 +57,7 @@ t('o HTML tem o link, os campos Repete/Termina e o "Remover", com ids por prefix
   for (const p of ['prazo', 'tarefa']) {
     const h = _htmlRecorrencia(p);
     ['-rec-wrap', '-rec-abrir', '-rec-campos', '-rec-freq', '-rec-termina', '-rec-remover'].forEach(sufixo => assert(h.includes('id="' + p + sufixo + '"'), p + sufixo));
-    assert(h.includes('+ Adicionar recorrência') && h.includes('<label>Repete</label>') && h.includes('<label>Termina</label>'));
+    assert(h.includes('+ Adicionar recorrência') && h.includes('<label for="' + p + '-rec-freq">Repete</label>') && h.includes('<label for="' + p + '-rec-termina">Termina</label>'));
     assert(h.includes('id="' + p + '-rec-campos" class="hidden"'), 'os campos comecam escondidos');
   }
 });

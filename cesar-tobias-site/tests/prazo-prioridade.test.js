@@ -16,7 +16,7 @@ assert(iniModal > 0 && fimModal > iniModal, 'modal de prazo nao encontrado');
 const modal = fonte.slice(iniModal, fimModal);
 
 t('o modal de prazo tem o campo Prioridade com Baixa (padrao), Média e Alta, depois do Tipo', () => {
-  assert(modal.includes('<label>Prioridade</label>'));
+  assert(modal.includes('<label for="prazo-form-prioridade">Prioridade</label>'));
   assert(modal.includes('id="prazo-form-prioridade"'));
   assert(modal.includes('<option value="baixa" selected>Baixa</option><option value="media">Média</option><option value="alta">Alta</option>'));
   assert(modal.indexOf('prazo-form-tipo') < modal.indexOf('prazo-form-prioridade'));

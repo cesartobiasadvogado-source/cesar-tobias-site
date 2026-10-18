@@ -115,14 +115,14 @@ function execCard(opts, oculto) {
 t('Painel Executivo: cartao de dinheiro ganha o olhinho e o valor fica ligado a chave exec_<nome>', () => {
   const html = execCard({ id: 'exec-kpi-projetado-90d', idSub: 'exec-kpi-projetado-90d-sub', label: 'Previsto', icone: '<svg></svg>', subMoney: true });
   assert(html.includes('data-olho-css="exec_projetado_90d"'));
-  assert(html.includes('id="exec-kpi-projetado-90d"') && html.includes('data-oculto-chave="exec_projetado_90d">0,00</div>'));
+  assert(html.includes('id="exec-kpi-projetado-90d"') && html.includes('data-oculto-chave="exec_projetado_90d">—</div>'));
   assert(html.includes('id="exec-kpi-projetado-90d-sub" data-oculto-chave="exec_projetado_90d">'));          // rodape com R$ tambem some
   assert(html.indexOf('data-olho-css') < html.indexOf('<span class="exec-stat-icon">'));                     // olho ao lado do icone
 });
 
 t('Painel Executivo: cartao que ja nasce oculto (estado salvo)', () => {
   const html = execCard({ id: 'exec-kpi-saldo', idSub: 'exec-kpi-saldo-sub', label: 'Saldo', icone: '', subMoney: true }, { painel_oculto_exec_saldo: '1' });
-  assert(html.includes('id="exec-kpi-saldo" data-oculto-chave="exec_saldo" data-oculto="1" aria-hidden="true">0,00</div>'));
+  assert(html.includes('id="exec-kpi-saldo" data-oculto-chave="exec_saldo" data-oculto="1" aria-hidden="true">—</div>'));
   assert(html.includes('id="exec-kpi-saldo-sub" data-oculto-chave="exec_saldo" data-oculto="1" aria-hidden="true">'));
 });
 

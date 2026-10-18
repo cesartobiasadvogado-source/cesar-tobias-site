@@ -44,7 +44,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="painel.css?v=20261017-1">
+<link rel="stylesheet" href="painel.css?v=20261018-ux1">
 </head>
 <body>
 
@@ -73,7 +73,7 @@
         <p class="gate-sub">Acesso à plataforma</p>
         <p class="gate-tagline">Tudo que precisa da sua atenção, num só lugar.</p>
 
-        <input type="text" id="tenant-id-input" placeholder="Código do escritório" style="display:none; margin-bottom:16px;">
+        <input type="text" id="tenant-id-input" aria-label="Código do escritório" placeholder="Código do escritório" style="display:none; margin-bottom:16px;">
 
         <label class="gate-field-label" for="usuario-input">Usuário</label>
         <div class="gate-field-wrap">
@@ -92,7 +92,7 @@
         <button id="btn-entrar">Entrar no painel
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
         </button>
-        <p class="gate-toggle-parceiro" id="toggle-escritorio-parceiro">Sou um escritório parceiro</p>
+        <button type="button" class="gate-toggle-parceiro" id="toggle-escritorio-parceiro" aria-controls="tenant-id-input" aria-expanded="false">Sou um escritório parceiro</button>
         <div class="gate-error" id="gate-error" aria-live="polite"></div>
       </div>
     </div>
@@ -267,7 +267,7 @@
         </button>
         <div class="hdr-busca" style="position:relative;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-          <input type="text" id="hdr-busca-input" placeholder="Buscar processo, cliente ou número..." autocomplete="off">
+          <input type="text" id="hdr-busca-input" aria-label="Buscar processo, cliente ou número" placeholder="Buscar processo, cliente ou número..." autocomplete="off">
           <div class="hdr-dropdown hidden" id="hdr-busca-resultados" style="top:calc(100% + 6px); left:0; right:auto; width:340px;"></div>
         </div>
         <div class="hdr-acoes">
@@ -340,6 +340,6 @@
   </div>
 
 <script>var PAGINA_ATUAL = "clientes";</script>
-<script src="painel-app.js?v=20261017-1"></script>
+<script src="painel-app.js?v=20261018-ux1"></script>
 </body>
 </html>

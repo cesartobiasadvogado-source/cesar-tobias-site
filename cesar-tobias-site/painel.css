@@ -4,15 +4,17 @@
     --surface-sunken: #efece4;
     --ink: #0f172a;
     --ink-soft: #475467;
-    --ink-faint: #94a0b4;
+    --ink-faint: #626e82;
     --line: #e2ded3;
     --brand: #16213e;
     --accent: #2c5ce0;
+    --accent-fill: #2c5ce0;
     --accent-soft: #e8edfc;
-    --good: #079455;
+    --good: #067443;
     --good-soft: #e3f6ec;
-    --warn: #ca8a04;
+    --warn: #865800;
     --warn-soft: #fbf1da;
+    --crit-fill: #b42318;
     --crit: #b42318;
     --crit-soft: #fbe7e5;
     --sidebar-bg: #16213e;
@@ -30,11 +32,12 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #0b1220; --surface: #121a2c; --surface-sunken: #0e1626;
-      --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #6b7690; --line: #232d42;
+      --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #98a4bd; --line: #232d42;
       --brand: #c7d2e8; --accent: #6c8cf0; --accent-soft: #1b2743;
+      --accent-fill: #3459c4;
       --good: #29a876; --good-soft: #10261d;
-      --warn: #9c7a16; --warn-soft: #2a2312;
-      --crit: #e23a2e; --crit-soft: #2c1614;
+      --warn: #d5ac46; --warn-soft: #2a2312;
+      --crit: #ff756b; --crit-soft: #2c1614;
       --sidebar-line: rgba(255, 255, 255, 0.07);
       --chart-receita: #3987e5; --chart-despesa: #d95926;
       --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
@@ -43,11 +46,12 @@
   }
   :root[data-theme="dark"] {
     --bg: #0b1220; --surface: #121a2c; --surface-sunken: #0e1626;
-    --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #6b7690; --line: #232d42;
+    --ink: #e7eaf0; --ink-soft: #a7b0c2; --ink-faint: #98a4bd; --line: #232d42;
     --brand: #c7d2e8; --accent: #6c8cf0; --accent-soft: #1b2743;
+    --accent-fill: #3459c4;
     --good: #29a876; --good-soft: #10261d;
-    --warn: #9c7a16; --warn-soft: #2a2312;
-    --crit: #e23a2e; --crit-soft: #2c1614;
+    --warn: #d5ac46; --warn-soft: #2a2312;
+    --crit: #ff756b; --crit-soft: #2c1614;
     --sidebar-line: rgba(255, 255, 255, 0.07);
     --chart-receita: #3987e5; --chart-despesa: #d95926;
     --chart-cat-1: #3987e5; --chart-cat-2: #d95926; --chart-cat-3: #199e70; --chart-cat-4: #c98500;
@@ -55,6 +59,11 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .sidebar :focus-visible, .hdr-topo :focus-visible, .topbar-mobile :focus-visible { outline-color: var(--sidebar-ink); }
+  .hdr-busca input:focus-visible { outline: 3px solid var(--sidebar-ink); outline-offset: 3px; }
+  .aviso-carregamento { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 16px; }
+  .carregando-inicial > .aviso-carregamento { max-width: 720px; }
 
   /* Barra de rolagem (vertical e horizontal) fina e no tom do tema, em vez do visual padrao
      grosso/cinza do navegador -- vale pra pagina toda, tabelas com scroll horizontal
@@ -164,7 +173,7 @@
 
   .hdr-badge {
     position: absolute; top: 4px; right: 4px; min-width: 15px; height: 15px; padding: 0 3px;
-    border-radius: 999px; background: var(--crit); color: #fff; font-size: 10px; font-weight: 700;
+    border-radius: 999px; background: var(--crit-fill); color: #fff; font-size: 10px; font-weight: 700;
     display: flex; align-items: center; justify-content: center; line-height: 1;
   }
   .hdr-avisos-lista { width: 280px; max-height: 320px; overflow-y: auto; }
@@ -304,10 +313,14 @@
     font-size: 12.5px; color: var(--accent); cursor: pointer; text-decoration: underline;
     margin: 14px 0 0; display: inline-block;
   }
+  .gate button.gate-toggle-parceiro {
+    width: auto; min-height: 44px; padding: 6px 0; background: none; border: none;
+    color: var(--accent); font-size: 12.5px; font-weight: 500; display: inline-block; text-align: left;
+  }
   .gate-lembrar-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 18px; }
   .gate-lembrar-row input[type="checkbox"] { width: auto; margin: 0; }
   .gate button {
-    width: 100%; padding: 12px; border: none; border-radius: 9px; background: var(--accent);
+    width: 100%; padding: 12px; border: none; border-radius: 9px; background: var(--accent-fill);
     color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
   }
@@ -346,6 +359,7 @@
   .stat-label { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); }
   .stat-sub { margin-top: 2px; font-size: 12px; color: var(--ink-faint); }
   .btn-olho { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
+  .btn-olho { min-width: 44px; min-height: 44px; }
   .btn-olho:hover { opacity: 1; }
   /* Olhinho dos cartoes do Financeiro: a mascara e CSS (continua valendo quando o texto e reescrito depois). O texto real fica invisivel e ocupa o mesmo espaco;
      os pontos assumem a cor original do valor (currentColor). */
@@ -362,7 +376,7 @@
     padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg);
     color: var(--ink-soft); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
   }
-  .subtab-btn.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .subtab-btn.ativo { background:var(--accent-fill); border-color: var(--accent); color: #fff; }
   .link-original { color: var(--accent); font-size: 12.5px; text-decoration: none; }
   .link-original:hover { text-decoration: underline; }
   .aviso-tenant { font-size: 13px; padding: 11px 13px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); line-height: 1.5; }
@@ -400,7 +414,7 @@
   .fluxo-subtitulo { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
   .fluxo-filtros { display: flex; gap: 6px; flex-wrap: wrap; }
   .fluxo-filtro-btn { font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-sunken); color: var(--ink-soft); cursor: pointer; font-family: inherit; }
-  .fluxo-filtro-btn.ativo { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .fluxo-filtro-btn.ativo { background:var(--accent-fill); color: #fff; border-color: var(--accent); }
   .periodo-filtro-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
   .periodo-filtro-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-right: 4px; }
   .fluxo-legenda { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 16px; }
@@ -725,7 +739,7 @@
     color: var(--accent); cursor: pointer; font-family: inherit; text-decoration: underline; }
 
   .btn-conexao {
-    padding: 8px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
+    padding: 8px 16px; border: none; border-radius: 7px; background:var(--accent-fill); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-right: 8px;
   }
   .btn-conexao:hover { opacity: 0.92; }
@@ -752,6 +766,7 @@
   .modal-drill-fechar { background: none; border: none; font-size: 15px; color: var(--ink-faint);
     cursor: pointer; padding: 4px 6px; line-height: 1; }
   .modal-drill-fechar:hover { color: var(--ink); }
+  .modal-drill-fechar, .aviso-modal-fechar, .btn-menu-mobile, .btn-fechar-menu-mobile { min-width: 44px; min-height: 44px; }
   .modal-drill-busca { padding: 12px 20px; border-bottom: 1px solid var(--line); }
   .modal-drill-busca input { width: 100%; padding: 8px 12px; border: 1px solid var(--line);
     border-radius: 7px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; }
@@ -781,7 +796,7 @@
   .confirm-modal-msg { font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
   .confirm-modal-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
   .btn-conexao-perigo {
-    padding: 8px 16px; border: none; border-radius: 7px; background: var(--crit); color: #fff;
+    padding: 8px 16px; border: none; border-radius: 7px; background: var(--crit-fill); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
   }
   .btn-conexao-perigo:hover { opacity: 0.92; }
@@ -842,7 +857,7 @@
   .processo-corpo.aberto { display: block; }
   .processo-edit-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 14px; }
   .processo-edit-form input { padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); }
-  .processo-edit-form button { padding: 8px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .processo-edit-form button { padding: 8px 14px; border: none; border-radius: 6px; background:var(--accent-fill); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; }
   .processo-edit-form textarea { grid-column: 1 / -1; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--bg); color: var(--ink); font-family: inherit; min-height: 50px; resize: vertical; }
   @media (max-width: 640px) { .processo-edit-form { grid-template-columns: 1fr; } }
   .timeline { border-left: 2px solid var(--line); padding-left: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -895,7 +910,7 @@
   .admin-permissoes label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
   .admin-permissoes input[type="checkbox"] { width: auto; }
   .admin-permissoes .admin-permissao-admin { width: 100%; margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); font-weight: 600; color: var(--ink); }
-  #admin-btn-criar { padding: 9px 14px; border: none; border-radius: 7px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+  #admin-btn-criar { padding: 9px 14px; border: none; border-radius: 7px; background:var(--accent-fill); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
   #admin-btn-criar:hover { opacity: 0.92; }
   .admin-msg { padding: 0 20px 12px; font-size: 12.5px; color: var(--ink-faint); }
   .permissoes-usuario { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
@@ -916,7 +931,7 @@
     background: var(--bg); color: var(--ink);
   }
   .automacao-card button {
-    padding: 8px 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff;
+    padding: 8px 12px; border: none; border-radius: 6px; background:var(--accent-fill); color: #fff;
     font-size: 12.5px; font-weight: 600; cursor: pointer; margin-top: 2px;
   }
   .automacao-card button:hover { opacity: 0.92; }
@@ -925,7 +940,7 @@
     padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
     color: var(--ink-soft); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
   }
-  .padrao-aba-btn.ativo { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .padrao-aba-btn.ativo { background:var(--accent-fill); color: #fff; border-color: var(--accent); }
   .padrao-corpo { padding: 16px 20px 20px; }
   .padrao-corpo textarea {
     width: 100%; min-height: 260px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px;
@@ -935,7 +950,7 @@
   .padrao-corpo-rodape { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .padrao-contador { font-size: 11.5px; color: var(--ink-faint); }
   #padrao-btn-salvar {
-    padding: 8px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
+    padding: 8px 16px; border: none; border-radius: 7px; background:var(--accent-fill); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer;
   }
   #padrao-btn-salvar:hover { opacity: 0.92; }
@@ -948,13 +963,13 @@
     background: var(--bg); color: var(--ink);
   }
   .proposta-form .btn-automacao, .proposta-form .btn-relatorio-mes {
-    padding: 9px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
+    padding: 9px 16px; border: none; border-radius: 7px; background:var(--accent-fill); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer; grid-column: span 3;
   }
   .proposta-form .btn-automacao:hover { opacity: 0.92; }
   .proposta-form .btn-automacao:disabled { opacity: 0.6; cursor: default; }
   .proposta-form .btn-manual {
-    padding: 9px 16px; border: none; border-radius: 7px; background: var(--accent); color: #fff;
+    padding: 9px 16px; border: none; border-radius: 7px; background:var(--accent-fill); color: #fff;
     font-size: 13px; font-weight: 600; cursor: pointer; grid-column: span 3;
   }
   .proposta-form .btn-manual:hover { opacity: 0.92; }
@@ -1109,7 +1124,7 @@
   }
   .procpage-btn:hover { background: var(--accent-soft); }
   .procpage-btn svg { width: 15px; height: 15px; }
-  .procpage-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .procpage-btn-primary { background:var(--accent-fill); border-color: var(--accent); color: #fff; }
   .procpage-btn-primary:hover { filter: brightness(1.1); }
 
   .procpage-filtros {
@@ -1195,7 +1210,7 @@
   .triagem-campo-condicional { margin-top: 10px; padding: 12px 14px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--line); }
   .triagem-simnao { display: flex; gap: 8px; }
   .triagem-simnao button { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft); font-size: 13px; cursor: pointer; transition: all .15s ease; }
-  .triagem-simnao button.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .triagem-simnao button.ativo { background:var(--accent-fill); border-color: var(--accent); color: #fff; }
   .triagem-chip-status { font-size: 11px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
   .procficha-modelo-item:last-child { border-bottom: 1px solid var(--line); border-radius: 0 0 8px 8px; }
   .procficha-modelo-item:first-child { border-radius: 8px 8px 0 0; }

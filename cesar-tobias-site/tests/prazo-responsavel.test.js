@@ -15,7 +15,7 @@ assert(iniModal > 0 && fimModal > iniModal, 'modal de prazo nao encontrado');
 const modal = fonte.slice(iniModal, fimModal);
 
 t('o modal de prazo tem o campo Responsável (opcional, "Selecione") antes da Prioridade', () => {
-  assert(modal.includes('<label>Responsável</label>'));
+  assert(modal.includes('<label for="prazo-form-responsavel">Responsável</label>'));
   assert(modal.includes('id="prazo-form-responsavel"'));
   assert(modal.includes('<option value="">Selecione</option>'));
   assert(modal.indexOf('prazo-form-tipo') < modal.indexOf('prazo-form-responsavel'));

@@ -12,6 +12,7 @@
   // toda torre animar do valor anterior pro atual. null = ainda nao desenhou nenhuma vez (1o
   // desenho sempre anima 0 -> altura atual).
   var ultimaSerieExecPorMes = null;
+  var sequenciaResumoExec = 0;
 
   var ROTULO_STATUS_DRILL = {
     'EmAberto': 'A Receber — parcelas em aberto',
@@ -64,7 +65,7 @@
   }
 
   var TITULO_TOPBAR_POR_PAGINA = {
-    inicio: 'Início', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos Judiciais',
+    inicio: 'Início', financeiro_novo: 'Financeiro', financeiro_antigo: 'Notificação Extrajudicial', pje: 'Processual (PJe)', clientes: 'Clientes', ficha_processos: 'Processos Judiciais',
     processo_administrativo: 'Processo Administrativo',
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
@@ -81,23 +82,138 @@
     var btnAbrir = document.getElementById('btn-menu-mobile');
     var btnFechar = document.getElementById('btn-fechar-menu-mobile');
     if (!sidebar || !backdrop || !btnAbrir || !btnFechar) return;
+    var mobile = window.matchMedia('(max-width: 860px)');
+    var area = document.querySelector('.conteudo-area');
+    btnAbrir.setAttribute('aria-controls', sidebar.id);
+
+    function sincronizarMenu() {
+      var aberto = mobile.matches && sidebar.classList.contains('aberta');
+      sidebar.inert = mobile.matches && !aberto;
+      if (area) area.inert = aberto;
+    }
 
     function abrirMenu() {
       sidebar.classList.add('aberta');
       backdrop.classList.add('visivel');
       btnAbrir.setAttribute('aria-expanded', 'true');
+      sincronizarMenu();
+      btnFechar.focus();
     }
     function fecharMenu() {
+      var estavaAberto = sidebar.classList.contains('aberta');
       sidebar.classList.remove('aberta');
       backdrop.classList.remove('visivel');
       btnAbrir.setAttribute('aria-expanded', 'false');
+      sincronizarMenu();
+      if (estavaAberto && mobile.matches) btnAbrir.focus();
     }
     btnAbrir.addEventListener('click', abrirMenu);
     btnFechar.addEventListener('click', fecharMenu);
     backdrop.addEventListener('click', fecharMenu);
     document.addEventListener('keydown', function (ev) {
+      if (!mobile.matches || !sidebar.classList.contains('aberta')) return;
       if (ev.key === 'Escape') fecharMenu();
+      if (ev.key === 'Tab') conterFoco(ev, sidebar);
     });
+    mobile.addEventListener('change', fecharMenu);
+    sincronizarMenu();
+  }
+
+  function elementosFocaveis(raiz) {
+    return Array.prototype.filter.call(raiz.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'), function (el) {
+      return !el.disabled && el.tabIndex >= 0 && !el.closest('[inert]') && el.getClientRects().length > 0;
+    });
+  }
+
+  function conterFoco(ev, raiz) {
+    var elementos = elementosFocaveis(raiz);
+    var primeiro = elementos[0] || raiz;
+    var ultimo = elementos[elementos.length - 1] || raiz;
+    if (!elementos.length || !raiz.contains(document.activeElement) ||
+        (ev.shiftKey && document.activeElement === primeiro) ||
+        (!ev.shiftKey && document.activeElement === ultimo)) {
+      ev.preventDefault();
+      (ev.shiftKey ? ultimo : primeiro).focus();
+    }
+  }
+
+  // Os modais existentes abrem e fecham pela classe hidden, inclusive os criados depois
+  // do carregamento. Centraliza apenas semantica e foco, preservando seus handlers.
+  function wireAcessibilidadeModais() {
+    var ativo = null;
+    var anteriores = [];
+    var inativos = [];
+    var sequencia = 0;
+    var ultimoFoco = document.activeElement;
+    document.addEventListener('focusin', function (ev) {
+      var modal = ev.target.closest('.modal-overlay');
+      if (!modal || modal === ativo) ultimoFoco = ev.target;
+    });
+    function restaurarFundo() {
+      inativos.forEach(function (item) { item.el.inert = item.inert; });
+      inativos = [];
+    }
+    function sincronizar() {
+      var abertos = Array.prototype.filter.call(document.querySelectorAll('.modal-overlay:not(.hidden)'), function (el) {
+        return el.getClientRects().length > 0;
+      });
+      // Mantem o modal atual ate fechar; um novo modal aberto por cima assume o foco.
+      var novo = abertos.filter(function (el) { return !anteriores.includes(el); }).pop();
+      var proximo = novo || (abertos.includes(ativo) ? ativo : abertos[abertos.length - 1]) || null;
+      anteriores = abertos;
+      if (proximo === ativo) return;
+      var anterior = ativo;
+      restaurarFundo();
+      ativo = proximo;
+      if (!ativo) {
+        if (anterior && anterior._acionadorModal && anterior._acionadorModal.isConnected && !anterior._acionadorModal.closest('[inert]')) anterior._acionadorModal.focus();
+        return;
+      }
+      if (novo) ativo._acionadorModal = ultimoFoco;
+      ativo.setAttribute('role', 'dialog');
+      ativo.setAttribute('aria-modal', 'true');
+      ativo.tabIndex = -1;
+      var titulo = ativo.querySelector('.modal-drill-titulo, .confirm-modal-titulo, h2, h3');
+      if (titulo) {
+        if (!titulo.id) titulo.id = 'titulo-modal-acessivel-' + (++sequencia);
+        ativo.setAttribute('aria-labelledby', titulo.id);
+      } else if (!ativo.hasAttribute('aria-label')) ativo.setAttribute('aria-label', 'Janela do painel');
+      var descricao = ativo.querySelector('.confirm-modal-msg');
+      if (descricao && descricao.id) ativo.setAttribute('aria-describedby', descricao.id);
+      var ramo = ativo;
+      while (ramo.parentElement && ramo !== document.body) {
+        Array.prototype.forEach.call(ramo.parentElement.children, function (irmao) {
+          if (irmao === ramo || /^(SCRIPT|STYLE|LINK)$/.test(irmao.tagName)) return;
+          inativos.push({ el: irmao, inert: irmao.inert });
+          irmao.inert = true;
+        });
+        ramo = ramo.parentElement;
+      }
+      var cancelar = ativo.querySelector('button[id$="-cancelar"]');
+      var alvo = cancelar && cancelar.getClientRects().length ? cancelar : elementosFocaveis(ativo)[0];
+      (alvo || ativo).focus();
+    }
+    document.addEventListener('keydown', function (ev) {
+      if (!ativo || ativo.classList.contains('hidden')) return;
+      if (ev.key === 'Tab') conterFoco(ev, ativo);
+      if (ev.key === 'Escape') {
+        var fechar = ativo.querySelector('button[id$="-cancelar"], button[id$="-fechar"], #confirm-modal-ok');
+        if (fechar && fechar.getClientRects().length) {
+          ev.preventDefault();
+          ev.stopImmediatePropagation();
+          fechar.click();
+        }
+      }
+    }, true);
+    new MutationObserver(function (mudancas) {
+      if (mudancas.some(function (m) {
+        return (m.type === 'attributes' && (m.target.matches('.modal-overlay') || (ativo && m.target.contains(ativo)))) ||
+          (m.type === 'childList' && Array.prototype.some.call(m.addedNodes, function (n) {
+            return n.nodeType === 1 && (n.matches('.modal-overlay') || n.querySelector('.modal-overlay'));
+          })) || (m.type === 'childList' && ativo && !ativo.isConnected);
+      })) sincronizar();
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+    sincronizar();
   }
 
   function wireModalDrill() {
@@ -136,6 +252,7 @@
     toggleEscritorioParceiro.style.display = 'none';
   }
   toggleEscritorioParceiro.addEventListener('click', function () {
+    toggleEscritorioParceiro.setAttribute('aria-expanded', 'true');
     tenantIdInput.style.display = '';
     toggleEscritorioParceiro.style.display = 'none';
     tenantIdInput.focus();
@@ -445,12 +562,29 @@
 
   function aplicarCorAccent(hex) {
     document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-fill', corBotaoAcessivel(hex));
     document.documentElement.style.setProperty('--accent-soft', misturarComBranco(hex, 0.88));
     document.documentElement.style.setProperty('--sidebar-accent', hex);
   }
 
+  function corBotaoAcessivel(hex) {
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) return '#2c5ce0';
+    var canais = [1, 3, 5].map(function (i) { return parseInt(hex.slice(i, i + 2), 16); });
+    function luminancia() {
+      return canais.reduce(function (total, canal, i) {
+        var v = canal / 255;
+        return total + (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)) * [0.2126, 0.7152, 0.0722][i];
+      }, 0);
+    }
+    while (1.05 / (luminancia() + 0.05) < 4.5) {
+      canais = canais.map(function (v) { return Math.floor(v * 0.95); });
+    }
+    return '#' + canais.map(function (v) { return v.toString(16).padStart(2, '0'); }).join('');
+  }
+
   var inputCorAccent = document.getElementById('input-cor-accent');
   inputCorAccent.value = localStorage.getItem('painel_cor_accent') || corComputadaParaHex('--accent');
+  if (localStorage.getItem('painel_cor_accent')) document.documentElement.style.setProperty('--accent-fill', corBotaoAcessivel(inputCorAccent.value));
   inputCorAccent.addEventListener('input', function () {
     aplicarCorAccent(inputCorAccent.value);
     localStorage.setItem('painel_cor_accent', inputCorAccent.value);
@@ -459,6 +593,7 @@
   document.getElementById('btn-cor-reset').addEventListener('click', function () {
     localStorage.removeItem('painel_cor_accent');
     document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-fill');
     document.documentElement.style.removeProperty('--accent-soft');
     document.documentElement.style.removeProperty('--sidebar-accent');
     inputCorAccent.value = corComputadaParaHex('--accent');
@@ -711,7 +846,7 @@
       overlay.addEventListener('click', onOverlay);
       document.addEventListener('keydown', onEsc);
       overlay.classList.remove('hidden');
-      btnOk.focus();
+      (opcoes.somenteOk ? btnOk : btnCancelar).focus();
     });
   }
 
@@ -2037,11 +2172,41 @@
   function carregarPainelExecutivo() {
     var wrap = document.getElementById('exec-grafico-svg');
     if (!wrap) return;
+    var consulta = ++sequenciaResumoExec;
+    var idsResumo = ['saldo', 'projetado-90d', 'a-pagar', 'recorrentes'];
+    function estadoResumo(estado) {
+      idsResumo.forEach(function (id) {
+        var valor = document.getElementById('exec-kpi-' + id);
+        if (!valor) return;
+        var card = valor.closest('.exec-stat-card');
+        card.setAttribute('aria-busy', estado === 'carregando' ? 'true' : 'false');
+        if (estado !== 'pronto') {
+          valor.textContent = '—';
+          card.querySelector('.exec-stat-foot').textContent = estado === 'carregando' ? 'Carregando…' : 'Não disponível';
+        }
+      });
+    }
+    estadoResumo('carregando');
+    ['exec-grafico-svg', 'exec-categorias-lista', 'exec-proximos-lista', 'exec-visao-geral-corpo'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="empty-state" role="status">Carregando resumo financeiro…</div>';
+    });
+    ['exec-acumulado', 'exec-marco-linha', 'exec-horizontes', 'exec-insights'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.replaceChildren();
+    });
+    var notaAnterior = document.getElementById('exec-nota-sem-data');
+    if (notaAnterior) notaAnterior.classList.add('hidden');
     preencherExecKpisContratos();
     apiPostJson('/api/painel?acao=executar', { tipo: 'financeiro_resumo_executivo', meses: mesesGraficoExecAtual })
       .then(function (dados) {
-        var r = dados.resumo || {};
-        var kpis = r.kpis || {};
+        if (consulta !== sequenciaResumoExec || !wrap.isConnected) return;
+        if (!dados.resumo || !dados.resumo.kpis) throw new Error('Resumo financeiro indisponível');
+        var r = dados.resumo;
+        var kpis = r.kpis;
+        if (['saldo_mes', 'receita_mes', 'despesa_mes', 'total_a_pagar', 'total_vencido_pagar', 'recorrentes_ativas', 'comprometido_mensal'].some(function (chave) {
+          return typeof kpis[chave] !== 'number' || !Number.isFinite(kpis[chave]);
+        })) throw new Error('Indicadores financeiros incompletos');
         desenharReceitaDespesas(r.receita_x_despesas || []);
         renderExecAcumulado(r);
         renderExecCategorias(r.despesas_por_categoria || []);
@@ -2060,6 +2225,8 @@
         var elProjetadoSub = document.getElementById('exec-kpi-projetado-90d-sub');
         if (elProjetadoSub && horizonte90) {
           elProjetadoSub.textContent = 'receita R$ ' + fmtMoeda(horizonte90.receita) + ' · despesas R$ ' + fmtMoeda(horizonte90.despesa);
+        } else if (elProjetadoSub) {
+          elProjetadoSub.textContent = 'Previsão não disponível';
         }
 
         var elSaldo = document.getElementById('exec-kpi-saldo');
@@ -2099,9 +2266,17 @@
             notaSemData.classList.add('hidden');
           }
         }
+        estadoResumo('pronto');
       })
       .catch(function () {
-        wrap.innerHTML = '<div class="fluxo-vazio">Não foi possível carregar o painel executivo agora.</div>';
+        if (consulta !== sequenciaResumoExec || !wrap.isConnected) return;
+        estadoResumo('erro');
+        wrap.innerHTML = '<div class="aviso-tenant aviso-carregamento" role="status"><span>Não foi possível carregar o resumo financeiro. Os indicadores dependentes estão indisponíveis.</span><button type="button" class="btn-conexao-secundario">Tentar novamente</button></div>';
+        wrap.querySelector('button').addEventListener('click', carregarPainelExecutivo);
+        ['exec-categorias-lista', 'exec-proximos-lista', 'exec-visao-geral-corpo'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = 'Resumo não disponível.';
+        });
       });
   }
 
@@ -2974,10 +3149,10 @@
               'oficial do CNJ. Não cobre a carteira inteira — só processos com movimentação eletrônica publicada.</p>' +
             '<div id="procoab-erro"></div>' +
             '<div class="procman-linha" style="align-items:flex-end;">' +
-              '<div style="flex:0 0 140px;"><label>Número da OAB</label><input id="procoab-numero" placeholder="Ex: 12345"></div>' +
-              '<div style="flex:0 0 90px;"><label>UF</label><input id="procoab-uf" maxlength="2" style="text-transform:uppercase" placeholder="Ex: AP"></div>' +
+              '<div style="flex:0 0 140px;"><label for="procoab-numero">Número da OAB</label><input id="procoab-numero" placeholder="Ex: 12345"></div>' +
+              '<div style="flex:0 0 90px;"><label for="procoab-uf">UF</label><input id="procoab-uf" maxlength="2" style="text-transform:uppercase" placeholder="Ex: AP"></div>' +
               '<div style="flex:0 0 auto;"><button id="procoab-btn-buscar" style="padding:9px 16px;border:none;' +
-                'border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Buscar processos</button></div>' +
+                'border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Buscar processos</button></div>' +
             '</div>' +
             '<div id="procoab-resultado"></div>' +
           '</div>' +
@@ -2994,58 +3169,58 @@
           '<div style="padding:16px 20px;">' +
             '<p style="margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);">' +
               'Pra processos que não vêm pelo PJe — cadastre os dados aqui, do jeito que fizer sentido pro seu controle.</p>' +
-            '<div id="procman-erro"></div>' +
+            '<div id="procman-erro" role="status" aria-live="polite"></div>' +
 
             '<p class="section-label" style="margin:0 0 8px;">Dados do processo</p>' +
             '<div class="procman-linha">' +
-              '<div><label>Número do processo (CNJ)</label><input id="procman-numero-cnj" placeholder="0000000-00.0000.0.00.0000"></div>' +
-              '<div><label>Classe processual</label><input id="procman-classe" placeholder="Ex: Ação de Cobrança"></div>' +
+              '<div><label for="procman-numero-cnj">Número do processo (CNJ)</label><input id="procman-numero-cnj" placeholder="0000000-00.0000.0.00.0000"></div>' +
+              '<div><label for="procman-classe">Classe processual</label><input id="procman-classe" placeholder="Ex: Ação de Cobrança"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Área do direito</label><input id="procman-area" placeholder="Ex: Cível, Trabalhista"></div>' +
-              '<div><label>Órgão julgador / Vara</label><input id="procman-orgao" placeholder="Ex: 1ª Vara Cível"></div>' +
+              '<div><label for="procman-area">Área do direito</label><input id="procman-area" placeholder="Ex: Cível, Trabalhista"></div>' +
+              '<div><label for="procman-orgao">Órgão julgador / Vara</label><input id="procman-orgao" placeholder="Ex: 1ª Vara Cível"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Tribunal</label><select id="procman-tribunal">' + htmlOpcoesTribunal('') + '</select></div>' +
-              '<div><label>Comarca / Foro</label><input id="procman-comarca" placeholder="Ex: São Paulo"></div>' +
+              '<div><label for="procman-tribunal">Tribunal</label><select id="procman-tribunal">' + htmlOpcoesTribunal('') + '</select></div>' +
+              '<div><label for="procman-comarca">Comarca / Foro</label><input id="procman-comarca" placeholder="Ex: São Paulo"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Grau</label><select id="procman-grau"><option value="">Selecione...</option><option>1º Grau</option><option>2º Grau</option><option>Tribunal Superior</option></select></div>' +
-              '<div><label>Status</label><select id="procman-status"><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option><option>Arquivado</option></select></div>' +
+              '<div><label for="procman-grau">Grau</label><select id="procman-grau"><option value="">Selecione...</option><option>1º Grau</option><option>2º Grau</option><option>Tribunal Superior</option></select></div>' +
+              '<div><label for="procman-status">Status</label><select id="procman-status"><option>Em andamento</option><option>Suspenso</option><option>Finalizado</option><option>Arquivado</option></select></div>' +
             '</div>' +
 
             '<p class="section-label" style="margin:18px 0 8px;">Cliente vinculado</p>' +
-            '<label>Cliente *</label>' +
+            '<label for="procman-cliente">Cliente *</label>' +
             '<input type="text" list="procman-clientes-lista" id="procman-cliente" placeholder="Selecione ou digite o nome do cliente" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:4px;">' +
             '<datalist id="procman-clientes-lista"></datalist>' +
 
             '<p class="section-label" style="margin:18px 0 8px;">Situação do processo</p>' +
             '<div class="procman-linha">' +
-              '<div><label>Fase processual</label><input id="procman-fase" placeholder="Ex: Conhecimento, Execução, Recurso"></div>' +
-              '<div><label>Valor da causa (R$)</label><input id="procman-valor-causa" placeholder="0,00"></div>' +
+              '<div><label for="procman-fase">Fase processual</label><input id="procman-fase" placeholder="Ex: Conhecimento, Execução, Recurso"></div>' +
+              '<div><label for="procman-valor-causa">Valor da causa (R$)</label><input id="procman-valor-causa" placeholder="0,00"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Data de distribuição</label><input type="date" id="procman-data-distribuicao"></div>' +
-              '<div><label>Data de encerramento</label><input type="date" id="procman-data-encerramento"></div>' +
+              '<div><label for="procman-data-distribuicao">Data de distribuição</label><input type="date" id="procman-data-distribuicao"></div>' +
+              '<div><label for="procman-data-encerramento">Data de encerramento</label><input type="date" id="procman-data-encerramento"></div>' +
             '</div>' +
             '<div class="procman-linha">' +
-              '<div><label>Advogado responsável</label><input id="procman-advogado" placeholder="Nome do responsável"></div>' +
-              '<div><label>Prioridade legal</label><input id="procman-prioridade" placeholder="Ex: idoso, saúde"></div>' +
+              '<div><label for="procman-advogado">Advogado responsável</label><input id="procman-advogado" placeholder="Nome do responsável"></div>' +
+              '<div><label for="procman-prioridade">Prioridade legal</label><input id="procman-prioridade" placeholder="Ex: idoso, saúde"></div>' +
             '</div>' +
 
             '<p class="section-label" style="margin:18px 0 8px;">Classificações e organização</p>' +
             '<div class="procman-linha">' +
-              '<div><label>Risco do processo</label><select id="procman-risco"><option value="">—</option><option>Baixo</option><option>Médio</option><option>Alto</option></select></div>' +
-              '<div><label>Nível de sigilo</label><select id="procman-sigilo"><option value="">—</option><option>Público</option><option>Restrito</option><option>Segredo de justiça</option></select></div>' +
+              '<div><label for="procman-risco">Risco do processo</label><select id="procman-risco"><option value="">—</option><option>Baixo</option><option>Médio</option><option>Alto</option></select></div>' +
+              '<div><label for="procman-sigilo">Nível de sigilo</label><select id="procman-sigilo"><option value="">—</option><option>Público</option><option>Restrito</option><option>Segredo de justiça</option></select></div>' +
             '</div>' +
-            '<label>Observações internas</label>' +
+            '<label for="procman-obs">Observações internas</label>' +
             '<textarea id="procman-obs" rows="3" placeholder="Anotações internas sobre o processo..." ' +
               'style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;' +
               'font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;"></textarea>' +
 
             '<div id="procman-msg-sucesso"></div>' +
             '<div style="margin-top:14px;"><button id="procman-btn-salvar" style="padding:9px 16px;border:none;' +
-              'border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar processo</button></div>' +
+              'border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar processo</button></div>' +
           '</div>' +
         '</div>';
 
@@ -3066,7 +3241,7 @@
               '<h2 class="procficha-numero" id="cliente-form-titulo">Novo cliente</h2>' +
             '</div>' +
           '</div>' +
-          '<div id="cliente-form-erro"></div>' +
+          '<div id="cliente-form-erro" role="status" aria-live="polite"></div>' +
 
           '<div class="procficha-corpo">' +
             '<div>' +
@@ -3087,11 +3262,11 @@
                 '<p class="procficha-painel-titulo">Dados Pessoais</p>' +
                 '<p class="procficha-painel-sub">Informações básicas do cliente</p>' +
                 '<div class="procficha-editar-grid">' +
-                  '<div><label>Tipo *</label><select id="cliente-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
-                  '<div><label>Nome / Razão Social *</label><input id="cliente-nome" placeholder="Digite o nome completo ou razão social"></div>' +
-                  '<div><label id="cliente-label-cpf">CPF</label><input id="cliente-cpf-cnpj" placeholder="000.000.000-00"></div>' +
-                  '<div><label>E-mail</label><input type="email" id="cliente-email" placeholder="cliente@exemplo.com"></div>' +
-                  '<div><label>Telefone</label><input id="cliente-telefone" placeholder="(00) 00000-0000"></div>' +
+                  '<div><label for="cliente-tipo">Tipo *</label><select id="cliente-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
+                  '<div><label for="cliente-nome">Nome / Razão Social *</label><input id="cliente-nome" placeholder="Digite o nome completo ou razão social"></div>' +
+                  '<div><label id="cliente-label-cpf" for="cliente-cpf-cnpj">CPF</label><input id="cliente-cpf-cnpj" placeholder="000.000.000-00"></div>' +
+                  '<div><label for="cliente-email">E-mail</label><input type="email" id="cliente-email" placeholder="cliente@exemplo.com"></div>' +
+                  '<div><label for="cliente-telefone">Telefone</label><input id="cliente-telefone" placeholder="(00) 00000-0000"></div>' +
                 '</div>' +
               '</div>' +
 
@@ -3099,13 +3274,13 @@
                 '<p class="procficha-painel-titulo">Endereço</p>' +
                 '<p class="procficha-painel-sub">Localização e dados de contato</p>' +
                 '<div class="procficha-editar-grid">' +
-                  '<div><label>CEP</label><input id="cliente-cep" placeholder="00000-000" maxlength="9"><span id="cliente-cep-status" style="display:block; font-size:11px; color:var(--ink-faint); margin-top:3px;">Busca automática ao digitar</span></div>' +
-                  '<div><label>Logradouro</label><input id="cliente-logradouro" placeholder="Rua, avenida, praça..."></div>' +
-                  '<div><label>Número</label><input id="cliente-numero" placeholder="Nº"></div>' +
-                  '<div><label>Complemento</label><input id="cliente-complemento" placeholder="Apto, sala, bloco..."></div>' +
-                  '<div><label>Bairro</label><input id="cliente-bairro" placeholder="Nome do bairro"></div>' +
-                  '<div><label>Cidade</label><input id="cliente-cidade" placeholder="Nome da cidade"></div>' +
-                  '<div><label>UF</label><input id="cliente-uf" maxlength="2" style="text-transform:uppercase;"></div>' +
+                  '<div><label for="cliente-cep">CEP</label><input id="cliente-cep" placeholder="00000-000" maxlength="9"><span id="cliente-cep-status" style="display:block; font-size:11px; color:var(--ink-faint); margin-top:3px;">Busca automática ao digitar</span></div>' +
+                  '<div><label for="cliente-logradouro">Logradouro</label><input id="cliente-logradouro" placeholder="Rua, avenida, praça..."></div>' +
+                  '<div><label for="cliente-numero">Número</label><input id="cliente-numero" placeholder="Nº"></div>' +
+                  '<div><label for="cliente-complemento">Complemento</label><input id="cliente-complemento" placeholder="Apto, sala, bloco..."></div>' +
+                  '<div><label for="cliente-bairro">Bairro</label><input id="cliente-bairro" placeholder="Nome do bairro"></div>' +
+                  '<div><label for="cliente-cidade">Cidade</label><input id="cliente-cidade" placeholder="Nome da cidade"></div>' +
+                  '<div><label for="cliente-uf">UF</label><input id="cliente-uf" maxlength="2" style="text-transform:uppercase;"></div>' +
                 '</div>' +
               '</div>' +
 
@@ -3155,12 +3330,12 @@
           '<div class="procpage-filtros">' +
             '<p style="margin:0 0 10px; font-size:12.5px; font-weight:600; color:var(--ink-faint);">Busca avançada</p>' +
             '<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Status</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="prazos-filtro-status">Status</label>' +
                 '<select id="prazos-filtro-status" style="padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
                   '<option value="">Todos</option><option value="pendente">Pendente</option>' +
                   '<option value="cumprido">Cumprido</option><option value="vencido">Vencido</option>' +
                 '</select></div>' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Tipo</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="prazos-filtro-tipo">Tipo</label>' +
                 '<select id="prazos-filtro-tipo" style="padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
                   '<option value="">Todos</option><option value="legal">Legal</option><option value="interno">Interno</option>' +
                 '</select></div>' +
@@ -3197,17 +3372,17 @@
             '<div class="procpage-filtros">' +
               '<p class="procpage-filtros-titulo">Busca avançada</p>' +
               '<div class="procpage-filtros-grid">' +
-                '<div><label>Nº do processo</label><input type="text" id="procpage-filtro-numero"></div>' +
-                '<div><label>Cliente</label><input type="text" id="procpage-filtro-cliente" list="procpage-clientes-lista"><datalist id="procpage-clientes-lista"></datalist></div>' +
-                '<div><label>Tribunal</label><input type="text" id="procpage-filtro-tribunal"></div>' +
-                '<div><label>Status</label><select id="procpage-filtro-status">' +
+                '<div><label for="procpage-filtro-numero">Nº do processo</label><input type="text" id="procpage-filtro-numero"></div>' +
+                '<div><label for="procpage-filtro-cliente">Cliente</label><input type="text" id="procpage-filtro-cliente" list="procpage-clientes-lista"><datalist id="procpage-clientes-lista"></datalist></div>' +
+                '<div><label for="procpage-filtro-tribunal">Tribunal</label><input type="text" id="procpage-filtro-tribunal"></div>' +
+                '<div><label for="procpage-filtro-status">Status</label><select id="procpage-filtro-status">' +
                   '<option value="ativos_encerrados" selected>Ativos e encerrados</option>' +
                   '<option value="ativos">Ativos</option>' +
                   '<option value="encerrados">Encerrados</option>' +
                   '<option value="arquivados">Arquivados</option>' +
                   '<option value="todos">Todos</option>' +
                 '</select></div>' +
-                '<div><label>Palavra-chave</label><input type="text" id="procpage-filtro-palavra" placeholder="Busca em número, classe, órgão..."></div>' +
+                '<div><label for="procpage-filtro-palavra">Palavra-chave</label><input type="text" id="procpage-filtro-palavra" placeholder="Busca em número, classe, órgão..."></div>' +
                 '<div class="procpage-filtros-botoes">' +
                   '<button type="button" class="procpage-btn" id="procpage-filtro-limpar">Limpar</button>' +
                   '<button type="button" class="procpage-btn procpage-btn-primary" id="procpage-filtro-buscar">Buscar</button>' +
@@ -3238,8 +3413,8 @@
 
           '<div class="procpage-filtros">' +
             '<div class="procpage-filtros-grid">' +
-              '<div><label>Cliente ou empresa</label><input type="text" id="triagem-filtro-busca" placeholder="Buscar por cliente ou empresa..."></div>' +
-              '<div><label>Status</label><select id="triagem-filtro-status">' +
+              '<div><label for="triagem-filtro-busca">Cliente ou empresa</label><input type="text" id="triagem-filtro-busca" placeholder="Buscar por cliente ou empresa..."></div>' +
+              '<div><label for="triagem-filtro-status">Status</label><select id="triagem-filtro-status">' +
                 '<option value="">Todas (exceto arquivadas)</option>' +
                 '<option value="nao_iniciada">Não iniciada</option>' +
                 '<option value="em_andamento">Em andamento</option>' +
@@ -3284,7 +3459,7 @@
           '<div class="triagem-passos" id="triagem-passos-barra"></div>' +
           '<div class="triagem-passo-legenda"><span id="triagem-passo-atual-label"></span><span id="triagem-passo-pct-label"></span></div>' +
 
-          '<div id="triagem-wizard-erro"></div>' +
+          '<div id="triagem-wizard-erro" role="status" aria-live="polite"></div>' +
           '<div id="triagem-painel-pendencias" class="triagem-campo-condicional hidden" style="margin-bottom:16px;"></div>' +
           '<div id="triagem-wizard-conteudo" class="procficha-painel"></div>' +
 
@@ -3328,7 +3503,7 @@
               '<input type="date" data-campo="prazo" data-form="procadm_criar" style="font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink);">' +
             '</label>' +
             '<textarea placeholder="Observações (opcional)" data-campo="observacoes" data-form="procadm_criar" style="grid-column: span 3; min-height:56px; font-family:inherit; font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink);"></textarea>' +
-            '<button type="button" id="procadm-btn-criar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Criar processo</button>' +
+            '<button type="button" id="procadm-btn-criar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Criar processo</button>' +
           '</div>' +
           '<div class="automacao-resultado" id="procadm-resultado" aria-live="polite" style="padding:0 20px 16px;"></div>' +
         '</div>' +
@@ -3352,23 +3527,23 @@
           '<div class="procpage-filtros">' +
             '<p style="margin:0 0 10px; font-size:12.5px; font-weight:600; color:var(--ink-faint);">Busca avançada</p>' +
             '<div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Responsável</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="tarefas-filtro-responsavel">Responsável</label>' +
                 '<select id="tarefas-filtro-responsavel" style="padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
                   '<option value="">Todos</option>' +
                 '</select></div>' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Status</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="tarefas-filtro-status">Status</label>' +
                 '<select id="tarefas-filtro-status" style="padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
                   '<option value="">Todos</option><option value="pendente">Pendente</option>' +
                   '<option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option>' +
                 '</select></div>' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Prioridade</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="tarefas-filtro-prioridade">Prioridade</label>' +
                 '<select id="tarefas-filtro-prioridade" style="padding:8px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);">' +
                   '<option value="">Todas</option><option value="baixa">Baixa</option>' +
                   '<option value="media">Média</option><option value="alta">Alta</option>' +
                 '</select></div>' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Data de</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="tarefas-filtro-data-de">Data de</label>' +
                 '<input type="date" id="tarefas-filtro-data-de" style="padding:7px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);"></div>' +
-              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;">Data até</label>' +
+              '<div><label style="display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:4px;" for="tarefas-filtro-data-ate">Data até</label>' +
                 '<input type="date" id="tarefas-filtro-data-ate" style="padding:7px 10px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--ink);"></div>' +
               '<button type="button" class="procpage-btn procpage-btn-primary" id="tarefas-btn-buscar">Buscar</button>' +
               '<button type="button" class="procpage-btn" id="tarefas-btn-limpar">Limpar</button>' +
@@ -3415,7 +3590,7 @@
           '<div class="automacao-resultado" data-resultado="notificacao_extrajudicial_gerar" aria-live="polite" style="padding:0 20px 16px;white-space:pre-wrap;"></div>' +
           '<div id="notificacao-extrajudicial-preview"></div>' +
           '<div style="padding:0 20px 20px;" id="notificacao-extrajudicial-confirmar-area" class="hidden">' +
-            '<button type="button" id="notificacao-extrajudicial-btn-confirmar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Confirmar e enviar pro cliente</button>' +
+            '<button type="button" id="notificacao-extrajudicial-btn-confirmar" style="padding:10px 18px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Confirmar e enviar pro cliente</button>' +
           '</div>' +
         '</div>' +
       '</section>';
@@ -3920,15 +4095,15 @@
               '<button type="button" class="modal-drill-fechar" id="ag-modal-fechar" aria-label="Fechar">✕</button>' +
             '</div>' +
             '<div style="padding:18px 20px; max-height:74vh; overflow-y:auto;">' +
-              '<div id="ag-form-erro"></div>' +
-              '<label>Título *</label>' +
+              '<div id="ag-form-erro" role="status" aria-live="polite"></div>' +
+              '<label for="ag-form-titulo">Título *</label>' +
               '<input type="text" id="ag-form-titulo" placeholder="Ex.: Dentista, Audiência de instrução..." style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<div style="display:flex; gap:10px;">' +
-                '<div style="flex:1;"><label>Tipo *</label>' +
+                '<div style="flex:1;"><label for="ag-form-tipo">Tipo *</label>' +
                   '<select id="ag-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                     TIPOS_COMPROMISSO.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === 'reuniao' ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') +
                   '</select></div>' +
-                '<div style="flex:1;"><label>Responsável</label>' +
+                '<div style="flex:1;"><label for="ag-form-responsavel">Responsável</label>' +
                   '<select id="ag-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                     '<option value="">Selecione</option>' +
                   '</select></div>' +
@@ -3941,15 +4116,15 @@
                 '<button type="button" id="ag-btn-hoje" style="padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:12.5px;cursor:pointer;">Hoje</button>' +
               '</div>' +
               '<div style="display:flex; gap:10px; margin-bottom:14px;">' +
-                '<div style="flex:1;"><label>Término</label>' +
+                '<div style="flex:1;"><label for="ag-form-hora-fim">Término</label>' +
                   '<input type="time" id="ag-form-hora-fim" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);"></div>' +
-                '<div style="flex:1;"><label>Repetir</label>' +
+                '<div style="flex:1;"><label for="ag-form-repetir">Repetir</label>' +
                   '<select id="ag-form-repetir" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);">' +
                     '<option value="nao_repete">Não repetir</option><option value="diariamente">Diariamente</option>' +
                     '<option value="semanalmente">Semanalmente</option><option value="mensalmente">Mensalmente</option>' +
                   '</select></div>' +
               '</div>' +
-              '<label>Local</label>' +
+              '<label for="ag-form-local">Local</label>' +
               '<input type="text" id="ag-form-local" placeholder="Fórum, escritório, online..." style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<label style="display:flex; align-items:center; gap:8px; font-weight:400; margin-bottom:14px;">' +
                 '<input type="checkbox" id="ag-form-meet" style="width:auto;"> Gerar link do Meet</label>' +
@@ -3957,19 +4132,19 @@
                 '<input type="checkbox" id="ag-form-privado" style="width:auto;"> Marcar como compromisso privado</label>' +
               '<button type="button" id="ag-btn-mais-opcoes" style="background:none; border:none; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0; margin-bottom:14px;">› Mais opções</button>' +
               '<div id="ag-mais-opcoes" class="hidden">' +
-                '<label>Cliente</label>' +
+                '<label for="ag-form-cliente">Cliente</label>' +
                 '<input type="text" id="ag-form-cliente" placeholder="Opcional" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
-                '<label>Processo</label>' +
+                '<label for="ag-form-processo">Processo</label>' +
                 '<select id="ag-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                   '<option value="">Nenhum</option>' +
                 '</select>' +
-                '<label>Descrição</label>' +
+                '<label for="ag-form-descricao">Descrição</label>' +
                 '<textarea id="ag-form-descricao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:14px;"></textarea>' +
               '</div>' +
               '<div id="ag-link-meet-resultado" class="hidden" style="font-size:12.5px; margin-bottom:14px;"></div>' +
               '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
                 '<button type="button" id="ag-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
-                '<button type="button" id="ag-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+                '<button type="button" id="ag-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -3985,19 +4160,19 @@
         '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
         '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
           '<div style="min-width:180px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Processo</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="honfiltro-processo">Processo</label>' +
             '<select id="honfiltro-processo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os processos</option>' +
             '</select>' +
           '</div>' +
           '<div style="min-width:180px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Cliente</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="honfiltro-cliente">Cliente</label>' +
             '<select id="honfiltro-cliente" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os clientes</option>' +
             '</select>' +
           '</div>' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Tipo</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="honfiltro-tipo">Tipo</label>' +
             '<select id="honfiltro-tipo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os tipos</option>' +
               '<option value="fixo">Fixo</option>' +
@@ -4008,7 +4183,7 @@
             '</select>' +
           '</div>' +
           '<div style="min-width:150px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="honfiltro-status">Status</label>' +
             '<select id="honfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os status</option>' +
               '<option value="ativo">Ativo</option>' +
@@ -4252,13 +4427,13 @@
         '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
         '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
           '<div style="min-width:200px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Processo</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="despfiltro-processo">Processo</label>' +
             '<select id="despfiltro-processo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os processos</option>' +
             '</select>' +
           '</div>' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Tipo</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="despfiltro-tipo">Tipo</label>' +
             '<select id="despfiltro-tipo" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os tipos</option>' +
               '<option value="Custas">Custas</option>' +
@@ -4267,11 +4442,11 @@
             '</select>' +
           '</div>' +
           '<div style="min-width:150px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Data de</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="despfiltro-data-de">Data de</label>' +
             '<input type="date" id="despfiltro-data-de" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
           '</div>' +
           '<div style="min-width:150px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Data até</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="despfiltro-data-ate">Data até</label>' +
             '<input type="date" id="despfiltro-data-ate" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
           '</div>' +
           '<button type="button" class="btn-conexao" id="despfiltro-buscar">Buscar</button>' +
@@ -4336,7 +4511,7 @@
         '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
         '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="cpagarfiltro-status">Status</label>' +
             '<select id="cpagarfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os status</option>' +
               '<option value="Aberta">Aberta</option>' +
@@ -4361,7 +4536,7 @@
             '</div>' +
           '</div>' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Categoria</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="cpagarfiltro-categoria">Categoria</label>' +
             '<input type="text" id="cpagarfiltro-categoria" list="ncpagar-categoria-lista" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
           '</div>' +
           '<button type="button" class="btn-conexao" id="cpagarfiltro-buscar">Buscar</button>' +
@@ -4431,7 +4606,7 @@
         '<div class="panel-header"><span class="panel-title">Filtros</span></div>' +
         '<div style="padding:16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Status</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="crecfiltro-status">Status</label>' +
             '<select id="crecfiltro-status" style="width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
               '<option value="">Todos os status</option>' +
               '<option value="Ativa">Ativa</option>' +
@@ -4439,7 +4614,7 @@
             '</select>' +
           '</div>' +
           '<div style="min-width:160px;">' +
-            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;">Categoria</label>' +
+            '<label style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:6px;" for="crecfiltro-categoria">Categoria</label>' +
             '<input type="text" id="crecfiltro-categoria" list="ncpagar-categoria-lista" placeholder="Buscar categoria" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; background:var(--bg); color:var(--ink); font-family:inherit;">' +
           '</div>' +
           '<button type="button" class="btn-conexao" id="crecfiltro-buscar">Buscar</button>' +
@@ -4541,7 +4716,7 @@
       return '<div class="exec-stat-card">' +
         '<div class="exec-stat-top"><span class="exec-stat-label">' + esc(opts.label) + '</span>' +
           '<span class="exec-stat-direita">' + botaoOlho + '<span class="exec-stat-icon">' + opts.icone + '</span></span></div>' +
-        '<div class="exec-stat-value' + money + '" id="' + opts.id + '"' + corValor + attrValor + '>0,00</div>' +
+        '<div class="exec-stat-value' + money + '" id="' + opts.id + '"' + corValor + attrValor + '>—</div>' +
         '<div class="exec-stat-foot" id="' + opts.idSub + '"' + attrSub + '>' + esc(opts.subInicial || '—') + '</div>' +
       '</div>';
     }
@@ -5915,11 +6090,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
                 '<td style="padding:8px 6px;"><button type="button" class="btn-conexao-secundario" data-cartao-ativo="' + c.id + '" data-ativo="' + (c.ativo ? '0' : '1') + '" style="padding:3px 9px; font-size:12px;">' + (c.ativo ? 'Desativar' : 'Ativar') + '</button></td></tr>';
             }).join('') + '</tbody></table></div>'
           : '<div class="empty-state" style="margin-bottom:12px;"><div class="msg" style="color:var(--ink-faint);">Nenhum cartão cadastrado.</div></div>') +
-        '<div id="cartao-form-erro"></div>' +
+        '<div id="cartao-form-erro" role="status" aria-live="polite"></div>' +
         '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">' +
-          '<div style="flex:2; min-width:160px;"><label>Nome do cartão</label><input type="text" id="cartao-form-nome" placeholder="Ex.: Nubank" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
-          '<div style="flex:1; min-width:110px;"><label>Fecha no dia</label><input type="number" min="1" max="31" id="cartao-form-fechamento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
-          '<div style="flex:1; min-width:110px;"><label>Vence no dia</label><input type="number" min="1" max="31" id="cartao-form-vencimento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<div style="flex:2; min-width:160px;"><label for="cartao-form-nome">Nome do cartão</label><input type="text" id="cartao-form-nome" placeholder="Ex.: Nubank" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<div style="flex:1; min-width:110px;"><label for="cartao-form-fechamento">Fecha no dia</label><input type="number" min="1" max="31" id="cartao-form-fechamento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
+          '<div style="flex:1; min-width:110px;"><label for="cartao-form-vencimento">Vence no dia</label><input type="number" min="1" max="31" id="cartao-form-vencimento" style="' + _GASTO_ESTILO_CAMPO + 'margin-bottom:0;"></div>' +
           '<button type="button" class="btn-conexao" id="cartao-btn-salvar">Adicionar cartão</button>' +
         '</div>';
       area.innerHTML = html;
@@ -5953,34 +6128,34 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '<button type="button" class="modal-drill-fechar" id="gasto-modal-fechar" aria-label="Fechar">✕</button>' +
           '</div>' +
           '<div style="padding:18px 20px; max-height:72vh; overflow-y:auto;">' +
-            '<div id="gasto-form-erro"></div>' +
-            '<label>Descrição</label>' +
+            '<div id="gasto-form-erro" role="status" aria-live="polite"></div>' +
+            '<label for="gasto-form-descricao">Descrição</label>' +
             '<input type="text" id="gasto-form-descricao" placeholder="Ex.: Aluguel da sala" style="' + _GASTO_ESTILO_CAMPO + '">' +
             '<div style="display:flex; gap:10px;">' +
-              '<div style="flex:1;"><label>Valor (R$)</label><input type="text" id="gasto-form-valor" placeholder="0,00" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
-              '<div style="flex:1;"><label>Data da compra</label><input type="date" id="gasto-form-data" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+              '<div style="flex:1;"><label for="gasto-form-valor">Valor (R$)</label><input type="text" id="gasto-form-valor" placeholder="0,00" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+              '<div style="flex:1;"><label for="gasto-form-data">Data da compra</label><input type="date" id="gasto-form-data" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
             '</div>' +
-            '<label>Categoria</label>' +
+            '<label for="gasto-form-categoria">Categoria</label>' +
             '<input type="text" id="gasto-form-categoria" list="gasto-categorias-lista" placeholder="Escolha ou digite" autocomplete="off" style="' + _GASTO_ESTILO_CAMPO + '">' +
             '<datalist id="gasto-categorias-lista"></datalist>' +
-            '<label>Forma de pagamento</label>' +
+            '<label for="gasto-form-forma">Forma de pagamento</label>' +
             '<select id="gasto-form-forma" style="' + _GASTO_ESTILO_CAMPO + '">' +
               Object.keys(GASTO_FORMAS).map(function (k) { return '<option value="' + k + '"' + (k === 'pix' ? ' selected' : '') + '>' + GASTO_FORMAS[k] + '</option>'; }).join('') +
             '</select>' +
             '<div id="gasto-credito-wrap" class="hidden">' +
-              '<label>Cartão</label>' +
+              '<label for="gasto-form-cartao">Cartão</label>' +
               '<select id="gasto-form-cartao" style="' + _GASTO_ESTILO_CAMPO + '"></select>' +
               '<div style="display:flex; gap:10px;">' +
-                '<div style="flex:1;"><label>Parcelas</label><input type="number" min="1" max="60" id="gasto-form-parcelas" value="1" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
-                '<div style="flex:1;"><label>Valor da parcela (se houver juros)</label><input type="text" id="gasto-form-valor-parcela" placeholder="Opcional" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+                '<div style="flex:1;"><label for="gasto-form-parcelas">Parcelas</label><input type="number" min="1" max="60" id="gasto-form-parcelas" value="1" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
+                '<div style="flex:1;"><label for="gasto-form-valor-parcela">Valor da parcela (se houver juros)</label><input type="text" id="gasto-form-valor-parcela" placeholder="Opcional" inputmode="decimal" style="' + _GASTO_ESTILO_CAMPO + '"></div>' +
               '</div>' +
               '<div id="gasto-preview" style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px;"></div>' +
             '</div>' +
-            '<label>Observação</label>' +
+            '<label for="gasto-form-observacao">Observação</label>' +
             '<textarea id="gasto-form-observacao" rows="2" style="' + _GASTO_ESTILO_CAMPO + 'font-family:inherit;resize:vertical;margin-bottom:18px;"></textarea>' +
             '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
               '<button type="button" id="gasto-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
-              '<button type="button" id="gasto-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+              '<button type="button" id="gasto-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -7937,22 +8112,22 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
               '<button type="button" class="subtab-btn ativo" data-atos-filtro="Todos">Todos</button>' +
               '<button type="button" class="subtab-btn" data-atos-filtro="Tribunal">Tribunal</button>' +
               '<button type="button" class="subtab-btn" data-atos-filtro="Escritorio">Escritório</button>' +
-              '<button type="button" id="atos-btn-novo" style="margin-left:auto; padding:7px 14px; border:none; border-radius:999px; background:var(--accent); color:#fff; font-size:12.5px; font-weight:600; cursor:pointer;">+ Novo Ato</button>' +
+              '<button type="button" id="atos-btn-novo" style="margin-left:auto; padding:7px 14px; border:none; border-radius:999px; background:var(--accent-fill); color:#fff; font-size:12.5px; font-weight:600; cursor:pointer;">+ Novo Ato</button>' +
             '</div>' +
             '<div id="atos-modal-lista" class="modal-drill-corpo"></div>' +
           '</div>' +
           '<div id="atos-modal-corpo-form" class="hidden" style="padding:18px 20px;">' +
-            '<div id="atos-form-erro"></div>' +
-            '<label>Origem</label>' +
+            '<div id="atos-form-erro" role="status" aria-live="polite"></div>' +
+            '<label for="atos-form-origem">Origem</label>' +
             '<select id="atos-form-origem" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="Tribunal">Tribunal</option>' +
               '<option value="Escritorio">Escritório</option>' +
             '</select>' +
-            '<label>Tipo</label>' +
+            '<label for="atos-form-tipo">Tipo</label>' +
             '<select id="atos-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               TIPOS_ATO_PROCESSUAL.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('') +
             '</select>' +
-            '<label>Descrição</label>' +
+            '<label for="atos-form-descricao">Descrição</label>' +
             '<textarea id="atos-form-descricao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:14px;"></textarea>' +
             '<label>Data</label>' +
             '<div style="display:flex; gap:8px; margin-bottom:18px;">' +
@@ -7961,7 +8136,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '</div>' +
             '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
               '<button type="button" id="atos-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
-              '<button type="button" id="atos-btn-registrar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Registrar</button>' +
+              '<button type="button" id="atos-btn-registrar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Registrar</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -8108,11 +8283,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     return '<div id="' + p + '-rec-wrap" style="margin:-6px 0 14px;">' +
       '<button type="button" id="' + p + '-rec-abrir" style="background:none;border:none;padding:0;color:var(--accent);font-size:13px;cursor:pointer;">+ Adicionar recorrência</button>' +
       '<div id="' + p + '-rec-campos" class="hidden" style="margin-top:10px;padding:12px 12px 4px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);">' +
-        '<label>Repete</label>' +
+        '<label for="' + p + '-rec-freq">Repete</label>' +
         '<select id="' + p + '-rec-freq" style="' + estiloCampo + '">' +
           _OPCOES_RECORRENCIA.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') +
         '</select>' +
-        '<label>Termina</label>' +
+        '<label for="' + p + '-rec-termina">Termina</label>' +
         '<input type="date" id="' + p + '-rec-termina" style="' + estiloCampo + '">' +
         '<button type="button" id="' + p + '-rec-remover" style="background:none;border:none;padding:0 0 10px;color:var(--ink-soft);font-size:12.5px;cursor:pointer;text-decoration:underline;">Remover recorrência</button>' +
       '</div>' +
@@ -8166,15 +8341,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '<button type="button" class="modal-drill-fechar" id="prazo-modal-fechar" aria-label="Fechar">✕</button>' +
           '</div>' +
           '<div style="padding:18px 20px;">' +
-            '<div id="prazo-form-erro"></div>' +
+            '<div id="prazo-form-erro" role="status" aria-live="polite"></div>' +
             '<div id="prazo-form-processo-select-wrap">' +
-              '<label>Processo</label>' +
+              '<label for="prazo-form-processo">Processo</label>' +
               '<select id="prazo-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                 '<option value="">Selecione o processo</option>' +
               '</select>' +
             '</div>' +
             '<div id="prazo-form-processo-fixo" class="hidden" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></div>' +
-            '<label>Título</label>' +
+            '<label for="prazo-form-titulo">Título</label>' +
             '<input type="text" id="prazo-form-titulo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
             '<label>Data limite</label>' +
             '<div style="display:flex; gap:8px; margin-bottom:14px;">' +
@@ -8182,24 +8357,24 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
               '<button type="button" id="prazo-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
             '</div>' +
             _htmlRecorrencia('prazo') +
-            '<label>Tipo</label>' +
+            '<label for="prazo-form-tipo">Tipo</label>' +
             '<select id="prazo-form-tipo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="legal">Legal</option>' +
               '<option value="interno">Interno</option>' +
             '</select>' +
-            '<label>Responsável</label>' +
+            '<label for="prazo-form-responsavel">Responsável</label>' +
             '<select id="prazo-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="">Selecione</option>' +
             '</select>' +
-            '<label>Prioridade</label>' +
+            '<label for="prazo-form-prioridade">Prioridade</label>' +
             '<select id="prazo-form-prioridade" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="baixa" selected>Baixa</option><option value="media">Média</option><option value="alta">Alta</option>' +
             '</select>' +
-            '<label>Observação</label>' +
+            '<label for="prazo-form-observacao">Observação</label>' +
             '<textarea id="prazo-form-observacao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:18px;"></textarea>' +
             '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
               '<button type="button" id="prazo-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
-              '<button type="button" id="prazo-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+              '<button type="button" id="prazo-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -8420,19 +8595,19 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '<button type="button" class="modal-drill-fechar" id="tarefa-modal-fechar" aria-label="Fechar">✕</button>' +
           '</div>' +
           '<div style="padding:18px 20px; max-height:70vh; overflow-y:auto;">' +
-            '<div id="tarefa-form-erro"></div>' +
-            '<label>Título</label>' +
+            '<div id="tarefa-form-erro" role="status" aria-live="polite"></div>' +
+            '<label for="tarefa-form-titulo">Título</label>' +
             '<input type="text" id="tarefa-form-titulo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
-            '<label>Responsável</label>' +
+            '<label for="tarefa-form-responsavel">Responsável</label>' +
             '<select id="tarefa-form-responsavel" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="">Selecione</option>' +
             '</select>' +
             '<div style="display:flex; gap:10px;">' +
-              '<div style="flex:1;"><label>Prioridade</label>' +
+              '<div style="flex:1;"><label for="tarefa-form-prioridade">Prioridade</label>' +
                 '<select id="tarefa-form-prioridade" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                   '<option value="baixa">Baixa</option><option value="media" selected>Média</option><option value="alta">Alta</option>' +
                 '</select></div>' +
-              '<div id="tarefa-form-status-wrap" class="hidden" style="flex:1;"><label>Status</label>' +
+              '<div id="tarefa-form-status-wrap" class="hidden" style="flex:1;"><label for="tarefa-form-status">Status</label>' +
                 '<select id="tarefa-form-status" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
                   '<option value="pendente">Pendente</option><option value="em_andamento">Em andamento</option><option value="concluida">Concluída</option>' +
                 '</select></div>' +
@@ -8443,17 +8618,17 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
               '<button type="button" id="tarefa-btn-hoje" style="padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Hoje</button>' +
             '</div>' +
             _htmlRecorrencia('tarefa') +
-            '<label>Cliente</label>' +
+            '<label for="tarefa-form-cliente">Cliente</label>' +
             '<input type="text" id="tarefa-form-cliente" placeholder="Opcional" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
-            '<label>Processo</label>' +
+            '<label for="tarefa-form-processo">Processo</label>' +
             '<select id="tarefa-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
               '<option value="">Nenhum</option>' +
             '</select>' +
-            '<label>Observação</label>' +
+            '<label for="tarefa-form-observacao">Observação</label>' +
             '<textarea id="tarefa-form-observacao" rows="3" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;margin-bottom:18px;"></textarea>' +
             '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
               '<button type="button" id="tarefa-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
-              '<button type="button" id="tarefa-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+              '<button type="button" id="tarefa-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -9052,11 +9227,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
               '<span>PDF, Word, JPG ou PNG · máximo 10 MB</span>' +
             '</div>' +
             '<input type="file" id="docs-input-arquivo" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display:none;">' +
-            '<label style="display:block; margin-top:12px;">Descrição (opcional)</label>' +
+            '<label style="display:block; margin-top:12px;" for="docs-input-descricao">Descrição (opcional)</label>' +
             '<input type="text" id="docs-input-descricao" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-top:6px;">' +
             '<div id="docs-arquivo-selecionado" style="font-size:12.5px; color:var(--ink-soft); margin-top:8px;"></div>' +
             '<div style="display:flex; justify-content:flex-end; margin-top:12px;">' +
-              '<button type="button" id="docs-btn-enviar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" disabled>Enviar</button>' +
+              '<button type="button" id="docs-btn-enviar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent-fill);color:#fff;font-size:13px;font-weight:600;cursor:pointer;" disabled>Enviar</button>' +
             '</div>' +
             '<div id="docs-upload-status" style="font-size:12.5px; color:var(--ink-soft); margin-top:6px;"></div>' +
           '</div>' +
@@ -9501,46 +9676,46 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             (p.datajud_meta ? _htmlDatajudMeta(p.datajud_meta) : '') +
             '<p class="procficha-painel-titulo">Dados do processo</p>' +
             '<p class="procficha-painel-sub">Classificação, tribunal e órgão julgador</p>' +
-            '<div id="procficha-form-erro"></div>' +
+            '<div id="procficha-form-erro" role="status" aria-live="polite"></div>' +
             '<div class="procficha-editar-grid">' +
-              '<div><label>Classe processual</label><input id="procficha-edit-classe" value="' + esc(p.classe_processual || '') + '"></div>' +
-              '<div><label>Área do direito</label><input id="procficha-edit-area" value="' + esc(p.area_direito || '') + '"></div>' +
-              '<div><label>Órgão julgador / Vara</label><input id="procficha-edit-orgao" value="' + esc(p.orgao_julgador || '') + '"></div>' +
-              '<div><label>Tribunal</label><select id="procficha-edit-tribunal">' + htmlOpcoesTribunal(p.tribunal || '') + '</select></div>' +
-              '<div><label>Comarca / Foro</label><input id="procficha-edit-comarca" value="' + esc(p.comarca || '') + '"></div>' +
-              '<div><label>Grau</label><select id="procficha-edit-grau"><option value="">Selecione...</option>' +
+              '<div><label for="procficha-edit-classe">Classe processual</label><input id="procficha-edit-classe" value="' + esc(p.classe_processual || '') + '"></div>' +
+              '<div><label for="procficha-edit-area">Área do direito</label><input id="procficha-edit-area" value="' + esc(p.area_direito || '') + '"></div>' +
+              '<div><label for="procficha-edit-orgao">Órgão julgador / Vara</label><input id="procficha-edit-orgao" value="' + esc(p.orgao_julgador || '') + '"></div>' +
+              '<div><label for="procficha-edit-tribunal">Tribunal</label><select id="procficha-edit-tribunal">' + htmlOpcoesTribunal(p.tribunal || '') + '</select></div>' +
+              '<div><label for="procficha-edit-comarca">Comarca / Foro</label><input id="procficha-edit-comarca" value="' + esc(p.comarca || '') + '"></div>' +
+              '<div><label for="procficha-edit-grau">Grau</label><select id="procficha-edit-grau"><option value="">Selecione...</option>' +
                 ['1º Grau', '2º Grau', 'Tribunal Superior'].map(function (g) { return '<option' + (p.grau === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') +
               '</select></div>' +
             '</div>' +
 
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Cliente vinculado</p>' +
             '<div class="procficha-editar-grid">' +
-              '<div><label>Cliente *</label><input id="procficha-edit-cliente" list="procficha-edit-clientes-lista" value="' + esc(p.cliente_nome || '') + '"><datalist id="procficha-edit-clientes-lista"></datalist></div>' +
+              '<div><label for="procficha-edit-cliente">Cliente *</label><input id="procficha-edit-cliente" list="procficha-edit-clientes-lista" value="' + esc(p.cliente_nome || '') + '"><datalist id="procficha-edit-clientes-lista"></datalist></div>' +
             '</div>' +
 
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Situação do processo</p>' +
             '<div class="procficha-editar-grid">' +
-              '<div><label>Status</label><select id="procficha-edit-status">' +
+              '<div><label for="procficha-edit-status">Status</label><select id="procficha-edit-status">' +
                 ['Em andamento', 'Suspenso', 'Finalizado', 'Arquivado'].map(function (s) { return '<option' + (p.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
               '</select></div>' +
-              '<div><label>Fase processual</label><input id="procficha-edit-fase" value="' + esc(p.fase_processual || '') + '"></div>' +
-              '<div><label>Data de distribuição</label><input type="date" id="procficha-edit-data-distribuicao" value="' + esc(p.data_distribuicao || '') + '"></div>' +
-              '<div><label>Data de encerramento</label><input type="date" id="procficha-edit-data-encerramento" value="' + esc(p.data_encerramento || '') + '"></div>' +
-              '<div><label>Valor da causa</label><input id="procficha-edit-valor-causa" value="' + (p.valor_causa != null ? esc(String(p.valor_causa).replace('.', ',')) : '') + '" placeholder="0,00"></div>' +
-              '<div><label>Advogado responsável</label><input id="procficha-edit-advogado" value="' + esc(p.advogado_responsavel || '') + '"></div>' +
-              '<div><label>Prioridade legal</label><input id="procficha-edit-prioridade" value="' + esc(p.prioridade_legal || '') + '" placeholder="Ex: idoso, saúde"></div>' +
+              '<div><label for="procficha-edit-fase">Fase processual</label><input id="procficha-edit-fase" value="' + esc(p.fase_processual || '') + '"></div>' +
+              '<div><label for="procficha-edit-data-distribuicao">Data de distribuição</label><input type="date" id="procficha-edit-data-distribuicao" value="' + esc(p.data_distribuicao || '') + '"></div>' +
+              '<div><label for="procficha-edit-data-encerramento">Data de encerramento</label><input type="date" id="procficha-edit-data-encerramento" value="' + esc(p.data_encerramento || '') + '"></div>' +
+              '<div><label for="procficha-edit-valor-causa">Valor da causa</label><input id="procficha-edit-valor-causa" value="' + (p.valor_causa != null ? esc(String(p.valor_causa).replace('.', ',')) : '') + '" placeholder="0,00"></div>' +
+              '<div><label for="procficha-edit-advogado">Advogado responsável</label><input id="procficha-edit-advogado" value="' + esc(p.advogado_responsavel || '') + '"></div>' +
+              '<div><label for="procficha-edit-prioridade">Prioridade legal</label><input id="procficha-edit-prioridade" value="' + esc(p.prioridade_legal || '') + '" placeholder="Ex: idoso, saúde"></div>' +
             '</div>' +
 
             '<p class="procficha-painel-titulo" style="margin-top:18px;">Classificações e organização</p>' +
             '<div class="procficha-editar-grid">' +
-              '<div><label>Risco do processo</label><select id="procficha-edit-risco"><option value="">—</option>' +
+              '<div><label for="procficha-edit-risco">Risco do processo</label><select id="procficha-edit-risco"><option value="">—</option>' +
                 ['Baixo', 'Médio', 'Alto'].map(function (r) { return '<option' + (p.risco_processo === r ? ' selected' : '') + '>' + r + '</option>'; }).join('') +
               '</select></div>' +
-              '<div><label>Nível de sigilo</label><select id="procficha-edit-sigilo"><option value="">—</option>' +
+              '<div><label for="procficha-edit-sigilo">Nível de sigilo</label><select id="procficha-edit-sigilo"><option value="">—</option>' +
                 ['Público', 'Restrito', 'Segredo de justiça'].map(function (s) { return '<option' + (p.nivel_sigilo === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
               '</select></div>' +
             '</div>' +
-            '<label style="display:block; font-size:11px; color:var(--ink-faint); margin:14px 0 5px;">Observações internas</label>' +
+            '<label style="display:block; font-size:11px; color:var(--ink-faint); margin:14px 0 5px;" for="procficha-edit-obs">Observações internas</label>' +
             '<textarea id="procficha-edit-obs" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--ink);resize:vertical;">' + esc(p.observacoes_internas || '') + '</textarea>' +
 
             '<div style="margin-top:16px;"><button type="button" class="procpage-btn procpage-btn-primary" id="procficha-btn-salvar-dados">Salvar alterações</button></div>' +
@@ -10141,7 +10316,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var btnConverter = ev.target.closest('[data-triagem-converter]');
       if (btnConverter) {
         var tc = _triagensTodasCarregadas[btnConverter.getAttribute('data-triagem-converter')];
-        confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.').then(function (ok) {
+        confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.', { titulo: 'Criar processo', textoOk: 'Criar processo', perigo: false }).then(function (ok) {
           if (!ok) return;
           apiPostJson('/api/painel?acao=triagem_converter_processo', { id: tc.id })
             .then(function (d) {
@@ -10165,7 +10340,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var btnArquivar = ev.target.closest('[data-triagem-arquivar]');
       if (btnArquivar) {
         var ta = _triagensTodasCarregadas[btnArquivar.getAttribute('data-triagem-arquivar')];
-        confirmarModal('Arquivar essa triagem? Ela sai da lista, mas continua guardada.').then(function (ok) {
+        confirmarModal('Arquivar essa triagem? Ela sai da lista, mas continua guardada.', { titulo: 'Arquivar triagem', textoOk: 'Arquivar', perigo: false }).then(function (ok) {
           if (!ok) return;
           apiPostJson('/api/painel?acao=triagem_arquivar', { id: ta.id })
             .then(function () { carregarTriagens(); })
@@ -10328,15 +10503,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           '<button type="button" data-modo="novo">Cadastrar novo cliente</button>' +
         '</div>' +
         '<div id="triagem-cliente-existente-wrap" class="triagem-campo-condicional" style="margin-top:14px;">' +
-          '<div class="procficha-editar-grid"><div><label>Cliente</label><select id="triagem-cliente-select"><option value="">Carregando...</option></select></div></div>' +
+          '<div class="procficha-editar-grid"><div><label for="triagem-cliente-select">Cliente</label><select id="triagem-cliente-select"><option value="">Carregando...</option></select></div></div>' +
         '</div>' +
         '<div id="triagem-cliente-novo-wrap" class="triagem-campo-condicional hidden" style="margin-top:14px;">' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Tipo</label><select id="triagem-nc-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
-            '<div><label>Nome completo *</label><input id="triagem-nc-nome"></div>' +
-            '<div><label>CPF/CNPJ</label><input id="triagem-nc-cpf"></div>' +
-            '<div><label>Telefone</label><input id="triagem-nc-telefone"></div>' +
-            '<div><label>E-mail</label><input id="triagem-nc-email"></div>' +
+            '<div><label for="triagem-nc-tipo">Tipo</label><select id="triagem-nc-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
+            '<div><label for="triagem-nc-nome">Nome completo *</label><input id="triagem-nc-nome"></div>' +
+            '<div><label for="triagem-nc-cpf">CPF/CNPJ</label><input id="triagem-nc-cpf"></div>' +
+            '<div><label for="triagem-nc-telefone">Telefone</label><input id="triagem-nc-telefone"></div>' +
+            '<div><label for="triagem-nc-email">E-mail</label><input id="triagem-nc-email"></div>' +
           '</div>' +
         '</div>';
 
@@ -10392,20 +10567,20 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<p class="triagem-passo-titulo">Empresa (reclamada)</p>' +
         '<p class="triagem-passo-sub">Dados da empresa onde o cliente trabalhou.</p>' +
         '<div class="procficha-editar-grid">' +
-          '<div><label>Razão social</label><input id="tg-emp-razao" value="' + esc(d.empresa_razao_social || '') + '"></div>' +
-          '<div><label>Nome fantasia</label><input id="tg-emp-fantasia" value="' + esc(d.empresa_nome_fantasia || '') + '"></div>' +
-          '<div><label>CNPJ</label><input id="tg-emp-cnpj" value="' + esc(d.empresa_cnpj || '') + '"></div>' +
-          '<div><label>Endereço</label><input id="tg-emp-endereco" value="' + esc(endereco) + '"></div>' +
-          '<div><label>Local efetivo de trabalho</label><input id="tg-emp-local" value="' + esc(d.local_trabalho || '') + '"></div>' +
-          '<div><label>Nome do superior imediato</label><input id="tg-emp-superior-nome" value="' + esc(d.superior_imediato_nome || '') + '"></div>' +
-          '<div><label>Cargo do superior</label><input id="tg-emp-superior-cargo" value="' + esc(d.superior_imediato_cargo || '') + '"></div>' +
+          '<div><label for="tg-emp-razao">Razão social</label><input id="tg-emp-razao" value="' + esc(d.empresa_razao_social || '') + '"></div>' +
+          '<div><label for="tg-emp-fantasia">Nome fantasia</label><input id="tg-emp-fantasia" value="' + esc(d.empresa_nome_fantasia || '') + '"></div>' +
+          '<div><label for="tg-emp-cnpj">CNPJ</label><input id="tg-emp-cnpj" value="' + esc(d.empresa_cnpj || '') + '"></div>' +
+          '<div><label for="tg-emp-endereco">Endereço</label><input id="tg-emp-endereco" value="' + esc(endereco) + '"></div>' +
+          '<div><label for="tg-emp-local">Local efetivo de trabalho</label><input id="tg-emp-local" value="' + esc(d.local_trabalho || '') + '"></div>' +
+          '<div><label for="tg-emp-superior-nome">Nome do superior imediato</label><input id="tg-emp-superior-nome" value="' + esc(d.superior_imediato_nome || '') + '"></div>' +
+          '<div><label for="tg-emp-superior-cargo">Cargo do superior</label><input id="tg-emp-superior-cargo" value="' + esc(d.superior_imediato_cargo || '') + '"></div>' +
         '</div>' +
         '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
           htmlSimNaoTriagem('tg-emp-terceirizacao', 'Havia terceirização?', d.terceirizacao) +
           htmlSimNaoTriagem('tg-emp-grupo', 'Pode haver grupo econômico?', d.grupo_economico) +
         '</div>' +
         '<div id="tg-emp-grupo-obs-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
-          '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Observações sobre o grupo econômico</label>' +
+          '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-emp-grupo-obs">Observações sobre o grupo econômico</label>' +
           '<input id="tg-emp-grupo-obs" value="' + esc(d.grupo_economico_obs || '') + '" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);">' +
         '</div>';
       wireSimNaoTriagem('tg-emp-terceirizacao');
@@ -10435,11 +10610,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<p class="triagem-passo-titulo">Contrato de trabalho</p>' +
         '<p class="triagem-passo-sub">Como o vínculo foi registrado e como funcionava na prática.</p>' +
         '<div class="procficha-editar-grid">' +
-          '<div><label>Data de admissão</label><input type="date" id="tg-ct-admissao" value="' + esc((d.data_admissao || '').slice(0, 10)) + '"></div>' +
-          '<div><label>Cargo registrado</label><input id="tg-ct-cargo-registrado" value="' + esc(d.cargo_registrado || '') + '"></div>' +
-          '<div><label>Função efetivamente exercida</label><input id="tg-ct-funcao" value="' + esc(d.funcao_exercida || '') + '"></div>' +
-          '<div><label>Último salário (R$)</label><input id="tg-ct-salario" value="' + esc(d.salario_registrado != null ? String(d.salario_registrado).replace('.', ',') : '') + '"></div>' +
-          '<div><label>Forma de pagamento</label><input id="tg-ct-forma-pagamento" value="' + esc(d.forma_pagamento || '') + '"></div>' +
+          '<div><label for="tg-ct-admissao">Data de admissão</label><input type="date" id="tg-ct-admissao" value="' + esc((d.data_admissao || '').slice(0, 10)) + '"></div>' +
+          '<div><label for="tg-ct-cargo-registrado">Cargo registrado</label><input id="tg-ct-cargo-registrado" value="' + esc(d.cargo_registrado || '') + '"></div>' +
+          '<div><label for="tg-ct-funcao">Função efetivamente exercida</label><input id="tg-ct-funcao" value="' + esc(d.funcao_exercida || '') + '"></div>' +
+          '<div><label for="tg-ct-salario">Último salário (R$)</label><input id="tg-ct-salario" value="' + esc(d.salario_registrado != null ? String(d.salario_registrado).replace('.', ',') : '') + '"></div>' +
+          '<div><label for="tg-ct-forma-pagamento">Forma de pagamento</label><input id="tg-ct-forma-pagamento" value="' + esc(d.forma_pagamento || '') + '"></div>' +
         '</div>' +
         '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
           htmlSimNaoTriagem('tg-ct-ctps', 'Registro em CTPS?', d.ctps_registrado) +
@@ -10447,9 +10622,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '</div>' +
         '<div id="tg-ct-por-fora-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Qual valor?</label><input id="tg-ct-por-fora-valor" value="' + esc(d.valor_por_fora != null ? String(d.valor_por_fora).replace('.', ',') : '') + '"></div>' +
-            '<div><label>Qual frequência?</label><input id="tg-ct-por-fora-frequencia" value="' + esc(d.frequencia_por_fora || '') + '"></div>' +
-            '<div><label>Como era pago?</label><input id="tg-ct-por-fora-forma" value="' + esc(d.forma_por_fora || '') + '" placeholder="Pix, dinheiro, transferência..."></div>' +
+            '<div><label for="tg-ct-por-fora-valor">Qual valor?</label><input id="tg-ct-por-fora-valor" value="' + esc(d.valor_por_fora != null ? String(d.valor_por_fora).replace('.', ',') : '') + '"></div>' +
+            '<div><label for="tg-ct-por-fora-frequencia">Qual frequência?</label><input id="tg-ct-por-fora-frequencia" value="' + esc(d.frequencia_por_fora || '') + '"></div>' +
+            '<div><label for="tg-ct-por-fora-forma">Como era pago?</label><input id="tg-ct-por-fora-forma" value="' + esc(d.forma_por_fora || '') + '" placeholder="Pix, dinheiro, transferência..."></div>' +
           '</div>' +
           '<div style="margin-top:10px;">' + htmlSimNaoTriagem('tg-ct-por-fora-comprovante', 'Existe comprovante?', d.comprovante_por_fora) + '</div>' +
         '</div>' +
@@ -10534,7 +10709,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '</div>' +
         '<div id="tg-jor-ponto-detalhe-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Tipo de controle</label><select id="tg-jor-ponto-tipo">' +
+            '<div><label for="tg-jor-ponto-tipo">Tipo de controle</label><select id="tg-jor-ponto-tipo">' +
               '<option value="">Selecione...</option>' +
               '<option value="biometrico">Biométrico</option>' +
               '<option value="eletronico">Eletrônico</option>' +
@@ -10546,7 +10721,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           '</div>' +
           '<div style="margin-top:10px;">' + htmlSimNaoTriagem('tg-jor-ponto-real', 'O ponto registrava a jornada verdadeira?', d.controle_ponto_registrava_real) + '</div>' +
           '<div id="tg-jor-ponto-explicacao-wrap" class="triagem-campo-condicional hidden" style="margin-top:10px;">' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Explique como funcionava</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-jor-ponto-explicacao">Explique como funcionava</label>' +
             '<textarea id="tg-jor-ponto-explicacao" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.controle_ponto_explicacao || '') + '</textarea>' +
           '</div>' +
         '</div>';
@@ -10609,8 +10784,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<div id="tg-rem-alerta-divergencia"></div>' +
         '<div class="procficha-editar-grid">' +
           '<div><label>Salário registrado (R$)</label><input value="' + esc(_valorMoedaTriagem(d.salario_registrado)) + '" disabled title="Editado no passo Contrato"></div>' +
-          '<div><label>Salário efetivamente recebido (R$)</label><input id="tg-rem-salario-real" value="' + esc(_valorMoedaTriagem(d.salario_recebido_real)) + '"></div>' +
-          '<div><label>Descontos indevidos (se houver)</label><input id="tg-rem-descontos" value="' + esc(d.descontos_indevidos || '') + '"></div>' +
+          '<div><label for="tg-rem-salario-real">Salário efetivamente recebido (R$)</label><input id="tg-rem-salario-real" value="' + esc(_valorMoedaTriagem(d.salario_recebido_real)) + '"></div>' +
+          '<div><label for="tg-rem-descontos">Descontos indevidos (se houver)</label><input id="tg-rem-descontos" value="' + esc(d.descontos_indevidos || '') + '"></div>' +
         '</div>' +
         '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' +
           htmlSimNaoTriagem('tg-rem-dsr', 'Recebia DSR?', d.recebia_dsr) +
@@ -10672,10 +10847,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '</label>' +
             '<div id="tg-irr-detalhe-' + agenteInfo.chave + '" class="triagem-campo-condicional' + (marcado ? '' : ' hidden') + '" style="margin-top:8px;margin-left:26px;">' +
               '<div class="procficha-editar-grid">' +
-                '<div><label>Qual era a exposição?</label><input id="tg-irr-exp-' + agenteInfo.chave + '" value="' + esc((registro && registro.descricao_exposicao) || '') + '"></div>' +
-                '<div><label>Com que frequência?</label><input id="tg-irr-freq-' + agenteInfo.chave + '" value="' + esc((registro && registro.frequencia) || '') + '"></div>' +
-                '<div><label>Durante quanto tempo?</label><input id="tg-irr-tempo-' + agenteInfo.chave + '" value="' + esc((registro && registro.tempo_exposicao) || '') + '"></div>' +
-                '<div><label>Qual EPI?</label><input id="tg-irr-epiqual-' + agenteInfo.chave + '" value="' + esc((registro && registro.epi_qual) || '') + '"></div>' +
+                '<div><label for="tg-irr-exp-' + agenteInfo.chave + '">Qual era a exposição?</label><input id="tg-irr-exp-' + agenteInfo.chave + '" value="' + esc((registro && registro.descricao_exposicao) || '') + '"></div>' +
+                '<div><label for="tg-irr-freq-' + agenteInfo.chave + '">Com que frequência?</label><input id="tg-irr-freq-' + agenteInfo.chave + '" value="' + esc((registro && registro.frequencia) || '') + '"></div>' +
+                '<div><label for="tg-irr-tempo-' + agenteInfo.chave + '">Durante quanto tempo?</label><input id="tg-irr-tempo-' + agenteInfo.chave + '" value="' + esc((registro && registro.tempo_exposicao) || '') + '"></div>' +
+                '<div><label for="tg-irr-epiqual-' + agenteInfo.chave + '">Qual EPI?</label><input id="tg-irr-epiqual-' + agenteInfo.chave + '" value="' + esc((registro && registro.epi_qual) || '') + '"></div>' +
               '</div>' +
               '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:8px;">' +
                 htmlSimNaoTriagem('tg-irr-episim-' + agenteInfo.chave, 'Recebia EPI?', registro && registro.epi_fornecido) +
@@ -10741,11 +10916,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             htmlSimNaoTriagem('tg-sau-dispensado', 'Foi dispensado após retornar?', s.dispensado_apos_retorno) +
           '</div>' +
           '<div class="procficha-editar-grid" style="margin-top:14px;">' +
-            '<div><label>Dias de afastamento (aprox.)</label><input id="tg-sau-dias" value="' + esc(s.dias_afastamento || '') + '"></div>' +
-            '<div><label>Data de retorno do afastamento</label><input type="date" id="tg-sau-retorno" value="' + esc((s.data_retorno_afastamento || '').slice(0, 10)) + '"></div>' +
+            '<div><label for="tg-sau-dias">Dias de afastamento (aprox.)</label><input id="tg-sau-dias" value="' + esc(s.dias_afastamento || '') + '"></div>' +
+            '<div><label for="tg-sau-retorno">Data de retorno do afastamento</label><input type="date" id="tg-sau-retorno" value="' + esc((s.data_retorno_afastamento || '').slice(0, 10)) + '"></div>' +
           '</div>' +
           '<div style="margin-top:10px;">' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Limitação atual (se houver)</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-sau-limitacao">Limitação atual (se houver)</label>' +
             '<textarea id="tg-sau-limitacao" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(s.limitacao_atual || '') + '</textarea>' +
           '</div>' +
         '</div>';
@@ -10822,17 +10997,17 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
           '<button type="button" class="procman-acao-excluir" data-ass-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Tipo</label><select id="tg-ass-tipo-' + i + '">' +
+            '<div><label for="tg-ass-tipo-' + i + '">Tipo</label><select id="tg-ass-tipo-' + i + '">' +
               TIPOS_ASSEDIO_TRIAGEM.map(function (t) { return '<option value="' + t.chave + '">' + esc(t.rotulo) + '</option>'; }).join('') +
             '</select></div>' +
-            '<div><label>Quando aconteceu?</label><input type="date" id="tg-ass-data-' + i + '" value="' + esc((ep.data_ocorrencia || '').slice(0, 10)) + '"></div>' +
-            '<div><label>Quem praticou?</label><input id="tg-ass-quem-' + i + '" value="' + esc(ep.quem || '') + '"></div>' +
-            '<div><label>Qual cargo?</label><input id="tg-ass-cargo-' + i + '" value="' + esc(ep.cargo_quem || '') + '"></div>' +
-            '<div><label>Quantas vezes?</label><input id="tg-ass-qtd-' + i + '" value="' + esc(ep.quantidade_vezes || '') + '"></div>' +
-            '<div><label>Onde?</label><input id="tg-ass-local-' + i + '" value="' + esc(ep.local_ocorrencia || '') + '"></div>' +
+            '<div><label for="tg-ass-data-' + i + '">Quando aconteceu?</label><input type="date" id="tg-ass-data-' + i + '" value="' + esc((ep.data_ocorrencia || '').slice(0, 10)) + '"></div>' +
+            '<div><label for="tg-ass-quem-' + i + '">Quem praticou?</label><input id="tg-ass-quem-' + i + '" value="' + esc(ep.quem || '') + '"></div>' +
+            '<div><label for="tg-ass-cargo-' + i + '">Qual cargo?</label><input id="tg-ass-cargo-' + i + '" value="' + esc(ep.cargo_quem || '') + '"></div>' +
+            '<div><label for="tg-ass-qtd-' + i + '">Quantas vezes?</label><input id="tg-ass-qtd-' + i + '" value="' + esc(ep.quantidade_vezes || '') + '"></div>' +
+            '<div><label for="tg-ass-local-' + i + '">Onde?</label><input id="tg-ass-local-' + i + '" value="' + esc(ep.local_ocorrencia || '') + '"></div>' +
           '</div>' +
           '<div style="margin-top:10px;">' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">O que aconteceu?</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-ass-desc-' + i + '">O que aconteceu?</label>' +
             '<textarea id="tg-ass-desc-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(ep.descricao || '') + '</textarea>' +
           '</div>' +
           '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">' +
@@ -10895,12 +11070,12 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '</div>' +
         '<div id="tg-res-detalhe-wrap" class="triagem-campo-condicional hidden" style="margin-top:14px;">' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Data da rescisão</label><input type="date" id="tg-res-data" value="' + esc((d.data_rescisao || '').slice(0, 10)) + '"></div>' +
-            '<div><label>Forma de desligamento</label><select id="tg-res-forma">' +
+            '<div><label for="tg-res-data">Data da rescisão</label><input type="date" id="tg-res-data" value="' + esc((d.data_rescisao || '').slice(0, 10)) + '"></div>' +
+            '<div><label for="tg-res-forma">Forma de desligamento</label><select id="tg-res-forma">' +
               '<option value="">Selecione...</option>' +
               FORMAS_RESCISAO_TRIAGEM.map(function (f) { return '<option value="' + f.chave + '">' + esc(f.rotulo) + '</option>'; }).join('') +
             '</select></div>' +
-            '<div><label>Tipo de aviso-prévio</label><input id="tg-res-aviso" value="' + esc(d.aviso_previo_tipo || '') + '"></div>' +
+            '<div><label for="tg-res-aviso">Tipo de aviso-prévio</label><input id="tg-res-aviso" value="' + esc(d.aviso_previo_tipo || '') + '"></div>' +
           '</div>' +
           '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">' +
             htmlSimNaoTriagem('tg-res-trct', 'Recebeu TRCT?', d.trct_recebido) +
@@ -10910,10 +11085,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           '</div>' +
           '<div id="tg-res-jc-wrap" class="triagem-campo-condicional hidden" style="margin-top:18px;">' +
             '<p class="triagem-passo-sub" style="font-weight:600;margin-bottom:8px;">Análise da justa causa</p>' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Qual foi a acusação da empresa?</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-res-jc-acusacao">Qual foi a acusação da empresa?</label>' +
             '<textarea id="tg-res-jc-acusacao" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.jc_acusacao || '') + '</textarea>' +
             '<div class="procficha-editar-grid" style="margin-top:10px;">' +
-              '<div><label>Dias entre o fato e a demissão</label><input id="tg-res-jc-tempo" value="' + esc(d.jc_tempo_fato_demissao_dias || '') + '"></div>' +
+              '<div><label for="tg-res-jc-tempo">Dias entre o fato e a demissão</label><input id="tg-res-jc-tempo" value="' + esc(d.jc_tempo_fato_demissao_dias || '') + '"></div>' +
             '</div>' +
             '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:10px;">' +
               htmlSimNaoTriagem('tg-res-jc-adv', 'Existe advertência/suspensão anterior?', d.jc_advertencias_previas) +
@@ -11001,18 +11176,18 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
           '<button type="button" class="procman-acao-excluir" data-test-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Nome</label><input id="tg-test-nome-' + i + '" value="' + esc(t.nome || '') + '"></div>' +
-            '<div><label>Telefone</label><input id="tg-test-tel-' + i + '" value="' + esc(t.telefone || '') + '"></div>' +
-            '<div><label>Empresa em que trabalhou junto</label><input id="tg-test-emp-' + i + '" value="' + esc(t.empresa_trabalhou || '') + '"></div>' +
-            '<div><label>Cargo</label><input id="tg-test-cargo-' + i + '" value="' + esc(t.cargo || '') + '"></div>' +
-            '<div><label>Período que conviveram</label><input id="tg-test-periodo-' + i + '" value="' + esc(t.periodo_conviveu || '') + '"></div>' +
-            '<div><label>Relação com o cliente</label><input id="tg-test-relacao-' + i + '" value="' + esc(t.relacao_com_cliente || '') + '"></div>' +
+            '<div><label for="tg-test-nome-' + i + '">Nome</label><input id="tg-test-nome-' + i + '" value="' + esc(t.nome || '') + '"></div>' +
+            '<div><label for="tg-test-tel-' + i + '">Telefone</label><input id="tg-test-tel-' + i + '" value="' + esc(t.telefone || '') + '"></div>' +
+            '<div><label for="tg-test-emp-' + i + '">Empresa em que trabalhou junto</label><input id="tg-test-emp-' + i + '" value="' + esc(t.empresa_trabalhou || '') + '"></div>' +
+            '<div><label for="tg-test-cargo-' + i + '">Cargo</label><input id="tg-test-cargo-' + i + '" value="' + esc(t.cargo || '') + '"></div>' +
+            '<div><label for="tg-test-periodo-' + i + '">Período que conviveram</label><input id="tg-test-periodo-' + i + '" value="' + esc(t.periodo_conviveu || '') + '"></div>' +
+            '<div><label for="tg-test-relacao-' + i + '">Relação com o cliente</label><input id="tg-test-relacao-' + i + '" value="' + esc(t.relacao_com_cliente || '') + '"></div>' +
           '</div>' +
           '<div style="margin-top:10px;">' +
             htmlSimNaoTriagem('tg-test-ativa-' + i, 'Ainda trabalha na empresa?', t.ainda_trabalha_na_empresa) +
           '</div>' +
           '<div style="margin-top:10px;">' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Fatos que pode presenciar/confirmar</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-test-fatos-' + i + '">Fatos que pode presenciar/confirmar</label>' +
             '<textarea id="tg-test-fatos-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(t.fatos_presenciados || '') + '</textarea>' +
           '</div>' +
         '</div>';
@@ -11096,13 +11271,13 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         return '<div class="procficha-painel" style="margin-bottom:12px;position:relative;">' +
           '<button type="button" class="procman-acao-excluir" data-prova-remover="' + i + '" style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;font-size:12px;">Remover</button>' +
           '<div class="procficha-editar-grid">' +
-            '<div><label>Categoria</label><select id="tg-prova-cat-' + i + '">' +
+            '<div><label for="tg-prova-cat-' + i + '">Categoria</label><select id="tg-prova-cat-' + i + '">' +
               CATEGORIAS_PROVA_TRIAGEM.map(function (c) { return '<option value="' + c.chave + '">' + esc(c.rotulo) + '</option>'; }).join('') +
             '</select></div>' +
-            '<div><label>Relacionada a qual fato?</label><input id="tg-prova-fato-' + i + '" value="' + esc(p.fato_relacionado || '') + '"></div>' +
+            '<div><label for="tg-prova-fato-' + i + '">Relacionada a qual fato?</label><input id="tg-prova-fato-' + i + '" value="' + esc(p.fato_relacionado || '') + '"></div>' +
           '</div>' +
           '<div style="margin-top:10px;">' +
-            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;">Descrição</label>' +
+            '<label style="display:block;font-size:11px;color:var(--ink-faint);margin-bottom:5px;" for="tg-prova-desc-' + i + '">Descrição</label>' +
             '<textarea id="tg-prova-desc-' + i + '" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(p.descricao || '') + '</textarea>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px;">' +
@@ -11758,7 +11933,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var btnConverterProcesso = document.getElementById('tg-converter-processo');
       if (btnConverterProcesso) {
         btnConverterProcesso.addEventListener('click', function () {
-          confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.').then(function (ok) {
+          confirmarModal('Converter essa triagem em um processo? Um novo processo será criado com os dados do cliente.', { titulo: 'Criar processo', textoOk: 'Criar processo', perigo: false }).then(function (ok) {
             if (!ok) return;
             btnConverterProcesso.disabled = true;
             apiPostJson('/api/painel?acao=triagem_converter_processo', { id: estado.triagemId })
@@ -14037,6 +14212,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
 
   function carregarDados() {
     gateError.textContent = '';
+    var avisoAnterior = document.getElementById('falha-carregamento-painel');
+    if (avisoAnterior) {
+      avisoAnterior.setAttribute('aria-busy', 'true');
+      avisoAnterior.querySelector('button').disabled = true;
+    }
     var carregandoInicial = document.getElementById('carregando-inicial');
     // 'secao' diz pro back-end qual pagina esta pedindo, pra pular as leituras de planilha
     // (financeiro/pje) que essa pagina especifica nem vai usar -- ver handle_dashboard_request.
@@ -14047,6 +14227,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         return r.json();
       })
       .then(function (dados) {
+        if (avisoAnterior) avisoAnterior.remove();
         if (carregandoInicial) carregandoInicial.classList.add('hidden');
         gate.classList.add('hidden');
         shell.classList.remove('hidden');
@@ -14063,14 +14244,40 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         }
       })
       .catch(function (e) {
-        sessionStorage.removeItem('painel_token');
-        document.documentElement.removeAttribute('data-tem-sessao');
-        if (carregandoInicial) carregandoInicial.classList.add('hidden');
-        gate.classList.remove('hidden');
-        shell.classList.add('hidden');
-        gateError.textContent = e.message === 'sessao'
-          ? 'Sua sessão expirou. Entre novamente.'
-          : 'Não foi possível carregar os dados agora.';
+        if (e.message === 'sessao') {
+          sessionStorage.removeItem('painel_token');
+          document.documentElement.removeAttribute('data-tem-sessao');
+          if (avisoAnterior) avisoAnterior.remove();
+          if (carregandoInicial) carregandoInicial.classList.add('hidden');
+          gate.classList.remove('hidden');
+          shell.classList.add('hidden');
+          gateError.textContent = 'Sua sessão expirou. Entre novamente.';
+          senhaInput.focus();
+          return;
+        }
+        var temDadosVisiveis = !shell.classList.contains('hidden');
+        var aviso = document.getElementById('falha-carregamento-painel');
+        if (!aviso) {
+          aviso = document.createElement('div');
+          aviso.id = 'falha-carregamento-painel';
+          aviso.className = 'aviso-tenant aviso-carregamento';
+          aviso.setAttribute('role', 'status');
+          aviso.innerHTML = '<span></span><button type="button" class="btn-conexao-secundario">Tentar novamente</button>';
+          aviso.querySelector('button').addEventListener('click', carregarDados);
+          if (temDadosVisiveis) {
+            document.querySelector('.conteudo-area').prepend(aviso);
+          } else {
+            document.documentElement.setAttribute('data-tem-sessao', '1');
+            gate.classList.add('hidden');
+            carregandoInicial.replaceChildren(aviso);
+            carregandoInicial.classList.remove('hidden');
+          }
+        }
+        aviso.querySelector('span').textContent = temDadosVisiveis
+          ? 'Não foi possível atualizar. Os dados exibidos podem estar desatualizados.'
+          : 'Não foi possível carregar os dados. Sua sessão foi mantida. Verifique sua conexão e tente novamente.';
+        aviso.setAttribute('aria-busy', 'false');
+        aviso.querySelector('button').disabled = false;
       });
   }
 
@@ -14201,6 +14408,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     if (e.key === 'Enter') fazerLogin(usuarioInput.value, senhaInput.value);
   });
 
+  wireAcessibilidadeModais();
   wireModalDrill();
   wireMenuMobile();
 
