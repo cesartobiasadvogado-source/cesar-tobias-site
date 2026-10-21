@@ -1038,7 +1038,7 @@
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
         '<div class="stat-value money">' + textoValor + '</div>' +
         '<button class="btn-olho" data-olho="' + chave + '" title="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-label="' + (oculto ? 'Mostrar valor' : 'Ocultar valor') + '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' +
-          (oculto ? '🙈' : '👁') +
+          iconeOlho(oculto) +
         '</button>' +
       '</div>' +
       '<div class="stat-label">' + rotulo + '</div>' +
@@ -1051,6 +1051,14 @@
   // Olhinho dos cartoes de valor do Financeiro cujo numero e preenchido DEPOIS (por id) ou muda sem recarregar a pagina. O estado fica no mesmo
   // localStorage dos cartoes da pagina inicial ('painel_oculto_<chave>') e a mascara e CSS puro (atributo data-oculto): continua valendo quando o
   // texto do valor e reescrito. Nada aqui chama o servidor.
+  // Icones do olhinho (SVG proprio, na cor do texto; nada de emoji): olho ABERTO = valor visivel (toque para ocultar), olho FECHADO com cilios = valor oculto.
+  var SVG_OLHO_ABERTO = '<svg class="icone-olho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    '<path d="M2.6 12C5 7.6 8.4 6 12 6s7 1.6 9.4 6c-2.4 4.4-5.8 6-9.4 6s-7-1.6-9.4-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+  var SVG_OLHO_FECHADO = '<svg class="icone-olho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+    '<path d="M4.8 8.8C6.8 15.6 17.2 15.6 19.2 8.8"/><path d="M5.2 11.8 3.5 13.4"/><path d="M8.7 13.9 8 16.5"/><path d="M15.3 13.9 16 16.5"/><path d="M18.8 11.8 20.5 13.4"/></svg>';
+
+  function iconeOlho(oculto) { return oculto ? SVG_OLHO_FECHADO : SVG_OLHO_ABERTO; }
+
   function olhoCssRotulo(oculto) { return oculto ? 'Mostrar valor' : 'Ocultar valor'; }
 
   function olhoCssAtributoValor(chave) {
@@ -1060,7 +1068,7 @@
   function olhoCssBotao(chave) {
     var oculto = valorOculto(chave);
     return '<button type="button" class="btn-olho" data-olho-css="' + chave + '" title="' + olhoCssRotulo(oculto) + '" aria-label="' + olhoCssRotulo(oculto) +
-      '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' + (oculto ? '\uD83D\uDE48' : '\uD83D\uDC41') + '</button>';
+      '" aria-pressed="' + (oculto ? 'true' : 'false') + '">' + iconeOlho(oculto) + '</button>';
   }
 
   function cardValorCss(o) {
@@ -1083,7 +1091,7 @@
       btn.setAttribute('title', olhoCssRotulo(oculto));
       btn.setAttribute('aria-label', olhoCssRotulo(oculto));
       btn.setAttribute('aria-pressed', oculto ? 'true' : 'false');
-      btn.textContent = oculto ? '\uD83D\uDE48' : '\uD83D\uDC41';
+      btn.innerHTML = iconeOlho(oculto);
     });
     return oculto;
   }

@@ -361,6 +361,10 @@
   .btn-olho { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
   .btn-olho { min-width: 44px; min-height: 44px; }
   .btn-olho:hover { opacity: 1; }
+  /* icone do olhinho: SVG na cor do texto (claro e escuro), sem emoji */
+  .btn-olho { display: inline-flex; align-items: center; justify-content: center; color: var(--ink-soft); }
+  .btn-olho:hover { color: var(--accent); }
+  .btn-olho .icone-olho { width: 22px; height: 22px; display: block; }
   /* Olhinho dos cartoes do Financeiro: a mascara e CSS (continua valendo quando o texto e reescrito depois). O texto real fica invisivel e ocupa o mesmo espaco;
      os pontos assumem a cor original do valor (currentColor). */
   [data-oculto="1"] { position: relative; -webkit-text-fill-color: transparent; user-select: none; }

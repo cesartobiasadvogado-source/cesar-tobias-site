@@ -28,11 +28,11 @@ function armazenamento(inicial) {
 }
 function ajudantes(ls) {
   const valorOculto = (chave) => ls.getItem('painel_oculto_' + chave) === '1';
-  return new Function('valorOculto', 'localStorage', bloco + '; return { olhoCssRotulo, olhoCssAtributoValor, olhoCssBotao, cardValorCss, alternarOlhoCss };')(valorOculto, ls);
+  return new Function('valorOculto', 'localStorage', bloco + '; return { olhoCssRotulo, olhoCssAtributoValor, olhoCssBotao, cardValorCss, alternarOlhoCss, iconeOlho };')(valorOculto, ls);
 }
 
 class No {
-  constructor(attrs) { this.attrs = Object.assign({}, attrs); this.textContent = ''; }
+  constructor(attrs) { this.attrs = Object.assign({}, attrs); this.textContent = ''; this.innerHTML = ''; }
   setAttribute(k, v) { this.attrs[k] = String(v); }
   removeAttribute(k) { delete this.attrs[k]; }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
@@ -53,14 +53,16 @@ t('visivel por padrao: sem atributos de mascara e botao "Ocultar valor" com o ol
   assert.strictEqual(h.olhoCssAtributoValor('exec_saldo'), ' data-oculto-chave="exec_saldo"');
   const b = h.olhoCssBotao('exec_saldo');
   assert(b.includes('data-olho-css="exec_saldo"') && b.includes('aria-pressed="false"') && b.includes('title="Ocultar valor"') && b.includes('aria-label="Ocultar valor"'));
-  assert(b.includes('class="btn-olho"') && b.includes('type="button"') && b.endsWith('👁</button>'));
+  assert(b.includes('class="btn-olho"') && b.includes('type="button"') && b.endsWith(h.iconeOlho(false) + '</button>'));
+  assert(b.includes('<circle') && b.includes('icone-olho'));                                   // olho aberto (SVG), nao emoji
 });
 
 t('estado salvo: ja nasce oculto (data-oculto, aria-hidden) e com o botao "Mostrar valor"', () => {
   const h = ajudantes(armazenamento({ painel_oculto_exec_saldo: '1' }));
   assert.strictEqual(h.olhoCssAtributoValor('exec_saldo'), ' data-oculto-chave="exec_saldo" data-oculto="1" aria-hidden="true"');
   const b = h.olhoCssBotao('exec_saldo');
-  assert(b.includes('aria-pressed="true"') && b.includes('title="Mostrar valor"') && b.endsWith('🙈</button>'));
+  assert(b.includes('aria-pressed="true"') && b.includes('title="Mostrar valor"') && b.endsWith(h.iconeOlho(true) + '</button>'));
+  assert(!b.includes('<circle') && b.includes('M4.8 8.8'));                                    // olho FECHADO com cilios
   assert.strictEqual(h.olhoCssAtributoValor('exec_atraso'), ' data-oculto-chave="exec_atraso"');         // outra chave nao e afetada
 });
 
@@ -76,11 +78,11 @@ t('alternar: grava no localStorage, marca todos os elementos da chave e atualiza
   assert.strictEqual(ls.dados.painel_oculto_cpagar_pago, '1');
   [valor, sub].forEach((n) => assert(n.attrs['data-oculto'] === '1' && n.attrs['aria-hidden'] === 'true'));
   assert(!('data-oculto' in outro.attrs));
-  assert(botao.attrs['aria-pressed'] === 'true' && botao.attrs.title === 'Mostrar valor' && botao.attrs['aria-label'] === 'Mostrar valor' && botao.textContent === '🙈');
+  assert(botao.attrs['aria-pressed'] === 'true' && botao.attrs.title === 'Mostrar valor' && botao.attrs['aria-label'] === 'Mostrar valor' && botao.innerHTML === h.iconeOlho(true));
   assert.strictEqual(h.alternarOlhoCss(r, 'cpagar_pago'), false);
   assert(!('painel_oculto_cpagar_pago' in ls.dados));
   [valor, sub].forEach((n) => assert(!('data-oculto' in n.attrs) && !('aria-hidden' in n.attrs)));
-  assert(botao.attrs['aria-pressed'] === 'false' && botao.attrs.title === 'Ocultar valor' && botao.textContent === '👁');
+  assert(botao.attrs['aria-pressed'] === 'false' && botao.attrs.title === 'Ocultar valor' && botao.innerHTML === h.iconeOlho(false));
 });
 
 t('alternar nao quebra se o navegador recusar o armazenamento (modo privado): a tela ainda muda', () => {
@@ -220,6 +222,48 @@ t('CSS: o botao do olhinho continua com o estilo de sempre', () => {
 t('CSS: a mascara nao depende de classe do tema (vale em claro e escuro) e nao fixa cor', () => {
   const trecho = cssN.slice(cssN.indexOf('[data-oculto="1"] {'), cssN.indexOf('.exec-stat-direita'));
   assert(!/#[0-9a-fA-F]{3,6}\b|rgb\(|\[data-theme/.test(trecho));
+});
+
+// ---------------------------------------------------------------------------------------------------------------- icone do olhinho (SVG, sem emoji)
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
+
+t('icones: olho aberto (contorno + pupila) e olho fechado com cilios (arco + 4 tracinhos) sao SVGs diferentes, na cor do texto', () => {
+  const h = ajudantes(armazenamento());
+  const aberto = h.iconeOlho(false), fechado = h.iconeOlho(true);
+  assert.notStrictEqual(aberto, fechado);
+  [aberto, fechado].forEach((svg) => {
+    assert(svg.startsWith('<svg class="icone-olho" viewBox="0 0 24 24"') && svg.endsWith('</svg>'));
+    assert(svg.includes('stroke="currentColor"') && svg.includes('fill="none"') && svg.includes('aria-hidden="true"') && svg.includes('focusable="false"'));
+    assert(!/#[0-9a-fA-F]{3,6}\b|rgb\(/.test(svg), 'sem cor fixa: herda o tema claro/escuro');
+    assert(!EMOJI.test(svg));
+  });
+  assert.strictEqual((aberto.match(/<path/g) || []).length, 1);
+  assert(aberto.includes('<circle'));
+  assert.strictEqual((fechado.match(/<path/g) || []).length, 5);                    // 1 arco + 4 cilios
+  assert(!fechado.includes('<circle'));
+});
+
+t('icones: nenhum emoji no bloco dos olhinhos nem no cartao da pagina inicial (renderCardValor)', () => {
+  assert(!EMOJI.test(bloco), 'bloco OLHINHOS');
+  const i = fonte.indexOf('function renderCardValor(');
+  const f = fonte.indexOf('\n  }\n', i);
+  const trecho = fonte.slice(i, f);
+  assert(!EMOJI.test(trecho), 'renderCardValor');
+  assert(trecho.includes('iconeOlho(oculto)'));
+  assert(!fonte.includes("'\\uD83D\\uDE48'") && !fonte.includes("'\\uD83D\\uDC41'"));
+});
+
+t('icones: o botao mostra o icone certo para cada estado (aberto = visivel, fechado = oculto) em todos os cartoes', () => {
+  const h = ajudantes(armazenamento({ painel_oculto_a: '1' }));
+  assert(h.olhoCssBotao('a').includes(h.iconeOlho(true)) && h.olhoCssBotao('b').includes(h.iconeOlho(false)));
+  assert(h.cardValorCss({ chave: 'a', valor: '1', rotulo: 'x' }).includes(h.iconeOlho(true)));
+  assert(h.cardValorCss({ chave: 'b', valor: '1', rotulo: 'x' }).includes(h.iconeOlho(false)));
+});
+
+t('CSS: o botao do olhinho usa a cor do texto, destaca no hover e dimensiona o SVG', () => {
+  assert(cssN.includes('.btn-olho { display: inline-flex; align-items: center; justify-content: center; color: var(--ink-soft); }'));
+  assert(cssN.includes('.btn-olho:hover { color: var(--accent); }'));
+  assert(cssN.includes('.btn-olho .icone-olho { width: 22px; height: 22px; display: block; }'));
 });
 
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
