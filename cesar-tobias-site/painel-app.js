@@ -1107,6 +1107,119 @@
     });
   }
 
+  // OLHOGERAL:inicio
+  // Olho do topo (ao lado do "+"): esconde TODOS os valores financeiros da tela. Nao depende de cada tela marcar seus numeros: varre os TEXTOS da pagina atras de
+  // valores em reais (R$ 1.234,56 / 1.234,56 / R$ 5k / R$ 12 mil) e troca por pontos, e continua valendo para o que chegar depois (listas, graficos, dicas ao passar
+  // o mouse, janelas). Desligando, o texto original volta. Estado em localStorage ('painel_oculto_geral'), igual aos outros olhinhos. Nao chama o servidor.
+  var MASCARA_GERAL = '\u2022\u2022\u2022\u2022\u2022\u2022';
+  var RE_VALOR_FINANCEIRO = /R\$\s*[-+\u2212]?\d[\d.]*(?:,\d+)?(?:\s?(?:mil|mi|bi|k|M)\b)?|[-+\u2212]?\d+(?:\.\d{3})*,\d{2}(?![\d%])/;
+  var RE_VALOR_FINANCEIRO_G = new RegExp(RE_VALOR_FINANCEIRO.source, 'g');
+  var TAGS_SEM_VALOR_VISIVEL = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1 };
+
+  function textoTemValorFinanceiro(texto) { return typeof texto === 'string' && RE_VALOR_FINANCEIRO.test(texto); }
+  function mascararValoresFinanceiros(texto) { return texto.replace(RE_VALOR_FINANCEIRO_G, MASCARA_GERAL); }
+
+  function coletarTextosDaPagina(raiz, doc, filtro) {
+    var lista = [];
+    if (!raiz) return lista;
+    if (raiz.nodeType === 3) { lista.push(raiz); return lista; }
+    var caminhante = doc.createTreeWalker(raiz, filtro.SHOW_TEXT, {
+      acceptNode: function (no) {
+        var pai = no.parentNode;
+        return pai && TAGS_SEM_VALOR_VISIVEL[String(pai.tagName).toUpperCase()] ? filtro.FILTER_REJECT : filtro.FILTER_ACCEPT;
+      },
+    });
+    while (caminhante.nextNode()) lista.push(caminhante.currentNode);
+    return lista;
+  }
+
+  function aplicarOcultacaoNosTextos(nos, ativo) {
+    nos.forEach(function (no) {
+      var atual = no.nodeValue;
+      if (ativo) {
+        if (no.__ogMascarado === atual) return;                       // ja trocado por nos
+        if (!textoTemValorFinanceiro(atual)) { delete no.__ogOriginal; delete no.__ogMascarado; return; }
+        no.__ogOriginal = atual;
+        no.__ogMascarado = mascararValoresFinanceiros(atual);
+        no.nodeValue = no.__ogMascarado;
+      } else if (no.__ogMascarado !== undefined) {
+        if (atual === no.__ogMascarado) no.nodeValue = no.__ogOriginal;
+        delete no.__ogOriginal; delete no.__ogMascarado;
+      }
+    });
+  }
+
+  function aplicarOcultacaoNosAtributos(elemento, ativo) {
+    ['title', 'aria-label'].forEach(function (nome) {
+      var chave = '__ogAttr_' + nome, atual = elemento.getAttribute(nome);
+      if (ativo) {
+        if (atual === null || (elemento[chave] && elemento[chave].mascarado === atual)) return;
+        if (!textoTemValorFinanceiro(atual)) { delete elemento[chave]; return; }
+        elemento[chave] = { original: atual, mascarado: mascararValoresFinanceiros(atual) };
+        elemento.setAttribute(nome, elemento[chave].mascarado);
+      } else if (elemento[chave]) {
+        if (atual === elemento[chave].mascarado) elemento.setAttribute(nome, elemento[chave].original);
+        delete elemento[chave];
+      }
+    });
+  }
+
+  function varrerOcultacaoGeral(raiz, ativo, doc, filtro) {
+    aplicarOcultacaoNosTextos(coletarTextosDaPagina(raiz, doc, filtro), ativo);
+    if (raiz && raiz.nodeType === 1) {
+      if (raiz.hasAttribute('title') || raiz.hasAttribute('aria-label')) aplicarOcultacaoNosAtributos(raiz, ativo);
+      raiz.querySelectorAll('[title], [aria-label]').forEach(function (el) { aplicarOcultacaoNosAtributos(el, ativo); });
+    }
+  }
+  // OLHOGERAL:fim
+
+  var observadorOcultacaoGeral = null;
+  function ligarOcultacaoGeral() {
+    if (observadorOcultacaoGeral) return;
+    document.documentElement.setAttribute('data-oculto-geral', '1');
+    varrerOcultacaoGeral(document.body, true, document, NodeFilter);
+    observadorOcultacaoGeral = new MutationObserver(function (registros) {
+      registros.forEach(function (r) {
+        if (r.type === 'characterData') aplicarOcultacaoNosTextos([r.target], true);
+        else if (r.type === 'attributes') aplicarOcultacaoNosAtributos(r.target, true);
+        else r.addedNodes.forEach(function (no) { varrerOcultacaoGeral(no, true, document, NodeFilter); });
+      });
+    });
+    observadorOcultacaoGeral.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['title', 'aria-label'] });
+  }
+
+  function desligarOcultacaoGeral() {
+    if (observadorOcultacaoGeral) { observadorOcultacaoGeral.disconnect(); observadorOcultacaoGeral = null; }
+    document.documentElement.removeAttribute('data-oculto-geral');
+    varrerOcultacaoGeral(document.body, false, document, NodeFilter);
+  }
+
+  function wireOlhoGeral() {
+    var btn = document.getElementById('hdr-btn-olho-geral');
+    if (!btn) return;
+    function pintar(oculto) {
+      var rotulo = oculto ? 'Mostrar todos os valores' : 'Ocultar todos os valores';
+      btn.innerHTML = iconeOlho(oculto);
+      btn.setAttribute('title', rotulo);
+      btn.setAttribute('aria-label', rotulo);
+      btn.setAttribute('aria-pressed', oculto ? 'true' : 'false');
+    }
+    var oculto = valorOculto('geral');
+    pintar(oculto);
+    if (oculto) ligarOcultacaoGeral();
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      oculto = !oculto;
+      try {
+        if (oculto) localStorage.setItem('painel_oculto_geral', '1');
+        else localStorage.removeItem('painel_oculto_geral');
+      } catch (e) { /* sem armazenamento: vale so ate recarregar */ }
+      pintar(oculto);
+      if (oculto) ligarOcultacaoGeral(); else desligarOcultacaoGeral();
+    });
+  }
+  wireOlhoGeral();
+
   var NOMES_MES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   var NOMES_MES_EXTENSO = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 

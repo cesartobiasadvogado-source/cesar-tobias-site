@@ -365,6 +365,9 @@
   .btn-olho { display: inline-flex; align-items: center; justify-content: center; color: var(--ink-soft); }
   .btn-olho:hover { color: var(--accent); }
   .btn-olho .icone-olho { width: 22px; height: 22px; display: block; }
+  /* olho geral (topo): valores ocultos em toda a tela; os graficos, que mostram valores pela forma, ficam desfocados */
+  .hdr-icone-btn[aria-pressed="true"] { background: rgba(255,255,255,0.12); color: var(--sidebar-ink); }
+  [data-oculto-geral="1"] #exec-grafico-svg, [data-oculto-geral="1"] .fluxo-bars-grupos, [data-oculto-geral="1"] .exec-cat-donut svg { filter: blur(9px); pointer-events: none; user-select: none; }
   /* Olhinho dos cartoes do Financeiro: a mascara e CSS (continua valendo quando o texto e reescrito depois). O texto real fica invisivel e ocupa o mesmo espaco;
      os pontos assumem a cor original do valor (currentColor). */
   [data-oculto="1"] { position: relative; -webkit-text-fill-color: transparent; user-select: none; }
