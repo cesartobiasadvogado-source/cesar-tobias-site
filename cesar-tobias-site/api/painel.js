@@ -856,6 +856,45 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'triagem_prev_listar') {
+    var tokenSessaoTriagemPrevListar = obterToken(req);
+    if (!tokenSessaoTriagemPrevListar) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var qsTriagemPrevListar = (req.query && req.query.incluir_arquivadas) ? '&incluir_arquivadas=' + encodeURIComponent(req.query.incluir_arquivadas) : '';
+    try {
+      const resposta = await fetch(
+        base + '?action=triagem_prev_listar' + qsTriagemPrevListar + '&token=' + encodeURIComponent(tokenSessaoTriagemPrevListar) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar as triagens previdenciarias.' });
+    }
+    return;
+  }
+
+  if (acao === 'triagem_prev_obter') {
+    var tokenSessaoTriagemPrevObter = obterToken(req);
+    if (!tokenSessaoTriagemPrevObter) {
+      res.status(401).json({ erro: 'Sessao ausente. Faca login novamente.' });
+      return;
+    }
+    var idTriagemPrevObter = (req.query && req.query.id) || '';
+    try {
+      const resposta = await fetch(
+        base + '?action=triagem_prev_obter&id=' + encodeURIComponent(idTriagemPrevObter) +
+        '&token=' + encodeURIComponent(tokenSessaoTriagemPrevObter) + segredoQS
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao carregar a triagem previdenciaria.' });
+    }
+    return;
+  }
+
   if (acao === 'etiqueta_listar') {
     var tokenSessaoEtiquetaListar = obterToken(req);
     if (!tokenSessaoEtiquetaListar) {
@@ -956,6 +995,15 @@ module.exports = async (req, res) => {
     triagem_provas_salvar: 'Erro de conexao ao salvar as provas.',
     triagem_converter_processo: 'Erro de conexao ao converter a triagem em processo.',
     triagem_restaurar: 'Erro de conexao ao restaurar a triagem.',
+    triagem_prev_criar: 'Erro de conexao ao criar a triagem previdenciaria.',
+    triagem_prev_atualizar: 'Erro de conexao ao salvar a triagem previdenciaria.',
+    triagem_prev_status: 'Erro de conexao ao atualizar o status da triagem previdenciaria.',
+    triagem_prev_arquivar: 'Erro de conexao ao arquivar a triagem previdenciaria.',
+    triagem_prev_restaurar: 'Erro de conexao ao restaurar a triagem previdenciaria.',
+    triagem_prev_duplicar: 'Erro de conexao ao duplicar a triagem previdenciaria.',
+    triagem_prev_excluir: 'Erro de conexao ao excluir a triagem previdenciaria.',
+    triagem_prev_vinculos_salvar: 'Erro de conexao ao salvar os vinculos.',
+    triagem_prev_pessoas_salvar: 'Erro de conexao ao salvar as pessoas.',
   };
   if (acoesClientePost[acao]) {
     if (req.method !== 'POST') {

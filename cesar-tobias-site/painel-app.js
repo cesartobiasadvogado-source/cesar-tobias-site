@@ -71,6 +71,7 @@
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
     triagem_trabalhista: 'Triagem Trabalhista', criar_triagem: 'Nova Triagem Trabalhista',
+    triagem_previdenciaria: 'Triagem Previdenciária', criar_triagem_prev: 'Nova Triagem Previdenciária',
   };
 
   function wireMenuMobile() {
@@ -3598,6 +3599,65 @@
         '</div>' +
       '</section>';
 
+    var htmlTriagemPrevDashboard = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-triagem-previdenciaria">' +
+        '<div class="procpage-dark">' +
+          '<div class="procpage-topo">' +
+            '<h2 class="procpage-titulo">Triagem Previdenciária</h2>' +
+            '<div class="procpage-acoes-topo">' +
+              '<a class="procpage-btn procpage-btn-primary" href="painel-criar-triagem-previdenciaria.html#sec-criar-triagem-previdenciaria">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>' +
+                'Nova Triagem Previdenciária</a>' +
+            '</div>' +
+          '</div>' +
+          '<div class="procpage-filtros">' +
+            '<div class="procpage-filtros-grid">' +
+              '<div><label for="tprev-filtro-busca">Cliente</label><input type="text" id="tprev-filtro-busca" placeholder="Buscar por cliente..."></div>' +
+              '<div><label for="tprev-filtro-beneficio">Benefício</label><select id="tprev-filtro-beneficio"><option value="">Todos</option>' +
+                BENEFICIOS_PREV.map(function (g) {
+                  return '<optgroup label="' + g.grupo + '">' + g.itens.map(function (i) { return '<option value="' + i[0] + '">' + i[1] + '</option>'; }).join('') + '</optgroup>';
+                }).join('') + '</select></div>' +
+              '<div><label for="tprev-filtro-status">Status</label><select id="tprev-filtro-status">' +
+                '<option value="">Todas (exceto arquivadas)</option>' +
+                '<option value="nao_iniciada">Não iniciada</option>' +
+                '<option value="em_andamento">Em andamento</option>' +
+                '<option value="aguardando_documentos">Aguardando documentos</option>' +
+                '<option value="aguardando_informacoes">Aguardando informações</option>' +
+                '<option value="concluida">Concluída</option>' +
+                '<option value="arquivada">Arquivadas</option>' +
+              '</select></div>' +
+              '<div class="procpage-filtros-botoes"><button type="button" class="procpage-btn" id="tprev-filtro-limpar">Limpar</button></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="procpage-tabela-wrap">' +
+            '<div id="tprev-lista"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
+    var htmlCriarTriagemPrev = perms.indexOf('processos') === -1 ? '' :
+      '<section id="sec-criar-triagem-previdenciaria">' +
+        '<div class="procpage-dark">' +
+          '<div class="procficha-topo">' +
+            '<div class="procficha-titulo-wrap">' +
+              '<a class="procficha-voltar" href="painel-triagem-previdenciaria.html#sec-triagem-previdenciaria">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>' +
+                '<span>Voltar</span>' +
+              '</a>' +
+              '<h2 class="procficha-numero">Triagem Previdenciária</h2>' +
+            '</div>' +
+          '</div>' +
+          '<div class="triagem-passos" id="tprev-passos-barra"></div>' +
+          '<div class="triagem-passo-legenda"><span id="tprev-passo-atual-label"></span><span id="tprev-passo-pct-label"></span></div>' +
+          '<div id="tprev-wizard-erro" role="status" aria-live="polite"></div>' +
+          '<div id="tprev-wizard-conteudo" class="procficha-painel"></div>' +
+          '<div class="triagem-nav-passos">' +
+            '<button type="button" class="procpage-btn" id="tprev-btn-voltar">← Voltar</button>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="tprev-btn-avancar">Avançar →</button>' +
+          '</div>' +
+        '</div>' +
+      '</section>';
+
     var htmlProcessoAdministrativo = perms.indexOf('processos') === -1 ? '' :
       '<section id="sec-processo-administrativo"><p class="section-label">Processo Administrativo</p>' +
         '<div class="panel">' +
@@ -4995,6 +5055,8 @@
       configuracoes: htmlConfiguracoes,
       triagem_trabalhista: htmlTriagemDashboard,
       criar_triagem: htmlCriarTriagem,
+      triagem_previdenciaria: htmlTriagemPrevDashboard,
+      criar_triagem_prev: htmlCriarTriagemPrev,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
@@ -5003,6 +5065,7 @@
       tarefas: 'agenda', agenda_completa: 'agenda', automacoes_gerais: 'automacoes', procuracao_contrato: 'automacoes', padrao_operacional: 'padrao_operacional',
       audiencias: 'audiencias', admin: null, configuracoes: null,
       triagem_trabalhista: 'processos', criar_triagem: 'processos',
+      triagem_previdenciaria: 'processos', criar_triagem_prev: 'processos',
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
     var temAcessoPagina = (PAGINA_ATUAL === 'admin' || PAGINA_ATUAL === 'configuracoes')
@@ -5073,6 +5136,8 @@
     if (PAGINA_ATUAL === 'ficha_processos') { wireProcessosHub(); }
     if (PAGINA_ATUAL === 'triagem_trabalhista') { wireTriagemDashboard(); carregarTriagens(); }
     if (PAGINA_ATUAL === 'criar_triagem') { wireTriagemWizard(); }
+    if (PAGINA_ATUAL === 'triagem_previdenciaria') { wireTriagemPrevDashboard(); carregarTriagensPrev(); }
+    if (PAGINA_ATUAL === 'criar_triagem_prev') { wireTriagemPrevWizard(); }
     if (PAGINA_ATUAL === 'processo_administrativo') { wireProcessosAdministrativos(); }
     if (PAGINA_ATUAL === 'importar_oab') { wireImportarOab(dados); }
     if (PAGINA_ATUAL === 'criar_processo') { wireProcessoManual(); }
@@ -12456,6 +12521,687 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         .catch(function () { erroWizardTriagem('Não foi possível carregar essa triagem agora.'); });
     } else {
       renderPassoAtualTriagem(null);
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Triagem Previdenciária -- lista + wizard. Mesmo desenho da Triagem Trabalhista (backend:
+  // triagem_previdenciaria.py / triagem_previdenciaria_regras.py). Os passos coincidem com
+  // PASSOS_TRIAGEM do backend (o diagnostico devolve 'passo' pra cada alerta/pendencia, e o botao
+  // "Ver passo" salta direto pra ele). Campos simples vem de listas de especificacao (SPEC_PREV_*),
+  // que geram o HTML e a coleta -- assim cada pergunta nova e uma linha, nao um bloco de HTML.
+  // ---------------------------------------------------------------------------------------
+  var PASSOS_WIZARD_PREV = ['cliente', 'segurado', 'beneficio', 'vinculos', 'situacao', 'requerimento', 'analise_final'];
+  var ROTULOS_PASSO_WIZARD_PREV = {
+    cliente: 'Cliente', segurado: 'Segurado', beneficio: 'Benefício', vinculos: 'Vínculos e contribuições',
+    situacao: 'Situação do benefício', requerimento: 'Requerimento no INSS', analise_final: 'Diagnóstico e relatório',
+  };
+  var BENEFICIOS_PREV = [
+    { grupo: 'Aposentadorias', itens: [
+      ['aposentadoria_idade', 'Aposentadoria por idade'],
+      ['aposentadoria_tempo_contribuicao', 'Aposentadoria por tempo de contribuição (regras de transição)'],
+      ['aposentadoria_especial', 'Aposentadoria especial'],
+      ['aposentadoria_rural', 'Aposentadoria rural por idade'],
+    ] },
+    { grupo: 'Incapacidade', itens: [
+      ['auxilio_incapacidade_temporaria', 'Auxílio por incapacidade temporária (auxílio-doença)'],
+      ['aposentadoria_incapacidade', 'Aposentadoria por incapacidade permanente'],
+      ['auxilio_acidente', 'Auxílio-acidente'],
+    ] },
+    { grupo: 'Assistencial (BPC/LOAS)', itens: [
+      ['bpc_idoso', 'BPC — pessoa idosa (65 anos ou mais)'],
+      ['bpc_deficiencia', 'BPC — pessoa com deficiência'],
+    ] },
+    { grupo: 'Família', itens: [
+      ['pensao_morte', 'Pensão por morte'],
+      ['salario_maternidade', 'Salário-maternidade'],
+    ] },
+  ];
+  var ROTULO_BENEFICIO_PREV = {};
+  BENEFICIOS_PREV.forEach(function (g) { g.itens.forEach(function (i) { ROTULO_BENEFICIO_PREV[i[0]] = i[1]; }); });
+
+  function _familiaBeneficioPrev(b) {
+    if (/^aposentadoria_(idade|tempo_contribuicao|especial|rural)$/.test(b || '')) return 'aposentadoria';
+    if (/^(aposentadoria_incapacidade|auxilio_incapacidade_temporaria|auxilio_acidente)$/.test(b || '')) return 'incapacidade';
+    if (/^bpc_/.test(b || '')) return 'bpc';
+    return b || '';
+  }
+
+  var CATEGORIAS_SEGURADO_PREV = [
+    ['', 'Selecione'], ['empregado', 'Empregado'], ['empregado_domestico', 'Empregado doméstico'], ['trabalhador_avulso', 'Trabalhador avulso'],
+    ['contribuinte_individual', 'Contribuinte individual'], ['mei', 'MEI'], ['facultativo', 'Facultativo'],
+    ['segurado_especial', 'Segurado especial (rural)'], ['nao_segurado', 'Não é segurado'],
+  ];
+  var SPEC_PREV_SEGURADO = [
+    { c: 'sexo', r: 'Sexo', t: 'select', op: [['', 'Selecione'], ['F', 'Feminino'], ['M', 'Masculino']] },
+    { c: 'data_nascimento', r: 'Data de nascimento', t: 'data' },
+    { c: 'nit_pis', r: 'NIT / PIS', t: 'texto' },
+    { c: 'profissao', r: 'Profissão / atividade', t: 'texto' },
+    { c: 'categoria_segurado', r: 'Categoria de segurado', t: 'select', op: CATEGORIAS_SEGURADO_PREV },
+    { c: 'data_ultima_contribuicao', r: 'Data da última contribuição', t: 'data' },
+    { c: 'atividade_rural', r: 'Exerce ou exerceu atividade rural?', t: 'simnao' },
+    { c: 'em_gozo_beneficio', r: 'Recebe algum benefício do INSS hoje?', t: 'simnao' },
+    { c: 'beneficio_em_gozo_tipo', r: 'Qual benefício recebe?', t: 'texto' },
+    { c: 'desempregado_registrado', r: 'Está desempregado, com registro no SINE/Ministério do Trabalho?', t: 'simnao' },
+  ];
+  var SPEC_PREV_REQUERIMENTO = [
+    { c: 'ja_requereu_inss', r: 'Já pediu esse benefício ao INSS?', t: 'simnao' },
+    { c: 'numero_beneficio_nb', r: 'Número do benefício (NB)', t: 'texto' },
+    { c: 'data_requerimento_anterior', r: 'Data do requerimento', t: 'data' },
+    { c: 'data_indeferimento', r: 'Data do indeferimento', t: 'data' },
+    { c: 'motivo_indeferimento', r: 'Motivo do indeferimento', t: 'texto' },
+    { c: 'recurso_administrativo', r: 'Já recorreu administrativamente (CRPS)?', t: 'simnao' },
+  ];
+  var SPEC_PREV_SITUACAO = {
+    incapacidade: [
+      { c: 'incapacidade_tipo', r: 'Origem da incapacidade', t: 'select', op: [['', 'Selecione'], ['doenca', 'Doença'], ['acidente_trabalho', 'Acidente de trabalho'], ['acidente_nao_trabalho', 'Acidente fora do trabalho']] },
+      { c: 'doenca_grave_isencao', r: 'É doença grave que dispensa carência (câncer, AIDS, cardiopatia grave, etc.)?', t: 'simnao' },
+      { c: 'data_inicio_doenca', r: 'Início da doença (DID)', t: 'data' },
+      { c: 'data_inicio_incapacidade', r: 'Início da incapacidade (DII)', t: 'data' },
+      { c: 'cid', r: 'CID', t: 'texto' },
+      { c: 'afastado_do_trabalho', r: 'Está afastado do trabalho?', t: 'simnao' },
+      { c: 'data_afastamento', r: 'Data do afastamento', t: 'data' },
+      { c: 'laudos_disponiveis', r: 'Tem laudos, exames e atestados médicos?', t: 'simnao' },
+      { c: 'cat_emitida', r: 'A CAT foi emitida? (acidente de trabalho)', t: 'simnao' },
+      { c: 'sequela_consolidada', r: 'A sequela está consolidada? (auxílio-acidente)', t: 'simnao' },
+      { c: 'reducao_capacidade', r: 'A sequela reduz a capacidade para o trabalho habitual? (auxílio-acidente)', t: 'simnao' },
+      { c: 'beneficio_anterior_incapacidade', r: 'Já recebeu benefício por incapacidade antes?', t: 'simnao' },
+    ],
+    bpc: [
+      { c: 'deficiencia_longo_prazo', r: 'Tem impedimento de longo prazo (2 anos ou mais)? (BPC deficiência)', t: 'simnao' },
+      { c: 'cadunico_atualizado', r: 'O CadÚnico da família está atualizado?', t: 'simnao' },
+      { c: 'renda_propria', r: 'Renda mensal do requerente (R$)', t: 'numero' },
+    ],
+    pensao_morte: [
+      { c: 'obito_data', r: 'Data do óbito', t: 'data' },
+      { c: 'instituidor_nome', r: 'Nome do falecido', t: 'texto' },
+      { c: 'instituidor_era_aposentado', r: 'O falecido já era aposentado ou pensionista?', t: 'simnao' },
+      { c: 'instituidor_ultima_contribuicao', r: 'Última contribuição do falecido', t: 'data' },
+      { c: 'instituidor_contribuicoes', r: 'Total de contribuições do falecido', t: 'inteiro' },
+      { c: 'uniao_tipo', r: 'Casamento ou união estável?', t: 'select', op: [['', 'Selecione'], ['casamento', 'Casamento'], ['uniao_estavel', 'União estável']] },
+      { c: 'uniao_inicio', r: 'Início da união', t: 'data' },
+      { c: 'prova_uniao', r: 'Há prova material da união (documentos, contas, fotos)?', t: 'simnao' },
+    ],
+    salario_maternidade: [
+      { c: 'fato_gerador', r: 'Fato gerador', t: 'select', op: [['', 'Selecione'], ['parto', 'Parto'], ['adocao', 'Adoção'], ['guarda', 'Guarda judicial'], ['natimorto_aborto', 'Natimorto / aborto não criminoso']] },
+      { c: 'data_fato_gerador', r: 'Data do parto, adoção ou guarda', t: 'data' },
+    ],
+  };
+  var SPEC_PREV_VINCULO = [
+    { c: 'tipo', r: 'Tipo', t: 'select', op: [['empregado', 'Empregado (CLT)'], ['empregado_domestico', 'Empregado doméstico'], ['trabalhador_avulso', 'Trabalhador avulso'],
+      ['contribuinte_individual', 'Contribuinte individual'], ['mei', 'MEI'], ['facultativo', 'Facultativo'], ['rural', 'Atividade rural'],
+      ['beneficio_por_incapacidade', 'Benefício por incapacidade'], ['outro', 'Outro']] },
+    { c: 'empregador', r: 'Empregador / descrição', t: 'texto' },
+    { c: 'data_inicio', r: 'Início', t: 'data' },
+    { c: 'data_fim', r: 'Fim (vazio = em andamento)', t: 'data' },
+    { c: 'especial', r: 'Atividade especial?', t: 'tri' },
+    { c: 'categoria_especial', r: 'Especial de quantos anos?', t: 'select', op: [['', '—'], ['15', '15 anos (mais grave)'], ['20', '20 anos'], ['25', '25 anos']] },
+    { c: 'agente_nocivo', r: 'Agente nocivo', t: 'texto' },
+    { c: 'ppp_disponivel', r: 'Tem PPP/LTCAT?', t: 'tri' },
+    { c: 'no_cnis', r: 'Consta no CNIS?', t: 'tri' },
+    { c: 'com_contribuicoes_pagas', r: 'Contribuições pagas? (autônomo/MEI/facultativo)', t: 'tri' },
+    { c: 'observacao', r: 'Observação', t: 'texto' },
+  ];
+  var SPEC_PREV_PESSOA = [
+    { c: 'nome', r: 'Nome', t: 'texto' },
+    { c: 'parentesco', r: 'Parentesco', t: 'select', op: [['conjuge', 'Cônjuge'], ['companheiro', 'Companheiro(a)'], ['filho', 'Filho(a)'], ['enteado', 'Enteado(a)'],
+      ['pai', 'Pai'], ['mae', 'Mãe'], ['irmao', 'Irmão(ã)'], ['padrasto_madrasta', 'Padrasto/madrasta'], ['tutelado', 'Tutelado'], ['outro', 'Outro']] },
+    { c: 'data_nascimento', r: 'Data de nascimento', t: 'data' },
+    { c: 'renda_mensal', r: 'Renda mensal (R$)', t: 'numero' },
+    { c: 'mesmo_teto', r: 'Mora na mesma casa?', t: 'tri' },
+    { c: 'invalido_deficiente', r: 'É inválido ou tem deficiência?', t: 'tri' },
+    { c: 'renda_desconsiderada', r: 'Renda desconsiderada por lei (ex.: BPC/aposentadoria de 1 salário de outro idoso)?', t: 'tri' },
+  ];
+  var SPEC_PREV_PESSOA_POR_PAPEL = {
+    dependente: SPEC_PREV_PESSOA.filter(function (s) { return s.c !== 'mesmo_teto' && s.c !== 'renda_desconsiderada' && s.c !== 'renda_mensal'; }),
+    grupo_familiar: SPEC_PREV_PESSOA.filter(function (s) { return s.c !== 'invalido_deficiente'; }),
+  };
+
+  function _valorInputPrev(spec, v) {
+    if (v === null || v === undefined) return '';
+    if (spec.t === 'data') return String(v).slice(0, 10);
+    if (spec.t === 'numero') return String(v).replace('.', ',');
+    return String(v);
+  }
+  function _htmlOpcoesPrev(op, atual) {
+    return op.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (String(atual) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('');
+  }
+  // Campo solto de um passo (id fixo tprev-<campo>). 'simnao' usa os mesmos botoes Sim/Nao da trabalhista.
+  function htmlCampoPrev(spec, d) {
+    var id = 'tprev-' + spec.c, v = d[spec.c];
+    if (spec.t === 'simnao') return htmlSimNaoTriagem(id, spec.r, v === true ? true : (v === false ? false : null));
+    var rotulo = '<label for="' + id + '">' + esc(spec.r) + '</label>';
+    if (spec.t === 'select') return '<div>' + rotulo + '<select id="' + id + '">' + _htmlOpcoesPrev(spec.op, v == null ? '' : v) + '</select></div>';
+    var tipo = spec.t === 'data' ? 'date' : (spec.t === 'inteiro' ? 'number" min="0' : 'text');
+    return '<div>' + rotulo + '<input id="' + id + '" type="' + tipo + '" value="' + esc(_valorInputPrev(spec, v)) + '"' +
+      (spec.t === 'numero' ? ' inputmode="decimal"' : '') + '></div>';
+  }
+  function htmlCamposPrev(specs, d) {
+    var simnao = specs.filter(function (s) { return s.t === 'simnao'; });
+    var outros = specs.filter(function (s) { return s.t !== 'simnao'; });
+    return '<div class="procficha-editar-grid">' + outros.map(function (s) { return htmlCampoPrev(s, d); }).join('') + '</div>' +
+      (simnao.length ? '<div style="margin-top:14px;display:flex;gap:24px;flex-wrap:wrap;">' + simnao.map(function (s) { return htmlCampoPrev(s, d); }).join('') + '</div>' : '');
+  }
+  function wireCamposPrev(specs) {
+    specs.forEach(function (s) { if (s.t === 'simnao') wireSimNaoTriagem('tprev-' + s.c); });
+  }
+  function coletarCamposPrev(specs) {
+    var out = {};
+    specs.forEach(function (s) {
+      var id = 'tprev-' + s.c;
+      var el = document.getElementById(id);
+      if (!el) return;     // campo que nao esta na tela (outro beneficio): nao manda, pra nao apagar o que ja estava salvo
+      out[s.c] = s.t === 'simnao' ? lerSimNaoTriagem(id) : String(el.value).trim();
+    });
+    return out;
+  }
+
+  // Lista editavel (vinculos / dependentes / grupo familiar): cada linha e um cartao com os campos da especificacao.
+  function htmlLinhaPrev(specs, item, indice) {
+    return '<div class="tprev-linha" data-tprev-linha="' + indice + '"><div class="procficha-editar-grid">' +
+      specs.map(function (s) {
+        var v = item[s.c], rot = '<label>' + esc(s.r) + '</label>', aria = ' data-k="' + s.c + '" aria-label="' + esc(s.r) + '"';
+        if (s.t === 'select') return '<div>' + rot + '<select' + aria + '>' + _htmlOpcoesPrev(s.op, v == null ? s.op[0][0] : v) + '</select></div>';
+        if (s.t === 'tri') {
+          var atual = v === true ? 'sim' : (v === false ? 'nao' : '');
+          return '<div>' + rot + '<select' + aria + '>' + _htmlOpcoesPrev([['', 'Não informado'], ['sim', 'Sim'], ['nao', 'Não']], atual) + '</select></div>';
+        }
+        return '<div>' + rot + '<input' + aria + ' type="' + (s.t === 'data' ? 'date' : 'text') + '" value="' + esc(_valorInputPrev(s, v)) + '"' +
+          (s.t === 'numero' ? ' inputmode="decimal"' : '') + '></div>';
+      }).join('') +
+      '</div><div style="margin-top:8px;text-align:right;"><button type="button" class="procpage-btn" data-tprev-remover="' + indice + '">Remover</button></div></div>';
+  }
+  function coletarListaPrev(wrap, specs, fixos) {
+    return Array.prototype.map.call(wrap.querySelectorAll('[data-tprev-linha]'), function (linha) {
+      var o = {};
+      specs.forEach(function (s) {
+        var el = linha.querySelector('[data-k="' + s.c + '"]');
+        var val = el ? String(el.value).trim() : '';
+        o[s.c] = s.t === 'tri' ? (val === 'sim' ? true : (val === 'nao' ? false : null)) : val;
+      });
+      Object.keys(fixos || {}).forEach(function (k) { o[k] = fixos[k]; });
+      return o;
+    });
+  }
+  // Monta o editor dentro de `wrap`: devolve { coletar() } -- "Adicionar" e "Remover" re-desenham mantendo o que ja foi digitado.
+  function montarListaPrev(wrap, specs, itens, novoItem, rotuloAdicionar, fixos) {
+    function desenhar(lista) {
+      wrap.innerHTML = (lista.length ? lista.map(function (it, i) { return htmlLinhaPrev(specs, it, i); }).join('') :
+        '<p style="font-size:12.5px;color:var(--ink-faint);margin:0 0 10px;">Nada cadastrado ainda.</p>') +
+        '<button type="button" class="procpage-btn" data-tprev-adicionar>' + esc(rotuloAdicionar) + '</button>';
+    }
+    desenhar(itens);
+    wrap.addEventListener('click', function (ev) {
+      var add = ev.target.closest('[data-tprev-adicionar]');
+      var rem = ev.target.closest('[data-tprev-remover]');
+      if (!add && !rem) return;
+      var atual = coletarListaPrev(wrap, specs);
+      if (add) atual.push(novoItem());
+      else atual.splice(parseInt(rem.getAttribute('data-tprev-remover'), 10), 1);
+      desenhar(atual);
+    });
+    return { coletar: function () { return coletarListaPrev(wrap, specs, fixos); } };
+  }
+
+  function _moedaPrev(n) {
+    return 'R$ ' + Number(n || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  var ROTULO_STATUS_PREV = ROTULO_STATUS_TRIAGEM;
+  var _triagensPrevCarregadas = [];
+
+  function _passaNosFiltrosPrev(t, f) {
+    if (f.status === 'arquivada') {
+      if (!t.arquivado_em) return false;
+    } else {
+      if (t.arquivado_em) return false;
+      if (f.status && t.status !== f.status) return false;
+    }
+    if (f.beneficio && t.beneficio_pretendido !== f.beneficio) return false;
+    if (f.busca && (t.cliente_nome || '').toLowerCase().indexOf(f.busca) === -1) return false;
+    return true;
+  }
+  function _lerFiltrosPrev() {
+    var b = document.getElementById('tprev-filtro-busca'), s = document.getElementById('tprev-filtro-status'), g = document.getElementById('tprev-filtro-beneficio');
+    return { busca: b && b.value ? b.value.trim().toLowerCase() : '', status: s ? s.value : '', beneficio: g ? g.value : '' };
+  }
+
+  function _renderListaPrev(triagens) {
+    var lista = document.getElementById('tprev-lista');
+    if (!lista) return;
+    if (!triagens.length) {
+      lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Nenhuma triagem encontrada.</div></div>';
+      return;
+    }
+    var svgMais = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="6" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="12" cy="18" r="1.8"></circle></svg>';
+    lista.innerHTML = '<table><thead><tr>' +
+      '<th>Cliente</th><th>Benefício</th><th>Responsável</th><th>Status</th><th>Conclusão</th><th>Última atualização</th><th></th>' +
+      '</tr></thead><tbody>' +
+      triagens.map(function (t, indice) {
+        var link = 'painel-criar-triagem-previdenciaria.html?id=' + t.id + '#sec-criar-triagem-previdenciaria';
+        return '<tr>' +
+          '<td><a class="procpage-numero-link" href="' + link + '">' + esc(t.cliente_nome || 'Cliente não definido') + '</a></td>' +
+          '<td>' + esc(ROTULO_BENEFICIO_PREV[t.beneficio_pretendido] || 'A definir') + '</td>' +
+          '<td style="color:var(--ink-faint);">' + esc(t.responsavel_email || '—') + '</td>' +
+          '<td><span class="chip ' + (CHIP_STATUS_TRIAGEM[t.status] || 'neutral') + '">' + esc(ROTULO_STATUS_PREV[t.status] || t.status) + '</span>' +
+            (t.arquivado_em ? ' <span class="chip neutral">Arquivada</span>' : '') + '</td>' +
+          '<td style="color:var(--ink-faint);">' + (t.percentual_conclusao || 0) + '%</td>' +
+          '<td style="color:var(--ink-faint);">' + fmtDataProcesso(String(t.atualizado_em || '').slice(0, 10)) + '</td>' +
+          '<td><div class="procpage-acoes-icones">' +
+            '<a class="procpage-btn" href="' + link + '">Continuar</a>' +
+            '<span class="procman-acoes-wrap">' +
+              '<button type="button" class="procpage-icone-btn" data-tprev-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
+              '<div class="procman-acoes-menu hidden" data-tprev-menu="' + indice + '">' +
+                '<button type="button" data-tprev-duplicar="' + indice + '">Duplicar</button>' +
+                (t.arquivado_em ? '<button type="button" data-tprev-restaurar="' + indice + '">Restaurar</button>'
+                                : '<button type="button" data-tprev-arquivar="' + indice + '">Arquivar</button>') +
+                '<button type="button" class="procman-acao-excluir" data-tprev-excluir="' + indice + '">Excluir</button>' +
+              '</div>' +
+            '</span>' +
+          '</div></td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  function carregarTriagensPrev() {
+    var lista = document.getElementById('tprev-lista');
+    if (!lista) return;
+    apiGetJson('/api/painel?acao=triagem_prev_listar&incluir_arquivadas=1')
+      .then(function (dados) {
+        _triagensPrevCarregadas = dados.triagens || [];
+        var f = _lerFiltrosPrev();
+        _renderListaPrev(_triagensPrevCarregadas.filter(function (t) { return _passaNosFiltrosPrev(t, f); }));
+      })
+      .catch(function () {
+        lista.innerHTML = '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Não foi possível carregar as triagens agora.</div></div>';
+      });
+  }
+
+  function wireTriagemPrevDashboard() {
+    var lista = document.getElementById('tprev-lista');
+    if (!lista) return;
+    function aplicar() {
+      var f = _lerFiltrosPrev();
+      _renderListaPrev(_triagensPrevCarregadas.filter(function (t) { return _passaNosFiltrosPrev(t, f); }));
+    }
+    ['tprev-filtro-busca'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('input', aplicar); });
+    ['tprev-filtro-status', 'tprev-filtro-beneficio'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', aplicar); });
+    var limpar = document.getElementById('tprev-filtro-limpar');
+    if (limpar) limpar.addEventListener('click', function () {
+      ['tprev-filtro-busca', 'tprev-filtro-status', 'tprev-filtro-beneficio'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+      aplicar();
+    });
+
+    function acao(nome, t, mensagemErro) {
+      return apiPostJson('/api/painel?acao=triagem_prev_' + nome, { id: t.id })
+        .then(function () { carregarTriagensPrev(); })
+        .catch(function (e) { mostrarAviso(e.message || mensagemErro); });
+    }
+    lista.addEventListener('click', function (ev) {
+      var mais = ev.target.closest('[data-tprev-mais]');
+      if (mais) {
+        var alvo = lista.querySelector('[data-tprev-menu="' + mais.getAttribute('data-tprev-mais') + '"]');
+        var aberto = alvo && !alvo.classList.contains('hidden');
+        lista.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+        if (alvo && !aberto) alvo.classList.remove('hidden');
+        return;
+      }
+      var b;
+      if ((b = ev.target.closest('[data-tprev-duplicar]'))) { acao('duplicar', _triagensPrevCarregadas[b.getAttribute('data-tprev-duplicar')], 'Não foi possível duplicar agora.'); return; }
+      if ((b = ev.target.closest('[data-tprev-restaurar]'))) { acao('restaurar', _triagensPrevCarregadas[b.getAttribute('data-tprev-restaurar')], 'Não foi possível restaurar agora.'); return; }
+      if ((b = ev.target.closest('[data-tprev-arquivar]'))) {
+        var ta = _triagensPrevCarregadas[b.getAttribute('data-tprev-arquivar')];
+        confirmarModal('Arquivar essa triagem? Ela sai da lista, mas continua guardada.', { titulo: 'Arquivar triagem', textoOk: 'Arquivar', perigo: false })
+          .then(function (ok) { if (ok) acao('arquivar', ta, 'Não foi possível arquivar agora.'); });
+        return;
+      }
+      if ((b = ev.target.closest('[data-tprev-excluir]'))) {
+        var te = _triagensPrevCarregadas[b.getAttribute('data-tprev-excluir')];
+        confirmarModal('Excluir essa triagem? Essa ação não pode ser desfeita.')
+          .then(function (ok) { if (ok) acao('excluir', te, 'Não foi possível excluir agora.'); });
+      }
+    });
+    document.addEventListener('click', function (ev) {
+      if (!ev.target.closest('[data-tprev-mais]')) lista.querySelectorAll('.procman-acoes-menu').forEach(function (m) { m.classList.add('hidden'); });
+    });
+  }
+
+  // ---- Wizard ----------------------------------------------------------------------------
+  function _htmlDiagnosticoPrev(t) {
+    var r = t.resumo || {};
+    function cartao(rotulo, valor) {
+      return '<div class="tprev-resumo-item"><span>' + esc(rotulo) + '</span><strong>' + esc(valor) + '</strong></div>';
+    }
+    var cartoes = [
+      cartao('Idade', r.idade != null ? r.idade + ' anos' : 'não informada'),
+      cartao('Tempo de contribuição', r.tempo_contribuicao_texto || '—'),
+      cartao('Carência (meses)', r.carencia_meses != null ? String(r.carencia_meses) : '—'),
+      cartao('Primeira filiação', r.primeira_filiacao ? fmtDataProcesso(r.primeira_filiacao) : '—'),
+      cartao('Última contribuição', r.ultima_contribuicao ? fmtDataProcesso(r.ultima_contribuicao) : '—'),
+      cartao('Filiado antes da reforma (13/11/2019)?', r.filiado_antes_da_reforma ? 'Sim' : 'Não'),
+    ];
+    if (r.tempo_com_conversao_texto && r.tempo_com_conversao_texto !== r.tempo_contribuicao_texto) cartoes.push(cartao('Com conversão de tempo especial', r.tempo_com_conversao_texto));
+    if (r.bpc) {
+      cartoes.push(cartao('Renda do grupo familiar', _moedaPrev(r.bpc.renda_total)));
+      cartoes.push(cartao('Pessoas no grupo', String(r.bpc.pessoas_no_grupo)));
+      cartoes.push(cartao('Renda per capita', _moedaPrev(r.bpc.renda_per_capita)));
+    }
+    if (r.incapacidade && r.incapacidade.qualidade_na_dii && r.incapacidade.qualidade_na_dii.mantida != null) {
+      cartoes.push(cartao('Qualidade de segurado na DII', r.incapacidade.qualidade_na_dii.mantida ? 'Mantida' : 'Possivelmente perdida'));
+    }
+    if (r.pensao && r.pensao.qualidade_instituidor && r.pensao.qualidade_instituidor.mantida != null) {
+      cartoes.push(cartao('Qualidade do falecido no óbito', r.pensao.qualidade_instituidor.mantida ? 'Mantida' : 'Possivelmente perdida'));
+    }
+
+    var elegibilidade = (t.elegibilidade || []).map(function (e) {
+      return '<div class="tprev-item"><div class="tprev-item-topo"><strong>' + esc(e.regra) + '</strong>' +
+        '<span class="chip ' + (e.atende ? 'good' : 'neutral') + '">' + (e.atende ? 'Indício de atender' : 'Ainda não atende') + '</span></div>' +
+        '<p>' + esc(e.detalhe || '') + '</p>' +
+        (e.falta ? '<p class="tprev-falta">Falta: ' + esc(e.falta) + '</p>' : '') +
+        (e.previsao_der ? '<p class="tprev-falta">Previsão de cumprir os requisitos: ' + esc(fmtDataProcesso(e.previsao_der)) + '</p>' : '') + '</div>';
+    }).join('');
+
+    var rotuloSev = { critico: ['crit', 'Crítico'], atencao: ['warn', 'Atenção'], info: ['neutral', 'Informação'] };
+    var alertas = (t.alertas || []).map(function (a) {
+      var s = rotuloSev[a.severidade] || rotuloSev.info;
+      return '<div class="tprev-item"><div class="tprev-item-topo"><span class="chip ' + s[0] + '">' + s[1] + '</span>' +
+        '<button type="button" class="procpage-btn" data-tprev-ir-passo="' + esc(a.passo) + '" style="font-size:11.5px;padding:4px 10px;">Ver passo</button></div>' +
+        '<p>' + esc(a.mensagem) + '</p></div>';
+    }).join('');
+    var pendencias = (t.pendencias || []).map(function (p) {
+      return '<div class="tprev-item"><div class="tprev-item-topo"><span>' + esc(p.mensagem) + '</span>' +
+        '<button type="button" class="procpage-btn" data-tprev-ir-passo="' + esc(p.passo) + '" style="font-size:11.5px;padding:4px 10px;">Ver passo</button></div></div>';
+    }).join('');
+
+    return '<div class="tprev-resumo">' + cartoes.join('') + '</div>' +
+      (elegibilidade ? '<p class="tprev-secao">Regras analisadas</p>' + elegibilidade : '') +
+      '<p class="tprev-secao">Alertas</p>' + (alertas || '<p class="tprev-vazio">Nenhum alerta identificado até agora.</p>') +
+      '<p class="tprev-secao">Pendências</p>' + (pendencias || '<p class="tprev-vazio">Nenhuma pendência. ✅</p>') +
+      (t.aviso ? '<p class="tprev-aviso">' + esc(t.aviso) + '</p>' : '');
+  }
+
+  function wireTriagemPrevWizard() {
+    var conteudo = document.getElementById('tprev-wizard-conteudo');
+    if (!conteudo) return;
+    var estado = { triagemId: null, passoIndex: 0, clienteModo: 'existente', clienteSelecionadoId: null };
+    var clientesCache = null;
+    var listaVinculos = null, listaPessoas = null;
+
+    function erro(msg) { document.getElementById('tprev-wizard-erro').innerHTML = msg ? '<div class="aviso-tenant">' + esc(msg) + '</div>' : ''; }
+
+    function renderBarra() {
+      var barra = document.getElementById('tprev-passos-barra');
+      barra.innerHTML = PASSOS_WIZARD_PREV.map(function (p, i) {
+        var classe = i < estado.passoIndex ? 'feito' : (i === estado.passoIndex ? 'atual' : '');
+        var clicavel = i < estado.passoIndex;
+        return '<div class="triagem-passo-marca ' + classe + (clicavel ? ' clicavel' : '') + '"' +
+          (clicavel ? ' data-tprev-passo-idx="' + i + '" title="Ir para: ' + esc(ROTULOS_PASSO_WIZARD_PREV[p]) + '"' : '') + '></div>';
+      }).join('');
+      document.getElementById('tprev-passo-atual-label').textContent =
+        'Passo ' + (estado.passoIndex + 1) + ' de ' + PASSOS_WIZARD_PREV.length + ' — ' + ROTULOS_PASSO_WIZARD_PREV[PASSOS_WIZARD_PREV[estado.passoIndex]];
+      document.getElementById('tprev-passo-pct-label').textContent = 'Triagem ' + Math.round((estado.passoIndex / PASSOS_WIZARD_PREV.length) * 100) + '% concluída';
+      document.getElementById('tprev-btn-voltar').style.visibility = estado.passoIndex === 0 ? 'hidden' : 'visible';
+      document.getElementById('tprev-btn-avancar').textContent = estado.passoIndex === PASSOS_WIZARD_PREV.length - 1 ? 'Salvar e voltar ao painel' : 'Avançar →';
+    }
+
+    function titulo(t, sub) { return '<p class="triagem-passo-titulo">' + esc(t) + '</p><p class="triagem-passo-sub">' + esc(sub) + '</p>'; }
+
+    function renderCliente() {
+      conteudo.innerHTML = titulo('Cliente', 'Selecione um cliente já cadastrado, ou cadastre um novo — ele já entra na lista geral de Clientes.') +
+        '<div class="triagem-simnao" id="tprev-cliente-modo"><button type="button" data-modo="existente">Cliente já cadastrado</button>' +
+        '<button type="button" data-modo="novo">Cadastrar novo cliente</button></div>' +
+        '<div id="tprev-cliente-existente" class="triagem-campo-condicional" style="margin-top:14px;"><div class="procficha-editar-grid"><div>' +
+          '<label for="tprev-cliente-select">Cliente</label><select id="tprev-cliente-select"><option value="">Carregando...</option></select></div></div></div>' +
+        '<div id="tprev-cliente-novo" class="triagem-campo-condicional hidden" style="margin-top:14px;"><div class="procficha-editar-grid">' +
+          '<div><label for="tprev-nc-tipo">Tipo</label><select id="tprev-nc-tipo"><option>Pessoa Física</option><option>Pessoa Jurídica</option></select></div>' +
+          '<div><label for="tprev-nc-nome">Nome completo *</label><input id="tprev-nc-nome"></div>' +
+          '<div><label for="tprev-nc-cpf">CPF/CNPJ</label><input id="tprev-nc-cpf"></div>' +
+          '<div><label for="tprev-nc-telefone">Telefone</label><input id="tprev-nc-telefone"></div>' +
+          '<div><label for="tprev-nc-email">E-mail</label><input id="tprev-nc-email"></div></div></div>';
+      var bExistente = conteudo.querySelector('[data-modo="existente"]'), bNovo = conteudo.querySelector('[data-modo="novo"]');
+      function modo() {
+        bExistente.classList.toggle('ativo', estado.clienteModo === 'existente');
+        bNovo.classList.toggle('ativo', estado.clienteModo === 'novo');
+        document.getElementById('tprev-cliente-existente').classList.toggle('hidden', estado.clienteModo !== 'existente');
+        document.getElementById('tprev-cliente-novo').classList.toggle('hidden', estado.clienteModo !== 'novo');
+      }
+      bExistente.addEventListener('click', function () { estado.clienteModo = 'existente'; modo(); });
+      bNovo.addEventListener('click', function () { estado.clienteModo = 'novo'; modo(); });
+      modo();
+      var select = document.getElementById('tprev-cliente-select');
+      (clientesCache ? Promise.resolve({ clientes: clientesCache }) : apiGetJson('/api/painel?acao=cliente_cadastro_listar'))
+        .then(function (d) {
+          clientesCache = d.clientes || [];
+          select.innerHTML = '<option value="">Selecione...</option>' + clientesCache.map(function (c) {
+            return '<option value="' + c.id + '">' + esc(c.nome) + (c.cpf_cnpj ? ' — ' + esc(c.cpf_cnpj) : '') + '</option>';
+          }).join('');
+          if (estado.clienteSelecionadoId) select.value = estado.clienteSelecionadoId;
+        })
+        .catch(function () { select.innerHTML = '<option value="">Não foi possível carregar os clientes</option>'; });
+    }
+    function salvarCliente() {
+      return new Promise(function (resolve, reject) {
+        if (estado.clienteModo === 'existente') {
+          var id = document.getElementById('tprev-cliente-select').value;
+          if (!id) { reject('Selecione um cliente.'); return; }
+          resolve(parseInt(id, 10));
+          return;
+        }
+        var nome = document.getElementById('tprev-nc-nome').value.trim();
+        if (!nome) { reject('Informe o nome do novo cliente.'); return; }
+        apiPostJson('/api/painel?acao=cliente_cadastro_criar', {
+          tipo: document.getElementById('tprev-nc-tipo').value, nome: nome,
+          cpf_cnpj: document.getElementById('tprev-nc-cpf').value.trim(), telefone: document.getElementById('tprev-nc-telefone').value.trim(),
+          email: document.getElementById('tprev-nc-email').value.trim(),
+        }).then(function (d) { resolve(d.id); }).catch(function (e) { reject(e.message || 'Não foi possível cadastrar o cliente agora.'); });
+      });
+    }
+
+    function renderSegurado(d) {
+      conteudo.innerHTML = titulo('Segurado', 'Dados de quem pede o benefício. As regras de idade e tempo mudam conforme o sexo e a data de filiação.') + htmlCamposPrev(SPEC_PREV_SEGURADO, d);
+      wireCamposPrev(SPEC_PREV_SEGURADO);
+    }
+
+    function renderBeneficio(d) {
+      var atual = d.beneficio_pretendido || '';
+      conteudo.innerHTML = titulo('Benefício pretendido', 'O que o cliente quer pedir. Os próximos passos se adaptam a essa escolha.') +
+        '<div class="procficha-editar-grid"><div><label for="tprev-beneficio">Benefício</label><select id="tprev-beneficio"><option value="">Selecione...</option>' +
+        BENEFICIOS_PREV.map(function (g) {
+          return '<optgroup label="' + esc(g.grupo) + '">' + g.itens.map(function (i) {
+            return '<option value="' + i[0] + '"' + (atual === i[0] ? ' selected' : '') + '>' + esc(i[1]) + '</option>';
+          }).join('') + '</optgroup>';
+        }).join('') + '</select></div>' +
+        '<div><label for="tprev-der">Data de entrada do requerimento (DER)</label><input type="date" id="tprev-der" value="' + esc(String(d.der || '').slice(0, 10)) + '"></div></div>' +
+        '<p class="tprev-vazio" style="margin-top:12px;">Sem a DER, os cálculos usam a data de hoje.</p>';
+    }
+
+    function renderVinculos(d) {
+      conteudo.innerHTML = titulo('Vínculos e contribuições', 'Registre os períodos de trabalho e contribuição (o que consta ou deveria constar no CNIS). O tempo é somado sem contar períodos sobrepostos duas vezes.') +
+        '<div id="tprev-vinculos-lista"></div>';
+      listaVinculos = montarListaPrev(document.getElementById('tprev-vinculos-lista'), SPEC_PREV_VINCULO,
+        (d.vinculos || []).map(function (v) { var o = {}; Object.keys(v).forEach(function (k) { o[k] = k === 'categoria_especial' && v[k] != null ? String(v[k]) : v[k]; }); return o; }),
+        function () { return { tipo: 'empregado' }; }, '+ Adicionar vínculo');
+    }
+
+    function renderSituacao(d) {
+      var familia = _familiaBeneficioPrev(d.beneficio_pretendido);
+      var specs = SPEC_PREV_SITUACAO[familia];
+      conteudo.removeAttribute('data-specs-situacao');
+      if (!d.beneficio_pretendido) {
+        conteudo.innerHTML = titulo('Situação do benefício', 'Escolha o benefício no passo anterior para ver as perguntas específicas.');
+        return;
+      }
+      if (!specs) {
+        conteudo.innerHTML = titulo('Situação do benefício', 'Para ' + (ROTULO_BENEFICIO_PREV[d.beneficio_pretendido] || 'esse benefício') + ' não há perguntas específicas além dos vínculos. Siga em frente.');
+        return;
+      }
+      if (familia === 'bpc' && d.beneficio_pretendido !== 'bpc_deficiencia') specs = specs.filter(function (s) { return s.c !== 'deficiencia_longo_prazo'; });
+      var temPessoas = familia === 'bpc' || familia === 'pensao_morte';
+      var papel = familia === 'bpc' ? 'grupo_familiar' : 'dependente';
+      conteudo.innerHTML = titulo('Situação do benefício', ROTULO_BENEFICIO_PREV[d.beneficio_pretendido] || '') + htmlCamposPrev(specs, d) +
+        (temPessoas ? '<p class="tprev-secao">' + (papel === 'grupo_familiar' ? 'Grupo familiar (quem mora na mesma casa)' : 'Dependentes') + '</p><div id="tprev-pessoas-lista"></div>' : '');
+      wireCamposPrev(specs);
+      listaPessoas = null;
+      if (temPessoas) {
+        listaPessoas = montarListaPrev(document.getElementById('tprev-pessoas-lista'), SPEC_PREV_PESSOA_POR_PAPEL[papel],
+          (d.pessoas || []).filter(function (p) { return p.papel === papel; }),
+          function () { return { parentesco: papel === 'grupo_familiar' ? 'conjuge' : 'filho' }; },
+          papel === 'grupo_familiar' ? '+ Adicionar pessoa' : '+ Adicionar dependente', { papel: papel });
+      }
+      conteudo.setAttribute('data-specs-situacao', specs.map(function (s) { return s.c; }).join(','));
+    }
+
+    function renderRequerimento(d) {
+      conteudo.innerHTML = titulo('Requerimento no INSS', 'Se já houve pedido, os prazos de recurso e a prescrição entram na análise.') + htmlCamposPrev(SPEC_PREV_REQUERIMENTO, d);
+      wireCamposPrev(SPEC_PREV_REQUERIMENTO);
+    }
+
+    function renderAnalise(d) {
+      var statusOpcoes = ['nao_iniciada', 'em_andamento', 'aguardando_documentos', 'aguardando_informacoes', 'concluida'];
+      conteudo.innerHTML = titulo('Diagnóstico e relatório', 'Indícios com base nos dados informados. Quem decide é o advogado.') +
+        _htmlDiagnosticoPrev(d) +
+        '<p class="tprev-secao">Observações do advogado</p>' +
+        '<textarea id="tprev-observacoes" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.observacoes_advogado || '') + '</textarea>' +
+        '<p class="tprev-secao">Andamento da triagem</p>' +
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><select id="tprev-status">' +
+          statusOpcoes.map(function (s) { return '<option value="' + s + '"' + (d.status === s ? ' selected' : '') + '>' + esc(ROTULO_STATUS_PREV[s]) + '</option>'; }).join('') +
+        '</select><button type="button" class="procpage-btn" id="tprev-btn-status">Atualizar status</button></div>';
+      conteudo.querySelectorAll('[data-tprev-ir-passo]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var idx = PASSOS_WIZARD_PREV.indexOf(btn.getAttribute('data-tprev-ir-passo'));
+          if (idx === -1) return;
+          estado.passoIndex = idx;
+          renderPasso(d);
+        });
+      });
+      document.getElementById('tprev-btn-status').addEventListener('click', function () {
+        apiPostJson('/api/painel?acao=triagem_prev_status', { id: estado.triagemId, status: document.getElementById('tprev-status').value })
+          .then(function () { mostrarAviso('Status atualizado.'); })
+          .catch(function (e) { erro(e.message || 'Não foi possível atualizar o status agora.'); });
+      });
+    }
+
+    function renderPasso(d) {
+      d = d || {};
+      renderBarra();
+      var passo = PASSOS_WIZARD_PREV[estado.passoIndex];
+      if (passo === 'cliente') renderCliente();
+      else if (passo === 'segurado') renderSegurado(d);
+      else if (passo === 'beneficio') renderBeneficio(d);
+      else if (passo === 'vinculos') renderVinculos(d);
+      else if (passo === 'situacao') renderSituacao(d);
+      else if (passo === 'requerimento') renderRequerimento(d);
+      else if (passo === 'analise_final') renderAnalise(d);
+    }
+
+    function carregarERenderizar() {
+      if (!estado.triagemId) { renderPasso(null); return; }
+      apiGetJson('/api/painel?acao=triagem_prev_obter&id=' + estado.triagemId)
+        .then(function (r) { renderPasso(r.triagem); })
+        .catch(function () { renderPasso(null); });
+    }
+
+    function salvarEAvancar() {
+      erro('');
+      var passo = PASSOS_WIZARD_PREV[estado.passoIndex];
+      var btn = document.getElementById('tprev-btn-avancar');
+      btn.disabled = true;
+      function falhou(e) { btn.disabled = false; erro((e && e.message) || (typeof e === 'string' ? e : '') || 'Não foi possível salvar agora.'); }
+      function depois() {
+        btn.disabled = false;
+        if (estado.passoIndex < PASSOS_WIZARD_PREV.length - 1) { estado.passoIndex += 1; carregarERenderizar(); }
+        else window.location.href = 'painel-triagem-previdenciaria.html#sec-triagem-previdenciaria';
+      }
+      var proximo = PASSOS_WIZARD_PREV[estado.passoIndex + 1];
+      var pct = estado.passoIndex === PASSOS_WIZARD_PREV.length - 1 ? 100 : Math.round(((estado.passoIndex + 1) / PASSOS_WIZARD_PREV.length) * 100);
+      var meta = { id: estado.triagemId, passo_atual: proximo || 'analise_final', percentual_conclusao: pct };
+
+      if (passo === 'cliente') {
+        salvarCliente().then(function (clienteId) {
+          estado.clienteSelecionadoId = clienteId;
+          if (estado.triagemId) {
+            return apiPostJson('/api/painel?acao=triagem_prev_atualizar', { id: estado.triagemId, cliente_id: clienteId }).then(depois);
+          }
+          return apiPostJson('/api/painel?acao=triagem_prev_criar', { cliente_id: clienteId }).then(function (d) {
+            estado.triagemId = d.id;
+            window.history.replaceState(null, '', 'painel-criar-triagem-previdenciaria.html?id=' + d.id + '#sec-criar-triagem-previdenciaria');
+            apiPostJson('/api/painel?acao=triagem_prev_atualizar', { id: d.id, passo_atual: 'segurado', percentual_conclusao: Math.round((1 / PASSOS_WIZARD_PREV.length) * 100) }).catch(function () {});
+            depois();
+          });
+        }).catch(falhou);
+        return;
+      }
+      if (passo === 'segurado' || passo === 'requerimento') {
+        var corpo = coletarCamposPrev(passo === 'segurado' ? SPEC_PREV_SEGURADO : SPEC_PREV_REQUERIMENTO);
+        Object.keys(meta).forEach(function (k) { corpo[k] = meta[k]; });
+        apiPostJson('/api/painel?acao=triagem_prev_atualizar', corpo).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'beneficio') {
+        var beneficio = document.getElementById('tprev-beneficio').value;
+        if (!beneficio) { falhou('Escolha o benefício pretendido.'); return; }
+        apiPostJson('/api/painel?acao=triagem_prev_atualizar', Object.assign({ beneficio_pretendido: beneficio, der: document.getElementById('tprev-der').value }, meta)).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'vinculos') {
+        var vinculos = listaVinculos ? listaVinculos.coletar() : [];
+        var semData = vinculos.filter(function (v) { return !v.data_inicio; }).length;
+        if (semData) { falhou('Preencha a data de início de todos os vínculos (ou remova a linha vazia).'); return; }
+        var fimAntes = vinculos.filter(function (v) { return v.data_fim && v.data_fim < v.data_inicio; }).length;
+        if (fimAntes) { falhou('Há vínculo com data de fim anterior ao início.'); return; }
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_prev_atualizar', meta),
+          apiPostJson('/api/painel?acao=triagem_prev_vinculos_salvar', { id: estado.triagemId, vinculos: vinculos }),
+        ]).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'situacao') {
+        var campos = (conteudo.getAttribute('data-specs-situacao') || '').split(',').filter(Boolean);
+        var todas = [];
+        Object.keys(SPEC_PREV_SITUACAO).forEach(function (f) { SPEC_PREV_SITUACAO[f].forEach(function (s) { if (campos.indexOf(s.c) !== -1) todas.push(s); }); });
+        var corpoSit = coletarCamposPrev(todas);
+        Object.keys(meta).forEach(function (k) { corpoSit[k] = meta[k]; });
+        var chamadas = [apiPostJson('/api/painel?acao=triagem_prev_atualizar', corpoSit)];
+        if (listaPessoas) chamadas.push(apiPostJson('/api/painel?acao=triagem_prev_pessoas_salvar', { id: estado.triagemId, pessoas: listaPessoas.coletar() }));
+        Promise.all(chamadas).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'analise_final') {
+        apiPostJson('/api/painel?acao=triagem_prev_atualizar', { id: estado.triagemId, passo_atual: 'analise_final', percentual_conclusao: 100, observacoes_advogado: document.getElementById('tprev-observacoes').value })
+          .then(depois).catch(falhou);
+      }
+    }
+
+    document.getElementById('tprev-btn-avancar').addEventListener('click', salvarEAvancar);
+    document.getElementById('tprev-btn-voltar').addEventListener('click', function () {
+      if (estado.passoIndex === 0) return;
+      estado.passoIndex -= 1;
+      carregarERenderizar();
+    });
+    document.getElementById('tprev-passos-barra').addEventListener('click', function (ev) {
+      var marca = ev.target.closest('[data-tprev-passo-idx]');
+      if (!marca) return;
+      var idx = parseInt(marca.getAttribute('data-tprev-passo-idx'), 10);
+      if (idx >= estado.passoIndex) return;
+      estado.passoIndex = idx;
+      carregarERenderizar();
+    });
+
+    var idNaUrl = new URLSearchParams(window.location.search).get('id');
+    if (idNaUrl) {
+      apiGetJson('/api/painel?acao=triagem_prev_obter&id=' + encodeURIComponent(idNaUrl))
+        .then(function (r) {
+          var t = r.triagem;
+          estado.triagemId = t.id;
+          estado.clienteSelecionadoId = t.cliente_id;
+          var idx = PASSOS_WIZARD_PREV.indexOf(t.passo_atual);
+          estado.passoIndex = idx === -1 ? 0 : idx;
+          renderPasso(t);
+        })
+        .catch(function () { erro('Não foi possível carregar essa triagem agora.'); });
+    } else {
+      renderPasso(null);
     }
   }
 
