@@ -1042,6 +1042,8 @@ module.exports = async (req, res) => {
     triagem_prev_excluir: 'Erro de conexao ao excluir a triagem previdenciaria.',
     triagem_prev_vinculos_salvar: 'Erro de conexao ao salvar os vinculos.',
     triagem_prev_pessoas_salvar: 'Erro de conexao ao salvar as pessoas.',
+    triagem_prev_provas_salvar: 'Erro de conexao ao salvar as provas.',
+    triagem_prev_testemunhas_salvar: 'Erro de conexao ao salvar as testemunhas.',
     triagem_prev_converter_processo: 'Erro de conexao ao converter a triagem previdenciaria em processo.',
   };
   if (acoesClientePost[acao]) {

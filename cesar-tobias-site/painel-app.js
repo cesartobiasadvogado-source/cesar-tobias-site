@@ -12894,10 +12894,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   // "Ver passo" salta direto pra ele). Campos simples vem de listas de especificacao (SPEC_PREV_*),
   // que geram o HTML e a coleta -- assim cada pergunta nova e uma linha, nao um bloco de HTML.
   // ---------------------------------------------------------------------------------------
-  var PASSOS_WIZARD_PREV = ['cliente', 'segurado', 'beneficio', 'vinculos', 'situacao', 'requerimento', 'analise_final'];
+  var PASSOS_WIZARD_PREV = ['cliente', 'segurado', 'beneficio', 'vinculos', 'situacao', 'requerimento', 'provas', 'testemunhas', 'analise_final'];
   var ROTULOS_PASSO_WIZARD_PREV = {
     cliente: 'Cliente', segurado: 'Segurado', beneficio: 'Benefício', vinculos: 'Vínculos e contribuições',
-    situacao: 'Situação do benefício', requerimento: 'Requerimento no INSS', analise_final: 'Diagnóstico e relatório',
+    situacao: 'Situação do benefício', requerimento: 'Requerimento no INSS', provas: 'Provas', testemunhas: 'Testemunhas',
+    analise_final: 'Diagnóstico e relatório',
   };
   var BENEFICIOS_PREV = [
     { grupo: 'Aposentadorias', itens: [
@@ -13015,6 +13016,25 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     { c: 'invalido_deficiente', r: 'É inválido ou tem deficiência?', t: 'tri' },
     { c: 'renda_desconsiderada', r: 'Renda desconsiderada por lei (ex.: BPC/aposentadoria de 1 salário de outro idoso)?', t: 'tri' },
   ];
+  var SPEC_PREV_PROVA = [
+    { c: 'categoria', r: 'Documento / prova', t: 'select', op: [['cnis', 'CNIS (extrato de contribuições)'], ['ctps', 'CTPS / carteira de trabalho'], ['ppp_ltcat', 'PPP / LTCAT (atividade especial)'],
+      ['laudo_medico', 'Laudo médico'], ['atestado_exame', 'Atestados e exames'], ['cat', 'CAT (comunicação de acidente)'], ['certidao', 'Certidões (nascimento, casamento, óbito)'],
+      ['prova_uniao', 'Prova da união (documentos, contas, fotos)'], ['cadunico', 'CadÚnico atualizado'], ['comprovante_renda', 'Comprovantes de renda'],
+      ['comprovante_residencia', 'Comprovante de residência'], ['documento_rural', 'Documentos da atividade rural'], ['sentenca_trabalhista', 'Sentença / acordo trabalhista'],
+      ['processo_administrativo', 'Cópia do processo administrativo do INSS'], ['declaracao', 'Declaração (sindicato, empresa, terceiros)'], ['outro', 'Outro documento']] },
+    { c: 'status', r: 'Situação', t: 'select', op: [['a_obter', 'Ainda a obter'], ['disponivel', 'Já temos']] },
+    { c: 'descricao', r: 'Descrição', t: 'texto' },
+    { c: 'fato_relacionado', r: 'O que essa prova demonstra', t: 'texto' },
+  ];
+  var SPEC_PREV_TESTEMUNHA = [
+    { c: 'nome', r: 'Nome', t: 'texto' },
+    { c: 'telefone', r: 'Telefone', t: 'texto' },
+    { c: 'relacao_com_segurado', r: 'Relação com o segurado', t: 'texto' },
+    { c: 'periodo_conhece', r: 'Desde quando / por quanto tempo conhece', t: 'texto' },
+    { c: 'fatos_presenciados', r: 'O que presenciou', t: 'texto' },
+    { c: 'localizavel', r: 'Conseguimos contato com ela?', t: 'tri' },
+  ];
+
   var SPEC_PREV_PESSOA_POR_PAPEL = {
     dependente: SPEC_PREV_PESSOA.filter(function (s) { return s.c !== 'mesmo_teto' && s.c !== 'renda_desconsiderada' && s.c !== 'renda_mensal'; }),
     grupo_familiar: SPEC_PREV_PESSOA.filter(function (s) { return s.c !== 'invalido_deficiente'; }),
@@ -13105,7 +13125,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       else atual.splice(parseInt(rem.getAttribute('data-tprev-remover'), 10), 1);
       desenhar(atual);
     });
-    return { coletar: function () { return coletarListaPrev(wrap, specs, fixos); } };
+    return {
+      coletar: function () { return coletarListaPrev(wrap, specs, fixos); },
+      adicionar: function (item) { var atual = coletarListaPrev(wrap, specs); atual.push(item); desenhar(atual); },
+    };
   }
 
   function _moedaPrev(n) {
@@ -13297,8 +13320,19 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<td>' + esc(v.empregador || '—') + '</td><td>' + esc(fmtDataProcesso(String(v.data_inicio || '').slice(0, 10))) + '</td>' +
         '<td>' + (v.data_fim ? esc(fmtDataProcesso(String(v.data_fim).slice(0, 10))) : 'em andamento') + '</td></tr>';
     }).join('');
+    var rotuloProva = {};
+    SPEC_PREV_PROVA[0].op.forEach(function (o) { rotuloProva[o[0]] = o[1]; });
+    var provas = (t.provas || []).map(function (p) {
+      return '<tr><td>' + esc(rotuloProva[p.categoria] || p.categoria) + '</td><td><span class="chip ' + (p.status === 'disponivel' ? 'good' : 'warn') + '">' +
+        (p.status === 'disponivel' ? 'Já temos' : 'A obter') + '</span></td><td>' + esc(p.descricao || '—') + '</td><td>' + esc(p.fato_relacionado || '—') + '</td></tr>';
+    }).join('');
+    var testemunhas = (t.testemunhas || []).map(function (x) {
+      return '<tr><td>' + esc(x.nome) + '</td><td>' + esc(x.telefone || '—') + '</td><td>' + esc(x.relacao_com_segurado || '—') + '</td><td>' + esc(x.fatos_presenciados || '—') + '</td></tr>';
+    }).join('');
     return '<div class="tprev-resumo">' + cartoes.join('') + '</div>' +
       (vinculos ? '<p class="tprev-secao">Vínculos considerados</p><div class="tprev-tabela-wrap"><table class="tprev-tabela"><thead><tr><th>Tipo</th><th>Empregador / descrição</th><th>Início</th><th>Fim</th></tr></thead><tbody>' + vinculos + '</tbody></table></div>' : '') +
+      (provas ? '<p class="tprev-secao">Provas</p><div class="tprev-tabela-wrap"><table class="tprev-tabela"><thead><tr><th>Documento</th><th>Situação</th><th>Descrição</th><th>Demonstra</th></tr></thead><tbody>' + provas + '</tbody></table></div>' : '') +
+      (testemunhas ? '<p class="tprev-secao">Testemunhas</p><div class="tprev-tabela-wrap"><table class="tprev-tabela"><thead><tr><th>Nome</th><th>Telefone</th><th>Relação</th><th>O que presenciou</th></tr></thead><tbody>' + testemunhas + '</tbody></table></div>' : '') +
       (elegibilidade ? '<p class="tprev-secao">Regras analisadas</p>' + elegibilidade : '') +
       '<p class="tprev-secao">Alertas</p>' + (alertas || '<p class="tprev-vazio">Nenhum alerta identificado até agora.</p>') +
       '<p class="tprev-secao">Pendências</p>' + (pendencias || '<p class="tprev-vazio">Nenhuma pendência. ✅</p>') +
@@ -13310,7 +13344,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     if (!conteudo) return;
     var estado = { triagemId: null, passoIndex: 0, clienteModo: 'existente', clienteSelecionadoId: null };
     var clientesCache = null;
-    var listaVinculos = null, listaPessoas = null;
+    var listaVinculos = null, listaPessoas = null, listaProvas = null, listaTestemunhas = null;
 
     function erro(msg) { document.getElementById('tprev-wizard-erro').innerHTML = msg ? '<div class="aviso-tenant">' + esc(msg) + '</div>' : ''; }
 
@@ -13436,6 +13470,33 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       conteudo.setAttribute('data-specs-situacao', specs.map(function (s) { return s.c; }).join(','));
     }
 
+    function renderProvas(d) {
+      var sugeridas = d.provas_sugeridas || [];
+      conteudo.innerHTML = titulo('Provas', 'Documentos que o cliente já tem e os que ainda precisam ser obtidos. Eles entram no relatório e geram alertas de pendência.') +
+        (sugeridas.length ? '<p class="tprev-secao" style="margin-top:0;">Sugeridas para ' + esc(ROTULO_BENEFICIO_PREV[d.beneficio_pretendido] || 'este benefício') + '</p><div class="tprev-sugestoes">' +
+          sugeridas.map(function (p) {
+            return '<button type="button" class="procpage-btn" data-tprev-sugestao="' + esc(p.categoria) + '"' + (p.status ? ' disabled' : '') + '>' +
+              (p.status === 'disponivel' ? '✓ ' : (p.status ? '… ' : '+ ')) + esc(p.rotulo) + '</button>';
+          }).join('') + '</div>' : '') +
+        '<div id="tprev-provas-lista" style="margin-top:14px;"></div>';
+      listaProvas = montarListaPrev(document.getElementById('tprev-provas-lista'), SPEC_PREV_PROVA, d.provas || [],
+        function () { return { categoria: 'outro', status: 'a_obter' }; }, '+ Adicionar prova');
+      conteudo.querySelectorAll('[data-tprev-sugestao]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          listaProvas.adicionar({ categoria: btn.getAttribute('data-tprev-sugestao'), status: 'a_obter' });
+          btn.disabled = true;
+          btn.textContent = '… ' + btn.textContent.replace(/^\+ /, '');
+        });
+      });
+    }
+
+    function renderTestemunhas(d) {
+      conteudo.innerHTML = titulo('Testemunhas', 'Pessoas que podem confirmar tempo de trabalho, atividade rural, união estável ou a rotina do segurado.') +
+        '<div id="tprev-testemunhas-lista"></div>';
+      listaTestemunhas = montarListaPrev(document.getElementById('tprev-testemunhas-lista'), SPEC_PREV_TESTEMUNHA, d.testemunhas || [],
+        function () { return {}; }, '+ Adicionar testemunha');
+    }
+
     function renderRequerimento(d) {
       conteudo.innerHTML = titulo('Requerimento no INSS', 'Se já houve pedido, os prazos de recurso e a prescrição entram na análise.') + htmlCamposPrev(SPEC_PREV_REQUERIMENTO, d);
       wireCamposPrev(SPEC_PREV_REQUERIMENTO);
@@ -13499,6 +13560,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       else if (passo === 'vinculos') renderVinculos(d);
       else if (passo === 'situacao') renderSituacao(d);
       else if (passo === 'requerimento') renderRequerimento(d);
+      else if (passo === 'provas') renderProvas(d);
+      else if (passo === 'testemunhas') renderTestemunhas(d);
       else if (passo === 'analise_final') renderAnalise(d);
     }
 
@@ -13560,6 +13623,22 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         Promise.all([
           apiPostJson('/api/painel?acao=triagem_prev_atualizar', meta),
           apiPostJson('/api/painel?acao=triagem_prev_vinculos_salvar', { id: estado.triagemId, vinculos: vinculos }),
+        ]).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'provas') {
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_prev_atualizar', meta),
+          apiPostJson('/api/painel?acao=triagem_prev_provas_salvar', { id: estado.triagemId, provas: listaProvas ? listaProvas.coletar() : [] }),
+        ]).then(depois).catch(falhou);
+        return;
+      }
+      if (passo === 'testemunhas') {
+        var testemunhas = listaTestemunhas ? listaTestemunhas.coletar() : [];
+        if (testemunhas.some(function (x) { return !x.nome; })) { falhou('Preencha o nome de todas as testemunhas (ou remova a linha vazia).'); return; }
+        Promise.all([
+          apiPostJson('/api/painel?acao=triagem_prev_atualizar', meta),
+          apiPostJson('/api/painel?acao=triagem_prev_testemunhas_salvar', { id: estado.triagemId, testemunhas: testemunhas }),
         ]).then(depois).catch(falhou);
         return;
       }

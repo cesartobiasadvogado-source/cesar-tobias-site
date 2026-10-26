@@ -31,7 +31,7 @@ test('proxy: leituras e escritas da triagem previdenciaria, cada uma no seu bloc
 
 test('passos do wizard coincidem com PASSOS_TRIAGEM do backend', () => {
   const passos = trecho(fonte, 'var PASSOS_WIZARD_PREV = [', '];');
-  assert.equal(passos.replace(/[^a-z_,]/g, ''), 'varPASSOS_WIZARD_PREV=' .replace(/[^a-z_,]/g, '') + 'cliente,segurado,beneficio,vinculos,situacao,requerimento,analise_final'.replace(/[^a-z_,]/g, ''));
+  assert.equal(passos.replace(/[^a-z_,]/g, ''), 'varPASSOS_WIZARD_PREV=' .replace(/[^a-z_,]/g, '') + 'cliente,segurado,beneficio,vinculos,situacao,requerimento,provas,testemunhas,analise_final'.replace(/[^a-z_,]/g, ''));
 });
 
 test('toda pagina com o menu da Triagem Trabalhista tem o da Previdenciaria, e as paginas novas existem', () => {
@@ -119,7 +119,8 @@ test('filtros da lista: arquivadas, status, beneficio e busca por cliente', () =
 test('o diagnostico escapa o texto vindo do servidor', () => {
   const codigo = trecho(fonte, '  function _htmlDiagnosticoPrev', '  function wireTriagemPrevWizard');
   const SPEC_PREV_VINCULO = [{ op: [['empregado', 'Empregado (CLT)']] }];
-  const gerar = new Function('esc', 'fmtDataProcesso', '_moedaPrev', 'SPEC_PREV_VINCULO', codigo + '; return _htmlDiagnosticoPrev;')(esc, (d) => d, (n) => 'R$ ' + n, SPEC_PREV_VINCULO);
+  const SPEC_PREV_PROVA = [{ op: [['cnis', 'CNIS']] }];
+  const gerar = new Function('esc', 'fmtDataProcesso', '_moedaPrev', 'SPEC_PREV_VINCULO', 'SPEC_PREV_PROVA', codigo + '; return _htmlDiagnosticoPrev;')(esc, (d) => d, (n) => 'R$ ' + n, SPEC_PREV_VINCULO, SPEC_PREV_PROVA);
   const html = gerar({
     alertas: [{ severidade: 'critico', mensagem: '<img src=x onerror=alert(1)>', passo: 'vinculos' }],
     pendencias: [{ mensagem: '<b>x</b>', passo: 'segurado' }],
@@ -159,4 +160,40 @@ test('botao de converter so aparece com beneficio escolhido e triagem ainda nao 
   const trecho1 = trecho(fonte.replace(/\r\n/g, '\n'), 'var podeConverter = ', ';\n');
   assert(trecho1.includes('!d.convertido_processo_id') && trecho1.includes('!!d.beneficio_pretendido'));
   assert(fonte.includes("t.convertido_processo_id || !t.beneficio_pretendido ? '' : '<button type=\"button\" data-tprev-converter="));
+});
+
+test('fase 2b: provas e testemunhas (proxy, passos, categorias alinhadas ao backend)', () => {
+  for (const a of ['provas_salvar', 'testemunhas_salvar']) {
+    assert(proxy.includes('triagem_prev_' + a + ':'), a);
+    assert(fonte.includes("'/api/painel?acao=triagem_prev_" + a + "'"), a);
+  }
+  const specProva = trecho(fonte, 'var SPEC_PREV_PROVA = [', 'var SPEC_PREV_TESTEMUNHA');
+  const categorias = Array.from(specProva.matchAll(/\['([a-z_]+)', '[^']+'\]/g)).map((m) => m[1]).filter((c) => c !== 'a_obter' && c !== 'disponivel');
+  const backend = ['cnis', 'ctps', 'ppp_ltcat', 'laudo_medico', 'atestado_exame', 'cat', 'certidao', 'prova_uniao', 'cadunico', 'comprovante_renda',
+    'comprovante_residencia', 'documento_rural', 'sentenca_trabalhista', 'processo_administrativo', 'declaracao', 'outro'];
+  assert.deepEqual(categorias.slice().sort(), backend.slice().sort());
+  assert(specProva.includes("['a_obter', 'Ainda a obter']") && specProva.includes("['disponivel', 'Já temos']"));
+  assert(fonte.includes('function renderProvas(d)') && fonte.includes('function renderTestemunhas(d)'));
+  assert(fonte.includes("else if (passo === 'provas') renderProvas(d);") && fonte.includes("else if (passo === 'testemunhas') renderTestemunhas(d);"));
+});
+
+test('testemunha sem nome bloqueia o avanco; provas e testemunhas salvam junto com o passo', () => {
+  const fonteLf = fonte.split('\r\n').join('\n');
+  const blocoTest = trecho(fonteLf, "if (passo === 'testemunhas') {", "if (passo === 'situacao') {");
+  assert(blocoTest.includes("!x.nome") && blocoTest.includes('falhou('));
+  assert(blocoTest.includes("triagem_prev_atualizar', meta") && blocoTest.includes('triagem_prev_testemunhas_salvar'));
+  assert(trecho(fonteLf, "if (passo === 'provas') {", "if (passo === 'testemunhas') {").includes('triagem_prev_provas_salvar'));
+});
+
+test('diagnostico lista provas e testemunhas com texto escapado', () => {
+  const codigo = trecho(fonte, '  function _htmlDiagnosticoPrev', '  function wireTriagemPrevWizard');
+  const SPEC_PREV_VINCULO = [{ op: [['empregado', 'Empregado (CLT)']] }];
+  const SPEC_PREV_PROVA = [{ op: [['cnis', 'CNIS (extrato de contribuições)'], ['outro', 'Outro documento']] }];
+  const gerar = new Function('esc', 'fmtDataProcesso', '_moedaPrev', 'SPEC_PREV_VINCULO', 'SPEC_PREV_PROVA', codigo + '; return _htmlDiagnosticoPrev;')(esc, (d) => d, (n) => 'R$ ' + n, SPEC_PREV_VINCULO, SPEC_PREV_PROVA);
+  const html = gerar({ alertas: [], pendencias: [], elegibilidade: [], resumo: {},
+    provas: [{ categoria: 'cnis', status: 'disponivel', descricao: '<b>x</b>' }, { categoria: 'outro', status: 'a_obter' }],
+    testemunhas: [{ nome: '<i>Ana</i>', telefone: '9999', fatos_presenciados: '<script>1</script>' }] });
+  assert(!/<b>|<i>|<script>/.test(html));
+  assert(html.includes('CNIS (extrato de contribuições)') && html.includes('Já temos') && html.includes('A obter') && html.includes('Testemunhas'));
+  assert(!gerar({ alertas: [], pendencias: [], elegibilidade: [], resumo: {} }).includes('Provas'));
 });

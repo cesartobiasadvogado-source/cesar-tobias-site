@@ -1327,3 +1327,5 @@
   @media (max-width: 640px) {
     .conteudo-card-topo { flex-direction: column; gap: 6px; }
   }
+.tprev-sugestoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.tprev-sugestoes button:disabled { opacity: .65; cursor: default; }
