@@ -398,6 +398,44 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'conteudo_listar') {
+    var qsConteudo = '';
+    ['status', 'limite', 'ordem'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsConteudo += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(base + '?action=conteudo_listar' + qsConteudo + '&token=' + encodeURIComponent(tokenSessao) + segredoQS);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao listar os conteudos.' });
+    }
+    return;
+  }
+
+  var acoesConteudoPost = {
+    conteudo_criar: 'Erro de conexao ao salvar o conteudo.',
+    conteudo_atualizar: 'Erro de conexao ao atualizar o conteudo.',
+    conteudo_excluir: 'Erro de conexao ao excluir o conteudo.',
+  };
+  if (acoesConteudoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessao) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesConteudoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'compromisso_listar') {
     var qsCompromisso = '';
     ['data_de', 'data_ate', 'tipo', 'responsavel', 'vinculo'].forEach(function (campo) {

@@ -71,6 +71,7 @@
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
     triagem_trabalhista: 'Triagem Trabalhista', criar_triagem: 'Nova Triagem Trabalhista',
+    conteudo: 'Conteúdo',
     triagem_previdenciaria: 'Triagem Previdenciária', criar_triagem_prev: 'Nova Triagem Previdenciária',
   };
 
@@ -3742,6 +3743,26 @@
         '</div>' +
       '</section>';
 
+    var htmlConteudo = perms.indexOf('marketing') === -1 ? '' :
+      '<section id="sec-conteudo">' +
+        '<div class="procpage-dark">' +
+          '<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px;">' +
+            '<div>' +
+              '<h2 class="procpage-titulo" style="margin:0;">Conteúdo</h2>' +
+              '<p style="margin:4px 0 0; font-size:12.5px; color:var(--ink-faint);">Roteiros de vídeo e posts do escritório, do roteiro até a postagem.</p>' +
+            '</div>' +
+            '<button type="button" class="procpage-btn procpage-btn-primary" id="conteudo-btn-novo">+ Novo conteúdo</button>' +
+          '</div>' +
+          '<div class="subtabs" role="tablist" style="margin-bottom:16px; flex-wrap:wrap;">' +
+            '<button type="button" class="subtab-btn ativo" data-conteudo-aba="para_gravar">Para gravar <span class="conteudo-contador" data-conteudo-contador="para_gravar"></span></button>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="agenda">Agenda de postagem <span class="conteudo-contador" data-conteudo-contador="agenda"></span></button>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="ideias">Ideias <span class="conteudo-contador" data-conteudo-contador="ideias"></span></button>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="concluidos">Concluídos <span class="conteudo-contador" data-conteudo-contador="concluidos"></span></button>' +
+          '</div>' +
+          '<div id="conteudo-lista"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
+        '</div>' +
+      '</section>';
+
     var htmlCobrancaAvulsa = perms.indexOf('financeiro') === -1 ? '' :
       '<section id="sec-cobranca-avulsa"><p class="section-label">Cobrança avulsa</p>' +
         '<div class="panel">' +
@@ -4028,6 +4049,7 @@
             '<label><input type="checkbox" data-permissao="automacoes"> Automações</label>' +
             '<label><input type="checkbox" data-permissao="padrao_operacional"> Padrão Operacional</label>' +
             '<label><input type="checkbox" data-permissao="audiencias"> Audiências</label>' +
+            '<label><input type="checkbox" data-permissao="marketing"> Conteúdo (marketing)</label>' +
             '<label class="admin-permissao-admin"><input type="checkbox" id="admin-eh-admin"> Administrador (acesso total + gerencia usuários)</label>' +
           '</div>' +
           '<div style="padding:0 20px 16px;"><button id="admin-btn-criar">Adicionar usuário</button></div>' +
@@ -5057,6 +5079,7 @@
       criar_triagem: htmlCriarTriagem,
       triagem_previdenciaria: htmlTriagemPrevDashboard,
       criar_triagem_prev: htmlCriarTriagemPrev,
+      conteudo: htmlConteudo,
     };
     var MAPA_PERMISSAO_POR_PAGINA = {
       financeiro_antigo: 'financeiro', financeiro_novo: 'financeiro', pje: 'pje', clientes: 'clientes', ficha_processos: 'processos',
@@ -5066,6 +5089,7 @@
       audiencias: 'audiencias', admin: null, configuracoes: null,
       triagem_trabalhista: 'processos', criar_triagem: 'processos',
       triagem_previdenciaria: 'processos', criar_triagem_prev: 'processos',
+      conteudo: 'marketing',
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
     var temAcessoPagina = (PAGINA_ATUAL === 'admin' || PAGINA_ATUAL === 'configuracoes')
@@ -5126,6 +5150,7 @@
     if (PAGINA_ATUAL === 'automacoes_gerais') { wireAutomacoes(); }
     if (PAGINA_ATUAL === 'procuracao_contrato') { wireAutomacoes(); wireContrato(); wireAssinaturaDireta(); }
     if (PAGINA_ATUAL === 'tarefas') { wireListaTarefas(); }
+    if (PAGINA_ATUAL === 'conteudo') { wireConteudo(); }
     if (PAGINA_ATUAL === 'agenda_completa') { wireAgendaCompleta(); }
     if (PAGINA_ATUAL === 'financeiro_antigo') { wireCobranca(); wireOlhinhos(dados); wireNotificacaoExtrajudicial(); wireVisaoFinanceira(); wireDevedoresMes(); carregarListaClientesFinanceiro(); wireFormExito(); }
     if (PAGINA_ATUAL === 'financeiro_novo') {
@@ -6041,6 +6066,11 @@
     document.getElementById('sidebar-rodape-usuario').textContent = nomeUsuario || '—';
 
     var perms = dados.usuario_permissoes || [];
+    // titulos de grupo do menu que dependem de uma permissao (hoje so "Marketing") somem junto
+    // com o item -- os demais grupos continuam como sempre foram.
+    document.querySelectorAll('.nav-label[data-secao-grupo]').forEach(function (el) {
+      el.classList.toggle('hidden', perms.indexOf(el.getAttribute('data-secao-grupo')) === -1);
+    });
     var itensNav = document.querySelectorAll('.nav-item[href]');
     var arquivoAtual = (window.location.pathname.split('/').pop() || 'painel.html');
     itensNav.forEach(function (item) {
@@ -9090,6 +9120,339 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     });
     document.getElementById('tarefas-btn-adicionar').addEventListener('click', abrirNovaTarefa);
     carregar();
+  }
+
+  // ---- Conteúdo (marketing do escritório) ---------------------------------------------------
+  // Roteiros de vídeo/post no ciclo ideia -> para gravar -> gravado -> agendado -> postado.
+  // So organiza e acompanha status: nao sobe video nem publica em rede social nenhuma.
+  var ROTULO_FORMATO_CONTEUDO = {
+    fala_camera: 'Fala para a câmera', tela: 'Tela', bastidor: 'Bastidor',
+    carrossel: 'Carrossel', story: 'Story', outro: 'Outro',
+  };
+  var ROTULO_REDE_CONTEUDO = {
+    instagram: 'Instagram', tiktok: 'TikTok', stories: 'Stories',
+    youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp',
+  };
+  var ROTULO_STATUS_CONTEUDO = {
+    ideia: ['neutral', 'Ideia'], para_gravar: ['warn', 'Para gravar'], gravado: ['neutral', 'Gravado'],
+    agendado: ['good', 'Agendado'], postado: ['good', 'Postado'],
+  };
+  var ESTILO_CAMPO_CONTEUDO = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);margin-bottom:14px;';
+
+  function _horaConteudo(c) {
+    return c.hora_postagem ? String(c.hora_postagem).slice(0, 5) : '';
+  }
+
+  // Texto da linha de data do cartão, de acordo com a fase em que o conteúdo está.
+  function _textoDataConteudo(c) {
+    if (c.status === 'para_gravar') return c.data_gravar ? 'Gravar em ' + fmtDataProcesso(c.data_gravar) : 'Sem data para gravar';
+    if (c.status === 'ideia') return '';
+    if (c.status === 'gravado' && !c.data_postagem) return 'Gravado, falta agendar a postagem';
+    if (!c.data_postagem) return '';
+    var hora = _horaConteudo(c);
+    return (c.status === 'postado' ? 'Postado/previsto em ' : 'Postar em ') + fmtDataProcesso(c.data_postagem) + (hora ? ' às ' + hora : '');
+  }
+
+  function _htmlCartaoConteudo(c) {
+    var par = ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
+    var redes = (c.redes || []).map(function (r) {
+      return '<span class="chip neutral">' + esc(ROTULO_REDE_CONTEUDO[r] || r) + '</span>';
+    }).join('');
+    var dataTxt = _textoDataConteudo(c);
+    var botoes = '';
+    var id = esc(String(c.id));
+    function botao(acao, rotulo, classe) {
+      return '<button type="button" class="' + classe + '" data-conteudo-acao="' + acao + '" data-conteudo-id="' + id + '">' + rotulo + '</button> ';
+    }
+    if (c.status === 'ideia') botoes += botao('para_gravar', 'Virar roteiro', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'para_gravar') botoes += botao('gravei', 'Gravei', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'gravado') botoes += botao('agendar', 'Agendar', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'agendado') botoes += botao('postei', 'Postei', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'postado') botoes += botao('voltar_agenda', 'Voltar para a agenda', 'btn-conexao-secundario');
+    botoes += botao('editar', 'Editar', 'btn-conexao-secundario') + botao('excluir', 'Excluir', 'btn-remover');
+
+    return '<div class="conteudo-card">' +
+      '<div class="conteudo-card-topo">' +
+        '<div class="conteudo-card-titulo">' + esc(c.titulo) + '</div>' +
+        '<span class="chip ' + par[0] + '">' + par[1] + '</span>' +
+      '</div>' +
+      '<div class="conteudo-card-meta">' +
+        '<span class="chip neutral">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + '</span>' + redes +
+        (dataTxt ? '<span class="conteudo-card-data">' + esc(dataTxt) + '</span>' : '') +
+      '</div>' +
+      (c.roteiro ? '<details class="conteudo-roteiro"><summary>Ver roteiro</summary><div class="conteudo-roteiro-texto">' + esc(c.roteiro) + '</div></details>' : '') +
+      (c.observacao ? '<div class="conteudo-card-obs">' + esc(c.observacao) + '</div>' : '') +
+      '<div class="conteudo-card-acoes">' + botoes + '</div>' +
+    '</div>';
+  }
+
+  function _htmlGrupoConteudo(titulo, lista) {
+    if (!lista.length) return '';
+    return '<div class="conteudo-grupo">' +
+      '<h3 class="conteudo-grupo-titulo">' + esc(titulo) + ' <span class="conteudo-contador">' + lista.length + '</span></h3>' +
+      lista.map(_htmlCartaoConteudo).join('') +
+    '</div>';
+  }
+
+  // Separa uma lista em Atrasados / Hoje / Próximos dias / Sem data, olhando o campo de data
+  // informado (data_gravar na aba "Para gravar", data_postagem na agenda). `hoje` e 'AAAA-MM-DD'
+  // do relogio local, entao a comparacao de texto equivale a comparacao de datas.
+  function _agruparPorDataConteudo(lista, campo, hoje, rotuloHoje) {
+    var grupos = { atrasados: [], hoje: [], proximos: [], semData: [] };
+    lista.forEach(function (c) {
+      var d = c[campo];
+      if (!d) grupos.semData.push(c);
+      else if (d < hoje) grupos.atrasados.push(c);
+      else if (d === hoje) grupos.hoje.push(c);
+      else grupos.proximos.push(c);
+    });
+    return _htmlGrupoConteudo('Atrasados', grupos.atrasados) +
+      _htmlGrupoConteudo(rotuloHoje, grupos.hoje) +
+      _htmlGrupoConteudo('Próximos dias', grupos.proximos) +
+      _htmlGrupoConteudo('Sem data', grupos.semData);
+  }
+
+  function wireConteudo() {
+    var abaAtual = 'para_gravar';
+    var ativos = [];
+    var concluidos = [];
+    var listaEl = document.getElementById('conteudo-lista');
+    var LIMITE_CONCLUIDOS = 100;
+
+    function mensagemVazia(texto) {
+      return '<div class="empty-state"><div class="msg" style="color:var(--ink-faint);">' + texto + '</div></div>';
+    }
+
+    function dosStatus() {
+      var statuses = Array.prototype.slice.call(arguments);
+      return ativos.filter(function (c) { return statuses.indexOf(c.status) !== -1; });
+    }
+
+    function atualizarContadores() {
+      var valores = {
+        para_gravar: dosStatus('para_gravar').length,
+        agenda: dosStatus('gravado', 'agendado').length,
+        ideias: dosStatus('ideia').length,
+        concluidos: concluidos.length >= LIMITE_CONCLUIDOS ? LIMITE_CONCLUIDOS + '+' : concluidos.length,
+      };
+      document.querySelectorAll('[data-conteudo-contador]').forEach(function (el) {
+        el.textContent = valores[el.getAttribute('data-conteudo-contador')];
+      });
+    }
+
+    function render() {
+      atualizarContadores();
+      var hoje = _fmtISOData(new Date());
+      var html = '';
+      if (abaAtual === 'para_gravar') {
+        var paraGravar = dosStatus('para_gravar');
+        html = paraGravar.length ? _agruparPorDataConteudo(paraGravar, 'data_gravar', hoje, 'Gravar hoje')
+          : mensagemVazia('Nada para gravar agora. Use “+ Novo conteúdo” para cadastrar um roteiro.');
+      } else if (abaAtual === 'agenda') {
+        var gravados = dosStatus('gravado');
+        var agendados = dosStatus('agendado');
+        html = _htmlGrupoConteudo('Gravados, falta agendar', gravados) +
+          _agruparPorDataConteudo(agendados, 'data_postagem', hoje, 'Postar hoje');
+        if (!html) html = mensagemVazia('Nenhuma postagem na agenda. Quando você marcar “Gravei”, o conteúdo aparece aqui para agendar.');
+      } else if (abaAtual === 'ideias') {
+        var ideias = dosStatus('ideia');
+        html = ideias.length ? ideias.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhuma ideia guardada. Cadastre um conteúdo com o status “Ideia”.');
+      } else {
+        html = concluidos.length ? concluidos.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhum conteúdo concluído ainda.');
+      }
+      listaEl.innerHTML = html;
+    }
+
+    function carregar() {
+      listaEl.innerHTML = mensagemVazia('Carregando…');
+      Promise.all([
+        apiGetJson('/api/painel?acao=conteudo_listar&status=ideia,para_gravar,gravado,agendado'),
+        apiGetJson('/api/painel?acao=conteudo_listar&status=postado&ordem=desc&limite=' + LIMITE_CONCLUIDOS),
+      ]).then(function (r) {
+        ativos = r[0].conteudos || [];
+        concluidos = r[1].conteudos || [];
+        render();
+      }).catch(function () {
+        listaEl.innerHTML = mensagemVazia('Não foi possível carregar os conteúdos agora.');
+      });
+    }
+
+    function acharConteudo(id) {
+      return ativos.concat(concluidos).filter(function (c) { return String(c.id) === String(id); })[0];
+    }
+
+    function mudarStatus(c, status, botao) {
+      if (botao) botao.disabled = true;
+      apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, status: status })
+        .then(carregar)
+        .catch(function (e) {
+          if (botao) botao.disabled = false;
+          mostrarAviso(e.message || 'Não foi possível atualizar o conteúdo agora.');
+        });
+    }
+
+    listaEl.addEventListener('click', function (ev) {
+      var botao = ev.target.closest ? ev.target.closest('[data-conteudo-acao]') : null;
+      if (!botao) return;
+      var c = acharConteudo(botao.getAttribute('data-conteudo-id'));
+      if (!c) return;
+      var acao = botao.getAttribute('data-conteudo-acao');
+      if (acao === 'para_gravar') mudarStatus(c, 'para_gravar', botao);
+      else if (acao === 'gravei') mudarStatus(c, 'gravado', botao);
+      else if (acao === 'postei') mudarStatus(c, 'postado', botao);
+      else if (acao === 'voltar_agenda') mudarStatus(c, 'agendado', botao);
+      else if (acao === 'agendar') abrirModalConteudo(c, carregar, { status: 'agendado', foco: 'conteudo-form-data-postagem' });
+      else if (acao === 'editar') abrirModalConteudo(c, carregar);
+      else if (acao === 'excluir') {
+        confirmarModal('Excluir este conteúdo?').then(function (ok) {
+          if (!ok) return;
+          apiPostJson('/api/painel?acao=conteudo_excluir', { id: c.id })
+            .then(carregar)
+            .catch(function (e) { mostrarAviso(e.message || 'Não foi possível excluir o conteúdo agora.'); });
+        });
+      }
+    });
+
+    document.querySelectorAll('[data-conteudo-aba]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        abaAtual = btn.getAttribute('data-conteudo-aba');
+        document.querySelectorAll('[data-conteudo-aba]').forEach(function (b) { b.classList.toggle('ativo', b === btn); });
+        render();
+      });
+    });
+
+    document.getElementById('conteudo-btn-novo').addEventListener('click', function () {
+      // abre ja no status da aba em que a pessoa esta, pra "+ Novo" em Ideias nao cair em "Para gravar"
+      var statusDaAba = { para_gravar: 'para_gravar', agenda: 'gravado', ideias: 'ideia', concluidos: 'postado' }[abaAtual];
+      abrirModalConteudo(null, carregar, { status: statusDaAba });
+    });
+
+    carregar();
+  }
+
+  function _garantirModalConteudo() {
+    if (document.getElementById('modal-conteudo')) return;
+    var div = document.createElement('div');
+    var redes = Object.keys(ROTULO_REDE_CONTEUDO).map(function (r) {
+      return '<label class="conteudo-rede-opcao"><input type="checkbox" data-conteudo-rede="' + r + '"> ' + esc(ROTULO_REDE_CONTEUDO[r]) + '</label>';
+    }).join('');
+    var formatos = Object.keys(ROTULO_FORMATO_CONTEUDO).map(function (f) {
+      return '<option value="' + f + '">' + esc(ROTULO_FORMATO_CONTEUDO[f]) + '</option>';
+    }).join('');
+    div.innerHTML =
+      '<div id="modal-conteudo" class="modal-overlay hidden">' +
+        '<div class="modal-drill-caixa" style="max-width:520px;">' +
+          '<div class="modal-drill-cabecalho">' +
+            '<span class="modal-drill-titulo" id="conteudo-modal-titulo">Novo conteúdo</span>' +
+            '<button type="button" class="modal-drill-fechar" id="conteudo-modal-fechar" aria-label="Fechar">✕</button>' +
+          '</div>' +
+          '<div style="padding:18px 20px; max-height:70vh; overflow-y:auto;">' +
+            '<div id="conteudo-form-erro"></div>' +
+            '<label>Título</label>' +
+            '<input type="text" id="conteudo-form-titulo" maxlength="200" style="' + ESTILO_CAMPO_CONTEUDO + '">' +
+            '<label>Roteiro</label>' +
+            '<textarea id="conteudo-form-roteiro" rows="6" style="' + ESTILO_CAMPO_CONTEUDO + 'resize:vertical;"></textarea>' +
+            '<div style="display:flex; gap:10px;">' +
+              '<div style="flex:1;"><label>Formato</label><select id="conteudo-form-formato" style="' + ESTILO_CAMPO_CONTEUDO + '">' + formatos + '</select></div>' +
+              '<div style="flex:1;"><label>Status</label><select id="conteudo-form-status" style="' + ESTILO_CAMPO_CONTEUDO + '">' +
+                '<option value="ideia">Ideia</option><option value="para_gravar">Para gravar</option><option value="gravado">Gravado</option>' +
+                '<option value="agendado">Agendado</option><option value="postado">Postado</option>' +
+              '</select></div>' +
+            '</div>' +
+            '<label>Redes</label>' +
+            '<div class="conteudo-redes">' + redes + '</div>' +
+            '<div style="display:flex; gap:10px;">' +
+              '<div style="flex:1;"><label>Gravar em</label><input type="date" id="conteudo-form-data-gravar" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
+              '<div style="flex:1;"><label>Postar em</label><input type="date" id="conteudo-form-data-postagem" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
+              '<div style="width:110px;"><label>Hora</label><input type="time" id="conteudo-form-hora-postagem" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
+            '</div>' +
+            '<label>Observação</label>' +
+            '<textarea id="conteudo-form-observacao" rows="2" style="' + ESTILO_CAMPO_CONTEUDO + 'resize:vertical;margin-bottom:18px;"></textarea>' +
+            '<div style="display:flex; gap:8px; justify-content:flex-end;">' +
+              '<button type="button" id="conteudo-btn-cancelar" style="padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface-sunken);color:var(--ink-soft);font-size:13px;cursor:pointer;">Cancelar</button>' +
+              '<button type="button" id="conteudo-btn-salvar" style="padding:9px 16px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;">Salvar</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(div.firstChild);
+
+    var overlay = document.getElementById('modal-conteudo');
+    var emEdicao = null;
+    var callbackSalvo = null;
+
+    function fechar() { overlay.classList.add('hidden'); }
+    document.getElementById('conteudo-modal-fechar').addEventListener('click', fechar);
+    document.getElementById('conteudo-btn-cancelar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) fechar(); });
+    _abrirCalendarioAoClicar('conteudo-form-data-gravar');
+    _abrirCalendarioAoClicar('conteudo-form-data-postagem');
+
+    document.getElementById('conteudo-btn-salvar').addEventListener('click', function () {
+      var btn = this;
+      var erroDiv = document.getElementById('conteudo-form-erro');
+      erroDiv.innerHTML = '';
+      var corpo = {
+        titulo: document.getElementById('conteudo-form-titulo').value.trim(),
+        roteiro: document.getElementById('conteudo-form-roteiro').value.trim(),
+        formato: document.getElementById('conteudo-form-formato').value,
+        status: document.getElementById('conteudo-form-status').value,
+        redes: Array.prototype.slice.call(overlay.querySelectorAll('[data-conteudo-rede]'))
+          .filter(function (el) { return el.checked; })
+          .map(function (el) { return el.getAttribute('data-conteudo-rede'); }),
+        data_gravar: document.getElementById('conteudo-form-data-gravar').value,
+        data_postagem: document.getElementById('conteudo-form-data-postagem').value,
+        hora_postagem: document.getElementById('conteudo-form-hora-postagem').value,
+        observacao: document.getElementById('conteudo-form-observacao').value.trim(),
+      };
+      var problema = null;
+      if (!corpo.titulo) problema = 'Preencha o título.';
+      else if (corpo.status === 'agendado' && !corpo.data_postagem) problema = 'Informe o dia da postagem para deixar o conteúdo agendado.';
+      else if (corpo.hora_postagem && !corpo.data_postagem) problema = 'Informe o dia da postagem junto com a hora.';
+      if (problema) {
+        erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(problema) + '</div>';
+        return;
+      }
+      var acao = 'conteudo_criar';
+      if (emEdicao) { corpo.id = emEdicao.id; acao = 'conteudo_atualizar'; }
+      btn.disabled = true; btn.textContent = 'Salvando...';
+      apiPostJson('/api/painel?acao=' + acao, corpo)
+        .then(function () {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          fechar();
+          if (callbackSalvo) callbackSalvo();
+        })
+        .catch(function (e) {
+          btn.disabled = false; btn.textContent = 'Salvar';
+          erroDiv.innerHTML = '<div class="aviso-tenant">' + esc(e.message || 'Não foi possível salvar o conteúdo agora.') + '</div>';
+        });
+    });
+
+    overlay._abrir = function (c, onSalvo, opcoes) {
+      opcoes = opcoes || {};
+      emEdicao = c || null;
+      callbackSalvo = onSalvo || null;
+      document.getElementById('conteudo-modal-titulo').textContent = c ? 'Editar conteúdo' : 'Novo conteúdo';
+      document.getElementById('conteudo-form-erro').innerHTML = '';
+      document.getElementById('conteudo-form-titulo').value = c ? c.titulo : '';
+      document.getElementById('conteudo-form-roteiro').value = c ? (c.roteiro || '') : '';
+      document.getElementById('conteudo-form-formato').value = c ? c.formato : 'fala_camera';
+      document.getElementById('conteudo-form-status').value = opcoes.status || (c ? c.status : 'para_gravar');
+      overlay.querySelectorAll('[data-conteudo-rede]').forEach(function (el) {
+        el.checked = !!(c && (c.redes || []).indexOf(el.getAttribute('data-conteudo-rede')) !== -1);
+      });
+      document.getElementById('conteudo-form-data-gravar').value = c ? (c.data_gravar || '') : '';
+      document.getElementById('conteudo-form-data-postagem').value = c ? (c.data_postagem || '') : '';
+      document.getElementById('conteudo-form-hora-postagem').value = c ? _horaConteudo(c) : '';
+      document.getElementById('conteudo-form-observacao').value = c ? (c.observacao || '') : '';
+      overlay.classList.remove('hidden');
+      document.getElementById(opcoes.foco || 'conteudo-form-titulo').focus();
+    };
+  }
+
+  function abrirModalConteudo(conteudoExistente, onSalvo, opcoes) {
+    _garantirModalConteudo();
+    document.getElementById('modal-conteudo')._abrir(conteudoExistente, onSalvo, opcoes);
   }
 
   var ROTULO_TIPO_COMPROMISSO = {
