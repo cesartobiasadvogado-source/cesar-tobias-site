@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<link rel="icon" type="image/png" href="/favicon-32.png">
+<title>Vero Jurídico — Conteúdo</title>
+<script>
+  (function () {
+    var temaSalvo = localStorage.getItem('painel_tema');
+    if (temaSalvo === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else if (temaSalvo === 'light' || !temaSalvo) document.documentElement.setAttribute('data-theme', 'light');
+    // 'system' -> nao seta atributo, segue prefers-color-scheme
+
+    if (localStorage.getItem('painel_sidebar_recolhida') === '1') {
+      document.documentElement.setAttribute('data-sidebar-recolhida', '1');
+    }
+
+    var corSalva = localStorage.getItem('painel_cor_accent');
+    if (corSalva) {
+      var raiz = document.documentElement.style;
+      raiz.setProperty('--accent', corSalva);
+      raiz.setProperty('--sidebar-accent', corSalva);
+      var r = parseInt(corSalva.slice(1, 3), 16), g = parseInt(corSalva.slice(3, 5), 16), b = parseInt(corSalva.slice(5, 7), 16);
+      var misturar = function (c) { return Math.round(c + (255 - c) * 0.88).toString(16).padStart(2, '0'); };
+      raiz.setProperty('--accent-soft', '#' + misturar(r) + misturar(g) + misturar(b));
+    }
+
+    var corFundoSalva = localStorage.getItem('painel_cor_fundo');
+    if (corFundoSalva) document.documentElement.style.setProperty('--sidebar-bg', corFundoSalva);
+
+    var corPaginaSalva = localStorage.getItem('painel_cor_pagina');
+    if (corPaginaSalva) document.documentElement.style.setProperty('--bg', corPaginaSalva);
+
+    // ja tem sessao guardada -- evita mostrar a tela de login por um instante a cada troca de
+    // pagina (antes so acontecia uma vez, agora cada "aba" e uma pagina de verdade que recarrega
+    // e refaz essa checagem). Roda antes do body existir, pra nao ter nem um flash.
+    if (sessionStorage.getItem('painel_token')) {
+      document.documentElement.setAttribute('data-tem-sessao', '1');
+    }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="painel.css?v=20261026-prev2">
+</head>
+<body>
+
+  <div id="carregando-inicial" class="carregando-inicial">
+    <div class="esqueleto-carregando">
+      <div class="esqueleto-barra esqueleto-titulo"></div>
+      <div class="esqueleto-linha-cards">
+        <div class="esqueleto-barra esqueleto-card"></div>
+        <div class="esqueleto-barra esqueleto-card"></div>
+        <div class="esqueleto-barra esqueleto-card"></div>
+      </div>
+      <div class="esqueleto-barra esqueleto-bloco"></div>
+    </div>
+  </div>
+
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <div class="gate-visual">
+        <img src="/logo-vero-juridico-branca.png" alt="Vero Jurídico">
+      </div>
+      <div class="gate-form-side">
+        <div class="gate-eyebrow">
+          <img src="/logo-vj-icone.png" alt="" style="width:26px;height:26px;flex-shrink:0;">
+          <p class="gate-title">Vero Jurídico</p>
+        </div>
+        <p class="gate-sub">Acesso à plataforma</p>
+        <p class="gate-tagline">Tudo que precisa da sua atenção, num só lugar.</p>
+
+        <input type="text" id="tenant-id-input" aria-label="Código do escritório" placeholder="Código do escritório" style="display:none; margin-bottom:16px;">
+
+        <label class="gate-field-label" for="usuario-input">Usuário</label>
+        <div class="gate-field-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <input type="text" id="usuario-input" placeholder="seu.usuario" autocomplete="username">
+        </div>
+
+        <label class="gate-field-label" for="senha-input">Senha</label>
+        <div class="gate-field-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <input type="password" id="senha-input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <label class="gate-lembrar-row"><input type="checkbox" id="gate-lembrar"> Lembrar meu usuário</label>
+
+        <button id="btn-entrar">Entrar no painel
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </button>
+        <button type="button" class="gate-toggle-parceiro" id="toggle-escritorio-parceiro" aria-controls="tenant-id-input" aria-expanded="false">Sou um escritório parceiro</button>
+        <div class="gate-error" id="gate-error" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="shell" class="shell hidden">
+    <div id="topbar-mobile" class="topbar-mobile">
+      <button type="button" id="btn-menu-mobile" class="btn-menu-mobile" aria-label="Abrir menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+      <span class="topbar-mobile-titulo" id="topbar-mobile-titulo">Painel</span>
+    </div>
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+    <aside class="sidebar" id="sidebar">
+      <button type="button" id="btn-fechar-menu-mobile" class="btn-fechar-menu-mobile" aria-label="Fechar menu">✕</button>
+      <div class="sidebar-wordmark">
+        <img src="/logo-vero-juridico-branca.png" alt="Vero Jurídico" class="sidebar-logo-full" style="height:20px;display:block;">
+        <img src="/logo-vj-icone-branco.png" alt="Vero Jurídico" class="sidebar-logo-icone" style="width:22px;height:22px;">
+        <small class="sub">Plataforma jurídica</small>
+      </div>
+
+      <nav class="nav-grupo">
+        <a class="nav-item" data-secao="inicio" href="painel-inicio.html#sec-inicio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg>
+          Início
+        </a>
+        <div class="nav-label">Financeiro</div>
+        <a class="nav-item" data-secao="financeiro" href="painel.html#sec-financeiro-novo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+          Financeiro
+        </a>
+        <a class="nav-item" data-secao="financeiro" href="painel-financeiro-antigo.html#sec-notificacao-extrajudicial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v13H7l-3 3z"></path><path d="M8 9h8M8 13h5"></path></svg>
+          Notificação Extrajudicial
+        </a>
+
+        <div class="nav-label">Clientes</div>
+        <a class="nav-item" data-secao="clientes" href="painel-clientes.html#sec-clientes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.3"></circle><path d="M5 21c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg>
+          Clientes
+        </a>
+        <a class="nav-item" data-secao="financeiro" href="painel-financeiro-antigo.html#sec-cadastro-cliente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="16" y1="11" x2="22" y2="11"></line></svg>
+          Clientes da planilha
+        </a>
+
+        <div class="nav-label">Processos</div>
+        <a class="nav-item" data-secao="pje" href="painel-pje.html#sec-pje">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v5h5"></path></svg>
+          Processual — PJe
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-processos.html#sec-processos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path></svg>
+          Ficha de processos
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-triagem-trabalhista.html#sec-triagem-trabalhista">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2V4a1 1 0 0 1 1-1z"></path><path d="M9 3v3h6V3"></path><path d="M8 12h8M8 16h5"></path></svg>
+          Triagem Trabalhista
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-triagem-previdenciaria.html#sec-triagem-previdenciaria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"></path><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"></path><path d="M17.5 3.5l1 1 2-2"></path></svg>
+          Triagem Previdenciária
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-prazos.html#sec-prazos">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M3 9h18M8 2v4M16 2v4"></path><circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"></circle></svg>
+          Prazos
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-criar-processo.html#sec-criar-processo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"></path></svg>
+          Criar Processo
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-importar-oab.html#sec-importar-oab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          Importar pela OAB
+        </a>
+        <a class="nav-item" data-secao="processos" href="painel-processo-administrativo.html#sec-processo-administrativo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path><path d="M9 12l2 2 4-4"></path></svg>
+          Processo Administrativo
+        </a>
+
+        <div class="nav-label">Agenda</div>
+        <a class="nav-item" data-secao="agenda" href="painel-agenda.html#sec-agenda-completa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+          Agenda
+        </a>
+        <a class="nav-item" data-secao="agenda" href="painel-tarefas.html#sec-tarefas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="m8 12 3 3 5-6"></path></svg>
+          Tarefas
+        </a>
+        <a class="nav-item" data-secao="audiencias" href="painel-audiencias.html#sec-audiencias">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>
+          Audiências
+        </a>
+
+        <div class="nav-label" data-secao-grupo="marketing">Marketing</div>
+        <a class="nav-item" data-secao="marketing" href="painel-conteudo.html#sec-conteudo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9 9 0 0 1 0 13"></path></svg>
+          Conteúdo
+        </a>
+
+        <div class="nav-label">Automações</div>
+        <a class="nav-item" data-secao="automacoes" href="painel-automacoes.html#sec-propostas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h6l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"></path><path d="M12 4v5h5"></path><path d="M8 13h8M8 17h5"></path></svg>
+          Propostas
+        </a>
+        <a class="nav-item" data-secao="automacoes" href="painel-procuracao-contrato.html#sec-contrato">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path><path d="M15 2v5h5"></path><path d="M9 13l2 2 4-4"></path></svg>
+          Procuração e Contrato
+        </a>
+        <a class="nav-item" data-secao="automacoes" href="painel-automacoes.html#sec-automacoes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"></path></svg>
+          Automações
+        </a>
+
+        <div class="nav-label">Escritório</div>
+        <a class="nav-item" data-secao="padrao_operacional" href="painel-padrao-operacional.html#sec-padrao-operacional">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Padrão Operacional
+        </a>
+        <a class="nav-item hidden" id="nav-configuracoes" href="painel-configuracoes.html#sec-configuracoes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          Configurações
+        </a>
+        <a class="nav-item hidden" id="nav-admin" href="painel-admin.html#sec-admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5z"></path></svg>
+          Conexões
+        </a>
+      </nav>
+
+      <button type="button" class="tema-toggle" id="btn-tema">
+        <svg id="icone-tema-claro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"></path></svg>
+        <svg id="icone-tema-escuro" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>
+        <span id="texto-tema">Modo escuro</span>
+      </button>
+
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 0 20c1.4 0 2-1 2-2 0-.6-.3-1-.6-1.4-.3-.4-.5-.7-.5-1.1 0-.8.7-1.5 1.5-1.5H16a4 4 0 0 0 4-4c0-5.5-4.5-10-8-10z"></path><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="11" cy="7" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="15" cy="8" r="1.1" fill="currentColor" stroke="none"></circle></svg>
+          <span>Cor de destaque</span>
+          <input type="color" id="input-cor-accent" title="Escolher cor de destaque" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor-fundo" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M3 15h18"></path></svg>
+          <span>Cor de fundo do menu</span>
+          <input type="color" id="input-cor-fundo" title="Escolher cor de fundo da barra lateral" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-fundo-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:2px; margin:0 0 4px;">
+        <button type="button" class="tema-toggle" id="btn-cor-pagina" style="position:relative; flex:1; margin:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+          <span>Cor de fundo da página</span>
+          <input type="color" id="input-cor-pagina" title="Escolher cor de fundo da página" style="position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:none; padding:0;">
+        </button>
+        <button type="button" id="btn-cor-pagina-reset" title="Restaurar cor padrão" style="background:none; border:none; color:var(--sidebar-ink-soft); cursor:pointer; padding:6px 8px; border-radius:6px; font-size:13px; line-height:1;">↺</button>
+      </div>
+
+      <div class="sidebar-rodape">
+        <div class="sidebar-avatar" id="sidebar-avatar">--</div>
+        <div>
+          <div class="quem" id="sidebar-rodape-usuario">—</div>
+          <div class="cargo">Logado</div>
+        </div>
+      </div>
+      <button type="button" class="tema-toggle" id="btn-sair" style="margin-top:2px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+        <span>Sair</span>
+      </button>
+      <div class="sidebar-marca" style="text-align:center; font-size:11px; color:var(--sidebar-ink-soft); opacity:.6; padding:10px 0 2px;"><img src="/logo-vj-icone-branco.png" alt="" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;opacity:.85;">Vero Jurídico</div>
+    </aside>
+
+    <div class="conteudo-area">
+      <header class="hdr-topo">
+        <button type="button" id="btn-recolher-menu" class="hdr-icone-btn" title="Recolher menu" aria-label="Recolher menu">
+          <svg id="icone-recolher-fechar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 19l-7-7 7-7M20 19l-7-7 7-7"></path></svg>
+          <svg id="icone-recolher-abrir" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"></path></svg>
+        </button>
+        <div class="hdr-busca" style="position:relative;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          <input type="text" id="hdr-busca-input" aria-label="Buscar processo, cliente ou número" placeholder="Buscar processo, cliente ou número..." autocomplete="off">
+          <div class="hdr-dropdown hidden" id="hdr-busca-resultados" style="top:calc(100% + 6px); left:0; right:auto; width:340px;"></div>
+        </div>
+        <div class="hdr-acoes">
+          <button type="button" class="hdr-icone-btn" id="hdr-btn-olho-geral" aria-label="Ocultar todos os valores" title="Ocultar todos os valores" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2.6 12C5 7.6 8.4 6 12 6s7 1.6 9.4 6c-2.4 4.4-5.8 6-9.4 6s-7-1.6-9.4-6Z"></path><circle cx="12" cy="12" r="2.8"></circle></svg>
+          </button>
+          <div class="hdr-add-wrap">
+            <button type="button" class="hdr-icone-btn" id="hdr-btn-add" aria-label="Adicionar" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+            <div class="hdr-dropdown hidden" id="hdr-menu-add">
+              <a href="painel-criar-processo.html#sec-criar-processo">Novo Processo</a>
+              <a href="painel-tarefas.html#sec-tarefas">Nova Tarefa</a>
+              <a href="painel-novo-cliente.html#sec-novo-cliente">Novo Cliente</a>
+              <a href="painel-prazos.html#sec-prazos">Novo Prazo</a>
+              <a href="painel-agenda.html#sec-agenda-completa">Novo Compromisso</a>
+            </div>
+          </div>
+          <div class="hdr-avisos-wrap" style="position:relative;">
+            <button type="button" class="hdr-icone-btn" id="hdr-btn-avisos" aria-label="Avisos" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+              <span id="hdr-avisos-badge" class="hdr-badge hidden">0</span>
+            </button>
+            <div class="hdr-dropdown hidden" id="hdr-menu-avisos">
+              <div class="hdr-avisos-lista" id="hdr-avisos-lista"><div class="hdr-avisos-vazio">Carregando…</div></div>
+            </div>
+          </div>
+          <div class="hdr-divisor"></div>
+          <div class="hdr-perfil-wrap">
+            <button type="button" class="hdr-perfil" id="hdr-btn-perfil" aria-haspopup="true" aria-expanded="false">
+              <div class="hdr-perfil-texto">
+                <div class="hdr-perfil-nome" id="hdr-perfil-nome">—</div>
+                <div class="hdr-perfil-escritorio" id="hdr-perfil-escritorio">—</div>
+              </div>
+              <div class="hdr-perfil-avatar" id="hdr-perfil-avatar">--</div>
+            </button>
+            <div class="hdr-dropdown hidden" id="hdr-menu-perfil">
+              <div class="hdr-menu-tema-row">
+                <span>Tema</span>
+                <div class="hdr-tema-opcoes">
+                  <button type="button" data-hdr-tema="light" aria-label="Tema claro" title="Claro">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"></path></svg>
+                  </button>
+                  <button type="button" data-hdr-tema="dark" aria-label="Tema escuro" title="Escuro">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>
+                  </button>
+                  <button type="button" data-hdr-tema="system" aria-label="Tema do sistema" title="Sistema">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="hdr-menu-divisor"></div>
+              <button type="button" id="hdr-btn-sair">Sair</button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div id="conteudo" class="page"></div>
+    </div>
+  </div>
+
+  <div id="modal-drill" class="modal-overlay hidden">
+    <div class="modal-drill-caixa">
+      <div class="modal-drill-cabecalho">
+        <span id="modal-drill-titulo" class="modal-drill-titulo">—</span>
+        <button type="button" id="modal-drill-fechar" class="modal-drill-fechar" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-drill-busca">
+        <input type="text" id="modal-drill-busca-input" placeholder="Buscar por cliente...">
+      </div>
+      <div id="modal-drill-corpo" class="modal-drill-corpo"></div>
+    </div>
+  </div>
+
+<script>var PAGINA_ATUAL = "conteudo";</script>
+<script src="painel-app.js?v=20261026-prev2"></script>
+</body>
+</html>
