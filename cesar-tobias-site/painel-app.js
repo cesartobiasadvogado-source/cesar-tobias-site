@@ -12790,10 +12790,13 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           '<td style="color:var(--ink-faint);">' + (t.percentual_conclusao || 0) + '%</td>' +
           '<td style="color:var(--ink-faint);">' + fmtDataProcesso(String(t.atualizado_em || '').slice(0, 10)) + '</td>' +
           '<td><div class="procpage-acoes-icones">' +
-            '<a class="procpage-btn" href="' + link + '">Continuar</a>' +
+            (t.convertido_processo_id
+              ? '<a class="procpage-btn" href="painel-processos.html?processo=' + t.convertido_processo_id + '#sec-processos">Ver processo</a>'
+              : '<a class="procpage-btn" href="' + link + '">Continuar</a>') +
             '<span class="procman-acoes-wrap">' +
               '<button type="button" class="procpage-icone-btn" data-tprev-mais="' + indice + '" aria-label="Mais opções">' + svgMais + '</button>' +
               '<div class="procman-acoes-menu hidden" data-tprev-menu="' + indice + '">' +
+                (t.convertido_processo_id || !t.beneficio_pretendido ? '' : '<button type="button" data-tprev-converter="' + indice + '">Converter em processo</button>') +
                 '<button type="button" data-tprev-duplicar="' + indice + '">Duplicar</button>' +
                 (t.arquivado_em ? '<button type="button" data-tprev-restaurar="' + indice + '">Restaurar</button>'
                                 : '<button type="button" data-tprev-arquivar="' + indice + '">Arquivar</button>') +
@@ -12833,6 +12836,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       aplicar();
     });
 
+    function converterPrev(t) {
+      return confirmarModal('Converter essa triagem em um processo? Um novo processo será criado na Ficha de Processos com o cliente e o benefício.', { titulo: 'Criar processo', textoOk: 'Criar processo', perigo: false })
+        .then(function (ok) {
+          if (!ok) return;
+          return apiPostJson('/api/painel?acao=triagem_prev_converter_processo', { id: t.id })
+            .then(function (d) { window.location.href = 'painel-processos.html?processo=' + d.processo_id + '#sec-processos'; })
+            .catch(function (e) { mostrarAviso(e.message || 'Não foi possível converter agora.'); });
+        });
+    }
     function acao(nome, t, mensagemErro) {
       return apiPostJson('/api/painel?acao=triagem_prev_' + nome, { id: t.id })
         .then(function () { carregarTriagensPrev(); })
@@ -12848,6 +12860,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         return;
       }
       var b;
+      if ((b = ev.target.closest('[data-tprev-converter]'))) { converterPrev(_triagensPrevCarregadas[b.getAttribute('data-tprev-converter')]); return; }
       if ((b = ev.target.closest('[data-tprev-duplicar]'))) { acao('duplicar', _triagensPrevCarregadas[b.getAttribute('data-tprev-duplicar')], 'Não foi possível duplicar agora.'); return; }
       if ((b = ev.target.closest('[data-tprev-restaurar]'))) { acao('restaurar', _triagensPrevCarregadas[b.getAttribute('data-tprev-restaurar')], 'Não foi possível restaurar agora.'); return; }
       if ((b = ev.target.closest('[data-tprev-arquivar]'))) {
@@ -12914,7 +12927,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<button type="button" class="procpage-btn" data-tprev-ir-passo="' + esc(p.passo) + '" style="font-size:11.5px;padding:4px 10px;">Ver passo</button></div></div>';
     }).join('');
 
+    var tiposVinculo = {};
+    SPEC_PREV_VINCULO[0].op.forEach(function (o) { tiposVinculo[o[0]] = o[1]; });
+    var vinculos = (t.vinculos || []).map(function (v) {
+      return '<tr><td>' + esc(tiposVinculo[v.tipo] || v.tipo) + (v.especial ? ' <span class="chip warn">Especial' + (v.categoria_especial ? ' ' + esc(v.categoria_especial) + 'a' : '') + '</span>' : '') + '</td>' +
+        '<td>' + esc(v.empregador || '—') + '</td><td>' + esc(fmtDataProcesso(String(v.data_inicio || '').slice(0, 10))) + '</td>' +
+        '<td>' + (v.data_fim ? esc(fmtDataProcesso(String(v.data_fim).slice(0, 10))) : 'em andamento') + '</td></tr>';
+    }).join('');
     return '<div class="tprev-resumo">' + cartoes.join('') + '</div>' +
+      (vinculos ? '<p class="tprev-secao">Vínculos considerados</p><div class="tprev-tabela-wrap"><table class="tprev-tabela"><thead><tr><th>Tipo</th><th>Empregador / descrição</th><th>Início</th><th>Fim</th></tr></thead><tbody>' + vinculos + '</tbody></table></div>' : '') +
       (elegibilidade ? '<p class="tprev-secao">Regras analisadas</p>' + elegibilidade : '') +
       '<p class="tprev-secao">Alertas</p>' + (alertas || '<p class="tprev-vazio">Nenhum alerta identificado até agora.</p>') +
       '<p class="tprev-secao">Pendências</p>' + (pendencias || '<p class="tprev-vazio">Nenhuma pendência. ✅</p>') +
@@ -13059,14 +13080,24 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
 
     function renderAnalise(d) {
       var statusOpcoes = ['nao_iniciada', 'em_andamento', 'aguardando_documentos', 'aguardando_informacoes', 'concluida'];
+      var hojeBr = new Date().toLocaleDateString('pt-BR');
+      var podeConverter = !d.convertido_processo_id && !!d.beneficio_pretendido;
       conteudo.innerHTML = titulo('Diagnóstico e relatório', 'Indícios com base nos dados informados. Quem decide é o advogado.') +
+        '<div class="tprev-relatorio-cabecalho"><h1>Relatório de Triagem Previdenciária</h1><p><strong>Cliente:</strong> ' + esc(d.cliente_nome || '—') +
+          ' &nbsp;|&nbsp; <strong>Benefício:</strong> ' + esc(ROTULO_BENEFICIO_PREV[d.beneficio_pretendido] || 'não definido') +
+          ' &nbsp;|&nbsp; <strong>Data:</strong> ' + esc(hojeBr) + '</p></div>' +
+        '<div class="tprev-acoes-relatorio">' +
+          '<button type="button" class="procpage-btn" id="tprev-btn-imprimir">Imprimir / salvar em PDF</button>' +
+          (podeConverter ? '<button type="button" class="procpage-btn" id="tprev-btn-converter">Converter em processo</button>' : '') +
+          (d.convertido_processo_id ? '<a class="procpage-btn" href="painel-processos.html?processo=' + esc(d.convertido_processo_id) + '#sec-processos">Ver processo criado</a>' : '') +
+        '</div>' +
         _htmlDiagnosticoPrev(d) +
         '<p class="tprev-secao">Observações do advogado</p>' +
         '<textarea id="tprev-observacoes" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);font-family:inherit;">' + esc(d.observacoes_advogado || '') + '</textarea>' +
-        '<p class="tprev-secao">Andamento da triagem</p>' +
+        '<div class="tprev-nao-imprimir"><p class="tprev-secao">Andamento da triagem</p>' +
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><select id="tprev-status">' +
           statusOpcoes.map(function (s) { return '<option value="' + s + '"' + (d.status === s ? ' selected' : '') + '>' + esc(ROTULO_STATUS_PREV[s]) + '</option>'; }).join('') +
-        '</select><button type="button" class="procpage-btn" id="tprev-btn-status">Atualizar status</button></div>';
+        '</select><button type="button" class="procpage-btn" id="tprev-btn-status">Atualizar status</button></div></div>';
       conteudo.querySelectorAll('[data-tprev-ir-passo]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var idx = PASSOS_WIZARD_PREV.indexOf(btn.getAttribute('data-tprev-ir-passo'));
@@ -13074,6 +13105,18 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           estado.passoIndex = idx;
           renderPasso(d);
         });
+      });
+      document.getElementById('tprev-btn-imprimir').addEventListener('click', function () { window.print(); });
+      var btnConverter = document.getElementById('tprev-btn-converter');
+      if (btnConverter) btnConverter.addEventListener('click', function () {
+        confirmarModal('Converter essa triagem em um processo? Um novo processo será criado na Ficha de Processos com o cliente e o benefício.', { titulo: 'Criar processo', textoOk: 'Criar processo', perigo: false })
+          .then(function (ok) {
+            if (!ok) return;
+            btnConverter.disabled = true;
+            apiPostJson('/api/painel?acao=triagem_prev_converter_processo', { id: estado.triagemId })
+              .then(function (r) { window.location.href = 'painel-processos.html?processo=' + r.processo_id + '#sec-processos'; })
+              .catch(function (e) { btnConverter.disabled = false; erro(e.message || 'Não foi possível converter agora.'); });
+          });
       });
       document.getElementById('tprev-btn-status').addEventListener('click', function () {
         apiPostJson('/api/painel?acao=triagem_prev_status', { id: estado.triagemId, status: document.getElementById('tprev-status').value })
@@ -13086,6 +13129,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       d = d || {};
       renderBarra();
       var passo = PASSOS_WIZARD_PREV[estado.passoIndex];
+      document.body.classList.toggle('tprev-imprimindo', passo === 'analise_final');   // so o diagnostico vira relatorio na impressao
       if (passo === 'cliente') renderCliente();
       else if (passo === 'segurado') renderSegurado(d);
       else if (passo === 'beneficio') renderBeneficio(d);

@@ -1275,3 +1275,33 @@
 .tprev-item .tprev-falta { color: var(--ink-soft); font-size: 12.5px; }
 .tprev-vazio { font-size: 12.5px; color: var(--ink-faint); margin: 0 0 10px; }
 .tprev-aviso { margin-top: 18px; font-size: 12px; color: var(--ink-soft); padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); }
+.tprev-acoes-relatorio { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
+.tprev-relatorio-cabecalho { display: none; }
+.tprev-tabela-wrap { overflow-x: auto; }
+.tprev-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tprev-tabela th, .tprev-tabela td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); color: var(--ink); }
+.tprev-tabela th { font-size: 11px; color: var(--ink-faint); font-weight: 600; }
+
+/* Relatorio da Triagem Previdenciaria: imprime so o diagnostico, em folha clara (mesmo se o painel estiver no tema escuro) */
+@media print {
+  body.tprev-imprimindo, body.tprev-imprimindo * { text-shadow: none !important; box-shadow: none !important; }
+  html:has(body.tprev-imprimindo), html:has(body.tprev-imprimindo)[data-theme="dark"] {
+    --bg: #fff; --surface: #fff; --surface-sunken: #fff; --ink: #111; --ink-soft: #333; --ink-faint: #555; --line: #bbb;
+    --warn-soft: #fff; --good-soft: #fff; --crit-soft: #fff; background: #fff; color-scheme: light;
+  }
+  body.tprev-imprimindo { background: #fff !important; color: #111 !important; }
+  body.tprev-imprimindo .sidebar, body.tprev-imprimindo .hdr-topo, body.tprev-imprimindo .topbar-mobile, body.tprev-imprimindo .sidebar-backdrop,
+  body.tprev-imprimindo .masthead, body.tprev-imprimindo footer, body.tprev-imprimindo .procficha-topo, body.tprev-imprimindo .triagem-passos,
+  body.tprev-imprimindo .triagem-passo-legenda, body.tprev-imprimindo .triagem-nav-passos, body.tprev-imprimindo #tprev-wizard-erro,
+  body.tprev-imprimindo .tprev-acoes-relatorio, body.tprev-imprimindo [data-tprev-ir-passo], body.tprev-imprimindo #tprev-status,
+  body.tprev-imprimindo #tprev-btn-status, body.tprev-imprimindo .triagem-passo-sub, body.tprev-imprimindo .triagem-passo-titulo, body.tprev-imprimindo .tprev-nao-imprimir { display: none !important; }
+  body.tprev-imprimindo .conteudo-area, body.tprev-imprimindo .page, body.tprev-imprimindo .procpage-dark, body.tprev-imprimindo .procficha-painel {
+    margin: 0 !important; padding: 0 !important; border: 0 !important; background: #fff !important; width: 100% !important; max-width: none !important;
+  }
+  body.tprev-imprimindo .tprev-relatorio-cabecalho { display: block; border-bottom: 2px solid #111; margin-bottom: 14px; padding-bottom: 8px; }
+  body.tprev-imprimindo .tprev-relatorio-cabecalho h1 { font-size: 18px; margin: 0 0 6px; }
+  body.tprev-imprimindo .tprev-relatorio-cabecalho p { margin: 0; font-size: 12px; }
+  body.tprev-imprimindo .tprev-item, body.tprev-imprimindo .tprev-resumo-item { break-inside: avoid; }
+  body.tprev-imprimindo .tprev-secao { break-after: avoid; }
+  body.tprev-imprimindo #tprev-observacoes { border: 1px solid #bbb; min-height: 80px; }
+}

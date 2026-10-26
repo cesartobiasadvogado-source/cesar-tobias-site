@@ -118,14 +118,17 @@ test('filtros da lista: arquivadas, status, beneficio e busca por cliente', () =
 
 test('o diagnostico escapa o texto vindo do servidor', () => {
   const codigo = trecho(fonte, '  function _htmlDiagnosticoPrev', '  function wireTriagemPrevWizard');
-  const gerar = new Function('esc', 'fmtDataProcesso', '_moedaPrev', codigo + '; return _htmlDiagnosticoPrev;')(esc, (d) => d, (n) => 'R$ ' + n);
+  const SPEC_PREV_VINCULO = [{ op: [['empregado', 'Empregado (CLT)']] }];
+  const gerar = new Function('esc', 'fmtDataProcesso', '_moedaPrev', 'SPEC_PREV_VINCULO', codigo + '; return _htmlDiagnosticoPrev;')(esc, (d) => d, (n) => 'R$ ' + n, SPEC_PREV_VINCULO);
   const html = gerar({
     alertas: [{ severidade: 'critico', mensagem: '<img src=x onerror=alert(1)>', passo: 'vinculos' }],
     pendencias: [{ mensagem: '<b>x</b>', passo: 'segurado' }],
     elegibilidade: [{ regra: '<i>r</i>', atende: false, detalhe: 'd', falta: '<u>f</u>' }],
     resumo: {}, aviso: '<script>a</script>',
+    vinculos: [{ tipo: 'empregado', empregador: '<svg onload=x>', data_inicio: '2000-01-01', especial: true, categoria_especial: 25 }],
   });
-  assert(!/<img|<b>|<i>|<u>|<script>/.test(html));
+  assert(!/<img|<b>|<i>|<u>|<script>|<svg/.test(html));
+  assert(html.includes('Empregado (CLT)') && html.includes('Especial 25a'));
   assert(html.includes('data-tprev-ir-passo="vinculos"') && html.includes('Crítico'));
 });
 
@@ -137,4 +140,23 @@ test('coleta dos campos: so manda o que esta na tela (nao apaga o que ja estava 
   const out = coletar([{ c: 'sexo', t: 'select' }, { c: 'cid', t: 'texto' }, { c: 'ok', t: 'simnao' }, { c: 'fora_da_tela', t: 'texto' }, { c: 'fora_simnao', t: 'simnao' }]);
   assert.deepEqual(out, { sexo: 'F', cid: '', ok: true });
   assert(!('fora_da_tela' in out) && !('fora_simnao' in out));
+});
+
+test('fase 2a: converter em processo (proxy, lista, relatorio) e impressao so do diagnostico', () => {
+  assert(proxy.includes("triagem_prev_converter_processo: 'Erro de conexao ao converter"));
+  assert(fonte.includes("'/api/painel?acao=triagem_prev_converter_processo'"));
+  assert(fonte.includes('data-tprev-converter'));                              // item no menu da lista
+  assert(fonte.includes("t.convertido_processo_id\n") || fonte.includes('t.convertido_processo_id\r\n'));   // lista usa o id devolvido pelo backend
+  assert(fonte.includes('window.print()') && fonte.includes("classList.toggle('tprev-imprimindo', passo === 'analise_final')"));
+  const css = ler('painel.css');
+  const imp = css.slice(css.indexOf('@media print', css.indexOf('Relatorio da Triagem Previdenciaria')));
+  for (const s of ['.sidebar', '.hdr-topo', '.triagem-nav-passos', '.tprev-acoes-relatorio', '.tprev-nao-imprimir']) assert(imp.includes(s), s);
+  assert(imp.includes('--bg: #fff') && imp.includes('--ink: #111'));          // sai em folha clara mesmo no tema escuro
+  assert(css.includes('.tprev-relatorio-cabecalho { display: none; }'));      // cabecalho do relatorio so aparece impresso
+});
+
+test('botao de converter so aparece com beneficio escolhido e triagem ainda nao convertida', () => {
+  const trecho1 = trecho(fonte.replace(/\r\n/g, '\n'), 'var podeConverter = ', ';\n');
+  assert(trecho1.includes('!d.convertido_processo_id') && trecho1.includes('!!d.beneficio_pretendido'));
+  assert(fonte.includes("t.convertido_processo_id || !t.beneficio_pretendido ? '' : '<button type=\"button\" data-tprev-converter="));
 });
