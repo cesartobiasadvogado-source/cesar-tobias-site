@@ -326,7 +326,7 @@
     document.getElementById('btn-verificar-google').onclick = async function () {
       var btn = this;
       btn.disabled = true; btn.textContent = 'Verificando...';
-      var r = await chamar('tenant_status', { tenant_id: estado.tenant_id }, 'GET');
+      var r = await chamar('tenant_status', { tenant_id: estado.tenant_id, signup_token: estado.signup_token || '' }, 'GET');
       btn.disabled = false; btn.textContent = 'Já conectei, verificar';
       var erroDiv = document.getElementById('erro-p2');
       if (r.ok && r.dados.google_conectado) {

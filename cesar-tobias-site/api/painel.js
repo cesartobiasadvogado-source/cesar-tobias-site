@@ -81,9 +81,12 @@ module.exports = async (req, res) => {
 
   if (acao === 'tenant_status') {
     const tenantIdStatus = (req.query && req.query.tenant_id) || '';
+    // signup_token obrigatorio na Lambda -- o tenant_id (OAB) sozinho e informacao publica.
+    const signupTokenStatus = (req.query && req.query.signup_token) || '';
     try {
       const resposta = await fetch(
-        base + '?action=tenant_status&tenant_id=' + encodeURIComponent(tenantIdStatus) + segredoQS
+        base + '?action=tenant_status&tenant_id=' + encodeURIComponent(tenantIdStatus) +
+        '&signup_token=' + encodeURIComponent(signupTokenStatus) + segredoQS
       );
       const dados = await resposta.json();
       res.status(resposta.status).json(dados);
@@ -237,7 +240,7 @@ module.exports = async (req, res) => {
       return;
     }
     try {
-      const resposta = await fetch(base + '?action=painel_login_tenant' + segredoQS, {
+      const resposta = await fetch(base + '?action=painel_login_tenant&ip=' + encodeURIComponent(ip) + segredoQS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenant_id: corpo.tenant_id, usuario: corpo.usuario, senha: corpo.senha })
