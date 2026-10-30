@@ -60,3 +60,23 @@ seu em `1-Brutos` e conferir o resultado no painel antes de deixar rodando.
   tem acesso ao arquivo no Drive. Nunca foi testado com um arquivo real do Drive.
 - **Transcrição**: o Whisper `small` levou ~104 s para 32 s de vídeo; um vídeo de 1 min leva uns 3 min.
 - **Saldo da API Anthropic** (aviso de 30/10 sobre o PJe) não afeta esta rotina: ela não usa IA paga.
+
+---
+
+# Rodada 2: edição por vídeo (migração 052). Nada abaixo foi executado.
+
+Já está publicado: banco 051, Lambda `deploy-2026-10-30-1621` (commit `4c401f3`) e site `4ad9c30`.
+Falta publicar: a **migração 052** (coluna `edicao`), o **Lambda** com as escolhas de edição (`75297be`)
+e o **site** (`796a247`, cache `20261030-mkt2`). Ordem obrigatória: **banco, Lambda, site**.
+Antes de cada passo, reconferir as bases (site em `4ad9c30`? última tag de deploy `deploy-2026-10-30-1621`?).
+
+1. **052 no Neon de teste** (você, no terminal, em `wt-marketing-lambda-b`):
+   `python scripts/aplicar_migration_neon_teste.py migrations/052_marketing_conteudos_edicao.sql`
+   (só leitura) e, se estiver certo, o mesmo com `--executar` + frase `APLICAR NO NEON DE TESTE`.
+2. **052 em produção** (você, com o MFA): `python scripts/aplicar_migration_producao.py migrations/052_marketing_conteudos_edicao.sql`.
+   Pergunta 1 = código do MFA; pergunta 2 = **só Enter**. **Pare antes da frase e me mande a tela.**
+   É só uma coluna com valor padrão: o Lambda atual continua funcionando igual.
+3. **Lambda** (eu rodo, após conferências): `python scripts/deploy_lambda.py` a partir de `wt-marketing-lambda-b`.
+   Ponto de retorno = a versão que o próprio script publicar (ele avisa o número; **não** assumir).
+4. **Site**: `git push origin feat/marketing-gravei:main`. Desfazer: promover o deploy anterior na Vercel.
+5. Só então **ligar o agendamento** (`agendar_tarefa.ps1`) e testar com um vídeo seu.
