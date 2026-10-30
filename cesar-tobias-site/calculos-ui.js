@@ -119,6 +119,7 @@
           '<div class="calc-topo-botoes">' +
             '<button type="button" class="btn-secundario" id="calc-btn-desfazer" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>' +
             '<button type="button" class="btn-secundario" id="calc-btn-refazer" title="Refazer (Ctrl+Y)">↷ Refazer</button>' +
+            '<button type="button" class="btn-secundario calc-oculto" id="calc-btn-modo" title="Alternar entre o formulário simples e a planilha completa">Ver como planilha</button>' +
             '<button type="button" class="btn-secundario" id="calc-btn-indices" aria-expanded="false" title="Tabelas mensais de SELIC/IPCA usadas pela função FATOR">Índices</button>' +
             '<button type="button" class="btn-secundario" id="calc-btn-excel" title="Baixar como planilha do Excel, com as fórmulas">Excel (.xlsx)</button>' +
             '<button type="button" class="btn-secundario" id="calc-btn-pdf" title="Imprimir ou salvar em PDF (Times New Roman 12, espaçamento 1,5)">PDF / Imprimir</button>' +
@@ -155,6 +156,7 @@
             '<button type="button" class="btn-secundario" id="calc-ind-fechar">Fechar</button></div>' +
           '<p class="calc-aviso">O sistema não traz índices prontos, de propósito: cole a tabela oficial (Receita Federal/BACEN) e registre a fonte. Se faltar um mês, o cálculo mostra <b>#N/D!</b> em vez de estimar. Ao aplicar, a tabela vale para <b>todo o escritório</b> (novos cálculos já nascem com ela). Cada cálculo salvo guarda uma cópia das taxas que usou, para não mudar sozinho depois.</p>' +
         '</div>' +
+        '<div class="calc-simples calc-oculto" id="calc-simples"></div>' +
         '<div class="calc-barra">' +
           '<span class="calc-ref" id="calc-ref">A1</span>' +
           '<select id="calc-formato" aria-label="Formato da célula">' + FORMATOS.map(function (f) { return '<option value="' + f[0] + '">' + f[1] + '</option>'; }).join('') + '</select>' +
@@ -225,6 +227,7 @@
       entrada.addEventListener('blur', function () { if (editando) confirmarEdicao(0, 0); });
       atualizarValores();
       pintarSelecao();
+      if (typeof aplicarModo === 'function') aplicarModo();
     }
 
     function tdDe(c, r) { return tabela.querySelector('td[data-c="' + c + '"][data-r="' + r + '"]'); }
@@ -248,6 +251,7 @@
         if (td.getAttribute('data-k') !== alvo) { td.setAttribute('data-k', alvo); td.className = (td.className.replace(/\bcalc-(err|num|bool)\b/g, '') + ' ' + alvo).trim(); }
       }
       atualizarStatus();
+      if (typeof atualizarResultadosSimples === 'function' && simplesAtivo) atualizarResultadosSimples();
     }
 
     function limites() { return { c1: Math.min(sel.c1, sel.c2), c2: Math.max(sel.c1, sel.c2), r1: Math.min(sel.r1, sel.r2), r2: Math.max(sel.r1, sel.r2) }; }
@@ -561,6 +565,171 @@
       if (b) renomearAba(+b.getAttribute('data-i'));
     });
 
+    // ---------- formulario simples (modelo "Atualização de valores"): o usuario so informa indice, mes final e valores ----------
+    var elSimples = raiz.querySelector('#calc-simples'), btnModo = raiz.querySelector('#calc-btn-modo');
+    var simplesAtivo = false, modoPlanilha = false, linhasVisiveis = 8;
+    function layoutAtu() { return window.CalculosModelos && window.CalculosModelos.layoutAtualizacao; }
+    function abaAtu() {
+      var L = layoutAtu();
+      if (!L) return null;
+      for (var i = 0; i < pasta.abas.length; i++) if (pasta.abas[i].nome === L.aba) return pasta.abas[i];
+      return null;
+    }
+    function ehModoSimples() { return !!abaAtu() && pasta.vinculo.modelo === 'atualizacao-valores'; }
+    function mesDeSerial(n) { var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(n) * 86400000); return d.getUTCFullYear() * 12 + d.getUTCMonth(); }
+    function rotuloMes(ix) { var m = ix % 12 + 1; return (m < 10 ? '0' : '') + m + '/' + Math.floor(ix / 12); }
+    function chaveMes(ix) { var m = ix % 12 + 1; return Math.floor(ix / 12) + '-' + (m < 10 ? '0' : '') + m; }
+    function celulaAtu(addr) { var a = abaAtu(); return a && a.celulas[addr] !== undefined ? a.celulas[addr] : ''; }
+    function escreverSimples(addr, valor) {
+      var a = abaAtu();
+      if (!a || (a.celulas[addr] || '') === valor) return;
+      antesDeMudar();
+      if (valor === '') delete a.celulas[addr]; else a.celulas[addr] = valor;
+      salvar(); atualizarValores();
+    }
+    function ultimoMesDoIndice(cod) {
+      var ind = pasta.indices[cod], ks = ind ? Object.keys(ind.serie).sort() : [];
+      return ks.length ? ks[ks.length - 1].slice(5) + '/' + ks[ks.length - 1].slice(0, 4) : '';
+    }
+    function opcoesIndice() {
+      var atual = (celulaAtu(layoutAtu().indice) || '').trim().toUpperCase(), cods = Object.keys(pasta.indices).sort();
+      if (atual && cods.indexOf(atual) < 0) cods.push(atual);
+      return cods.map(function (c) {
+        var ind = pasta.indices[c], n = ind ? Object.keys(ind.serie).length : 0;
+        return '<option value="' + esc(c) + '"' + (c === atual ? ' selected' : '') + '>' + esc(c) + (n ? ' — ' + n + ' meses, até ' + ultimoMesDoIndice(c) : ' — sem taxas cadastradas') + '</option>';
+      }).join('');
+    }
+    function ultimaLinhaUsada() {
+      var L = layoutAtu(), ult = L.primeira - 1;
+      for (var r = L.primeira; r <= L.ultima; r++) if (celulaAtu('A' + r) !== '' || celulaAtu('B' + r) !== '' || celulaAtu('E' + r) !== '') ult = r;
+      return ult;
+    }
+    function desenharSimples() {
+      var L = layoutAtu(), regra = String(celulaAtu(L.regra) || '1').trim() === '0' ? '0' : '1';
+      linhasVisiveis = Math.min(L.ultima - L.primeira + 1, Math.max(linhasVisiveis, ultimaLinhaUsada() - L.primeira + 1 + 2, 8));
+      var linhas = '';
+      for (var i = 0; i < linhasVisiveis; i++) {
+        var r = L.primeira + i;
+        linhas += '<tr data-r="' + r + '"><td><input type="text" class="calc-s-in" data-col="A" data-r="' + r + '" value="' + esc(celulaAtu('A' + r)) + '" placeholder="MM/AAAA ou dd/mm/aaaa" aria-label="Data do valor, linha ' + (i + 1) + '" autocomplete="off"></td>' +
+          '<td><input type="text" class="calc-s-in" data-col="B" data-r="' + r + '" value="' + esc(celulaAtu('B' + r)) + '" placeholder="0,00" inputmode="decimal" aria-label="Valor, linha ' + (i + 1) + '" autocomplete="off"></td>' +
+          '<td><input type="text" class="calc-s-in calc-s-desc" data-col="E" data-r="' + r + '" value="' + esc(celulaAtu('E' + r)) + '" placeholder="Descrição (opcional)" aria-label="Descrição, linha ' + (i + 1) + '" autocomplete="off"></td>' +
+          '<td class="calc-s-res" data-res="C" data-r="' + r + '"></td><td class="calc-s-res calc-s-forte" data-res="D" data-r="' + r + '"></td>' +
+          '<td><button type="button" class="calc-s-x" data-del="' + r + '" title="Limpar esta linha" aria-label="Limpar linha ' + (i + 1) + '">×</button></td></tr>';
+      }
+      elSimples.innerHTML =
+        '<div class="calc-s-topo">' +
+          '<label>Índice de correção <select id="calc-s-indice">' + opcoesIndice() + '</select></label>' +
+          '<label>Corrigir até o mês de <span class="calc-s-linha"><input type="text" id="calc-s-ate" maxlength="10" placeholder="MM/AAAA" value="' + esc(celulaAtu(L.ate)) + '" autocomplete="off">' +
+            '<button type="button" class="btn-secundario" id="calc-s-ultimo" title="Usar o último mês com taxa cadastrada neste índice">Último mês do índice</button></span></label>' +
+          '<fieldset class="calc-s-regra"><legend>A correção de cada valor começa</legend>' +
+            '<label><input type="radio" name="calc-s-regra" value="1"' + (regra === '1' ? ' checked' : '') + '> no mês seguinte ao da data</label>' +
+            '<label><input type="radio" name="calc-s-regra" value="0"' + (regra === '0' ? ' checked' : '') + '> no próprio mês da data</label></fieldset>' +
+        '</div>' +
+        '<div class="calc-s-aviso" id="calc-s-aviso" aria-live="polite"></div>' +
+        '<table class="calc-s-tabela"><thead><tr><th>Data do valor</th><th>Valor (R$)</th><th>Descrição</th><th>Fator</th><th>Valor corrigido</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table>' +
+        '<div class="calc-s-acoes"><button type="button" class="btn-secundario" id="calc-s-mais">+ Adicionar linha</button>' +
+          '<button type="button" class="btn-secundario" id="calc-s-colar" aria-expanded="false">Colar uma lista</button></div>' +
+        '<div class="calc-s-colar calc-oculto" id="calc-s-colar-area"><label>Uma linha por valor: <b>data;valor</b> (ex.: 07/2023;1.905,16). Pode colar do Excel.' +
+          '<textarea id="calc-s-colar-texto" rows="6" spellcheck="false" placeholder="07/2023;1.905,16&#10;08/2023;1.905,16"></textarea></label>' +
+          '<button type="button" class="btn-secundario calc-ind-aplicar" id="calc-s-colar-ok">Preencher as linhas</button></div>' +
+        '<div class="calc-s-totais" id="calc-s-totais"></div>';
+      atualizarResultadosSimples();
+    }
+    function atualizarResultadosSimples() {
+      if (!simplesAtivo || !calc) return;
+      var L = layoutAtu(), A = abaAtu(), nome = A.nome;
+      var selInd = elSimples.querySelector('#calc-s-indice');
+      if (selInd) selInd.innerHTML = opcoesIndice();
+      var cod = (celulaAtu(L.indice) || '').trim().toUpperCase(), ind = pasta.indices[cod];
+      var ate = M.interpretar(celulaAtu(L.ate)), regra = String(celulaAtu(L.regra) || '1').trim() === '0' ? 0 : 1;
+      var avisos = [], faltam = {}, temLinha = false;
+      if (!ind || !Object.keys(ind.serie).length) avisos.push('Não há taxas cadastradas para <b>' + esc(cod || 'o índice escolhido') + '</b>. Clique em <b>Índices</b> e cole a tabela oficial.');
+      var ateOk = ate.tipo === 'num' && typeof ate.valor === 'number';
+      if (!ateOk) avisos.push(celulaAtu(L.ate) === '' ? 'Informe até que mês corrigir (ex.: 09/2026).' : 'Mês final inválido: use MM/AAAA (ex.: 09/2026).');
+      for (var r = L.primeira; r < L.primeira + linhasVisiveis; r++) {
+        var rawA = celulaAtu('A' + r), rawB = celulaAtu('B' + r), elC = elSimples.querySelector('[data-res="C"][data-r="' + r + '"]'), elD = elSimples.querySelector('[data-res="D"][data-r="' + r + '"]');
+        if (!elC) continue;
+        var itA = M.interpretar(rawA), itB = M.interpretar(rawB), txtC = '', txtD = '', erro = false;
+        if (rawA !== '' || rawB !== '') {
+          temLinha = true;
+          if (rawA !== '' && itA.tipo !== 'num') { txtC = 'data inválida'; erro = true; }
+          else if (rawB !== '' && itB.tipo !== 'num') { txtC = 'valor inválido'; erro = true; }
+          else if (rawA !== '' && rawB !== '') {
+            txtC = calc.exibir(nome, 'C' + r); txtD = calc.exibir(nome, 'D' + r);
+            if (/^#/.test(txtC)) { erro = true; txtC = '—'; txtD = '—'; }
+            if (ind && ateOk && itA.tipo === 'num') {
+              for (var ix = mesDeSerial(itA.valor) + regra, fim = mesDeSerial(ate.valor); ix <= fim; ix++) if (!(chaveMes(ix) in ind.serie)) faltam[ix] = 1;
+            }
+          }
+        }
+        elC.textContent = txtC; elD.textContent = txtD;
+        elC.classList.toggle('calc-s-erro', erro); elD.classList.toggle('calc-s-erro', erro);
+      }
+      var meses = Object.keys(faltam).map(Number).sort(function (a, b) { return a - b; });
+      if (meses.length) avisos.push('Faltam taxas do índice <b>' + esc(cod) + '</b> em: ' + esc(meses.slice(0, 8).map(rotuloMes).join(', ')) + (meses.length > 8 ? ' … (+' + (meses.length - 8) + ')' : '') + '. Cadastre em <b>Índices</b>; o sistema não estima taxa.');
+      var elAviso = elSimples.querySelector('#calc-s-aviso');
+      elAviso.innerHTML = avisos.length ? avisos.map(function (t) { return '<div>' + t + '</div>'; }).join('') : '';
+      elAviso.classList.toggle('vazio', !avisos.length);
+      var ok = !avisos.length && temLinha, t50 = calc.exibir(nome, 'B' + L.totalLinha), d50 = calc.exibir(nome, 'D' + L.totalLinha), d51 = calc.exibir(nome, 'D' + (L.totalLinha + 1));
+      elSimples.querySelector('#calc-s-totais').innerHTML = ok && !/^#/.test(d50)
+        ? '<div><span>Valor original</span><b>' + esc(t50) + '</b></div><div><span>Valor corrigido</span><b>' + esc(d50) + '</b></div><div><span>Correção</span><b>' + esc(d51) + '</b></div>'
+        : '<div class="calc-s-sem">' + (temLinha ? 'Resolva os avisos acima para ver os totais.' : 'Preencha ao menos uma data e um valor.') + '</div>';
+    }
+    function aplicarModo() {
+      var possivel = ehModoSimples(), simples = possivel && !modoPlanilha;
+      btnModo.classList.toggle('calc-oculto', !possivel);
+      btnModo.textContent = modoPlanilha ? 'Voltar ao formulário' : 'Ver como planilha';
+      ['.calc-barra', '#calc-wrap', '.calc-rodape'].forEach(function (sel) { var el = raiz.querySelector(sel); if (el) el.classList.toggle('calc-oculto', simples); });
+      elSimples.classList.toggle('calc-oculto', !simples);
+      var tinha = simplesAtivo;
+      simplesAtivo = simples;
+      if (simples) { if (!tinha || !elSimples.firstChild) linhasVisiveis = 8; desenharSimples(); }
+    }
+    btnModo.addEventListener('click', function () { modoPlanilha = !modoPlanilha; aplicarModo(); });
+    elSimples.addEventListener('change', function (e) {
+      var el = e.target, L = layoutAtu();
+      if (!L) return;
+      if (el.id === 'calc-s-indice') { escreverSimples(L.indice, el.value); }
+      else if (el.id === 'calc-s-ate') { escreverSimples(L.ate, el.value.trim()); }
+      else if (el.name === 'calc-s-regra') { escreverSimples(L.regra, el.value); }
+      else if (el.classList && el.classList.contains('calc-s-in')) { escreverSimples(el.getAttribute('data-col') + el.getAttribute('data-r'), el.value.trim()); }
+    });
+    elSimples.addEventListener('click', function (e) {
+      var L = layoutAtu(), b = e.target.closest ? e.target.closest('button') : null;
+      if (!b || !L) return;
+      if (b.hasAttribute('data-del')) {
+        var r = b.getAttribute('data-del');
+        antesDeMudar(); var A = abaAtu(); ['A', 'B', 'E'].forEach(function (c) { delete A.celulas[c + r]; });
+        salvar(); atualizarValores(); desenharSimples();
+      } else if (b.id === 'calc-s-mais') {
+        if (linhasVisiveis >= L.ultima - L.primeira + 1) { window.alert('Limite de ' + (L.ultima - L.primeira + 1) + ' linhas neste formulário.'); return; }
+        linhasVisiveis = Math.min(L.ultima - L.primeira + 1, linhasVisiveis + 5); desenharSimples();
+      } else if (b.id === 'calc-s-ultimo') {
+        var cod = (celulaAtu(L.indice) || '').trim().toUpperCase(), m = ultimoMesDoIndice(cod);
+        if (!m) { window.alert('O índice ' + (cod || '') + ' ainda não tem taxas cadastradas. Use o botão Índices.'); return; }
+        escreverSimples(L.ate, m); elSimples.querySelector('#calc-s-ate').value = m;
+      } else if (b.id === 'calc-s-colar') {
+        var area = elSimples.querySelector('#calc-s-colar-area'), abrir = area.classList.contains('calc-oculto');
+        area.classList.toggle('calc-oculto', !abrir); b.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+        if (abrir) elSimples.querySelector('#calc-s-colar-texto').focus();
+      } else if (b.id === 'calc-s-colar-ok') {
+        var linhas = elSimples.querySelector('#calc-s-colar-texto').value.replace(/\r\n/g, '\n').split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+        if (!linhas.length) return;
+        var prox = ultimaLinhaUsada() + 1;
+        if (prox + linhas.length - 1 > L.ultima) { window.alert('A lista tem linhas demais: cabem no máximo ' + (L.ultima - L.primeira + 1) + ' valores.'); return; }
+        antesDeMudar(); var A2 = abaAtu();
+        linhas.forEach(function (l, i) {
+          var partes = l.split(/\t|;|\s{2,}/).map(function (x) { return x.trim(); }).filter(function (x, j) { return x !== '' || j > 1; });
+          if (partes.length < 2) partes = l.split(/\s+/);
+          A2.celulas['A' + (prox + i)] = partes[0] || '';
+          A2.celulas['B' + (prox + i)] = partes[1] || '';
+          if (partes.length > 2 && partes.slice(2).join(' ').trim()) A2.celulas['E' + (prox + i)] = partes.slice(2).join(' ').trim();
+          ['A', 'B'].forEach(function (c) { if (A2.celulas[c + (prox + i)] === '') delete A2.celulas[c + (prox + i)]; });
+        });
+        salvar(); atualizarValores(); desenharSimples();
+      }
+    });
+
     // ---------- painel de indices ----------
     var elInd = raiz.querySelector('#calc-indices'), indSel = raiz.querySelector('#calc-ind-sel'), indFonte = raiz.querySelector('#calc-ind-fonte');
     var indConsulta = raiz.querySelector('#calc-ind-consulta'), indTexto = raiz.querySelector('#calc-ind-texto'), indResumo = raiz.querySelector('#calc-ind-resumo');
@@ -717,7 +886,7 @@
         var c = d.calculo, cont = c.conteudo || {};
         var novo = normalizar({ nome: c.nome, abas: cont.abas, indices: cont.indices,
           vinculo: { id: c.id, versao: c.versao, cliente_id: c.cliente_id, cliente_nome: item.cliente_nome || '', processo_id: c.processo_id, processo_numero: item.processo_numero || '', modelo: c.modelo || '' } });
-        pasta = novo; ativa = 0; desfazer = []; refazer = []; elNome.value = pasta.nome;
+        pasta = novo; modoPlanilha = false; ativa = 0; desfazer = []; refazer = []; elNome.value = pasta.nome;
         sel = { ac: 1, ar: 1, c1: 1, r1: 1, c2: 1, r2: 1 };
         pasta.vinculo.hash = hashTexto(retratoServidor()); salvar(); desenharAbas(); desenharGrade();
         elLista.classList.add('hidden'); raiz.querySelector('#calc-btn-lista').setAttribute('aria-expanded', 'false');
@@ -825,7 +994,7 @@
     raiz.querySelector('#calc-btn-refazer').addEventListener('click', fazerRefazer);
     raiz.querySelector('#calc-btn-novo').addEventListener('click', function () {
       if (!window.confirm('Começar um cálculo novo? O rascunho atual será descartado (exporte um arquivo antes, se quiser guardá-lo).')) return;
-      pasta = normalizar(pastaVazia()); ativa = 0; desfazer = []; refazer = []; elNome.value = ''; sel = { ac: 1, ar: 1, c1: 1, r1: 1, c2: 1, r2: 1 };
+      pasta = normalizar(pastaVazia()); modoPlanilha = false; ativa = 0; desfazer = []; refazer = []; elNome.value = ''; sel = { ac: 1, ar: 1, c1: 1, r1: 1, c2: 1, r2: 1 };
       salvar(); desenharAbas(); desenharGrade();
     });
     function nomeArquivo() {
@@ -910,7 +1079,7 @@
       if (temConteudo && !window.confirm('Abrir o modelo vai substituir o rascunho atual (exporte um arquivo antes, se quiser guardá-lo). Continuar?')) return;
       var novo = window.CalculosModelos.criar(id);
       if (!novo) return;
-      antesDeMudar(); pasta = normalizar(novo); pasta.vinculo.modelo = id; ativa = 0; elNome.value = pasta.nome;
+      antesDeMudar(); pasta = normalizar(novo); pasta.vinculo.modelo = id; modoPlanilha = false; ativa = 0; elNome.value = pasta.nome;
       sel = { ac: 1, ar: 1, c1: 1, r1: 1, c2: 1, r2: 1 };
       salvar(); desenharAbas(); desenharGrade();
     });
@@ -925,7 +1094,7 @@
           var p = JSON.parse(String(leitor.result));
           if (!pastaValida(p)) throw new Error('formato');
           if (!window.confirm('Importar "' + (p.nome || f.name) + '"? O rascunho atual será substituído.')) return;
-          antesDeMudar(); pasta = normalizar(p); pasta.vinculo = vinculoVazio(); ativa = 0; elNome.value = pasta.nome; // ids do arquivo nao valem aqui
+          antesDeMudar(); pasta = normalizar(p); pasta.vinculo = vinculoVazio(); modoPlanilha = false; ativa = 0; elNome.value = pasta.nome; // ids do arquivo nao valem aqui
           sel = { ac: 1, ar: 1, c1: 1, r1: 1, c2: 1, r2: 1 }; salvar(); desenharAbas(); desenharGrade();
         } catch (err) { window.alert('Não consegui ler este arquivo. Use um arquivo exportado por esta tela (.calculo.json).'); }
         elArquivo.value = '';

@@ -14,10 +14,11 @@ function t(nome, fn) { try { fn(); console.log('ok  ' + nome); } catch (e) { fal
 
 t('todo controle da tela (id calc-btn-*, calc-modelo, calc-ind-*, calc-pdf-*) tem tratamento no JS', () => {
   const ids = new Set();
-  ui.replace(/id="(calc-(?:btn|ind|pdf|modelo|formato|formula|arquivo|nome|lista|sistema|v)[a-z-]*)"/g, (_m, id) => { if (id !== 'calc-v-titulo' && id !== 'calc-sistema') ids.add(id); return ''; }); // so referenciados por aria-labelledby / so estilo (container)
+  ui.replace(/id="(calc-(?:btn|ind|pdf|modelo|formato|formula|arquivo|nome|lista|sistema|v|s|simples)[a-z-]*)"/g, (_m, id) => { if (id !== 'calc-v-titulo' && id !== 'calc-sistema') ids.add(id); return ''; }); // so referenciados por aria-labelledby / so estilo (container)
   assert(ids.size >= 25, 'poucos ids encontrados: ' + [...ids]);
   for (const id of ids) {
-    const ligado = new RegExp("querySelector\\('#" + id + "'\\)|getElementById\\('" + id + "'\\)").test(ui);
+    // ligado direto (querySelector/getElementById) ou por delegacao de evento (b.id === '...' / el.id === '...')
+    const ligado = new RegExp("querySelector\\('#" + id + "'\\)|getElementById\\('" + id + "'\\)|\\.id === '" + id + "'").test(ui);
     assert(ligado, 'id sem ligacao no JS: ' + id);
   }
 });

@@ -189,11 +189,40 @@
     return { nome: 'Restituição de IR — isenção por doença grave', indices: { SELIC: { fonte: '', consulta: '', serie: {} } }, abas: [leia, ident, ind, mem, hon, res, fund, uso, docs] };
   }
 
+  // ---- Modelo "Atualizacao de valores": o usuario so informa indice, mes final e (data, valor); o fator e o valor corrigido saem sozinhos.
+  // A tela de formulario (calculos-ui.js) le e grava ESTAS celulas; por isso o layout e fixo e exportado em `layout`.
+  var ATU = { aba: 'Atualização', indice: 'B3', ate: 'B4', regra: 'B5', primeira: 8, ultima: 47, totalLinha: 50 };
+
+  function atualizacaoValores() {
+    var a = aba(ATU.aba, { 1: 150, 2: 170, 3: 120, 4: 190, 5: 320 }, 60);
+    por(a, 'A1', 'Atualização de valores por índice', 'titulo');
+    por(a, 'A3', 'Índice', 'rotulo'); por(a, ATU.indice, 'SELIC', 'entrada', 'texto');
+    por(a, 'A4', 'Corrigir até o mês de', 'rotulo'); por(a, ATU.ate, '', 'entrada', 'mesano');
+    por(a, 'A5', 'Contar a correção a partir do mês seguinte ao do valor (1 = sim; 0 = a partir do próprio mês)', 'rotulo'); por(a, ATU.regra, '1', 'entrada');
+    ['Data do valor', 'Valor original (R$)', 'Fator do índice', 'Valor corrigido (R$)', 'Descrição'].forEach(function (h, i) { por(a, String.fromCharCode(65 + i) + '7', h, 'cabecalho'); });
+    for (var r = ATU.primeira; r <= ATU.ultima; r++) {
+      var inicio = 'DATA(ANO(A' + r + ');MES(A' + r + ')+$B$5;1)';
+      por(a, 'A' + r, '', 'entrada');
+      por(a, 'B' + r, '', 'entrada', 'brl');
+      por(a, 'C' + r, '=SE(OU(A' + r + '="";B' + r + '="");"";SE(E($B$4<>"";' + inicio + '>$B$4);1;FATOR($B$3;' + inicio + ';$B$4)))', '', 'fator');
+      por(a, 'D' + r, '=SE(C' + r + '="";"";B' + r + '*C' + r + ')', '', 'brl');
+      por(a, 'E' + r, '', 'entrada', 'texto');
+    }
+    por(a, 'A' + ATU.totalLinha, 'TOTAIS', 'total');
+    por(a, 'B' + ATU.totalLinha, '=SOMA(B' + ATU.primeira + ':B' + ATU.ultima + ')', 'total', 'brl');
+    por(a, 'D' + ATU.totalLinha, '=SOMA(D' + ATU.primeira + ':D' + ATU.ultima + ')', 'total', 'brl');
+    por(a, 'A' + (ATU.totalLinha + 1), 'Diferença (correção)', 'rotulo');
+    por(a, 'D' + (ATU.totalLinha + 1), '=D' + ATU.totalLinha + '-B' + ATU.totalLinha, '', 'brl');
+    return { nome: 'Atualização de valores', indices: { SELIC: { fonte: '', consulta: '', serie: {} } }, abas: [a] };
+  }
+
   var MODELOS = [
+    { id: 'atualizacao-valores', nome: 'Atualização de valores (corrigir por índice)', descricao: 'Informe o índice, o mês final e os valores com suas datas: a correção sai sozinha.', criar: atualizacaoValores },
     { id: 'ir-doenca-grave', nome: 'Restituição de IR — isenção por doença grave', descricao: 'Memória mensal do IR retido × fator SELIC, honorários e resumo.', criar: irDoencaGrave },
   ];
 
   return {
+    layoutAtualizacao: ATU,
     lista: MODELOS.map(function (m) { return { id: m.id, nome: m.nome, descricao: m.descricao }; }),
     criar: function (id) {
       for (var i = 0; i < MODELOS.length; i++) if (MODELOS[i].id === id) return JSON.parse(JSON.stringify(MODELOS[i].criar()));

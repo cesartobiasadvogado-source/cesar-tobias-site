@@ -116,3 +116,38 @@
 .calc-v-item { text-align: left; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 13px var(--font-body); cursor: pointer; }
 .calc-v-item:hover { background: var(--accent-soft); }
 .calc-v-escolha { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+
+/* formulario simples (Atualização de valores) */
+.calc-oculto { display: none !important; }
+.calc-simples { display: flex; flex-direction: column; gap: 12px; padding: 4px 0 8px; font: 14px var(--font-body); color: var(--ink); }
+.calc-s-topo { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.calc-simples label { display: flex; flex-direction: column; gap: 4px; font: 600 12.5px var(--font-body); color: var(--ink-soft); }
+.calc-simples select, .calc-simples input[type="text"], .calc-simples textarea { padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font: 14px var(--font-body); }
+.calc-simples select { min-width: 250px; }
+.calc-s-linha { display: flex; gap: 8px; align-items: center; }
+.calc-s-linha input { width: 120px; }
+.calc-s-regra { border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px 8px; }
+.calc-s-regra legend { padding: 0 6px; font: 600 12.5px var(--font-body); color: var(--ink-soft); }
+.calc-s-regra label { flex-direction: row; align-items: center; gap: 7px; font: 14px var(--font-body); color: var(--ink); }
+.calc-s-aviso { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); font-size: 13.5px; }
+.calc-s-aviso.vazio { display: none; }
+.calc-s-tabela { width: 100%; border-collapse: collapse; }
+.calc-s-tabela th { text-align: left; padding: 6px 8px; font: 600 12.5px var(--font-body); color: var(--ink-soft); border-bottom: 1px solid var(--line); }
+.calc-s-tabela td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.calc-s-tabela .calc-s-in { width: 100%; min-width: 0; padding: 7px 9px; }
+.calc-s-desc { min-width: 160px; }
+.calc-s-res { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; padding-right: 10px; }
+.calc-s-forte { font-weight: 700; }
+.calc-s-erro { color: var(--crit); font-weight: 600; }
+.calc-s-x { border: 0; background: none; color: var(--ink-faint); font-size: 18px; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+.calc-s-x:hover { color: var(--crit); background: var(--crit-soft); }
+.calc-s-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.calc-simples .btn-secundario { padding: 7px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font: 500 13px var(--font-body); cursor: pointer; }
+.calc-simples .calc-ind-aplicar { background: var(--accent); color: #fff; border-color: var(--accent); margin-top: 8px; align-self: flex-start; }
+.calc-s-colar { display: flex; flex-direction: column; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-sunken); }
+.calc-s-colar textarea { font-family: var(--font-mono); width: 100%; max-width: 420px; }
+.calc-s-totais { display: flex; flex-wrap: wrap; gap: 10px 28px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-sunken); }
+.calc-s-totais div { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-soft); }
+.calc-s-totais b { font: 700 18px var(--font-body); color: var(--ink); }
+.calc-s-sem { color: var(--ink-faint) !important; font-size: 13.5px !important; }
+@media (max-width: 720px) { .calc-s-tabela { display: block; overflow-x: auto; } .calc-simples select { min-width: 0; width: 100%; } }
