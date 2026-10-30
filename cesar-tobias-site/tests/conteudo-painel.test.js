@@ -84,5 +84,54 @@ t('o texto vindo do servidor passa por esc() nos cartões (sem injeção de HTML
   });
 });
 
+t('Para gravar: Meu dia, Gravar amanhã, contador de gravados e "Desfazer: não gravei" (gravado -> para_gravar)', () => {
+  assert(app.includes('data-conteudo-aba="meu_dia"'), 'sem a aba Meu dia');
+  assert(app.includes("'Gravar amanhã'"), 'sem o grupo Gravar amanha');
+  assert(/ de ' \+ totalCiclo \+ ' gravados/.test(app), 'sem o contador de gravados');
+  assert(app.includes("botao('nao_gravei', 'Desfazer: não gravei'"), 'sem o botao Desfazer');
+  assert(app.includes("acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao)"), 'Desfazer nao volta para para_gravar');
+});
+
+t('carrossel "Seus vídeos em cena": usa esc() no texto do servidor e respeita movimento reduzido', () => {
+  const ini = app.indexOf('function _htmlCarrosselConteudo');
+  const bloco = app.slice(ini, app.indexOf('function wireConteudo'));
+  assert(/esc\(c\.titulo\)/.test(bloco), 'titulo sem esc()');
+  assert(bloco.includes('Seus vídeos em cena'));
+  const css = ler('painel.css');
+  assert(css.includes('prefers-reduced-motion') && css.includes('.conteudo-cena-faixa.corre:hover'), 'sem pausa no hover/movimento reduzido');
+});
+
+t('arquivos por rede e sugestão: texto com esc(), link só https e aprovar vira agendado sem mexer em outros campos', () => {
+  const ini = app.indexOf('function _linkSeguroConteudo');
+  const bloco = app.slice(ini, app.indexOf('function _htmlGrupoConteudo'));
+  ['a.video', 'a.capa', 'nome', 'c.sugestao_data'].forEach((x) => assert(bloco.includes('esc(') && bloco.includes(x), 'falta ' + x));
+  assert(/\^https:/.test(bloco), 'link sem trava de https');
+  assert(bloco.includes('esc(url)'), 'href sem esc()');
+  assert(bloco.includes('noopener noreferrer'), 'link externo sem noopener');
+  const aprovar = app.slice(app.indexOf("acao === 'aprovar_sugestao'"), app.indexOf("acao === 'aprovar_sugestao'") + 700);
+  assert(aprovar.includes("status: 'agendado'") && aprovar.includes('data_postagem: c.sugestao_data'), 'aprovar nao agenda com a sugestao');
+  assert(aprovar.includes("sugestao_data: ''") && aprovar.includes("sugestao_hora: ''"), 'aprovar nao limpa a sugestao');
+});
+
+t('pré-visualização: miniatura só JPEG base64, player só com id do Drive e iframe preso ao domínio do Drive', () => {
+  const ini = app.indexOf('function _idDriveConteudo');
+  const bloco = app.slice(ini, app.indexOf('// Sugestao de dia/hora'));
+  assert(bloco.includes('drive\\.google\\.com'), 'o player aceita link que nao e do Drive');
+  assert(bloco.includes('data:image\\/jpeg;base64'), 'a miniatura nao e restrita a JPEG base64');
+  assert(bloco.includes("'https://drive.google.com/file/d/' + encodeURIComponent(idDrive) + '/preview'"), 'src do player nao e fixo no Drive');
+  assert(/sandbox="[^"]*"/.test(bloco) && !/sandbox="[^"]*allow-top-navigation/.test(bloco), 'iframe sem sandbox ou com navegacao do topo');
+  assert(bloco.includes("src = 'about:blank'"), 'fechar nao esvazia o iframe (o som continuaria tocando)');
+  assert(bloco.includes('esc(mini)') && bloco.includes('esc(nomeRede)'), 'miniatura/rede sem esc()');
+  assert(app.includes("acao === 'assistir'"), 'o botao Assistir nao tem acao');
+});
+
+t('edição do conteúdo: campo do link do Drive só com vídeo, exige https e só reenvia arquivos se o link mudou', () => {
+  const salvar = app.slice(app.indexOf("var campoLink = document.getElementById('conteudo-form-link-video')"), app.indexOf("var acao = 'conteudo_criar'"));
+  assert(salvar.includes('https:'), 'link sem trava de https');
+  assert(salvar.includes('linkNovo !== _linkAtualConteudo(emEdicao)'), 'reenvia arquivos mesmo sem mudar o link');
+  assert(salvar.includes('delete arquivosNovos[r].link_video'), 'nao da pra limpar o link');
+  assert(app.includes("getElementById('conteudo-form-bloco-link').style.display = temVideo"), 'o campo aparece mesmo sem video');
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

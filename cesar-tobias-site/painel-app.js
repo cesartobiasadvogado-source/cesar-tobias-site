@@ -3753,8 +3753,10 @@
             '</div>' +
             '<button type="button" class="procpage-btn procpage-btn-primary" id="conteudo-btn-novo">+ Novo conteúdo</button>' +
           '</div>' +
+          '<div id="conteudo-carrossel"></div>' +
           '<div class="subtabs" role="tablist" style="margin-bottom:16px; flex-wrap:wrap;">' +
-            '<button type="button" class="subtab-btn ativo" data-conteudo-aba="para_gravar">Para gravar <span class="conteudo-contador" data-conteudo-contador="para_gravar"></span></button>' +
+            '<button type="button" class="subtab-btn ativo" data-conteudo-aba="meu_dia">Meu dia <span class="conteudo-contador" data-conteudo-contador="meu_dia"></span></button>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="para_gravar">Para gravar <span class="conteudo-contador" data-conteudo-contador="para_gravar"></span></button>' +
             '<button type="button" class="subtab-btn" data-conteudo-aba="agenda">Agenda de postagem <span class="conteudo-contador" data-conteudo-contador="agenda"></span></button>' +
             '<button type="button" class="subtab-btn" data-conteudo-aba="ideias">Ideias <span class="conteudo-contador" data-conteudo-contador="ideias"></span></button>' +
             '<button type="button" class="subtab-btn" data-conteudo-aba="concluidos">Concluídos <span class="conteudo-contador" data-conteudo-contador="concluidos"></span></button>' +
@@ -9158,6 +9160,92 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     return (c.status === 'postado' ? 'Postado/previsto em ' : 'Postar em ') + fmtDataProcesso(c.data_postagem) + (hora ? ' às ' + hora : '');
   }
 
+  // Link vindo do servidor so vira <a> se for https (o back-end tambem recusa o resto).
+  function _linkSeguroConteudo(url) {
+    return /^https:\/\//i.test(String(url || '')) ? String(url) : '';
+  }
+
+  // Id do arquivo do Google Drive, quando o link e de um arquivo do Drive. So com esse id o painel
+  // monta o player (https://drive.google.com/file/d/<id>/preview); qualquer outro link vira so link.
+  function _idDriveConteudo(url) {
+    var m = /^https:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)([A-Za-z0-9_-]{10,})/i.exec(String(url || ''));
+    return m ? m[1] : '';
+  }
+
+  // Miniatura da capa: so aceita JPEG em base64 (o back-end tambem recusa o resto).
+  function _miniaturaSeguraConteudo(valor) {
+    return /^data:image\/jpeg;base64,[A-Za-z0-9+\/]+={0,2}$/.test(String(valor || '')) ? String(valor) : '';
+  }
+
+  // Arquivos preparados por rede (video + capa): nome do arquivo, miniatura da capa e, se houver link
+  // do Drive, o botao de assistir. O video em si fica na pasta do Drive do escritorio, nao no painel.
+  function _htmlArquivosConteudo(c) {
+    var arquivos = c.arquivos || {};
+    var linhas = Object.keys(arquivos).filter(function (rede) {
+      return arquivos[rede] && (arquivos[rede].video || arquivos[rede].capa);
+    }).map(function (rede) {
+      var a = arquivos[rede];
+      var nomeRede = ROTULO_REDE_CONTEUDO[rede] || rede;
+      function parte(rotulo, nome, link) {
+        if (!nome) return '';
+        var url = _linkSeguroConteudo(link);
+        var texto = url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(nome) + '</a>' : esc(nome);
+        return '<span class="conteudo-arquivo-item"><span class="conteudo-arquivo-rotulo">' + rotulo + '</span> ' + texto + '</span>';
+      }
+      var mini = _miniaturaSeguraConteudo(a.miniatura);
+      var temPlayer = !!_idDriveConteudo(a.link_video);
+      return '<div class="conteudo-arquivo-linha">' +
+        (mini ? '<img class="conteudo-arquivo-mini" src="' + esc(mini) + '" alt="Capa para ' + esc(nomeRede) + '" width="54" height="96">' : '') +
+        '<div class="conteudo-arquivo-dados"><span class="chip neutral">' + esc(nomeRede) + '</span>' +
+          parte('Vídeo', a.video, a.link_video) + parte('Capa', a.capa, a.link_capa) + '</div>' +
+        (temPlayer ? '<button type="button" class="procpage-btn procpage-btn-primary conteudo-arquivo-assistir" data-conteudo-acao="assistir" data-conteudo-id="' +
+          esc(String(c.id)) + '" data-conteudo-rede="' + esc(rede) + '">▶ Assistir</button>' : '') +
+      '</div>';
+    });
+    if (!linhas.length) return '';
+    return '<div class="conteudo-arquivos"><div class="conteudo-arquivos-titulo">Pronto para postar</div>' + linhas.join('') + '</div>';
+  }
+
+  // Player do video do Drive dentro do painel. Ao fechar, o iframe e esvaziado para parar o som.
+  function abrirPlayerConteudo(titulo, idDrive) {
+    if (!document.getElementById('modal-player-conteudo')) {
+      var div = document.createElement('div');
+      div.innerHTML =
+        '<div id="modal-player-conteudo" class="modal-overlay hidden">' +
+          '<div class="modal-drill-caixa conteudo-player-caixa">' +
+            '<div class="modal-drill-cabecalho">' +
+              '<span class="modal-drill-titulo" id="conteudo-player-titulo">Vídeo</span>' +
+              '<button type="button" class="modal-drill-fechar" id="conteudo-player-fechar" aria-label="Fechar">✕</button>' +
+            '</div>' +
+            '<div class="conteudo-player-area"><iframe id="conteudo-player-iframe" title="Pré-visualização do vídeo" allow="autoplay; fullscreen" allowfullscreen referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe></div>' +
+            '<p class="conteudo-player-aviso">O vídeo é tocado direto do Google Drive. Se aparecer “sem permissão”, entre com a conta que tem acesso à pasta.</p>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(div.firstChild);
+      var modal = document.getElementById('modal-player-conteudo');
+      function fechar() {
+        document.getElementById('conteudo-player-iframe').src = 'about:blank';
+        modal.classList.add('hidden');
+      }
+      document.getElementById('conteudo-player-fechar').addEventListener('click', fechar);
+      modal.addEventListener('click', function (ev) { if (ev.target === modal) fechar(); });
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape' && !modal.classList.contains('hidden')) fechar();
+      });
+    }
+    document.getElementById('conteudo-player-titulo').textContent = titulo || 'Vídeo';
+    document.getElementById('conteudo-player-iframe').src = 'https://drive.google.com/file/d/' + encodeURIComponent(idDrive) + '/preview';
+    document.getElementById('modal-player-conteudo').classList.remove('hidden');
+  }
+
+  // Sugestao de dia/hora feita pela rotina de edicao. So vira agendamento quando a pessoa aprova.
+  function _htmlSugestaoConteudo(c) {
+    if (c.status !== 'gravado' || !c.sugestao_data) return '';
+    var hora = c.sugestao_hora ? String(c.sugestao_hora).slice(0, 5) : '';
+    return '<div class="conteudo-sugestao">Sugestão: postar em <strong>' + esc(fmtDataProcesso(c.sugestao_data)) + '</strong>' +
+      (hora ? ' às <strong>' + esc(hora) + '</strong>' : '') + '</div>';
+  }
+
   function _htmlCartaoConteudo(c) {
     var par = ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
     var redes = (c.redes || []).map(function (r) {
@@ -9171,7 +9259,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     }
     if (c.status === 'ideia') botoes += botao('para_gravar', 'Virar roteiro', 'procpage-btn procpage-btn-primary');
     if (c.status === 'para_gravar') botoes += botao('gravei', 'Gravei', 'procpage-btn procpage-btn-primary');
-    if (c.status === 'gravado') botoes += botao('agendar', 'Agendar', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'gravado' && c.sugestao_data) botoes += botao('aprovar_sugestao', 'Aprovar agendamento', 'procpage-btn procpage-btn-primary');
+    if (c.status === 'gravado') botoes += botao('agendar', c.sugestao_data ? 'Outro horário' : 'Agendar', c.sugestao_data ? 'btn-conexao-secundario' : 'procpage-btn procpage-btn-primary') + botao('nao_gravei', 'Desfazer: não gravei', 'btn-conexao-secundario');
     if (c.status === 'agendado') botoes += botao('postei', 'Postei', 'procpage-btn procpage-btn-primary');
     if (c.status === 'postado') botoes += botao('voltar_agenda', 'Voltar para a agenda', 'btn-conexao-secundario');
     botoes += botao('editar', 'Editar', 'btn-conexao-secundario') + botao('excluir', 'Excluir', 'btn-remover');
@@ -9185,6 +9274,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<span class="chip neutral">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + '</span>' + redes +
         (dataTxt ? '<span class="conteudo-card-data">' + esc(dataTxt) + '</span>' : '') +
       '</div>' +
+      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) +
       (c.roteiro ? '<details class="conteudo-roteiro"><summary>Ver roteiro</summary><div class="conteudo-roteiro-texto">' + esc(c.roteiro) + '</div></details>' : '') +
       (c.observacao ? '<div class="conteudo-card-obs">' + esc(c.observacao) + '</div>' : '') +
       '<div class="conteudo-card-acoes">' + botoes + '</div>' +
@@ -9202,23 +9292,63 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   // Separa uma lista em Atrasados / Hoje / Próximos dias / Sem data, olhando o campo de data
   // informado (data_gravar na aba "Para gravar", data_postagem na agenda). `hoje` e 'AAAA-MM-DD'
   // do relogio local, entao a comparacao de texto equivale a comparacao de datas.
-  function _agruparPorDataConteudo(lista, campo, hoje, rotuloHoje) {
-    var grupos = { atrasados: [], hoje: [], proximos: [], semData: [] };
+  // `amanha` ('AAAA-MM-DD') e `rotuloAmanha` sao opcionais: com eles, o dia seguinte vira um grupo
+  // proprio ("Gravar amanha") e "Proximos dias" fica so com o que vem depois. `rotuloAtrasados`
+  // tambem e opcional (padrao "Atrasados").
+  function _agruparPorDataConteudo(lista, campo, hoje, rotuloHoje, amanha, rotuloAmanha, rotuloAtrasados) {
+    var grupos = { atrasados: [], hoje: [], amanha: [], proximos: [], semData: [] };
     lista.forEach(function (c) {
       var d = c[campo];
       if (!d) grupos.semData.push(c);
       else if (d < hoje) grupos.atrasados.push(c);
       else if (d === hoje) grupos.hoje.push(c);
+      else if (amanha && d === amanha) grupos.amanha.push(c);
       else grupos.proximos.push(c);
     });
-    return _htmlGrupoConteudo('Atrasados', grupos.atrasados) +
+    return _htmlGrupoConteudo(rotuloAtrasados || 'Atrasados', grupos.atrasados) +
       _htmlGrupoConteudo(rotuloHoje, grupos.hoje) +
+      _htmlGrupoConteudo(rotuloAmanha || '', grupos.amanha) +
       _htmlGrupoConteudo('Próximos dias', grupos.proximos) +
       _htmlGrupoConteudo('Sem data', grupos.semData);
   }
 
+  // "Seus videos em cena": faixa com os proximos conteudos (para gravar, gravados e agendados), em
+  // ordem de data. Ainda sem capa de imagem (o cadastro nao guarda arquivo): cada quadro mostra
+  // titulo, formato, redes e data. A faixa corre sozinha e pausa com o mouse em cima.
+  function _htmlCarrosselConteudo(lista) {
+    var itens = lista.filter(function (c) {
+      return c.status === 'para_gravar' || c.status === 'gravado' || c.status === 'agendado';
+    }).sort(function (a, b) {
+      var da = (a.status === 'agendado' ? a.data_postagem : a.data_gravar) || '9999-99-99';
+      var db = (b.status === 'agendado' ? b.data_postagem : b.data_gravar) || '9999-99-99';
+      return da < db ? -1 : (da > db ? 1 : 0);
+    }).slice(0, 14);
+    if (!itens.length) return '';
+    function quadro(c, escondido) {
+      var par = ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
+      var redes = (c.redes || []).map(function (r) { return esc(ROTULO_REDE_CONTEUDO[r] || r); }).join(' · ');
+      var dataTxt = _textoDataConteudo(c);
+      return '<div class="conteudo-cena-quadro"' + (escondido ? ' aria-hidden="true"' : '') + '>' +
+        '<span class="conteudo-cena-status">' + esc(par[1]) + '</span>' +
+        '<div class="conteudo-cena-titulo">' + esc(c.titulo) + '</div>' +
+        '<div class="conteudo-cena-meta">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + (redes ? ' · ' + redes : '') + '</div>' +
+        (dataTxt ? '<div class="conteudo-cena-data">' + esc(dataTxt) + '</div>' : '') +
+      '</div>';
+    }
+    var quadros = itens.map(function (c) { return quadro(c, false); }).join('');
+    // com poucos quadros nao compensa correr: ficam parados, sem duplicar
+    var correr = itens.length >= 5;
+    return '<div class="conteudo-cena">' +
+      '<div class="conteudo-cena-topo"><span class="conteudo-cena-rotulo">Seus vídeos em cena</span>' +
+        (correr ? '<span class="conteudo-cena-dica">Passe o mouse para pausar</span>' : '') + '</div>' +
+      '<div class="conteudo-cena-janela"><div class="conteudo-cena-faixa' + (correr ? ' corre' : '') + '" style="--cena-itens:' + itens.length + ';">' +
+        quadros + (correr ? itens.map(function (c) { return quadro(c, true); }).join('') : '') +
+      '</div></div>' +
+    '</div>';
+  }
+
   function wireConteudo() {
-    var abaAtual = 'para_gravar';
+    var abaAtual = 'meu_dia';
     var ativos = [];
     var concluidos = [];
     var listaEl = document.getElementById('conteudo-lista');
@@ -9234,7 +9364,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     }
 
     function atualizarContadores() {
+      var hojeIso = _fmtISOData(new Date());
       var valores = {
+        meu_dia: dosStatus('para_gravar').filter(function (c) { return c.data_gravar && c.data_gravar <= hojeIso; }).length +
+          dosStatus('gravado', 'agendado').filter(function (c) { return c.data_postagem && c.data_postagem <= hojeIso; }).length,
         para_gravar: dosStatus('para_gravar').length,
         agenda: dosStatus('gravado', 'agendado').length,
         ideias: dosStatus('ideia').length,
@@ -9248,11 +9381,25 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     function render() {
       atualizarContadores();
       var hoje = _fmtISOData(new Date());
+      var dAmanha = new Date();
+      var amanha = _fmtISOData(new Date(dAmanha.getFullYear(), dAmanha.getMonth(), dAmanha.getDate() + 1));
       var html = '';
-      if (abaAtual === 'para_gravar') {
+      var carrosselEl = document.getElementById('conteudo-carrossel');
+      if (carrosselEl) carrosselEl.innerHTML = _htmlCarrosselConteudo(ativos);
+      if (abaAtual === 'meu_dia') {
+        var gravarAteHoje = dosStatus('para_gravar').filter(function (c) { return c.data_gravar && c.data_gravar <= hoje; });
+        var postarAteHoje = dosStatus('gravado', 'agendado').filter(function (c) { return c.data_postagem && c.data_postagem <= hoje; });
+        html = _agruparPorDataConteudo(gravarAteHoje, 'data_gravar', hoje, 'Gravar hoje', null, null, 'Gravação atrasada') +
+          _agruparPorDataConteudo(postarAteHoje, 'data_postagem', hoje, 'Postar hoje', null, null, 'Postagem atrasada');
+        if (!html) html = mensagemVazia('Nada pendente para hoje. Veja “Para gravar” e “Agenda de postagem” para os próximos dias.');
+      } else if (abaAtual === 'para_gravar') {
         var paraGravar = dosStatus('para_gravar');
-        html = paraGravar.length ? _agruparPorDataConteudo(paraGravar, 'data_gravar', hoje, 'Gravar hoje')
-          : mensagemVazia('Nada para gravar agora. Use “+ Novo conteúdo” para cadastrar um roteiro.');
+        var jaGravados = dosStatus('gravado');
+        var totalCiclo = paraGravar.length + jaGravados.length;
+        html = (totalCiclo ? '<div class="conteudo-progresso">' + jaGravados.length + ' de ' + totalCiclo + ' gravados</div>' : '') +
+          (paraGravar.length ? _agruparPorDataConteudo(paraGravar, 'data_gravar', hoje, 'Gravar hoje', amanha, 'Gravar amanhã') : '') +
+          _htmlGrupoConteudo('Gravados, aguardando edição e agenda', jaGravados);
+        if (!html) html = mensagemVazia('Nada para gravar agora. Use “+ Novo conteúdo” para cadastrar um roteiro.');
       } else if (abaAtual === 'agenda') {
         var gravados = dosStatus('gravado');
         var agendados = dosStatus('agendado');
@@ -9304,6 +9451,24 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var acao = botao.getAttribute('data-conteudo-acao');
       if (acao === 'para_gravar') mudarStatus(c, 'para_gravar', botao);
       else if (acao === 'gravei') mudarStatus(c, 'gravado', botao);
+      else if (acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao);
+      else if (acao === 'assistir') {
+        var arq = (c.arquivos || {})[botao.getAttribute('data-conteudo-rede')] || {};
+        var idDrive = _idDriveConteudo(arq.link_video);
+        if (idDrive) abrirPlayerConteudo(c.titulo, idDrive);
+      }
+      else if (acao === 'aprovar_sugestao') {
+        botao.disabled = true;
+        // aprova: a sugestao vira data/hora de postagem e deixa de ser sugestao
+        apiPostJson('/api/painel?acao=conteudo_atualizar', {
+          id: c.id, status: 'agendado', data_postagem: c.sugestao_data,
+          hora_postagem: c.sugestao_hora ? String(c.sugestao_hora).slice(0, 5) : '',
+          sugestao_data: '', sugestao_hora: '',
+        }).then(carregar).catch(function (e) {
+          botao.disabled = false;
+          mostrarAviso(e.message || 'Não foi possível aprovar o agendamento agora.');
+        });
+      }
       else if (acao === 'postei') mudarStatus(c, 'postado', botao);
       else if (acao === 'voltar_agenda') mudarStatus(c, 'agendado', botao);
       else if (acao === 'agendar') abrirModalConteudo(c, carregar, { status: 'agendado', foco: 'conteudo-form-data-postagem' });
@@ -9328,11 +9493,18 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
 
     document.getElementById('conteudo-btn-novo').addEventListener('click', function () {
       // abre ja no status da aba em que a pessoa esta, pra "+ Novo" em Ideias nao cair em "Para gravar"
-      var statusDaAba = { para_gravar: 'para_gravar', agenda: 'gravado', ideias: 'ideia', concluidos: 'postado' }[abaAtual];
+      var statusDaAba = { meu_dia: 'para_gravar', para_gravar: 'para_gravar', agenda: 'gravado', ideias: 'ideia', concluidos: 'postado' }[abaAtual];
       abrirModalConteudo(null, carregar, { status: statusDaAba });
     });
 
     carregar();
+  }
+
+  // Link do video que vale para o conteudo: o da primeira rede que tiver um (o arquivo e o mesmo).
+  function _linkAtualConteudo(c) {
+    var arquivos = (c && c.arquivos) || {};
+    var redes = Object.keys(arquivos).filter(function (r) { return arquivos[r] && arquivos[r].link_video; });
+    return redes.length ? arquivos[redes[0]].link_video : '';
   }
 
   function _garantirModalConteudo() {
@@ -9370,6 +9542,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
               '<div style="flex:1;"><label>Gravar em</label><input type="date" id="conteudo-form-data-gravar" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
               '<div style="flex:1;"><label>Postar em</label><input type="date" id="conteudo-form-data-postagem" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
               '<div style="width:110px;"><label>Hora</label><input type="time" id="conteudo-form-hora-postagem" style="' + ESTILO_CAMPO_CONTEUDO + '"></div>' +
+            '</div>' +
+            '<div id="conteudo-form-bloco-link" style="display:none;">' +
+              '<label>Link do vídeo no Drive</label>' +
+              '<input type="url" id="conteudo-form-link-video" maxlength="500" placeholder="https://drive.google.com/file/d/..." style="' + ESTILO_CAMPO_CONTEUDO + 'margin-bottom:4px;">' +
+              '<div style="font-size:12px;color:var(--ink-faint);margin-bottom:14px;">No Drive: botão direito no vídeo, Compartilhar, Copiar link. Com ele aparece o botão “Assistir” no cartão.</div>' +
             '</div>' +
             '<label>Observação</label>' +
             '<textarea id="conteudo-form-observacao" rows="2" style="' + ESTILO_CAMPO_CONTEUDO + 'resize:vertical;margin-bottom:18px;"></textarea>' +
@@ -9411,7 +9588,20 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         observacao: document.getElementById('conteudo-form-observacao').value.trim(),
       };
       var problema = null;
-      if (!corpo.titulo) problema = 'Preencha o título.';
+      var campoLink = document.getElementById('conteudo-form-link-video');
+      var linkNovo = campoLink ? campoLink.value.trim() : '';
+      var comVideo = emEdicao ? Object.keys(emEdicao.arquivos || {}).filter(function (r) { return emEdicao.arquivos[r] && emEdicao.arquivos[r].video; }) : [];
+      if (linkNovo && !/^https:\/\//i.test(linkNovo)) problema = 'O link do vídeo precisa começar com https://';
+      else if (comVideo.length && linkNovo !== _linkAtualConteudo(emEdicao)) {
+        // o mesmo arquivo serve para todas as redes: o link vale para cada rede que tem video
+        var arquivosNovos = JSON.parse(JSON.stringify(emEdicao.arquivos));
+        comVideo.forEach(function (r) {
+          if (linkNovo) arquivosNovos[r].link_video = linkNovo; else delete arquivosNovos[r].link_video;
+        });
+        corpo.arquivos = arquivosNovos;
+      }
+      if (problema) { /* mantem a mensagem do link */ }
+      else if (!corpo.titulo) problema = 'Preencha o título.';
       else if (corpo.status === 'agendado' && !corpo.data_postagem) problema = 'Informe o dia da postagem para deixar o conteúdo agendado.';
       else if (corpo.hora_postagem && !corpo.data_postagem) problema = 'Informe o dia da postagem junto com a hora.';
       if (problema) {
@@ -9450,6 +9640,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       document.getElementById('conteudo-form-data-postagem').value = c ? (c.data_postagem || '') : '';
       document.getElementById('conteudo-form-hora-postagem').value = c ? _horaConteudo(c) : '';
       document.getElementById('conteudo-form-observacao').value = c ? (c.observacao || '') : '';
+      var temVideo = !!c && Object.keys(c.arquivos || {}).some(function (r) { return c.arquivos[r] && c.arquivos[r].video; });
+      document.getElementById('conteudo-form-bloco-link').style.display = temVideo ? '' : 'none';
+      document.getElementById('conteudo-form-link-video').value = temVideo ? _linkAtualConteudo(c) : '';
       overlay.classList.remove('hidden');
       document.getElementById(opcoes.foco || 'conteudo-form-titulo').focus();
     };

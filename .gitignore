@@ -10,3 +10,5 @@ package-lock.json
 
 # Logs de scripts locais (manutencao do Windows/Google Drive), nao fazem parte do repo.
 *_log.txt
+ferramentas/rotina-marketing/config.json
+__pycache__/
