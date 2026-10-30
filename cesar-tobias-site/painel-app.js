@@ -70,7 +70,7 @@
     importar_oab: 'Importar pela OAB', criar_processo: 'Criar Processo', novo_cliente: 'Novo Cliente', prazos: 'Prazos processuais',
     tarefas: 'Tarefas', agenda_completa: 'Agenda', automacoes_gerais: 'Automações', procuracao_contrato: 'Procuração e Contrato', padrao_operacional: 'Padrão Operacional',
     audiencias: 'Audiências', admin: 'Conexões do escritório', configuracoes: 'Configurações do Escritório',
-    triagem_trabalhista: 'Triagem Trabalhista', criar_triagem: 'Nova Triagem Trabalhista',
+    triagem_trabalhista: 'Triagem Trabalhista', criar_triagem: 'Nova Triagem Trabalhista', calculos: 'Cálculos',
     conteudo: 'Conteúdo',
     triagem_previdenciaria: 'Triagem Previdenciária', criar_triagem_prev: 'Nova Triagem Previdenciária',
   };
@@ -5051,8 +5051,11 @@
     // (painel-financeiro-antigo.html = 'financeiro_antigo', painel-pje.html = 'pje', etc.). Tudo acima continua calculado
     // do mesmo jeito de sempre (nao muda a logica de nenhuma secao), so a montagem final escolhe
     // o que realmente entra na pagina.
+    var htmlCalculos = '<section id="sec-calculos"><p class="section-label">Cálculos judiciais</p><div id="calculos-raiz"></div></section>';
+
     var MAPA_CONTEUDO_POR_PAGINA = {
       inicio: htmlInicio,
+      calculos: htmlCalculos,
       // O Financeiro antigo (dashboard/fluxo de caixa) foi descontinuado -- ja existe uma
       // versao melhor em painel.html (financeiro_novo, com Painel Executivo). Notificacao
       // Extrajudicial e Clientes da planilha continuam aqui, sao features proprias, nao parte
@@ -5090,6 +5093,7 @@
       triagem_trabalhista: 'processos', criar_triagem: 'processos',
       triagem_previdenciaria: 'processos', criar_triagem_prev: 'processos',
       conteudo: 'marketing',
+      calculos: 'processos',
     };
     var permissaoNecessaria = MAPA_PERMISSAO_POR_PAGINA[PAGINA_ATUAL];
     var temAcessoPagina = (PAGINA_ATUAL === 'admin' || PAGINA_ATUAL === 'configuracoes')
@@ -5173,6 +5177,7 @@
       document.getElementById('clientes-carregar-consolidado').addEventListener('click', carregarClientes);
       if (new URLSearchParams(window.location.search).get('cliente')) carregarClientes();
     }
+    if (PAGINA_ATUAL === 'calculos' && window.CalculosUI) window.CalculosUI.montar(document.getElementById('calculos-raiz'));
     if (PAGINA_ATUAL === 'padrao_operacional') carregarPadraoOperacional();
     if (PAGINA_ATUAL === 'audiencias') { wireAudienciasSubtabs(); wireUploadAudiencia(); wireAudienciaAoVivo(); carregarAudiencias(); carregarPautaAudiencias(); }
     if (PAGINA_ATUAL === 'inicio') {

@@ -401,6 +401,44 @@ module.exports = async (req, res) => {
     return;
   }
 
+  if (acao === 'calculo_listar' || acao === 'calculo_obter' || acao === 'calculo_indices_listar' || acao === 'calculo_vinculos') {
+    var qsCalculo = '';
+    ['cliente_id', 'processo_id', 'q', 'limite', 'id'].forEach(function (campo) {
+      if (req.query && req.query[campo]) qsCalculo += '&' + campo + '=' + encodeURIComponent(req.query[campo]);
+    });
+    try {
+      const resposta = await fetch(base + '?action=' + acao + qsCalculo + '&token=' + encodeURIComponent(tokenSessao) + segredoQS);
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: 'Erro de conexao ao consultar os calculos.' });
+    }
+    return;
+  }
+
+  var acoesCalculoPost = {
+    calculo_salvar: 'Erro de conexao ao salvar o calculo.',
+    calculo_excluir: 'Erro de conexao ao excluir o calculo.',
+    calculo_indice_salvar: 'Erro de conexao ao salvar o indice.',
+  };
+  if (acoesCalculoPost[acao]) {
+    if (req.method !== 'POST') {
+      res.status(405).json({ erro: 'Metodo nao permitido.' });
+      return;
+    }
+    try {
+      const resposta = await fetch(
+        base + '?action=' + acao + '&token=' + encodeURIComponent(tokenSessao) + segredoQS,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) }
+      );
+      const dados = await resposta.json();
+      res.status(resposta.status).json(dados);
+    } catch (e) {
+      res.status(502).json({ erro: acoesCalculoPost[acao] });
+    }
+    return;
+  }
+
   if (acao === 'conteudo_listar') {
     var qsConteudo = '';
     ['status', 'limite', 'ordem'].forEach(function (campo) {
