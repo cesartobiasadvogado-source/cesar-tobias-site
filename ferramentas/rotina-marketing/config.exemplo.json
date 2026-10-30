@@ -4,5 +4,14 @@
   "usuario": "rotina.marketing",
   "horarios": ["18:30"],
   "dias_semana": [0, 1, 2, 3, 4, 5, 6],
-  "pasta_publicar": "C:\\Users\\Marlo\\Documents\\Prontos para postar"
+  "pasta_publicar": "C:\\Users\\Marlo\\Documents\\Prontos para postar",
+  "legenda_sugerida": true,
+  "metricool": {
+    "ativo": true,
+    "marca_id": "6492833",
+    "modo": "rascunho",
+    "fuso": "America/Fortaleza",
+    "antecedencia_min": 15,
+    "tiktok_privacidade": "PUBLIC_TO_EVERYONE"
+  }
 }

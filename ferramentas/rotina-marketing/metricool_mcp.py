@@ -28,6 +28,11 @@ class ErroMetricool(RuntimeError):
     pass
 
 
+class RecusaMetricool(ErroMetricool):
+    """O Metricool respondeu e RECUSOU a ferramenta (isError): nada foi criado. Diferente de falha de rede,
+    em que nao da para saber se o post chegou a ser criado."""
+
+
 def _b64url(dados):
     return base64.urlsafe_b64encode(dados).rstrip(b'=').decode('ascii')
 
@@ -208,7 +213,7 @@ class ClienteMcp:
         resultado = self._chamar('tools/call', {'name': ferramenta, 'arguments': argumentos})
         texto = ''.join(c.get('text', '') for c in resultado.get('content', []) if c.get('type') == 'text')
         if resultado.get('isError'):
-            raise ErroMetricool('o Metricool recusou: ' + texto[:400])
+            raise RecusaMetricool('o Metricool recusou: ' + texto[:400])
         try:
             return json.loads(texto)
         except ValueError:

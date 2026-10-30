@@ -13,8 +13,28 @@ O Windows abre a rotina **todo dia às 08:30 e às 17:30**. Para cada vídeo nov
 6. grava no painel os arquivos e uma **sugestão** de dia e hora;
 7. **entrega numa pasta do seu HD** o vídeo editado, as capas, o roteiro e um `info.txt`.
 
-Ela **nunca agenda e nunca posta** nas redes: você aprova no painel e publica você mesmo.
-Também **nunca mexe no vídeo original**, e nunca apaga nem sobrescreve nada.
+8. **escreve uma legenda sugerida** a partir do roteiro (por regras, sem custo): você revisa no cartão;
+9. **depois que você aprova o agendamento, revisa a legenda e marca "Programar no Metricool"**, cria o
+   post no Metricool (Instagram Reel, TikTok e Facebook Reel). No modo `rascunho` (padrão) ele fica como
+   rascunho no Metricool para você confirmar lá; no modo `automatico` o Metricool publica sozinho na hora.
+
+Sem o seu aval a rotina **nunca agenda e nunca posta**: a aprovação, a revisão da legenda e o "programar"
+são sempre seus. Também **nunca mexe no vídeo original**, e nunca apaga nem sobrescreve nada.
+
+### Como a programação no Metricool se protege
+
+- Só age em conteúdo **Agendado** com legenda **revisada** e "Programar" marcado.
+- **Nunca duplica:** grava "enviando" antes de falar com o Metricool e o resultado depois. Se uma rodada
+  morrer no meio, a seguinte não repete: avisa no cartão para você conferir no Metricool.
+- **Erro nunca é repetido sozinho:** só quando você aperta "Tentar de novo" no cartão.
+- Recusa horário que já passou ou está a menos de 15 minutos.
+- O vídeo vai ao Metricool por um **endereço temporário** (túnel do `cloudflared`) que existe só durante
+  o envio e some em seguida; o Metricool guarda a própria cópia.
+- Só funciona se o servidor do painel já souber guardar a publicação (senão não há onde registrar o resultado).
+
+Instalação extra (uma vez): `python autorizar_metricool.py` (clique em Autorizar no navegador; o acesso
+fica no cofre do Windows). No `config.json`, veja as chaves `legenda_sugerida` e `metricool` do
+`config.exemplo.json`.
 
 ## Como usar no dia a dia
 

@@ -11,7 +11,10 @@ Para cada video novo em 1-Brutos:
      dia/hora. Nao agenda e nao posta nada: quem aprova o agendamento e a pessoa, no painel;
   5. deixa o video editado, as capas, o roteiro e um info.txt (redes, dia e hora) numa pasta no HD
      (config "pasta_publicar"), uma subpasta por conteudo, para a pessoa publicar nas redes. So cria e
-     copia: nunca apaga nem sobrescreve nada que ja esteja la.
+     copia: nunca apaga nem sobrescreve nada que ja esteja la;
+  6. (config "legenda_sugerida") escreve uma LEGENDA sugerida a partir do roteiro, para a pessoa revisar;
+  7. (config "metricool") DEPOIS que a pessoa aprova o agendamento, revisa a legenda e marca "programar",
+     cria o post (ou um rascunho) no Metricool. Ver publicar_metricool.py para as travas.
 
 Seguranca: nunca altera nem apaga o video original; nunca sobrescreve arquivo editado; a senha do
 usuario da rotina fica no cofre do Windows (keyring), nunca em arquivo; o usuario da rotina so
@@ -33,6 +36,9 @@ from pathlib import Path
 
 import edicao_video as ed
 import editar_video as ev
+import metricool_mcp as mm
+import publicar_metricool as pm
+import tunel_temporario as tt
 
 EXTENSOES = ('.mp4', '.mov', '.m4v', '.mkv', '.webm')
 IDADE_MINIMA_S = 180          # arquivo mexido ha menos que isso ainda esta sendo gravado/sincronizado
@@ -379,16 +385,22 @@ def entregar_na_pasta_local(c, pasta_editados, raiz):
 class Dependencias:
     """Tudo que toca o mundo fora fica aqui, para os testes trocarem por falsos."""
 
-    def __init__(self, painel, transcrever=transcrever_whisper, editar=ev.editar, agora=time.time, hoje=date.today):
+    def __init__(self, painel, transcrever=transcrever_whisper, editar=ev.editar, agora=time.time, hoje=date.today,
+                 metricool=None, tunel=None):
         self.painel, self.transcrever, self.editar, self.agora, self.hoje = painel, transcrever, editar, agora, hoje
+        self.metricool = metricool                       # funcao que devolve o cliente do Metricool (so criado se precisar)
+        self.tunel = tunel or tt.TunelTemporario
 
 
 def executar(config, deps, so_listar=False, log=print):
     base = Path(config['pasta_base'])
     brutos, editados = base / '1-Brutos', base / '2-Editados'
     estado = Estado(base / '_rotina' / 'estado.json')
-    relatorio = {'processados': [], 'aguardando_escolha': [], 'criados': [], 'entregues': [],
+    relatorio = {'processados': [], 'aguardando_escolha': [], 'criados': [], 'entregues': [], 'legendas': [], 'programados': [],
                  'sem_correspondencia': [], 'erros': [], 'aguardando': []}
+    cfg_metricool = pm.configurar(config)             # ValueError aqui = configuracao errada: melhor parar do que adivinhar
+    programar = bool(cfg_metricool['ativo'])
+    sugerir = bool(config.get('legenda_sugerida', False))
 
     novos = listar_novos(brutos, estado.dados, agora=deps.agora())
     log('%d video(s) novo(s) em 1-Brutos' % len(novos))
@@ -396,7 +408,7 @@ def executar(config, deps, so_listar=False, log=print):
         relatorio['aguardando'] = [a.name for a, _ in novos]
         return relatorio
     pasta_publicar = config.get('pasta_publicar')
-    if not novos and not pasta_publicar:
+    if not novos and not (pasta_publicar or programar or sugerir):
         return relatorio              # nada a fazer: nem entra no painel
 
     deps.painel.entrar()
@@ -487,6 +499,20 @@ def executar(config, deps, so_listar=False, log=print):
         except Exception as e:  # a entrega nao pode desfazer nem travar o que ja foi editado
             relatorio['erros'].append({'video': '(entrega na pasta local)', 'erro': str(e)[:300], 'tentativa': 1})
             log('  ERRO na entrega para a pasta local: %s' % e)
+
+    if sugerir or programar:
+        try:
+            atuais = deps.painel.listar('gravado') + deps.painel.listar('agendado')
+            if sugerir:
+                relatorio['legendas'] = pm.sugerir_legendas(deps.painel, atuais, config, log=log)
+            if programar:
+                if deps.metricool is None:
+                    raise RuntimeError('o cliente do Metricool nao foi configurado')
+                programador = pm.Programador(deps.painel, deps.metricool, deps.tunel, cfg_metricool, editados, deps.agora, log=log)
+                relatorio['programados'] = pm.programar_pendentes(programador, atuais)
+        except Exception as e:  # nunca desfaz o que ja foi editado/entregue
+            relatorio['erros'].append({'video': '(legenda/Metricool)', 'erro': str(e)[:300], 'tentativa': 1})
+            log('  ERRO na legenda/Metricool: %s' % e)
     return relatorio
 
 
@@ -502,6 +528,20 @@ def gravar_relatorio(config, relatorio):
             historico = []
     historico.append({'quando': datetime.now().isoformat(timespec='seconds'), **relatorio})
     arq.write_text(json.dumps(historico, ensure_ascii=False, indent=1), encoding='utf-8')
+
+
+def fabrica_metricool():
+    """Funcao que cria (uma unica vez, so quando preciso) o cliente do Metricool ja com sessao iniciada."""
+    guardado = {}
+
+    def obter():
+        if 'cliente' not in guardado:
+            import requests
+            cliente = mm.ClienteMcp(mm.OAuth(requests, mm.Cofre()), requests)
+            cliente.iniciar()
+            guardado['cliente'] = cliente
+        return guardado['cliente']
+    return obter
 
 
 def main(argv=None):
@@ -530,7 +570,7 @@ def main(argv=None):
             print('ERRO: senha da rotina nao cadastrada. Rode configurar_senha.py')
             return 1
         painel = Painel(config['url_painel'], config['usuario'], senha, requests)
-        relatorio = executar(config, Dependencias(painel), so_listar=a.so_listar)
+        relatorio = executar(config, Dependencias(painel, metricool=fabrica_metricool()), so_listar=a.so_listar)
         if not a.so_listar:
             gravar_relatorio(config, relatorio)
         print(json.dumps(relatorio, ensure_ascii=False, indent=1))
