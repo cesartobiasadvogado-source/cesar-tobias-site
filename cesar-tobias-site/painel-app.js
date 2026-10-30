@@ -3754,11 +3754,15 @@
             '<button type="button" class="procpage-btn procpage-btn-primary" id="conteudo-btn-novo">+ Novo conteúdo</button>' +
           '</div>' +
           '<div id="conteudo-carrossel"></div>' +
-          '<div class="subtabs" role="tablist" style="margin-bottom:16px; flex-wrap:wrap;">' +
-            '<button type="button" class="subtab-btn ativo" data-conteudo-aba="meu_dia">Meu dia <span class="conteudo-contador" data-conteudo-contador="meu_dia"></span></button>' +
-            '<button type="button" class="subtab-btn" data-conteudo-aba="para_gravar">Para gravar <span class="conteudo-contador" data-conteudo-contador="para_gravar"></span></button>' +
-            '<button type="button" class="subtab-btn" data-conteudo-aba="agenda">Agenda de postagem <span class="conteudo-contador" data-conteudo-contador="agenda"></span></button>' +
+          '<div class="subtabs conteudo-fluxo" role="tablist" aria-label="Etapas do conteúdo" style="margin-bottom:16px; flex-wrap:wrap;">' +
             '<button type="button" class="subtab-btn" data-conteudo-aba="ideias">Ideias <span class="conteudo-contador" data-conteudo-contador="ideias"></span></button>' +
+            '<span class="conteudo-fluxo-seta" aria-hidden="true">→</span>' +
+            '<button type="button" class="subtab-btn ativo" data-conteudo-aba="para_gravar">Para gravar <span class="conteudo-contador" data-conteudo-contador="para_gravar"></span></button>' +
+            '<span class="conteudo-fluxo-seta" aria-hidden="true">→</span>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="edicao">Em edição <span class="conteudo-contador" data-conteudo-contador="edicao"></span></button>' +
+            '<span class="conteudo-fluxo-seta" aria-hidden="true">→</span>' +
+            '<button type="button" class="subtab-btn" data-conteudo-aba="agenda">Agenda de postagem <span class="conteudo-contador" data-conteudo-contador="agenda"></span></button>' +
+            '<span class="conteudo-fluxo-seta" aria-hidden="true">→</span>' +
             '<button type="button" class="subtab-btn" data-conteudo-aba="concluidos">Concluídos <span class="conteudo-contador" data-conteudo-contador="concluidos"></span></button>' +
           '</div>' +
           '<div id="conteudo-lista"><div class="empty-state"><div class="msg" style="color:var(--ink-faint);">Carregando…</div></div></div>' +
@@ -9141,9 +9145,26 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp',
   };
   var ROTULO_STATUS_CONTEUDO = {
-    ideia: ['neutral', 'Ideia'], para_gravar: ['warn', 'Para gravar'], gravado: ['neutral', 'Gravado'],
-    agendado: ['good', 'Agendado'], postado: ['good', 'Postado'],
+    ideia: ['neutral', 'Ideia'], para_gravar: ['warn', 'Para gravar'], gravado: ['neutral', 'Em edição'],
+    agendado: ['good', 'Agendado'], postado: ['good', 'Concluído'],
   };
+
+  // O fluxo do conteudo: Ideias -> Para gravar -> Em edicao -> Agenda de postagem -> Concluidos.
+  // "Em edicao" e o status gravado ate o video editado ficar pronto; depois ele espera a aprovacao na Agenda.
+  function _temVideoEditadoConteudo(c) {
+    return Object.keys(c.arquivos || {}).some(function (r) { return c.arquivos[r] && c.arquivos[r].video; });
+  }
+  function _etapaConteudo(c) {
+    if (c.status === 'ideia') return 'ideias';
+    if (c.status === 'para_gravar') return 'para_gravar';
+    if (c.status === 'gravado') return _temVideoEditadoConteudo(c) ? 'agenda' : 'edicao';
+    if (c.status === 'agendado') return 'agenda';
+    return 'concluidos';
+  }
+  function _chipEtapaConteudo(c) {
+    if (c.status === 'gravado' && _temVideoEditadoConteudo(c)) return ['good', 'Pronto para aprovar'];
+    return ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
+  }
   var ESTILO_CAMPO_CONTEUDO = 'width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;font-family:inherit;background:var(--bg);color:var(--ink);margin-bottom:14px;';
 
   function _horaConteudo(c) {
@@ -9154,7 +9175,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   function _textoDataConteudo(c) {
     if (c.status === 'para_gravar') return c.data_gravar ? 'Gravar em ' + fmtDataProcesso(c.data_gravar) : 'Sem data para gravar';
     if (c.status === 'ideia') return '';
-    if (c.status === 'gravado' && !c.data_postagem) return 'Gravado, falta agendar a postagem';
+    if (c.status === 'gravado' && !c.data_postagem) return _temVideoEditadoConteudo(c) ? 'Editado, aguardando a sua aprovação' : 'Gravado, em edição';
     if (!c.data_postagem) return '';
     var hora = _horaConteudo(c);
     return (c.status === 'postado' ? 'Postado/previsto em ' : 'Postar em ') + fmtDataProcesso(c.data_postagem) + (hora ? ' às ' + hora : '');
@@ -9291,7 +9312,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   }
 
   function _htmlCartaoConteudo(c) {
-    var par = ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
+    var par = _chipEtapaConteudo(c);
     var redes = (c.redes || []).map(function (r) {
       return '<span class="chip neutral">' + esc(ROTULO_REDE_CONTEUDO[r] || r) + '</span>';
     }).join('');
@@ -9303,8 +9324,13 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     }
     if (c.status === 'ideia') botoes += botao('para_gravar', 'Virar roteiro', 'procpage-btn procpage-btn-primary');
     if (c.status === 'para_gravar') botoes += botao('gravei', 'Gravei', 'procpage-btn procpage-btn-primary');
-    if (c.status === 'gravado' && c.sugestao_data) botoes += botao('aprovar_sugestao', 'Aprovar agendamento', 'procpage-btn procpage-btn-primary');
-    if (c.status === 'gravado') botoes += botao('agendar', c.sugestao_data ? 'Outro horário' : 'Agendar', c.sugestao_data ? 'btn-conexao-secundario' : 'procpage-btn procpage-btn-primary') + botao('nao_gravei', 'Desfazer: não gravei', 'btn-conexao-secundario');
+    if (c.status === 'gravado') {
+      var editado = _temVideoEditadoConteudo(c);
+      if (editado && c.sugestao_data) botoes += botao('aprovar_sugestao', 'Aprovar agendamento', 'procpage-btn procpage-btn-primary');
+      botoes += botao('agendar', editado ? (c.sugestao_data ? 'Outro horário' : 'Agendar') : 'Agendar manualmente',
+        editado && !c.sugestao_data ? 'procpage-btn procpage-btn-primary' : 'btn-conexao-secundario');
+      botoes += botao('nao_gravei', 'Desfazer: não gravei', 'btn-conexao-secundario');
+    }
     if (c.status === 'agendado') botoes += botao('postei', 'Postei', 'procpage-btn procpage-btn-primary');
     if (c.status === 'postado') botoes += botao('voltar_agenda', 'Voltar para a agenda', 'btn-conexao-secundario');
     botoes += botao('editar', 'Editar', 'btn-conexao-secundario') + botao('excluir', 'Excluir', 'btn-remover');
@@ -9369,7 +9395,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     }).slice(0, 14);
     if (!itens.length) return '';
     function quadro(c, escondido) {
-      var par = ROTULO_STATUS_CONTEUDO[c.status] || ['neutral', c.status];
+      var par = _chipEtapaConteudo(c);
       var redes = (c.redes || []).map(function (r) { return esc(ROTULO_REDE_CONTEUDO[r] || r); }).join(' · ');
       var dataTxt = _textoDataConteudo(c);
       return '<div class="conteudo-cena-quadro"' + (escondido ? ' aria-hidden="true"' : '') + '>' +
@@ -9392,7 +9418,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   }
 
   function wireConteudo() {
-    var abaAtual = 'meu_dia';
+    var abaAtual = 'para_gravar';
     var ativos = [];
     var concluidos = [];
     var listaEl = document.getElementById('conteudo-lista');
@@ -9407,14 +9433,16 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       return ativos.filter(function (c) { return statuses.indexOf(c.status) !== -1; });
     }
 
+    function daEtapa(etapa) {
+      return ativos.filter(function (c) { return _etapaConteudo(c) === etapa; });
+    }
+
     function atualizarContadores() {
-      var hojeIso = _fmtISOData(new Date());
       var valores = {
-        meu_dia: dosStatus('para_gravar').filter(function (c) { return c.data_gravar && c.data_gravar <= hojeIso; }).length +
-          dosStatus('gravado', 'agendado').filter(function (c) { return c.data_postagem && c.data_postagem <= hojeIso; }).length,
-        para_gravar: dosStatus('para_gravar').length,
-        agenda: dosStatus('gravado', 'agendado').length,
-        ideias: dosStatus('ideia').length,
+        ideias: daEtapa('ideias').length,
+        para_gravar: daEtapa('para_gravar').length,
+        edicao: daEtapa('edicao').length,
+        agenda: daEtapa('agenda').length,
         concluidos: concluidos.length >= LIMITE_CONCLUIDOS ? LIMITE_CONCLUIDOS + '+' : concluidos.length,
       };
       document.querySelectorAll('[data-conteudo-contador]').forEach(function (el) {
@@ -9430,29 +9458,27 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var html = '';
       var carrosselEl = document.getElementById('conteudo-carrossel');
       if (carrosselEl) carrosselEl.innerHTML = _htmlCarrosselConteudo(ativos);
-      if (abaAtual === 'meu_dia') {
-        var gravarAteHoje = dosStatus('para_gravar').filter(function (c) { return c.data_gravar && c.data_gravar <= hoje; });
-        var postarAteHoje = dosStatus('gravado', 'agendado').filter(function (c) { return c.data_postagem && c.data_postagem <= hoje; });
-        html = _agruparPorDataConteudo(gravarAteHoje, 'data_gravar', hoje, 'Gravar hoje', null, null, 'Gravação atrasada') +
-          _agruparPorDataConteudo(postarAteHoje, 'data_postagem', hoje, 'Postar hoje', null, null, 'Postagem atrasada');
-        if (!html) html = mensagemVazia('Nada pendente para hoje. Veja “Para gravar” e “Agenda de postagem” para os próximos dias.');
-      } else if (abaAtual === 'para_gravar') {
-        var paraGravar = dosStatus('para_gravar');
-        var jaGravados = dosStatus('gravado');
-        var totalCiclo = paraGravar.length + jaGravados.length;
-        html = (totalCiclo ? '<div class="conteudo-progresso">' + jaGravados.length + ' de ' + totalCiclo + ' gravados</div>' : '') +
-          (paraGravar.length ? _agruparPorDataConteudo(paraGravar, 'data_gravar', hoje, 'Gravar hoje', amanha, 'Gravar amanhã') : '') +
-          _htmlGrupoConteudo('Gravados, aguardando edição e agenda', jaGravados);
-        if (!html) html = mensagemVazia('Nada para gravar agora. Use “+ Novo conteúdo” para cadastrar um roteiro.');
-      } else if (abaAtual === 'agenda') {
-        var gravados = dosStatus('gravado');
-        var agendados = dosStatus('agendado');
-        html = _htmlGrupoConteudo('Gravados, falta agendar', gravados) +
-          _agruparPorDataConteudo(agendados, 'data_postagem', hoje, 'Postar hoje');
-        if (!html) html = mensagemVazia('Nenhuma postagem na agenda. Quando você marcar “Gravei”, o conteúdo aparece aqui para agendar.');
-      } else if (abaAtual === 'ideias') {
-        var ideias = dosStatus('ideia');
+      if (abaAtual === 'ideias') {
+        var ideias = daEtapa('ideias');
         html = ideias.length ? ideias.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhuma ideia guardada. Cadastre um conteúdo com o status “Ideia”.');
+      } else if (abaAtual === 'para_gravar') {
+        var paraGravar = daEtapa('para_gravar');
+        var jaGravados = dosStatus('gravado').length;
+        var totalCiclo = paraGravar.length + jaGravados;
+        html = (totalCiclo ? '<div class="conteudo-progresso">' + jaGravados + ' de ' + totalCiclo + ' gravados</div>' : '') +
+          (paraGravar.length ? _agruparPorDataConteudo(paraGravar, 'data_gravar', hoje, 'Gravar hoje', amanha, 'Gravar amanhã') : '');
+        if (!html) html = mensagemVazia('Nada para gravar agora. Use “+ Novo conteúdo” para cadastrar um roteiro.');
+      } else if (abaAtual === 'edicao') {
+        var emEdicao = daEtapa('edicao');
+        function escolhida(c) { return !!(c.edicao && c.edicao.confirmado); }
+        html = _htmlGrupoConteudo('Escolha como editar', emEdicao.filter(function (c) { return !escolhida(c); })) +
+          _htmlGrupoConteudo('Aguardando o vídeo bruto em 1-Brutos', emEdicao.filter(function (c) { return escolhida(c) && !c.edicao.video_encontrado; })) +
+          _htmlGrupoConteudo('Na fila da rotina de edição', emEdicao.filter(function (c) { return escolhida(c) && !!c.edicao.video_encontrado; }));
+        if (!html) html = mensagemVazia('Nada em edição. Quando você apertar “Gravei”, o conteúdo vem para cá.');
+      } else if (abaAtual === 'agenda') {
+        html = _htmlGrupoConteudo('Prontos: aprove o agendamento', dosStatus('gravado').filter(_temVideoEditadoConteudo)) +
+          _agruparPorDataConteudo(dosStatus('agendado'), 'data_postagem', hoje, 'Postar hoje', amanha, 'Postar amanhã');
+        if (!html) html = mensagemVazia('Nada na agenda. Quando a edição ficar pronta, o vídeo aparece aqui para você aprovar o agendamento.');
       } else {
         html = concluidos.length ? concluidos.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhum conteúdo concluído ainda.');
       }
@@ -9555,7 +9581,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
 
     document.getElementById('conteudo-btn-novo').addEventListener('click', function () {
       // abre ja no status da aba em que a pessoa esta, pra "+ Novo" em Ideias nao cair em "Para gravar"
-      var statusDaAba = { meu_dia: 'para_gravar', para_gravar: 'para_gravar', agenda: 'gravado', ideias: 'ideia', concluidos: 'postado' }[abaAtual];
+      var statusDaAba = { ideias: 'ideia', para_gravar: 'para_gravar', edicao: 'gravado', agenda: 'agendado', concluidos: 'postado' }[abaAtual];
       abrirModalConteudo(null, carregar, { status: statusDaAba });
     });
 
@@ -9594,8 +9620,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '<div style="display:flex; gap:10px;">' +
               '<div style="flex:1;"><label>Formato</label><select id="conteudo-form-formato" style="' + ESTILO_CAMPO_CONTEUDO + '">' + formatos + '</select></div>' +
               '<div style="flex:1;"><label>Status</label><select id="conteudo-form-status" style="' + ESTILO_CAMPO_CONTEUDO + '">' +
-                '<option value="ideia">Ideia</option><option value="para_gravar">Para gravar</option><option value="gravado">Gravado</option>' +
-                '<option value="agendado">Agendado</option><option value="postado">Postado</option>' +
+                '<option value="ideia">Ideia</option><option value="para_gravar">Para gravar</option><option value="gravado">Em edição (já gravado)</option>' +
+                '<option value="agendado">Agenda de postagem</option><option value="postado">Concluído (postado)</option>' +
               '</select></div>' +
             '</div>' +
             '<label>Redes</label>' +

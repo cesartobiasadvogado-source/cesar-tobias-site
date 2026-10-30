@@ -84,12 +84,21 @@ t('o texto vindo do servidor passa por esc() nos cartões (sem injeção de HTML
   });
 });
 
-t('Para gravar: Meu dia, Gravar amanhã, contador de gravados e "Desfazer: não gravei" (gravado -> para_gravar)', () => {
-  assert(app.includes('data-conteudo-aba="meu_dia"'), 'sem a aba Meu dia');
-  assert(app.includes("'Gravar amanhã'"), 'sem o grupo Gravar amanha');
-  assert(/ de ' \+ totalCiclo \+ ' gravados/.test(app), 'sem o contador de gravados');
-  assert(app.includes("botao('nao_gravei', 'Desfazer: não gravei'"), 'sem o botao Desfazer');
-  assert(app.includes("acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao)"), 'Desfazer nao volta para para_gravar');
+t('fluxo do conteúdo: Ideias → Para gravar → Em edição → Agenda de postagem → Concluídos, nessa ordem', () => {
+  const abas = [...app.matchAll(/data-conteudo-aba=\"(\w+)\">([^<]+) <span/g)].map((m) => m[1] + ':' + m[2]);
+  assert.deepStrictEqual(abas, ['ideias:Ideias', 'para_gravar:Para gravar', 'edicao:Em edição', 'agenda:Agenda de postagem', 'concluidos:Concluídos']);
+  assert(!app.includes('data-conteudo-aba="meu_dia"'), 'a aba Meu dia nao faz parte do fluxo pedido');
+  assert((app.match(/conteudo-fluxo-seta/g) || []).length >= 4, 'faltam as setas entre as etapas');
+});
+
+t('cada conteúdo cai na etapa certa: gravado sem vídeo editado = Em edição; com vídeo editado = Agenda (aprovar)', () => {
+  const f = app.slice(app.indexOf('function _temVideoEditadoConteudo'), app.indexOf('function _chipEtapaConteudo'));
+  assert(f.includes("c.status === 'ideia') return 'ideias'") && f.includes("'para_gravar') return 'para_gravar'"));
+  assert(f.includes("_temVideoEditadoConteudo(c) ? 'agenda' : 'edicao'"), 'gravado nao decide entre Em edicao e Agenda');
+  assert(f.includes("c.status === 'agendado') return 'agenda'") && f.includes("return 'concluidos'"));
+  assert(app.includes("'Aprovar agendamento'") && app.includes("'Desfazer: não gravei'") && app.includes("'Gravar amanhã'"));
+  assert(app.includes("edicao: 'gravado', agenda: 'agendado'"), '+ Novo conteudo nao abre na etapa em que a pessoa esta');
+  assert(app.includes("gravado: ['neutral', 'Em edição']") && app.includes("postado: ['good', 'Concluído']"), 'nomes das etapas');
 });
 
 t('carrossel "Seus vídeos em cena": usa esc() no texto do servidor e respeita movimento reduzido', () => {
