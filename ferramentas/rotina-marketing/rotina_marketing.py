@@ -8,7 +8,10 @@ Para cada video novo em 1-Brutos:
   3. so EDITA depois que a pessoa confirmar, no cartao do conteudo, como quer aquele video
      (cortar pausas, tipo de legenda...). Antes disso apenas avisa no cartao "video encontrado";
   4. edita (editar_video.py) para 2-Editados e grava no painel os arquivos por rede e uma SUGESTAO de
-     dia/hora. Nao agenda e nao posta nada: quem aprova o agendamento e a pessoa, no painel.
+     dia/hora. Nao agenda e nao posta nada: quem aprova o agendamento e a pessoa, no painel;
+  5. deixa o video editado, as capas, o roteiro e um info.txt (redes, dia e hora) numa pasta no HD
+     (config "pasta_publicar"), uma subpasta por conteudo, para a pessoa publicar nas redes. So cria e
+     copia: nunca apaga nem sobrescreve nada que ja esteja la.
 
 Seguranca: nunca altera nem apaga o video original; nunca sobrescreve arquivo editado; a senha do
 usuario da rotina fica no cofre do Windows (keyring), nunca em arquivo; o usuario da rotina so
@@ -20,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -288,6 +292,90 @@ def opcoes_de_edicao(edicao):
 # Orquestracao
 # ---------------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------------------
+# Entrega na pasta local (para a pessoa publicar)
+# ---------------------------------------------------------------------------------------------
+
+_INVALIDOS_WINDOWS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def nome_seguro(texto, limite=50):
+    """Nome de pasta valido no Windows: tira caracteres proibidos, espacos repetidos e ponto/espaco no fim."""
+    limpo = _INVALIDOS_WINDOWS.sub(' ', texto or '')
+    limpo = re.sub(r'\s+', ' ', limpo).strip(' .')[:limite].strip(' .')
+    return limpo or 'sem titulo'
+
+
+def _data_br(iso):
+    ano, mes, dia = str(iso)[:10].split('-')
+    return '%s/%s/%s' % (dia, mes, ano)
+
+
+def texto_info(c, arquivos_copiados):
+    """O info.txt: o que e, para quais redes, e QUANDO postar (aprovado ou so sugerido)."""
+    redes = ', '.join((ROTULO_REDES.get(r, r) for r in (c.get('redes') or []))) or 'nao definidas'
+    if c.get('status') == 'agendado' and c.get('data_postagem'):
+        hora = str(c.get('hora_postagem') or '')[:5]
+        situacao = 'APROVADO para postar em %s%s' % (_data_br(c['data_postagem']), (' as ' + hora) if hora else '')
+    elif c.get('sugestao_data'):
+        hora = str(c.get('sugestao_hora') or '')[:5]
+        situacao = 'SUGESTAO da rotina: %s%s (ainda falta voce aprovar no painel)' % (
+            _data_br(c['sugestao_data']), (' as ' + hora) if hora else '')
+    else:
+        situacao = 'sem dia e hora definidos'
+    linhas = ['Titulo: ' + str(c.get('titulo') or ''), 'Redes: ' + redes, 'Situacao: ' + situacao, '',
+              'Arquivos nesta pasta:'] + ['  - ' + n for n in arquivos_copiados]
+    return '\n'.join(linhas) + '\n'
+
+
+ROTULO_REDES = {'instagram': 'Instagram', 'tiktok': 'TikTok', 'facebook': 'Facebook', 'stories': 'Stories',
+                'youtube': 'YouTube', 'linkedin': 'LinkedIn', 'whatsapp': 'WhatsApp'}
+
+
+def _pasta_do_conteudo(raiz, c):
+    """Reaproveita a subpasta do conteudo (pelo numero) mesmo que o titulo tenha mudado depois."""
+    prefixo = '%03d - ' % int(c['id'])
+    if raiz.exists():
+        for existente in sorted(raiz.iterdir()):
+            if existente.is_dir() and existente.name.startswith(prefixo):
+                return existente
+    return raiz / (prefixo + nome_seguro(c.get('titulo')))
+
+
+def entregar_na_pasta_local(c, pasta_editados, raiz):
+    """Copia o video editado e as capas do conteudo `c` para <raiz>/<NNN - titulo>/, junto com o roteiro e um
+    info.txt. Nunca apaga nem sobrescreve arquivo existente (o info.txt e o unico reescrito: ele so descreve
+    o estado atual). Devolve (pasta, [arquivos copiados agora], [arquivos que faltam na origem])."""
+    pasta_editados, raiz = Path(pasta_editados), Path(raiz)
+    nomes = []
+    for rede in sorted((c.get('arquivos') or {})):
+        for campo in ('video', 'capa'):
+            nome = (c['arquivos'][rede] or {}).get(campo)
+            if nome and nome not in nomes:
+                nomes.append(nome)
+    if not nomes:
+        return None, [], []
+    destino = _pasta_do_conteudo(raiz, c)
+    destino.mkdir(parents=True, exist_ok=True)
+    copiados, faltando = [], []
+    for nome in nomes:
+        origem = pasta_editados / nome
+        if not origem.is_file():
+            faltando.append(nome)
+            continue
+        alvo = destino / nome
+        if not alvo.exists():
+            shutil.copy2(origem, alvo)
+            copiados.append(nome)
+    roteiro = (c.get('roteiro') or '').strip()
+    if roteiro and not (destino / 'roteiro.txt').exists():
+        (destino / 'roteiro.txt').write_text(roteiro + '\n', encoding='utf-8')
+        copiados.append('roteiro.txt')
+    presentes = [n for n in nomes if (destino / n).exists()] + (['roteiro.txt'] if (destino / 'roteiro.txt').exists() else [])
+    (destino / 'info.txt').write_text(texto_info(c, presentes), encoding='utf-8')
+    return destino, copiados, faltando
+
+
 class Dependencias:
     """Tudo que toca o mundo fora fica aqui, para os testes trocarem por falsos."""
 
@@ -299,18 +387,22 @@ def executar(config, deps, so_listar=False, log=print):
     base = Path(config['pasta_base'])
     brutos, editados = base / '1-Brutos', base / '2-Editados'
     estado = Estado(base / '_rotina' / 'estado.json')
-    relatorio = {'processados': [], 'aguardando_escolha': [], 'criados': [], 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
+    relatorio = {'processados': [], 'aguardando_escolha': [], 'criados': [], 'entregues': [],
+                 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
 
     novos = listar_novos(brutos, estado.dados, agora=deps.agora())
     log('%d video(s) novo(s) em 1-Brutos' % len(novos))
-    if so_listar or not novos:
+    if so_listar:
         relatorio['aguardando'] = [a.name for a, _ in novos]
         return relatorio
+    pasta_publicar = config.get('pasta_publicar')
+    if not novos and not pasta_publicar:
+        return relatorio              # nada a fazer: nem entra no painel
 
     deps.painel.entrar()
     gravados = deps.painel.listar('gravado')
     # o video tambem pode ser de uma ideia/roteiro que a pessoa esqueceu de marcar como gravado
-    candidatos = gravados + deps.painel.listar('para_gravar') + deps.painel.listar('ideia')
+    candidatos = (gravados + deps.painel.listar('para_gravar') + deps.painel.listar('ideia')) if novos else []
     todos = gravados + deps.painel.listar('agendado')
     ocupados = horarios_ocupados(todos)
     log('%d conteudo(s) possivel(is) no painel (gravados, para gravar e ideias)' % len(candidatos))
@@ -381,6 +473,20 @@ def executar(config, deps, so_listar=False, log=print):
             estado.marcar(chave, tentativas=tentativas, ultimo_erro=str(e)[:300])
             relatorio['erros'].append({'video': video.name, 'erro': str(e)[:300], 'tentativa': tentativas})
             log('  %s: ERRO (%d/%d): %s' % (video.name, tentativas, TENTATIVAS_MAX, e))
+
+    if pasta_publicar:
+        # depois de tudo (inclusive do que acabou de ser editado e de uma aprovacao feita no painel)
+        try:
+            for c in deps.painel.listar('gravado') + deps.painel.listar('agendado'):
+                destino, copiados, faltando = entregar_na_pasta_local(c, editados, pasta_publicar)
+                if copiados:
+                    relatorio['entregues'].append({'conteudo': c['titulo'], 'pasta': str(destino), 'arquivos': copiados})
+                    log('  entregue em %s: %s' % (destino, ', '.join(copiados)))
+                if faltando:
+                    log('  AVISO: faltam em 2-Editados (nao foram copiados): ' + ', '.join(faltando))
+        except Exception as e:  # a entrega nao pode desfazer nem travar o que ja foi editado
+            relatorio['erros'].append({'video': '(entrega na pasta local)', 'erro': str(e)[:300], 'tentativa': 1})
+            log('  ERRO na entrega para a pasta local: %s' % e)
     return relatorio
 
 

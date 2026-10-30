@@ -1,43 +1,54 @@
-# Rotina do marketing (grava, o Claude edita, você aprova)
+# Rotina do marketing (você grava, o computador edita, você aprova e posta)
 
-Duas vezes por dia o computador olha a pasta `1-Brutos` do Drive. Para cada vídeo novo ele:
+O Windows abre a rotina **todo dia às 08:30 e às 17:30**. Para cada vídeo novo em `1-Brutos` (Drive):
 
-1. transcreve a fala (Whisper, no próprio computador, sem custo);
-2. descobre a qual roteiro **Gravado** do painel o vídeo pertence, comparando a fala com o roteiro;
-3. edita (corta silêncio, deixa vertical, volume, legenda, capa) e salva em `2-Editados`;
-4. grava no painel os arquivos de cada rede e uma **sugestão** de dia e hora.
+1. **transcreve** a fala (Whisper, no seu computador, sem custo);
+2. **liga o vídeo a um conteúdo** do painel: primeiro pelo nome do arquivo no título (ex.: `IMG_2713`),
+   depois pelas palavras do título/roteiro, comparadas com a fala (mínimo 2 palavras em comum);
+3. **escreve o roteiro sozinha** (a fala) se estiver vazio, e passa Ideia/Para gravar para **Em edição**.
+   Se não existe nenhuma ideia parecida, **cria um conteúdo novo** já com o roteiro. Na dúvida, não cria
+   nada e avisa no relatório;
+4. **só edita depois que você confirmar, no cartão, como quer** (cortar pausas, tipo de legenda);
+5. edita (corta pausas, vertical 1080x1920, volume, legenda, capas) e salva em `2-Editados`;
+6. grava no painel os arquivos e uma **sugestão** de dia e hora;
+7. **entrega numa pasta do seu HD** o vídeo editado, as capas, o roteiro e um `info.txt`.
 
-Ela **nunca agenda e nunca posta**: no painel você vê o vídeo, a capa e a sugestão e aperta
-**Aprovar agendamento**. Também **nunca mexe no vídeo original**.
+Ela **nunca agenda e nunca posta** nas redes: você aprova no painel e publica você mesmo.
+Também **nunca mexe no vídeo original**, e nunca apaga nem sobrescreve nada.
 
 ## Como usar no dia a dia
 
-1. Grave, solte o vídeo em `1-Brutos` e aperte **Gravei** no painel (a rotina só casa vídeo com
-   roteiro que está como *Gravado*).
-2. Na próxima rodada (08:30 ou 17:30) o cartão ganha "Pronto para postar" e "Sugestão".
-3. Para ver o vídeo dentro do painel, cole o link do Drive em **Editar** (campo "Link do vídeo no
-   Drive"). Sem o link o painel mostra só a miniatura e os nomes dos arquivos.
-4. Se a rotina não tiver certeza de qual roteiro é o vídeo, ela **não mexe em nada** e deixa o
-   aviso em `_rotina/relatorio-AAAA-MM-DD.json`. Nesse caso confira o roteiro (palavras do
-   vídeo parecidas com as do roteiro ajudam).
+1. Se tiver uma ideia, crie só o **título** no painel (roteiro é opcional). Grave e solte o vídeo bruto em `1-Brutos`.
+2. Na próxima rodada o conteúdo aparece em **Em edição**. Abra o cartão, marque a edição e clique em
+   **Confirmar edição** (pode confirmar antes, se já souber).
+3. Na rodada seguinte o vídeo vai para **Agenda de postagem**, em "Prontos: aprove o agendamento".
+   Clique em **Aprovar agendamento**.
+4. Para postar, abra a pasta **`C:\Users\Marlo\Documents\Prontos para postar`**: uma subpasta por
+   conteúdo (`004 - título`), com o vídeo, as capas de Instagram e TikTok, o `roteiro.txt` e o
+   `info.txt` (redes e dia/hora, aprovados ou só sugeridos). É só publicar de lá.
+5. Para ver o vídeo dentro do painel, cole o link do Drive em **Editar** ("Link do vídeo no Drive").
 
 ## Instalação (uma vez, na ordem)
 
-1. **Painel:** em Configurações, crie o usuário `rotina.marketing` com **só** a permissão
-   "Conteúdo (marketing)" e uma senha longa. (Não use o seu usuário.)
-2. Copie `config.exemplo.json` para `config.json` e confira a pasta e o usuário.
-3. `python configurar_senha.py` — você digita a senha do usuário da rotina; ela vai para o
-   **cofre do Windows** (nunca para arquivo).
+1. **Painel:** em Conexões, crie o usuário `rotina.marketing` com **só** a permissão "Conteúdo (marketing)"
+   e uma senha longa. (Não use o seu usuário.)
+2. Copie `config.exemplo.json` para `config.json` e confira a pasta do Drive, o usuário e `pasta_publicar`.
+3. `python configurar_senha.py`: você digita a senha do usuário da rotina; ela vai para o **cofre do
+   Windows** (nunca para arquivo).
 4. Teste sem risco: `python rotina_marketing.py --so-listar` (só lista vídeos novos).
-5. Ligue a rotina: `powershell -ExecutionPolicy Bypass -File agendar_tarefa.ps1`
+5. Ligue: `powershell -ExecutionPolicy Bypass -File agendar_tarefa.ps1`
    (para desligar: o mesmo comando com `-Remover`).
 
 ## O que precisa estar ligado
 
 O computador ligado (ou ele roda assim que ligar), o Google Drive para computador montado como `H:`
-e você logado no Windows. A rotina só funciona depois que a migração 051, o backend e o site novos
-estiverem publicados (senão o painel não aceita os campos novos).
+e você logado no Windows.
+
+## Se algo parecer parado
+
+Veja `_rotina/relatorio-AAAA-MM-DD.json` na pasta `17- MARKETING` do Drive: ele mostra o que cada
+rodada fez (processados, criados, entregues, avisos e erros).
 
 ## Testes
 
-`python -m unittest test_editar_video test_rotina_marketing` (nenhum chama a internet).
+`python -m unittest test_editar_video test_edicao_video test_rotina_marketing` (nenhum chama a internet).

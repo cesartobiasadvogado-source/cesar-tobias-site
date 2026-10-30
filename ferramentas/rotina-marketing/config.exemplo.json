@@ -3,5 +3,6 @@
   "url_painel": "https://www.cesartobias.adv.br",
   "usuario": "rotina.marketing",
   "horarios": ["18:30"],
-  "dias_semana": [0, 1, 2, 3, 4, 5, 6]
+  "dias_semana": [0, 1, 2, 3, 4, 5, 6],
+  "pasta_publicar": "C:\\Users\\Marlo\\Documents\\Prontos para postar"
 }

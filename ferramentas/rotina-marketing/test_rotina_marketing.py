@@ -384,6 +384,103 @@ class Orquestracao(unittest.TestCase):
         return srt
 
 
+class EntregaNaPastaLocal(unittest.TestCase):
+    """Deixa video editado + capas + roteiro + info.txt numa pasta do HD para a pessoa publicar."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.editados, self.raiz = self.tmp / '2-Editados', self.tmp / 'Prontos para postar'
+        self.editados.mkdir()
+        for nome, conteudo in (('v_editado.mp4', b'VIDEO'), ('v_capa_instagram.jpg', b'CAPA-I'), ('v_capa_tiktok.jpg', b'CAPA-T')):
+            (self.editados / nome).write_bytes(conteudo)
+        self.c = {'id': 4, 'titulo': 'Prazo: o que <ninguém> conta?', 'roteiro': 'Texto falado.', 'redes': ['instagram', 'tiktok'],
+                  'status': 'gravado', 'sugestao_data': '2026-10-31', 'sugestao_hora': '18:30:00', 'data_postagem': None,
+                  'arquivos': {'instagram': {'video': 'v_editado.mp4', 'capa': 'v_capa_instagram.jpg'},
+                               'tiktok': {'video': 'v_editado.mp4', 'capa': 'v_capa_tiktok.jpg'}}}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_copia_video_capas_roteiro_e_escreve_o_info(self):
+        destino, copiados, faltando = rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        self.assertEqual(destino.name, '004 - Prazo o que ninguém conta')           # nome valido no Windows
+        self.assertEqual(sorted(copiados), ['roteiro.txt', 'v_capa_instagram.jpg', 'v_capa_tiktok.jpg', 'v_editado.mp4'])
+        self.assertEqual((destino / 'v_editado.mp4').read_bytes(), b'VIDEO')
+        self.assertEqual(faltando, [])
+        info = (destino / 'info.txt').read_text(encoding='utf-8')
+        self.assertIn('Redes: Instagram, TikTok', info)
+        self.assertIn('SUGESTAO da rotina: 31/10/2026 as 18:30 (ainda falta voce aprovar no painel)', info)
+
+    def test_depois_de_aprovar_o_info_mostra_o_horario_aprovado_sem_recopiar_nada(self):
+        destino, _, _ = rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        aprovado = dict(self.c, status='agendado', data_postagem='2026-11-02', hora_postagem='12:00:00', sugestao_data=None)
+        mtime = (destino / 'v_editado.mp4').stat().st_mtime_ns
+        _, copiados, _ = rm.entregar_na_pasta_local(aprovado, self.editados, self.raiz)
+        self.assertEqual(copiados, [])
+        self.assertEqual((destino / 'v_editado.mp4').stat().st_mtime_ns, mtime)
+        self.assertIn('APROVADO para postar em 02/11/2026 as 12:00', (destino / 'info.txt').read_text(encoding='utf-8'))
+
+    def test_nunca_sobrescreve_o_que_a_pessoa_mexeu(self):
+        destino, _, _ = rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        (destino / 'roteiro.txt').write_text('MEU ROTEIRO REVISADO', encoding='utf-8')
+        (destino / 'v_editado.mp4').write_bytes(b'MEU CORTE')
+        rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        self.assertEqual((destino / 'roteiro.txt').read_text(encoding='utf-8'), 'MEU ROTEIRO REVISADO')
+        self.assertEqual((destino / 'v_editado.mp4').read_bytes(), b'MEU CORTE')
+
+    def test_se_o_titulo_mudar_continua_na_mesma_pasta(self):
+        destino, _, _ = rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        novo, _, _ = rm.entregar_na_pasta_local(dict(self.c, titulo='Outro titulo'), self.editados, self.raiz)
+        self.assertEqual(novo, destino)
+        self.assertEqual(len(list(self.raiz.iterdir())), 1)
+
+    def test_arquivo_que_falta_na_origem_e_avisado_e_o_resto_e_entregue(self):
+        (self.editados / 'v_capa_tiktok.jpg').unlink()
+        destino, copiados, faltando = rm.entregar_na_pasta_local(self.c, self.editados, self.raiz)
+        self.assertEqual(faltando, ['v_capa_tiktok.jpg'])
+        self.assertIn('v_editado.mp4', copiados)
+        self.assertNotIn('v_capa_tiktok.jpg', (destino / 'info.txt').read_text(encoding='utf-8'))
+
+    def test_conteudo_sem_video_editado_nao_cria_pasta(self):
+        destino, copiados, _ = rm.entregar_na_pasta_local(dict(self.c, arquivos={}), self.editados, self.raiz)
+        self.assertEqual((destino, copiados), (None, []))
+        self.assertFalse(self.raiz.exists())
+
+
+class EntregaNaRotina(Orquestracao):
+    def test_entrega_mesmo_sem_video_novo_e_sem_pasta_configurada_nao_entrega_nem_entra_no_painel(self):
+        # sem video novo: remove o bruto
+        self.video.unlink()
+        editados = self.base / '2-Editados'
+        (editados / 'v_editado.mp4').write_bytes(b'V')
+        (editados / 'v_capa_instagram.jpg').write_bytes(b'C')
+        conteudo = dict(EP6, arquivos={'instagram': {'video': 'v_editado.mp4', 'capa': 'v_capa_instagram.jpg'}})
+        # 1) sem "pasta_publicar": nao faz nada e nem entra no painel
+        painel = PainelFalso([conteudo])
+        rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(painel.entrou, 0)
+        # 2) com a pasta: entra, entrega e relata
+        destino = self.tmp / 'Prontos'
+        cfg = dict(self.config, pasta_publicar=str(destino))
+        rel = rm.executar(cfg, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(painel.entrou, 1)
+        self.assertEqual(len(rel['entregues']), 1)
+        self.assertTrue((destino / ('%03d - %s' % (6, rm.nome_seguro(EP6['titulo']))) / 'v_editado.mp4').is_file())
+        # 3) segunda rodada: nada novo para copiar
+        rel = rm.executar(cfg, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(rel['entregues'], [])
+
+    def test_erro_na_entrega_nao_derruba_e_aparece_no_relatorio(self):
+        self.video.unlink()
+        editados = self.base / '2-Editados'
+        (editados / 'v_editado.mp4').write_bytes(b'V')
+        conteudo = dict(EP6, arquivos={'instagram': {'video': 'v_editado.mp4'}})
+        bloqueio = self.tmp / 'e_um_arquivo'
+        bloqueio.write_text('x')                      # a "pasta" de destino e um arquivo: nao da para criar subpasta
+        rel = rm.executar(dict(self.config, pasta_publicar=str(bloqueio / 'Prontos')), self.deps(PainelFalso([conteudo])), log=lambda *_: None)
+        self.assertEqual(rel['erros'][0]['video'], '(entrega na pasta local)')
+
+
 class RespostaFalsa:
     def __init__(self, status, corpo):
         self.status_code, self._corpo = status, corpo
