@@ -1340,6 +1340,14 @@
   .conteudo-arquivo-item { overflow-wrap: anywhere; min-width: 0; }
   .conteudo-arquivo-rotulo { color: var(--ink-faint); margin-right: 2px; }
   .conteudo-arquivo-item a { color: var(--accent); }
+  .conteudo-edicao { margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px dashed var(--accent); background: var(--surface-sunken); display: flex; flex-direction: column; gap: 8px; }
+  .conteudo-edicao-confirmada { border-style: solid; border-color: var(--line); }
+  .conteudo-edicao-titulo { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .conteudo-edicao-resumo { font-size: 13px; color: var(--ink); }
+  .conteudo-edicao-opcao { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ink); }
+  .conteudo-edicao-opcao select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
+  .conteudo-edicao-achado { font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+  .conteudo-edicao-nota { font-size: 12px; color: var(--ink-faint); }
   .conteudo-sugestao { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--ink); font-size: 13px; }
   .conteudo-progresso { display: inline-block; margin-bottom: 14px; padding: 4px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; }
   /* "Seus videos em cena": faixa que corre sozinha e pausa com o mouse em cima */

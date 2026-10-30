@@ -133,5 +133,17 @@ t('edição do conteúdo: campo do link do Drive só com vídeo, exige https e s
   assert(app.includes("getElementById('conteudo-form-bloco-link').style.display = temVideo"), 'o campo aparece mesmo sem video');
 });
 
+t('escolhas de edição por vídeo: só opções que a rotina já faz, só confirma com clique, texto com esc()', () => {
+  const ini = app.indexOf('function _resumoEdicaoConteudo');
+  const bloco = app.slice(ini, app.indexOf('// Sugestao de dia/hora'));
+  assert(bloco.includes('data-edicao-campo="cortar_pausas"') && bloco.includes('data-edicao-campo="legenda"'), 'faltam as opcoes');
+  ['zoom', 'tirar_erros', 'musica', 'marca'].forEach((x) => assert(!bloco.includes('data-edicao-campo="' + x + '"'), 'o painel oferece "' + x + '" que a rotina ainda nao faz'));
+  assert(bloco.includes('esc(edicao.video_encontrado)') && bloco.includes('esc(_resumoEdicaoConteudo(edicao))'), 'texto sem esc()');
+  assert(bloco.includes("c.status !== 'gravado' || temEditado"), 'o bloco aparece fora de gravado/ja editado');
+  const acao = app.slice(app.indexOf("acao === 'salvar_edicao'"), app.indexOf("acao === 'assistir'"));
+  assert(acao.includes('edicaoNova.confirmado = true') && acao.includes('edicaoNova.confirmado = false'), 'confirmar/alterar');
+  assert(!/status:/.test(acao), 'a escolha de edicao nao pode mexer no status');
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

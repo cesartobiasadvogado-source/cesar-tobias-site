@@ -23,6 +23,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import edicao_video as ed
+
 LIMIAR_DB = -35.0        # abaixo disso e silencio
 SILENCIO_MIN = 0.6       # s: silencios menores que isso ficam (respiro natural da fala)
 FOLGA = 0.15             # s: sobra mantida antes e depois de cada trecho falado
@@ -104,7 +106,10 @@ def montar_filtro(trechos, legenda=None, tem_audio=True):
     if legenda:
         # o caminho vai dentro do filtro: troca \ por / e escapa o ':' da letra do disco
         caminho = str(legenda).replace('\\', '/').replace(':', '\\:').replace("'", "\\'")
-        quadro += ",subtitles='%s':force_style='FontSize=12,Alignment=2,MarginV=55,Outline=2'" % caminho
+        if str(legenda).lower().endswith('.ass'):   # a legenda ASS ja traz fonte, cor e posicao
+            quadro += ",subtitles='%s'" % caminho
+        else:
+            quadro += ",subtitles='%s':force_style='FontSize=12,Alignment=2,MarginV=55,Outline=2'" % caminho
     partes.append('[vc]%s[vout]' % quadro)
     return ';\n'.join(partes)
 
@@ -163,7 +168,21 @@ def _checar_saida(video, saida):
     return saida
 
 
-def editar(video, pasta_saida, legenda=None, so_planejar=False):
+def planejar_cortes(video, duracao, tem_audio, opcoes, palavras):
+    """Escolhe os trechos a manter. Sem `opcoes` (modo antigo): so silencios longos pelo volume. Com
+    `opcoes`: `cortar_pausas` usa as lacunas entre palavras; sem palavras, cai no volume; desligado, mantem tudo."""
+    if opcoes is None:
+        silencios = detectar_silencios(video) if tem_audio else []
+        return calcular_trechos(silencios, duracao)
+    if not opcoes.get('cortar_pausas'):
+        return [(0.0, duracao)]
+    if palavras:
+        return ed.trechos_por_palavras(palavras, duracao)
+    silencios = detectar_silencios(video) if tem_audio else []
+    return calcular_trechos(silencios, duracao)
+
+
+def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, palavras=None):
     video = Path(video)
     if not video.is_file():
         raise FileNotFoundError(str(video))
@@ -176,15 +195,23 @@ def editar(video, pasta_saida, legenda=None, so_planejar=False):
         if arq.exists():
             raise FileExistsError('ja existe, nao sobrescrevo: ' + str(arq))
     duracao, tem_audio = sondar(video)
-    silencios = detectar_silencios(video) if tem_audio else []
-    trechos = calcular_trechos(silencios, duracao)
+    trechos = planejar_cortes(video, duracao, tem_audio, opcoes, palavras)
     mantido = sum(f - i for i, f in trechos)
+    modo_legenda = (opcoes or {}).get('legenda', 'nenhuma') if opcoes is not None else None
+    texto_ass = None
+    if modo_legenda in ('simples', 'destaque') and palavras:
+        texto_ass = ed.gerar_ass(ed.remapear_palavras(palavras, trechos), destaque=(modo_legenda == 'destaque'))
     plano = {'video': str(video), 'duracao_original': round(duracao, 2), 'duracao_final': round(mantido, 2),
-             'trechos': len(trechos), 'tem_audio': tem_audio, 'legenda': bool(legenda), 'saida': str(destino)}
+             'trechos': len(trechos), 'tem_audio': tem_audio, 'legenda': bool(legenda) or texto_ass is not None,
+             'modo_legenda': modo_legenda, 'saida': str(destino)}
     if so_planejar:
         return plano
-    filtro = montar_filtro(trechos, legenda=legenda, tem_audio=tem_audio)
     with tempfile.TemporaryDirectory() as tmp:
+        if texto_ass is not None:
+            arq_ass = Path(tmp) / 'legenda.ass'
+            arq_ass.write_text(texto_ass, encoding='utf-8')
+            legenda = arq_ass   # a legenda refeita para o video JA cortado vale mais que um .srt do video original
+        filtro = montar_filtro(trechos, legenda=legenda, tem_audio=tem_audio)
         script = Path(tmp) / 'filtro.txt'
         script.write_text(filtro, encoding='utf-8')
         parcial = Path(tmp) / 'saida.mp4'

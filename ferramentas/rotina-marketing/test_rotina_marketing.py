@@ -14,9 +14,10 @@ FALA_EP6 = ('Hoje eu vou mostrar como a tramitação inteligente funciona junto 
             'os três conversam entre si e acompanham cada processo sem você precisar abrir o tribunal.')
 EP6 = {'id': 6, 'titulo': 'Ep. 6 - Tramitação inteligente + Claude + ADVBOX', 'redes': ['instagram', 'tiktok'],
        'roteiro': 'Mostrar como a tramitação inteligente conversa com o Claude e o ADVBOX e acompanha cada processo.',
-       'arquivos': {}}
+       'arquivos': {}, 'edicao': {'confirmado': True, 'cortar_pausas': True, 'legenda': 'destaque'}}
 FIM6X1 = {'id': 18, 'titulo': 'Fim da 6x1 - Parte 2: minha empresa abre domingo', 'redes': ['instagram'],
-          'roteiro': 'Se a empresa abre domingo, como fica a escala do funcionário na nova jornada?', 'arquivos': {}}
+          'roteiro': 'Se a empresa abre domingo, como fica a escala do funcionário na nova jornada?', 'arquivos': {},
+          'edicao': {'confirmado': True, 'cortar_pausas': True, 'legenda': 'destaque'}}
 
 
 class Correspondencia(unittest.TestCase):
@@ -175,12 +176,14 @@ class Orquestracao(unittest.TestCase):
             Path(pasta).mkdir(parents=True, exist_ok=True)
             srt = Path(pasta) / (video.stem + '.srt')
             srt.write_text('1\n00:00:00,000 --> 00:00:01,000\n' + fala + '\n', encoding='utf-8')
+            palavras = [{'word': ' ' + w, 'start': i * 0.3, 'end': i * 0.3 + 0.25} for i, w in enumerate(fala.split())]
+            srt.with_suffix('.json').write_text(json.dumps({'segments': [{'words': palavras}]}), encoding='utf-8')
             return fala, srt
 
-        def editar(video, pasta, legenda=None):
+        def editar(video, pasta, opcoes=None, palavras=None, legenda=None):
             if editar_falha:
                 raise RuntimeError(editar_falha)
-            self.editou.append((video.name, legenda))
+            self.editou.append((video.name, opcoes, palavras))
             arq = Path(pasta) / (video.stem + '_arquivos.json')
             arq.write_text(json.dumps({
                 'instagram': {'video': video.stem + '_editado.mp4', 'capa': video.stem + '_capa_instagram.jpg', 'miniatura': 'data:image/jpeg;base64,AAAA'},
@@ -196,7 +199,9 @@ class Orquestracao(unittest.TestCase):
         rel = rm.executar(self.config, self.deps(painel), log=lambda *_: None)
         self.assertEqual(len(rel['processados']), 1)
         self.assertEqual(self.editou[0][0], 'ep6.mp4')
-        self.assertTrue(str(self.editou[0][1]).endswith('ep6.srt'))  # legenda do Whisper vai para a edicao
+        nome, opcoes, palavras = self.editou[0]
+        self.assertEqual(opcoes, {'cortar_pausas': True, 'legenda': 'destaque'})   # o que a pessoa escolheu no painel
+        self.assertGreater(len(palavras), 10)                                       # com o tempo de cada palavra
         (conteudo_id, campos), = painel.atualizacoes
         self.assertEqual(conteudo_id, 6)
         self.assertEqual(sorted(campos['arquivos']), ['instagram', 'tiktok'])
@@ -241,6 +246,42 @@ class Orquestracao(unittest.TestCase):
         rel = rm.executar(self.config, self.deps(painel), log=lambda *_: None)
         self.assertEqual(rel['processados'], [])  # estourou as tentativas: para de insistir
 
+    def test_sem_confirmacao_nao_edita_e_so_avisa_no_cartao_uma_vez(self):
+        sem_escolha = dict(EP6, edicao={})
+        painel = PainelFalso([sem_escolha])
+        rel = rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(rel['processados'], [])
+        self.assertEqual(rel['aguardando_escolha'][0]['video'], 'ep6.mp4')
+        self.assertEqual(self.editou, [])                       # nao editou nada
+        (conteudo_id, campos), = painel.atualizacoes            # so avisou
+        self.assertEqual(conteudo_id, 6)
+        self.assertEqual(campos, {'edicao': {'video_encontrado': 'ep6.mp4'}})
+        # nao confirmou nada por ela: a escolha e sempre da pessoa
+        self.assertNotIn('confirmado', campos['edicao'])
+        # proxima rodada, ainda sem escolha: nao reescreve o aviso nem retranscreve
+        painel.gravados = [dict(sem_escolha, edicao={'video_encontrado': 'ep6.mp4'})]
+        rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(len(painel.atualizacoes), 1)
+        self.assertEqual(len(self.transcreveu), 1)
+
+    def test_depois_de_confirmar_edita_do_jeito_escolhido(self):
+        painel = PainelFalso([dict(EP6, edicao={})])
+        rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(self.editou, [])
+        # a pessoa abre o cartao e escolhe: sem cortes, legenda simples
+        painel.gravados = [dict(EP6, edicao={'video_encontrado': 'ep6.mp4', 'confirmado': True,
+                                            'cortar_pausas': False, 'legenda': 'simples'})]
+        rel = rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(len(rel['processados']), 1)
+        self.assertEqual(self.editou[0][1], {'cortar_pausas': False, 'legenda': 'simples'})
+        self.assertEqual(len(self.transcreveu), 1)              # a fala ja estava guardada
+
+    def test_opcoes_de_edicao_tem_padrao_seguro(self):
+        self.assertEqual(rm.opcoes_de_edicao({'confirmado': True}), {'cortar_pausas': True, 'legenda': 'destaque'})
+        self.assertEqual(rm.opcoes_de_edicao({'legenda': 'nenhuma', 'cortar_pausas': False}), {'cortar_pausas': False, 'legenda': 'nenhuma'})
+        self.assertEqual(rm.opcoes_de_edicao({'legenda': 'qualquer'})['legenda'], 'destaque')
+        self.assertEqual(rm.opcoes_de_edicao(None), {'cortar_pausas': True, 'legenda': 'destaque'})
+
     def test_so_listar_nao_entra_no_painel(self):
         painel = PainelFalso([EP6])
         rel = rm.executar(self.config, self.deps(painel), so_listar=True, log=lambda *_: None)
@@ -264,6 +305,7 @@ class Orquestracao(unittest.TestCase):
         Path(pasta).mkdir(parents=True, exist_ok=True)
         srt = Path(pasta) / (video.stem + '.srt')
         srt.write_text('1\n00:00:00,000 --> 00:00:01,000\nx\n', encoding='utf-8')
+        srt.with_suffix('.json').write_text(json.dumps({'segments': [{'words': [{'word': ' x', 'start': 0.0, 'end': 0.5}]}]}), encoding='utf-8')
         return srt
 
 

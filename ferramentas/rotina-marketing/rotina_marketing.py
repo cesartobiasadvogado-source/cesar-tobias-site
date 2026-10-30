@@ -3,9 +3,10 @@
 Para cada video novo em 1-Brutos:
   1. transcreve a fala (Whisper local, gratis, no proprio computador);
   2. descobre a qual roteiro "Gravado" do painel o video pertence, comparando a fala com o roteiro;
-  3. edita o video (editar_video.py) para 2-Editados, com legenda;
-  4. grava no painel os arquivos por rede e uma SUGESTAO de dia/hora. Nao agenda e nao posta nada:
-     quem aprova o agendamento e a pessoa, no painel.
+  3. so EDITA depois que a pessoa confirmar, no cartao do conteudo, como quer aquele video
+     (cortar pausas, tipo de legenda...). Antes disso apenas avisa no cartao "video encontrado";
+  4. edita (editar_video.py) para 2-Editados e grava no painel os arquivos por rede e uma SUGESTAO de
+     dia/hora. Nao agenda e nao posta nada: quem aprova o agendamento e a pessoa, no painel.
 
 Seguranca: nunca altera nem apaga o video original; nunca sobrescreve arquivo editado; a senha do
 usuario da rotina fica no cofre do Windows (keyring), nunca em arquivo; o usuario da rotina so
@@ -24,6 +25,7 @@ import unicodedata
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import edicao_video as ed
 import editar_video as ev
 
 EXTENSOES = ('.mp4', '.mov', '.m4v', '.mkv', '.webm')
@@ -220,16 +222,25 @@ class Painel:
 # ---------------------------------------------------------------------------------------------
 
 def transcrever_whisper(video, pasta_saida, modelo='small', idioma='pt'):
-    """Roda o Whisper instalado no computador e devolve (texto, caminho do .srt)."""
+    """Roda o Whisper instalado no computador e devolve (texto, caminho do .srt). Ao lado do .srt fica o
+    .json com o tempo de CADA palavra (e dele que saem os cortes e a legenda com destaque)."""
     pasta_saida = Path(pasta_saida)
     pasta_saida.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(['whisper', str(video), '--model', modelo, '--language', idioma,
-                        '--output_format', 'srt', '--output_dir', str(pasta_saida), '--verbose', 'False'],
+    r = subprocess.run(['whisper', str(video), '--model', modelo, '--language', idioma, '--word_timestamps', 'True',
+                        '--output_format', 'all', '--output_dir', str(pasta_saida), '--verbose', 'False'],
                        capture_output=True, text=True, encoding='utf-8', errors='replace')
     srt = pasta_saida / (Path(video).stem + '.srt')
-    if r.returncode != 0 or not srt.exists():
+    if r.returncode != 0 or not srt.exists() or not srt.with_suffix('.json').exists():
         raise RuntimeError('whisper falhou: ' + (r.stderr or r.stdout).strip()[-300:])
     return texto_do_srt(srt.read_text(encoding='utf-8')), srt
+
+
+def opcoes_de_edicao(edicao):
+    """As escolhas que a pessoa confirmou no cartao, no formato que o editor entende."""
+    edicao = edicao or {}
+    legenda = edicao.get('legenda')
+    return {'cortar_pausas': bool(edicao.get('cortar_pausas', True)),
+            'legenda': legenda if legenda in ('nenhuma', 'simples', 'destaque') else 'destaque'}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -247,7 +258,7 @@ def executar(config, deps, so_listar=False, log=print):
     base = Path(config['pasta_base'])
     brutos, editados = base / '1-Brutos', base / '2-Editados'
     estado = Estado(base / '_rotina' / 'estado.json')
-    relatorio = {'processados': [], 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
+    relatorio = {'processados': [], 'aguardando_escolha': [], 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
 
     novos = listar_novos(brutos, estado.dados, agora=deps.agora())
     log('%d video(s) novo(s) em 1-Brutos' % len(novos))
@@ -264,7 +275,7 @@ def executar(config, deps, so_listar=False, log=print):
     for video, chave in novos:
         item = estado.get(chave) or {}
         try:
-            if 'fala' in item and Path(item.get('srt', '')).exists():
+            if 'fala' in item and Path(item.get('srt', '')).exists() and Path(item['srt']).with_suffix('.json').exists():
                 fala, srt = item['fala'], Path(item['srt'])
             else:
                 fala, srt = deps.transcrever(video, base / '_rotina' / 'transcricoes')
@@ -275,7 +286,17 @@ def executar(config, deps, so_listar=False, log=print):
                 log('  %s: sem correspondencia segura (melhor pontuacao %s)' % (video.name, melhor))
                 relatorio['sem_correspondencia'].append(video.name)
                 continue
-            plano = deps.editar(video, editados, legenda=srt)
+            edicao = escolhido.get('edicao') or {}
+            if not edicao.get('confirmado'):
+                # ainda nao escolheu como editar: so avisa no cartao (uma vez) e espera
+                if edicao.get('video_encontrado') != video.name:
+                    deps.painel.atualizar(escolhido['id'], {'edicao': dict(edicao, video_encontrado=video.name)})
+                estado.marcar(chave, status='aguardando_escolha', conteudo_id=escolhido['id'])
+                relatorio['aguardando_escolha'].append({'video': video.name, 'conteudo': escolhido['titulo']})
+                log('  %s -> "%s": aguardando voce escolher a edicao no painel' % (video.name, escolhido['titulo']))
+                continue
+            palavras = ed.ler_palavras(srt.with_suffix('.json'))
+            plano = deps.editar(video, editados, opcoes=opcoes_de_edicao(edicao), palavras=palavras)
             dados_arq = json.loads(Path(plano['arquivos_json']).read_text(encoding='utf-8'))
             data_s, hora_s = proxima_sugestao(
                 ocupados, deps.hoje(), tuple(config.get('horarios', ['18:30'])),

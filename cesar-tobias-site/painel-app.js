@@ -9238,6 +9238,50 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     document.getElementById('modal-player-conteudo').classList.remove('hidden');
   }
 
+  // Escolhas de edicao POR VIDEO: a rotina so edita depois que a pessoa confirma aqui. So aparecem as
+  // opcoes que a rotina ja sabe fazer (as proximas entram quando forem construidas).
+  var ROTULO_LEGENDA_CONTEUDO = {
+    destaque: 'Legenda com destaque na palavra', simples: 'Legenda simples', nenhuma: 'Sem legenda',
+  };
+
+  function _resumoEdicaoConteudo(edicao) {
+    var itens = [];
+    if (edicao.cortar_pausas) itens.push('cortar pausas');
+    if (edicao.legenda && ROTULO_LEGENDA_CONTEUDO[edicao.legenda]) itens.push(ROTULO_LEGENDA_CONTEUDO[edicao.legenda].toLowerCase());
+    return itens.length ? itens.join(', ') : 'só ajustar formato e volume';
+  }
+
+  function _htmlEdicaoConteudo(c) {
+    var temEditado = Object.keys(c.arquivos || {}).some(function (r) { return c.arquivos[r] && c.arquivos[r].video; });
+    if (c.status !== 'gravado' || temEditado) return '';
+    var edicao = c.edicao || {};
+    var id = esc(String(c.id));
+    var achado = edicao.video_encontrado
+      ? '<div class="conteudo-edicao-achado">Vídeo encontrado na pasta: <strong>' + esc(edicao.video_encontrado) + '</strong></div>' : '';
+    if (edicao.confirmado) {
+      return '<div class="conteudo-edicao conteudo-edicao-confirmada" data-conteudo-id="' + id + '">' +
+        '<div class="conteudo-edicao-titulo">Edição escolhida</div>' +
+        '<div class="conteudo-edicao-resumo">' + esc(_resumoEdicaoConteudo(edicao)) + '</div>' + achado +
+        '<div class="conteudo-edicao-nota">' + (edicao.video_encontrado
+          ? 'O vídeo será editado na próxima rodada da rotina (08:30 ou 17:30).'
+          : 'Falta o vídeo bruto na pasta 1-Brutos. Quando ele chegar, a rotina edita do jeito que você escolheu.') + '</div>' +
+        '<div class="conteudo-card-acoes"><button type="button" class="btn-conexao-secundario" data-conteudo-acao="alterar_edicao" data-conteudo-id="' + id + '">Alterar escolhas</button></div>' +
+      '</div>';
+    }
+    var legenda = edicao.legenda || 'destaque';
+    var opcoesLegenda = Object.keys(ROTULO_LEGENDA_CONTEUDO).map(function (k) {
+      return '<option value="' + k + '"' + (k === legenda ? ' selected' : '') + '>' + esc(ROTULO_LEGENDA_CONTEUDO[k]) + '</option>';
+    }).join('');
+    return '<div class="conteudo-edicao" data-conteudo-id="' + id + '">' +
+      '<div class="conteudo-edicao-titulo">Como editar este vídeo?</div>' + achado +
+      '<label class="conteudo-edicao-opcao"><input type="checkbox" data-edicao-campo="cortar_pausas"' +
+        (edicao.cortar_pausas === false ? '' : ' checked') + '> Cortar pausas e respiros</label>' +
+      '<label class="conteudo-edicao-opcao">Legenda <select data-edicao-campo="legenda">' + opcoesLegenda + '</select></label>' +
+      '<div class="conteudo-edicao-nota">A rotina só edita depois que você confirmar.</div>' +
+      '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="salvar_edicao" data-conteudo-id="' + id + '">Confirmar edição</button></div>' +
+    '</div>';
+  }
+
   // Sugestao de dia/hora feita pela rotina de edicao. So vira agendamento quando a pessoa aprova.
   function _htmlSugestaoConteudo(c) {
     if (c.status !== 'gravado' || !c.sugestao_data) return '';
@@ -9274,7 +9318,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<span class="chip neutral">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + '</span>' + redes +
         (dataTxt ? '<span class="conteudo-card-data">' + esc(dataTxt) + '</span>' : '') +
       '</div>' +
-      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) +
+      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) + _htmlEdicaoConteudo(c) +
       (c.roteiro ? '<details class="conteudo-roteiro"><summary>Ver roteiro</summary><div class="conteudo-roteiro-texto">' + esc(c.roteiro) + '</div></details>' : '') +
       (c.observacao ? '<div class="conteudo-card-obs">' + esc(c.observacao) + '</div>' : '') +
       '<div class="conteudo-card-acoes">' + botoes + '</div>' +
@@ -9452,6 +9496,24 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       if (acao === 'para_gravar') mudarStatus(c, 'para_gravar', botao);
       else if (acao === 'gravei') mudarStatus(c, 'gravado', botao);
       else if (acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao);
+      else if (acao === 'salvar_edicao' || acao === 'alterar_edicao') {
+        var edicaoNova = Object.assign({}, c.edicao || {});
+        if (acao === 'alterar_edicao') {
+          edicaoNova.confirmado = false;
+        } else {
+          var caixa = botao.closest('.conteudo-edicao');
+          edicaoNova.confirmado = true;
+          edicaoNova.cortar_pausas = !!caixa.querySelector('[data-edicao-campo="cortar_pausas"]').checked;
+          edicaoNova.legenda = caixa.querySelector('[data-edicao-campo="legenda"]').value;
+        }
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, edicao: edicaoNova })
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível salvar a escolha agora.');
+          });
+      }
       else if (acao === 'assistir') {
         var arq = (c.arquivos || {})[botao.getAttribute('data-conteudo-rede')] || {};
         var idDrive = _idDriveConteudo(arq.link_video);
