@@ -12,10 +12,10 @@ import rotina_marketing as rm
 
 FALA_EP6 = ('Hoje eu vou mostrar como a tramitação inteligente funciona junto com o Claude e o ADVBOX, '
             'os três conversam entre si e acompanham cada processo sem você precisar abrir o tribunal.')
-EP6 = {'id': 6, 'titulo': 'Ep. 6 - Tramitação inteligente + Claude + ADVBOX', 'redes': ['instagram', 'tiktok'],
+EP6 = {'id': 6, 'status': 'gravado', 'titulo': 'Ep. 6 - Tramitação inteligente + Claude + ADVBOX', 'redes': ['instagram', 'tiktok'],
        'roteiro': 'Mostrar como a tramitação inteligente conversa com o Claude e o ADVBOX e acompanha cada processo.',
        'arquivos': {}, 'edicao': {'confirmado': True, 'cortar_pausas': True, 'legenda': 'destaque'}}
-FIM6X1 = {'id': 18, 'titulo': 'Fim da 6x1 - Parte 2: minha empresa abre domingo', 'redes': ['instagram'],
+FIM6X1 = {'id': 18, 'status': 'gravado', 'titulo': 'Fim da 6x1 - Parte 2: minha empresa abre domingo', 'redes': ['instagram'],
           'roteiro': 'Se a empresa abre domingo, como fica a escala do funcionário na nova jornada?', 'arquivos': {},
           'edicao': {'confirmado': True, 'cortar_pausas': True, 'legenda': 'destaque'}}
 
@@ -48,6 +48,26 @@ class Correspondencia(unittest.TestCase):
         fala = 'Minha empresa abre domingo, então como fica a escala do funcionário na nova jornada de trabalho?'
         achado, ranking = rm.escolher_correspondencia(fala, [ep3, ep2])
         self.assertEqual(achado['id'], 2, ranking)
+
+    def test_nome_do_arquivo_no_titulo_ganha_de_tudo(self):
+        c = {'id': 3, 'titulo': 'IMG_2713', 'roteiro': None}
+        achado, _ = rm.escolher_correspondencia('fala sem relacao nenhuma com nada', [EP6, c], nome_video='IMG_2713')
+        self.assertEqual(achado['id'], 3)
+        # nome curto demais nao serve de pista (evita casar "ep6" com qualquer coisa)
+        achado, _ = rm.escolher_correspondencia('fala sem relacao nenhuma', [dict(c, titulo='ep6')], nome_video='ep6')
+        self.assertIsNone(achado)
+
+    def test_conteudo_so_com_titulo_exige_duas_palavras_em_comum(self):
+        so_titulo = {'id': 9, 'titulo': 'Prazo contestação', 'roteiro': None}
+        achado, _ = rm.escolher_correspondencia('hoje o prazo e a contestação do reclamado', [so_titulo])
+        self.assertEqual(achado['id'], 9)
+        achado, _ = rm.escolher_correspondencia('hoje falo so do prazo mesmo', [so_titulo])
+        self.assertIsNone(achado)                                    # 1 palavra so e coincidencia
+
+    def test_titulo_sugerido_usa_as_primeiras_palavras_da_fala(self):
+        self.assertEqual(rm.titulo_sugerido('Olá, este é um teste rápido de gravação, de áudio e vídeo.', 'a.mov'),
+                         'Olá, este é um teste rápido de gravação...')
+        self.assertEqual(rm.titulo_sugerido('oi', 'IMG_9.MOV'), 'Video IMG_9')
 
     def test_sem_candidatos_nao_quebra(self):
         achado, ranking = rm.escolher_correspondencia('qualquer fala', [])
@@ -140,15 +160,21 @@ class ListarNovos(unittest.TestCase):
 
 
 class PainelFalso:
-    def __init__(self, gravados, agendados=()):
+    def __init__(self, gravados, agendados=(), para_gravar=(), ideias=()):
         self.gravados, self.agendados = list(gravados), list(agendados)
-        self.atualizacoes, self.entrou = [], 0
+        self.para_gravar, self.ideias = list(para_gravar), list(ideias)
+        self.atualizacoes, self.criados, self.entrou = [], [], 0
 
     def entrar(self):
         self.entrou += 1
 
     def listar(self, status):
-        return list(self.gravados if status == 'gravado' else self.agendados)
+        return list({'gravado': self.gravados, 'agendado': self.agendados,
+                     'para_gravar': self.para_gravar, 'ideia': self.ideias}.get(status, []))
+
+    def criar(self, campos):
+        self.criados.append(campos)
+        return 100 + len(self.criados)
 
     def atualizar(self, conteudo_id, campos):
         self.atualizacoes.append((conteudo_id, campos))
@@ -219,13 +245,62 @@ class Orquestracao(unittest.TestCase):
         self.assertEqual(len(painel.atualizacoes), 1)
         self.assertEqual(len(self.editou), 1)
 
-    def test_sem_correspondencia_nao_edita_nem_mexe_no_painel_e_nao_retranscreve(self):
+    def test_video_sem_ideia_correspondente_cria_o_conteudo_com_o_roteiro_e_nao_edita(self):
         painel = PainelFalso([FIM6X1])
-        rel = rm.executar(self.config, self.deps(painel, fala='Assunto totalmente diferente sobre outra coisa qualquer.'), log=lambda *_: None)
+        fala = 'Assunto totalmente diferente sobre outra coisa qualquer que ninguem planejou antes.'
+        rel = rm.executar(self.config, self.deps(painel, fala=fala), log=lambda *_: None)
+        (novo,) = painel.criados
+        self.assertEqual(novo['roteiro'], fala)                     # o roteiro foi escrito sozinho
+        self.assertEqual(novo['status'], 'gravado')
+        self.assertTrue(novo['titulo'].startswith('Assunto totalmente diferente sobre'))
+        self.assertEqual(novo['edicao'], {'video_encontrado': 'ep6.mp4'})   # sem "confirmado": a escolha e da pessoa
+        self.assertEqual(rel['criados'][0]['video'], 'ep6.mp4')
+        self.assertEqual((self.editou, painel.atualizacoes), ([], []))      # nada editado nem mexido nos outros
+        # proxima rodada: o conteudo criado aparece no painel e o video casa com ele (nao cria outro)
+        painel.gravados.append(dict(novo, id=101, arquivos={}))
+        rm.executar(self.config, self.deps(painel, fala=fala), log=lambda *_: None)
+        self.assertEqual(len(painel.criados), 1)
+        self.assertEqual(len(self.transcreveu), 1)                  # e nao retranscreve
+
+    def test_na_duvida_nao_cria_conteudo_nem_decide(self):
+        ideia = {'id': 31, 'status': 'para_gravar', 'titulo': 'Prazo da contestação trabalhista', 'roteiro': None,
+                 'redes': ['instagram'], 'arquivos': {}, 'edicao': {}}
+        painel = PainelFalso([], para_gravar=[ideia])
+        rel = rm.executar(self.config, self.deps(painel, fala='Hoje vou falar do prazo e de outras coisas bem diferentes aqui.'),
+                          log=lambda *_: None)
         self.assertEqual(rel['sem_correspondencia'], ['ep6.mp4'])
-        self.assertEqual((self.editou, painel.atualizacoes), ([], []))
-        rm.executar(self.config, self.deps(painel, fala='x'), log=lambda *_: None)
-        self.assertEqual(len(self.transcreveu), 1)  # a fala fica guardada: nao gasta Whisper de novo
+        self.assertEqual((painel.criados, painel.atualizacoes, self.editou), ([], [], []))
+
+    def test_ideia_em_para_gravar_casa_pelo_titulo_vira_gravado_e_ganha_o_roteiro(self):
+        ideia = {'id': 32, 'status': 'para_gravar', 'titulo': 'Tramitação inteligente Claude ADVBOX processos', 'roteiro': None,
+                 'redes': ['instagram', 'tiktok'], 'arquivos': {}, 'edicao': {}}
+        painel = PainelFalso([], para_gravar=[ideia])
+        rel = rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertEqual(painel.criados, [])                        # casou com a ideia: nao criou outro
+        primeiro = painel.atualizacoes[0]
+        self.assertEqual(primeiro[0], 32)
+        self.assertEqual(primeiro[1], {'status': 'gravado', 'roteiro': FALA_EP6})
+        self.assertEqual(rel['aguardando_escolha'][0]['conteudo'], 'Tramitação inteligente Claude ADVBOX processos')
+        self.assertEqual(self.editou, [])                           # a edicao ainda espera a escolha da pessoa
+
+    def test_o_nome_do_arquivo_no_titulo_basta_para_ligar_o_video(self):
+        self.video.unlink()
+        v = self.base / '1-Brutos' / 'IMG_2713.MOV'
+        v.write_bytes(b'x')
+        os.utime(v, (1_700_000_000, 1_700_000_000))
+        conteudo = dict(EP6, id=3, titulo='IMG_2713', roteiro=None, status='gravado',
+                        edicao={'confirmado': True, 'cortar_pausas': True, 'legenda': 'simples'})
+        painel = PainelFalso([conteudo])
+        rel = rm.executar(self.config, self.deps(painel, fala='Qualquer fala que nao tem nada a ver com o titulo do conteudo.'),
+                          log=lambda *_: None)
+        self.assertEqual(painel.criados, [])
+        self.assertEqual(painel.atualizacoes[0], (3, {'roteiro': 'Qualquer fala que nao tem nada a ver com o titulo do conteudo.'}))
+        self.assertEqual(len(rel['processados']), 1)
+
+    def test_nunca_apaga_nem_troca_um_roteiro_que_a_pessoa_escreveu(self):
+        painel = PainelFalso([EP6])
+        rm.executar(self.config, self.deps(painel), log=lambda *_: None)
+        self.assertTrue(all('roteiro' not in campos for _, campos in painel.atualizacoes))
 
     def test_depois_do_gravei_o_mesmo_video_casa_na_proxima_rodada(self):
         painel = PainelFalso([])

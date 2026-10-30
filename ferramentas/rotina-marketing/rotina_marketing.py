@@ -2,7 +2,9 @@
 
 Para cada video novo em 1-Brutos:
   1. transcreve a fala (Whisper local, gratis, no proprio computador);
-  2. descobre a qual roteiro "Gravado" do painel o video pertence, comparando a fala com o roteiro;
+  2. descobre de qual conteudo do painel o video e (pelo nome do arquivo, ou comparando a fala com o
+     titulo/roteiro) e ESCREVE o roteiro sozinha com a transcricao, se ele estiver vazio. Se o video nao
+     e de nenhum conteudo, cria um conteudo novo ja com o roteiro;
   3. so EDITA depois que a pessoa confirmar, no cartao do conteudo, como quer aquele video
      (cortar pausas, tipo de legenda...). Antes disso apenas avisa no cartao "video encontrado";
   4. edita (editar_video.py) para 2-Editados e grava no painel os arquivos por rede e uma SUGESTAO de
@@ -32,6 +34,9 @@ EXTENSOES = ('.mp4', '.mov', '.m4v', '.mkv', '.webm')
 IDADE_MINIMA_S = 180          # arquivo mexido ha menos que isso ainda esta sendo gravado/sincronizado
 MIN_PONTUACAO = 0.45          # fracao das palavras do roteiro que apareceram na fala
 MARGEM_SEGUNDO = 0.15         # vantagem minima sobre o 2o colocado para decidir sozinho
+MIN_TITULO = 0.40             # idem, quando o conteudo so tem titulo (sem roteiro escrito)
+MIN_ACERTOS = 2               # palavras-chave em comum, no minimo (uma so e coincidencia)
+DUVIDA = 0.25                 # entre isto e o minimo, nao decide nem cria conteudo novo: avisa no relatorio
 TENTATIVAS_MAX = 3
 STOPWORDS = frozenset(
     'para como mais mas que uma uns umas por com sem sobre entre ate seu sua seus suas ele ela eles '
@@ -62,15 +67,45 @@ def pontuar(fala, titulo, roteiro):
     return len(alvo & palavras_chave(fala)) / len(alvo)
 
 
-def escolher_correspondencia(fala, candidatos):
-    """Devolve (candidato ou None, ranking). Decide sozinho so com folga clara; na duvida, None."""
+def acertos(fala, titulo, roteiro):
+    """Quantas palavras-chave do conteudo aparecem na fala."""
+    return len(palavras_chave((titulo or '') + ' ' + (roteiro or '')) & palavras_chave(fala))
+
+
+def _compacto(texto):
+    return normalizar(texto).replace(' ', '')
+
+
+def escolher_correspondencia(fala, candidatos, nome_video=None):
+    """Devolve (candidato ou None, ranking). 1o) o nome do arquivo aparece no titulo (ex.: titulo "IMG_2713");
+    2o) as palavras da fala batem com titulo+roteiro, com folga clara sobre o segundo colocado e ao menos
+    MIN_ACERTOS palavras em comum. Conteudo sem roteiro escrito (so titulo) exige MIN_TITULO em vez de
+    MIN_PONTUACAO. Na duvida, None."""
+    chave = _compacto(nome_video or '')
+    if len(chave) >= 4:
+        for c in candidatos:
+            if chave in _compacto(c.get('titulo')):
+                return c, [(1.0, c)]
     ranking = sorted(((pontuar(fala, c.get('titulo'), c.get('roteiro')), c) for c in candidatos),
                      key=lambda x: -x[0])
-    if not ranking or ranking[0][0] < MIN_PONTUACAO:
+    if not ranking:
         return None, ranking
-    if len(ranking) > 1 and ranking[0][0] - ranking[1][0] < MARGEM_SEGUNDO:
+    topo, melhor = ranking[0]
+    minimo = MIN_PONTUACAO if (melhor.get('roteiro') or '').strip() else MIN_TITULO
+    if topo < minimo or acertos(fala, melhor.get('titulo'), melhor.get('roteiro')) < MIN_ACERTOS:
         return None, ranking
-    return ranking[0][1], ranking
+    if len(ranking) > 1 and topo - ranking[1][0] < MARGEM_SEGUNDO:
+        return None, ranking
+    return melhor, ranking
+
+
+def titulo_sugerido(fala, nome_video):
+    """Titulo para um conteudo criado a partir de um video sem ideia previa: as primeiras palavras da fala."""
+    palavras = (fala or '').replace('\n', ' ').split()
+    if len(palavras) < 3:
+        return 'Video ' + Path(nome_video).stem
+    texto = ' '.join(palavras[:8]).rstrip(',;:')
+    return (texto + '...') if len(palavras) > 8 else texto
 
 
 def texto_do_srt(srt):
@@ -216,6 +251,12 @@ class Painel:
                            timeout=self.tempo_limite)
         return self._json(r)
 
+    def criar(self, campos):
+        """Cria um conteudo e devolve o id."""
+        r = self.http.post(self.base + '?acao=conteudo_criar', json=campos, headers=self._cab(),
+                           timeout=self.tempo_limite)
+        return self._json(r)['id']
+
 
 # ---------------------------------------------------------------------------------------------
 # Transcricao (Whisper local)
@@ -258,7 +299,7 @@ def executar(config, deps, so_listar=False, log=print):
     base = Path(config['pasta_base'])
     brutos, editados = base / '1-Brutos', base / '2-Editados'
     estado = Estado(base / '_rotina' / 'estado.json')
-    relatorio = {'processados': [], 'aguardando_escolha': [], 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
+    relatorio = {'processados': [], 'aguardando_escolha': [], 'criados': [], 'sem_correspondencia': [], 'erros': [], 'aguardando': []}
 
     novos = listar_novos(brutos, estado.dados, agora=deps.agora())
     log('%d video(s) novo(s) em 1-Brutos' % len(novos))
@@ -267,10 +308,12 @@ def executar(config, deps, so_listar=False, log=print):
         return relatorio
 
     deps.painel.entrar()
-    candidatos = deps.painel.listar('gravado')
-    todos = candidatos + deps.painel.listar('agendado')
+    gravados = deps.painel.listar('gravado')
+    # o video tambem pode ser de uma ideia/roteiro que a pessoa esqueceu de marcar como gravado
+    candidatos = gravados + deps.painel.listar('para_gravar') + deps.painel.listar('ideia')
+    todos = gravados + deps.painel.listar('agendado')
     ocupados = horarios_ocupados(todos)
-    log('%d roteiro(s) gravado(s) no painel' % len(candidatos))
+    log('%d conteudo(s) possivel(is) no painel (gravados, para gravar e ideias)' % len(candidatos))
 
     for video, chave in novos:
         item = estado.get(chave) or {}
@@ -280,12 +323,33 @@ def executar(config, deps, so_listar=False, log=print):
             else:
                 fala, srt = deps.transcrever(video, base / '_rotina' / 'transcricoes')
                 estado.marcar(chave, fala=fala, srt=str(srt), arquivo=video.name)
-            escolhido, ranking = escolher_correspondencia(fala, candidatos)
+            escolhido, ranking = escolher_correspondencia(fala, candidatos, nome_video=video.stem)
             if not escolhido:
-                melhor = '%.2f' % ranking[0][0] if ranking else 'sem roteiros gravados'
-                log('  %s: sem correspondencia segura (melhor pontuacao %s)' % (video.name, melhor))
-                relatorio['sem_correspondencia'].append(video.name)
-                continue
+                melhor = ranking[0][0] if ranking else 0.0
+                if melhor >= DUVIDA:
+                    # parecido demais para criar outro, diferente demais para decidir: a pessoa resolve
+                    log('  %s: parece com "%s" (%.2f) mas sem certeza; nada foi criado' % (video.name, ranking[0][1].get('titulo'), melhor))
+                    relatorio['sem_correspondencia'].append(video.name)
+                    continue
+                # video sem ideia previa: cria o conteudo ja com o roteiro (a fala) esperando a escolha de edicao
+                novo = {'titulo': titulo_sugerido(fala, video.name), 'roteiro': fala, 'formato': 'fala_camera',
+                        'redes': ['instagram', 'tiktok'], 'status': 'gravado',
+                        'data_gravar': deps.hoje().isoformat(), 'edicao': {'video_encontrado': video.name},
+                        'observacao': 'Criado automaticamente a partir do video ' + video.name + '.'}
+                novo['id'] = deps.painel.criar(novo)
+                escolhido = dict(novo, arquivos={})
+                estado.marcar(chave, status='aguardando_escolha', conteudo_id=novo['id'])
+                relatorio['criados'].append({'video': video.name, 'conteudo': novo['titulo']})
+                log('  %s: sem ideia correspondente; criei o conteudo "%s"' % (video.name, novo['titulo']))
+            else:
+                ajustes = {}
+                if escolhido.get('status') != 'gravado':
+                    ajustes['status'] = 'gravado'          # o video chegou: equivale a apertar "Gravei"
+                if not (escolhido.get('roteiro') or '').strip():
+                    ajustes['roteiro'] = fala              # nunca apaga um roteiro que a pessoa escreveu
+                if ajustes:
+                    deps.painel.atualizar(escolhido['id'], ajustes)
+                    escolhido = dict(escolhido, **ajustes)
             edicao = escolhido.get('edicao') or {}
             if not edicao.get('confirmado'):
                 # ainda nao escolheu como editar: so avisa no cartao (uma vez) e espera
