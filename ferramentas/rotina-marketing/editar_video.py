@@ -31,6 +31,9 @@ LARGURA, ALTURA = 1080, 1920
 MINIATURA_LARGURA = 270   # px: o cartao do painel mostra a capa pequena
 MINIATURA_MAX_BYTES = 20000   # o painel recusa data URL acima de 30000 caracteres (~22 KB de JPEG)
 REDES = ('instagram', 'tiktok')
+# cobre o quadro 9:16 cortando as sobras (nunca estica) -- usado no video e na capa
+QUADRO_9X16 = ('scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,setsar=1,format=yuv420p'
+               % (LARGURA, ALTURA, LARGURA, ALTURA))
 
 _PADRAO_INI = re.compile(r'silence_start:\s*(-?[\d.]+)')
 _PADRAO_FIM = re.compile(r'silence_end:\s*(-?[\d.]+)')
@@ -97,8 +100,7 @@ def montar_filtro(trechos, legenda=None, tem_audio=True):
         partes.append('[ac]loudnorm=I=-16:TP=-1.5:LRA=11[aout]')
     else:
         partes.append('%sconcat=n=%d:v=1:a=0[vc]' % (''.join('[v%d]' % i for i in range(n)), n))
-    quadro = ('scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,setsar=1,format=yuv420p'
-              % (LARGURA, ALTURA, LARGURA, ALTURA))
+    quadro = QUADRO_9X16
     if legenda:
         # o caminho vai dentro do filtro: troca \ por / e escapa o ':' da letra do disco
         caminho = str(legenda).replace('\\', '/').replace(':', '\\:').replace("'", "\\'")
@@ -195,10 +197,12 @@ def editar(video, pasta_saida, legenda=None, so_planejar=False):
         r = _rodar(cmd)
         if r.returncode != 0:
             raise RuntimeError('ffmpeg (edicao) falhou: ' + r.stderr.strip()[-400:])
-        # capa: um frame logo no comeco do video ja editado (depois do primeiro respiro)
+        # capa: um frame do video ORIGINAL (sem legenda queimada), logo depois de a fala comecar,
+        # no mesmo enquadramento 9:16 do video editado
         capa_tmp = Path(tmp) / 'capa.jpg'
-        r = _rodar(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', '0.8', '-i', str(parcial),
-                    '-frames:v', '1', '-q:v', '2', str(capa_tmp)])
+        instante = min(trechos[0][0] + 0.8, max(duracao - 0.1, 0.0))
+        r = _rodar(['ffmpeg', '-hide_banner', '-nostats', '-y', '-ss', '%.3f' % instante, '-i', str(video),
+                    '-frames:v', '1', '-vf', QUADRO_9X16, '-q:v', '2', str(capa_tmp)])
         if r.returncode != 0 or not capa_tmp.exists():
             raise RuntimeError('ffmpeg (capa) falhou: ' + r.stderr.strip()[-300:])
         shutil.move(str(parcial), str(destino))

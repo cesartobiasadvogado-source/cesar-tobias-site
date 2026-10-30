@@ -128,6 +128,18 @@ class PontaAPonta(unittest.TestCase):
             self.assertLessEqual(len(mini), 30000)
             self.assertEqual(base64.b64decode(mini.split(',', 1)[1])[:3], b'\xff\xd8\xff')  # e um JPEG de verdade
 
+    def test_capa_tem_o_enquadramento_9x16_e_nao_e_tirada_do_video_legendado(self):
+        saida = self.tmp / 'capa-original'
+        ev.editar(self.bruto, saida)
+        r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+                            'stream=width,height', '-of', 'csv=p=0', str(saida / 'teste_capa_instagram.jpg')],
+                           capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), '1080,1920')
+        fonte = Path(ev.__file__).read_text(encoding='utf-8')
+        trecho = fonte[fonte.index('# capa:'):fonte.index('gerar_miniatura(capa_tmp')]
+        self.assertIn("'-i', str(video)", trecho)       # origem: o video original
+        self.assertNotIn('str(parcial)', trecho.split('shutil.move')[0])  # nao o video ja legendado
+
     def test_nao_sobrescreve(self):
         saida = self.tmp / 'duas-vezes'
         ev.editar(self.bruto, saida)
