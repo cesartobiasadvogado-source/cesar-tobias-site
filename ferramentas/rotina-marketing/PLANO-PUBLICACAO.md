@@ -6,7 +6,7 @@ o site novo funciona com o Lambda antigo (só não mostra os campos novos), ent�
 
 | Peça | Onde está | Commit |
 |---|---|---|
-| Migração 051 + Lambda | `Projetos/wt-marketing-lambda-b` (branch `feat/marketing-arquivos`) | `e4acd76`, filho direto da tag `deploy-2026-10-30-1345` |
+| Migração 051 + Lambda | `Projetos/wt-marketing-lambda-b` (branch `feat/marketing-arquivos`) | 2 commits (`e4acd76` migração/backend e `4c401f3` correção dos roteiros de migração), descendentes diretos da tag `deploy-2026-10-30-1345`; o que vai para o deploy é o último da branch |
 | Site + rotina | `Projetos/wt-marketing-gravei` (branch `feat/marketing-gravei`) | `ab2b0b9` + o commit deste plano: 2 commits à frente de `origin/main` `f7625ba` (fast-forward) |
 
 Antes de cada passo, reconferir: `origin/main` do site ainda é `f7625ba`? a última tag de deploy do
@@ -14,9 +14,16 @@ Lambda ainda é `deploy-2026-10-30-1345`? Se outra sessão publicou algo, **para
 (já houve um deploy que apagou o anterior por usar base errada).
 
 ## Passo 1 — Migração 051 no banco de TESTE (Neon de teste)
-- `python scripts/aplicar_migration_neon_teste.py migrations/051_marketing_conteudos_arquivos.sql` (simula)
-  e, se o resultado estiver certo, o mesmo comando com `--executar`.
-- Conferir: a tabela `marketing_conteudos` ganhou `arquivos`, `sugestao_data`, `sugestao_hora`.
+- O roteiro antigo **recusaria** a 051 (exigia `CREATE TABLE`). Foi corrigido em `4c401f3`: agora aceita
+  migração só de colunas, exige que a tabela exista e que as colunas **não** existam, e recusa
+  DROP/RENAME dentro do ALTER. Provado num Postgres descartável (só leitura, aplicar, repetir = recusa).
+- Você roda no SEU terminal (a conexão é pedida num prompt oculto, nunca vai ao chat), a partir de
+  `Projetos/wt-marketing-lambda-b`:
+  1. `python scripts/aplicar_migration_neon_teste.py migrations/051_marketing_conteudos_arquivos.sql`
+     (só leitura: deve listar as 3 colunas como "ainda nao existe (ok)").
+  2. Se estiver certo: o mesmo comando com `--executar`, digitando a frase `APLICAR NO NEON DE TESTE`.
+- Conferir: a tabela `marketing_conteudos` ganhou `arquivos`, `sugestao_data`, `sugestao_hora` e a
+  verificação final diz "100% ok".
 - Desfazer: `ALTER TABLE marketing_conteudos DROP COLUMN arquivos, DROP COLUMN sugestao_data, DROP COLUMN sugestao_hora;`
 
 ## Passo 2 — Migração 051 em PRODUÇÃO
