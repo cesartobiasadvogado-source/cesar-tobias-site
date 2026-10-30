@@ -194,7 +194,7 @@ t('o botao do olho geral existe nas 25 paginas, ao lado do "+" (antes dele), com
 t('as paginas carregam a versao nova dos arquivos (cache)', () => {
   htmls.forEach((f) => {
     const h = fs.readFileSync(path.join(raiz, f), 'utf8');
-    if (h.includes('painel-app.js?v=')) assert(h.includes('painel-app.js?v=20261030-mkt3') && h.includes('painel.css?v=20261030-mkt3'), f);
+    if (h.includes('painel-app.js?v=')) assert(h.includes('painel-app.js?v=20261030-mkt4') && h.includes('painel.css?v=20261030-mkt4'), f);
   });
 });
 

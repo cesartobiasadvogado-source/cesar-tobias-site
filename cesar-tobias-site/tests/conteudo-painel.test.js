@@ -165,5 +165,36 @@ t('"Seus vídeos em cena": capas dos vídeos a postar (etapa Agenda), só imagem
   assert(app.includes("closest('[data-cena-id]')") && app.includes('abrirPlayerConteudo(c.titulo, _idDriveConteudo(link))'), 'clique na capa nao abre o player');
 });
 
+t('legenda do post: texto com esc(), mensagem só no limite, salva só legenda/revisada/programar e link só do Metricool', () => {
+  const ini = app.indexOf('var LIMITE_LEGENDA_CONTEUDO');
+  const bloco = app.slice(ini, app.indexOf('// Sugestao de dia/hora'));
+  assert(bloco.includes('esc(legenda)') && bloco.includes('esc(met.erro') && bloco.includes('esc(quando)') && bloco.includes('esc(redes)'), 'texto sem esc()');
+  assert(bloco.includes('app\\.metricool\\.com') && bloco.includes('rel="noopener noreferrer"'), 'link do Metricool sem trava de dominio');
+  assert(bloco.includes("_etapaConteudo(c) !== 'agenda'"), 'o bloco aparece fora da Agenda');
+  assert(bloco.includes('maxlength="'), 'sem limite de caracteres na legenda');
+  const salvar = app.slice(app.indexOf("acao === 'salvar_publicacao'"), app.indexOf("acao === 'refazer_programacao'"));
+  assert(salvar.includes('{ legenda: legendaNova, revisada: revisadaNova, programar: programarNova }'), 'o salvar manda mais campos do que deveria');
+  assert(!/metricool\s*:/.test(salvar), 'salvar nao pode mandar o estado do Metricool (e da rotina)');
+  assert(!/status:|data_postagem|arquivos:/.test(salvar), 'salvar legenda nao pode mexer em status/data/arquivos');
+  assert(app.includes("publicacao: { metricool: {} }"), 'Tentar de novo nao limpa so o estado do Metricool');
+  assert(app.includes("facebook: 'Facebook'"), 'Facebook nao e uma rede do cartao');
+});
+
+t('pontos de atenção da OAB: detecta promessa, autopromoção, valores e captação, e deixa passar texto informativo', () => {
+  const ini = app.indexOf('var TERMOS_OAB_CONTEUDO');
+  const codigo = app.slice(ini, app.indexOf('function _htmlAlertasOab'));
+  const alertas = new Function(codigo + '; return _alertasOabLegenda;')();
+  const tem = (txt) => alertas(txt);
+  assert(tem('Garantimos o seu resultado').includes('promessa ou garantia de resultado'));
+  assert(tem('Você vai receber 100% do valor').includes('promessa ou garantia de resultado'));
+  assert(tem('O melhor advogado da região').includes('autopromoção ou comparação'));
+  assert(tem('Consulta grátis e desconto especial').includes('valores, promoção ou gratuidade'));
+  assert(tem('Honorários a partir de R$ 500').includes('valores, promoção ou gratuidade'));
+  assert(tem('Contrate agora, chame no WhatsApp').includes('captação direta de clientes'));
+  assert.deepStrictEqual(tem('Você sabia que o prazo para contestar começa na citação? Salve este vídeo para consultar depois.'), []);
+  assert.deepStrictEqual(tem(''), []);
+  assert.deepStrictEqual(alertas('GARANTIMOS garantimos'), ['promessa ou garantia de resultado']);   // sem repetir
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

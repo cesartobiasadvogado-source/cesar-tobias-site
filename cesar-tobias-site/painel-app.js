@@ -9141,7 +9141,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     carrossel: 'Carrossel', story: 'Story', outro: 'Outro',
   };
   var ROTULO_REDE_CONTEUDO = {
-    instagram: 'Instagram', tiktok: 'TikTok', stories: 'Stories',
+    instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', stories: 'Stories',
     youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp',
   };
   var ROTULO_STATUS_CONTEUDO = {
@@ -9303,6 +9303,87 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     '</div>';
   }
 
+  // ---- Publicacao nas redes: legenda do post + estado da programacao no Metricool -------------------------
+  var LIMITE_LEGENDA_CONTEUDO = 2200;
+
+  // Pontos de atencao com a publicidade de advogado (OAB, Provimento 205/2021). E so um aviso por palavras-chave,
+  // NAO e parecer juridico e NAO bloqueia nada: quem decide e a pessoa. Texto sem acento e em minusculas.
+  var TERMOS_OAB_CONTEUDO = [
+    [/garantimos|\bgaranto\b|garantia de (resultado|ganho|vitoria)|resultado garantido|100 ?%|resultado certo|causa ganha|ganho certo|vai ganhar|voce vai receber/, 'promessa ou garantia de resultado'],
+    [/melhor advogad|melhor escritorio|numero 1|\blider\b|o maior escritorio|unico que/, 'autopromoção ou comparação'],
+    [/promocao|desconto|gratis|gratuit|sorteio|brinde|barato|\bpreco|parcel(a|e|amos)|r\$ ?\d/, 'valores, promoção ou gratuidade'],
+    [/contrate (agora|ja|hoje)|chame no whatsapp|fale agora|me chama|entre em contato agora|garanta (ja|seu)/, 'captação direta de clientes'],
+  ];
+
+  function _alertasOabLegenda(texto) {
+    var limpo = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    var achados = [];
+    TERMOS_OAB_CONTEUDO.forEach(function (par) {
+      if (par[0].test(limpo) && achados.indexOf(par[1]) === -1) achados.push(par[1]);
+    });
+    return achados;
+  }
+
+  function _htmlAlertasOab(lista) {
+    if (!lista.length) return '';
+    return 'Pontos de atenção com a OAB (Provimento 205/2021), revise antes de postar: ' +
+      lista.map(function (x) { return esc(x); }).join('; ') + '.';
+  }
+
+  function _quandoMetricoolConteudo(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(iso || ''));
+    return m ? m[3] + '/' + m[2] + '/' + m[1] + ' às ' + m[4] + ':' + m[5] : '';
+  }
+
+  function _htmlEstadoMetricoolConteudo(met, id) {
+    var link = (met.plannerUrl && /^https:\/\/app\.metricool\.com\//.test(met.plannerUrl))
+      ? ' <a href="' + esc(met.plannerUrl) + '" target="_blank" rel="noopener noreferrer">Abrir no Metricool</a>' : '';
+    var quando = _quandoMetricoolConteudo(met.em);
+    var redes = (met.redes || []).map(function (r) { return ROTULO_REDE_CONTEUDO[r] || r; }).join(', ');
+    if (met.status === 'programado') {
+      return '<div class="conteudo-metricool conteudo-metricool-ok">Programado no Metricool' + (quando ? ' para ' + esc(quando) : '') +
+        (redes ? ' · ' + esc(redes) : '') + '.' + link + '</div>';
+    }
+    if (met.status === 'rascunho') {
+      return '<div class="conteudo-metricool conteudo-metricool-ok">Rascunho criado no Metricool' + (quando ? ' para ' + esc(quando) : '') +
+        ': falta você confirmar lá.' + link + '</div>';
+    }
+    if (met.status === 'enviando') return '<div class="conteudo-metricool">Enviando para o Metricool…</div>';
+    if (met.status === 'erro') {
+      return '<div class="conteudo-metricool conteudo-metricool-erro">Não foi possível programar: ' + esc(met.erro || 'erro desconhecido') +
+        '<div class="conteudo-card-acoes"><button type="button" class="btn-conexao-secundario" data-conteudo-acao="refazer_programacao" data-conteudo-id="' + id + '">Tentar de novo</button></div></div>';
+    }
+    return '';
+  }
+
+  function _htmlPublicacaoConteudo(c) {
+    if (_etapaConteudo(c) !== 'agenda') return '';
+    var pub = c.publicacao || {};
+    var met = pub.metricool || {};
+    var id = esc(String(c.id));
+    var legenda = pub.legenda || '';
+    var travada = met.status === 'programado' || met.status === 'rascunho' || met.status === 'enviando';
+    var dicas = [];
+    if (pub.programar && c.status !== 'agendado') dicas.push('A programação no Metricool acontece depois que você clicar em “Aprovar agendamento”.');
+    if (pub.programar && !pub.revisada && !travada) dicas.push('Marque “Revisei a legenda” para a rotina poder programar.');
+    if (pub.programar && !legenda.trim() && !travada) dicas.push('Escreva ou revise a legenda para a rotina poder programar.');
+    var selo = (pub.legenda_sugerida && legenda) ? '<span class="conteudo-publicacao-selo">sugerida pela rotina: revise e ajuste</span>' : '';
+    return '<div class="conteudo-publicacao" data-conteudo-id="' + id + '">' +
+      '<div class="conteudo-publicacao-titulo">Publicação nas redes ' + selo + '</div>' +
+      _htmlEstadoMetricoolConteudo(met, id) +
+      '<textarea class="conteudo-publicacao-legenda" data-pub-campo="legenda" rows="5" maxlength="' + LIMITE_LEGENDA_CONTEUDO + '"' + (travada ? ' readonly' : '') +
+        ' placeholder="A rotina sugere uma legenda a partir do roteiro quando o vídeo fica pronto. Você também pode escrever a sua.">' + esc(legenda) + '</textarea>' +
+      '<div class="conteudo-publicacao-contador">' + legenda.length + ' / ' + LIMITE_LEGENDA_CONTEUDO + '</div>' +
+      '<div class="conteudo-publicacao-alertas">' + _htmlAlertasOab(_alertasOabLegenda(legenda)) + '</div>' +
+      (travada
+        ? '<div class="conteudo-edicao-nota">Este post já está no Metricool. Para mudar a legenda, edite lá.</div>'
+        : '<label class="conteudo-edicao-opcao"><input type="checkbox" data-pub-campo="revisada"' + (pub.revisada ? ' checked' : '') + '> Revisei a legenda</label>' +
+          '<label class="conteudo-edicao-opcao"><input type="checkbox" data-pub-campo="programar"' + (pub.programar ? ' checked' : '') + '> Programar no Metricool depois que eu aprovar o agendamento</label>' +
+          dicas.map(function (d) { return '<div class="conteudo-edicao-nota">' + esc(d) + '</div>'; }).join('') +
+          '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="salvar_publicacao" data-conteudo-id="' + id + '">Salvar</button></div>') +
+    '</div>';
+  }
+
   // Sugestao de dia/hora feita pela rotina de edicao. So vira agendamento quando a pessoa aprova.
   function _htmlSugestaoConteudo(c) {
     if (c.status !== 'gravado' || !c.sugestao_data) return '';
@@ -9344,7 +9425,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<span class="chip neutral">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + '</span>' + redes +
         (dataTxt ? '<span class="conteudo-card-data">' + esc(dataTxt) + '</span>' : '') +
       '</div>' +
-      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) + _htmlEdicaoConteudo(c) +
+      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) + _htmlEdicaoConteudo(c) + _htmlPublicacaoConteudo(c) +
       (c.roteiro ? '<details class="conteudo-roteiro"><summary>Ver roteiro</summary><div class="conteudo-roteiro-texto">' + esc(c.roteiro) + '</div></details>' : '') +
       (c.observacao ? '<div class="conteudo-card-obs">' + esc(c.observacao) + '</div>' : '') +
       '<div class="conteudo-card-acoes">' + botoes + '</div>' +
@@ -9551,6 +9632,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         });
     }
 
+    listaEl.addEventListener('input', function (ev) {
+      var alvo = ev.target;
+      if (!alvo || !alvo.getAttribute || alvo.getAttribute('data-pub-campo') !== 'legenda') return;
+      var caixa = alvo.closest('.conteudo-publicacao');
+      if (!caixa) return;
+      caixa.querySelector('.conteudo-publicacao-contador').textContent = alvo.value.length + ' / ' + LIMITE_LEGENDA_CONTEUDO;
+      caixa.querySelector('.conteudo-publicacao-alertas').innerHTML = _htmlAlertasOab(_alertasOabLegenda(alvo.value));
+    });
+
     var faixaEl = document.getElementById('conteudo-carrossel');
     if (faixaEl) faixaEl.addEventListener('click', function (ev) {
       var quadro = ev.target.closest ? ev.target.closest('[data-cena-id]') : null;
@@ -9585,6 +9675,33 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           .catch(function (e) {
             botao.disabled = false;
             mostrarAviso(e.message || 'Não foi possível salvar a escolha agora.');
+          });
+      }
+      else if (acao === 'salvar_publicacao') {
+        var caixaPub = botao.closest('.conteudo-publicacao');
+        var legendaNova = caixaPub.querySelector('[data-pub-campo="legenda"]').value.trim();
+        var revisadaNova = !!caixaPub.querySelector('[data-pub-campo="revisada"]').checked;
+        var programarNova = !!caixaPub.querySelector('[data-pub-campo="programar"]').checked;
+        if (legendaNova.length > LIMITE_LEGENDA_CONTEUDO) { mostrarAviso('A legenda passa de ' + LIMITE_LEGENDA_CONTEUDO + ' caracteres.'); return; }
+        if (revisadaNova && !legendaNova) { mostrarAviso('Escreva a legenda antes de marcar “Revisei a legenda”.'); return; }
+        // manda SO legenda/revisada/programar: o servidor mescla e nao apaga o estado do Metricool gravado pela rotina
+        var pubNova = { legenda: legendaNova, revisada: revisadaNova, programar: programarNova };
+        if (legendaNova !== ((c.publicacao || {}).legenda || '')) pubNova.legenda_sugerida = false;   // a pessoa mexeu
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, publicacao: pubNova })
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível salvar a legenda agora.');
+          });
+      }
+      else if (acao === 'refazer_programacao') {
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, publicacao: { metricool: {} } })
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível limpar o erro agora.');
           });
       }
       else if (acao === 'assistir') {
