@@ -154,5 +154,16 @@ t('escolhas de edição por vídeo: só opções que a rotina já faz, só confi
   assert(!/status:/.test(acao), 'a escolha de edicao nao pode mexer no status');
 });
 
+t('"Seus vídeos em cena": capas dos vídeos a postar (etapa Agenda), só imagem JPEG segura, corre só se não couber', () => {
+  const ini = app.indexOf('function _videosEmCenaConteudo');
+  const bloco = app.slice(ini, app.indexOf('function wireConteudo'));
+  assert(bloco.includes("_etapaConteudo(c) === 'agenda'"), 'a faixa nao mostra so os videos da Agenda');
+  assert(bloco.includes('_miniaturaSeguraConteudo('), 'a capa nao passa pela validacao de JPEG base64');
+  assert(bloco.includes('esc(capa)') && bloco.includes('esc(c.titulo)') && bloco.includes('esc(dica)'), 'texto/imagem do servidor sem esc()');
+  assert(bloco.includes('faixa.scrollWidth <= janela.clientWidth'), 'a faixa corre mesmo quando cabe na tela');
+  assert(bloco.includes("_idDriveConteudo(arquivos[rede].link_video)"), 'o clique nao depende de um link do Drive valido');
+  assert(app.includes("closest('[data-cena-id]')") && app.includes('abrirPlayerConteudo(c.titulo, _idDriveConteudo(link))'), 'clique na capa nao abre o player');
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

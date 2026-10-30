@@ -9382,39 +9382,77 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       _htmlGrupoConteudo('Sem data', grupos.semData);
   }
 
-  // "Seus videos em cena": faixa com os proximos conteudos (para gravar, gravados e agendados), em
-  // ordem de data. Ainda sem capa de imagem (o cadastro nao guarda arquivo): cada quadro mostra
-  // titulo, formato, redes e data. A faixa corre sozinha e pausa com o mouse em cima.
-  function _htmlCarrosselConteudo(lista) {
-    var itens = lista.filter(function (c) {
-      return c.status === 'para_gravar' || c.status === 'gravado' || c.status === 'agendado';
-    }).sort(function (a, b) {
-      var da = (a.status === 'agendado' ? a.data_postagem : a.data_gravar) || '9999-99-99';
-      var db = (b.status === 'agendado' ? b.data_postagem : b.data_gravar) || '9999-99-99';
+  // "Seus videos em cena": faixa com as CAPAS dos videos que vao ser postados (os da etapa Agenda de
+  // postagem: editados esperando aprovacao e ja agendados), na ordem do dia de postagem. A capa e a
+  // miniatura que a rotina gera; sem ela, o quadro mostra o titulo. A faixa corre sozinha so se nao
+  // couber na tela, e pausa com o mouse em cima.
+  function _videosEmCenaConteudo(lista) {
+    return lista.filter(function (c) { return _etapaConteudo(c) === 'agenda'; }).sort(function (a, b) {
+      var da = (a.data_postagem || a.sugestao_data || '9999-99-99') + ' ' + String(a.hora_postagem || a.sugestao_hora || '99:99');
+      var db = (b.data_postagem || b.sugestao_data || '9999-99-99') + ' ' + String(b.hora_postagem || b.sugestao_hora || '99:99');
       return da < db ? -1 : (da > db ? 1 : 0);
-    }).slice(0, 14);
-    if (!itens.length) return '';
-    function quadro(c, escondido) {
-      var par = _chipEtapaConteudo(c);
-      var redes = (c.redes || []).map(function (r) { return esc(ROTULO_REDE_CONTEUDO[r] || r); }).join(' · ');
-      var dataTxt = _textoDataConteudo(c);
-      return '<div class="conteudo-cena-quadro"' + (escondido ? ' aria-hidden="true"' : '') + '>' +
-        '<span class="conteudo-cena-status">' + esc(par[1]) + '</span>' +
-        '<div class="conteudo-cena-titulo">' + esc(c.titulo) + '</div>' +
-        '<div class="conteudo-cena-meta">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + (redes ? ' · ' + redes : '') + '</div>' +
-        (dataTxt ? '<div class="conteudo-cena-data">' + esc(dataTxt) + '</div>' : '') +
-      '</div>';
+    }).slice(0, 20);
+  }
+
+  function _capaDoConteudo(c) {
+    var arquivos = c.arquivos || {};
+    for (var rede in arquivos) {
+      var mini = _miniaturaSeguraConteudo(arquivos[rede] && arquivos[rede].miniatura);
+      if (mini) return mini;
     }
-    var quadros = itens.map(function (c) { return quadro(c, false); }).join('');
-    // com poucos quadros nao compensa correr: ficam parados, sem duplicar
-    var correr = itens.length >= 5;
-    return '<div class="conteudo-cena">' +
-      '<div class="conteudo-cena-topo"><span class="conteudo-cena-rotulo">Seus vídeos em cena</span>' +
-        (correr ? '<span class="conteudo-cena-dica">Passe o mouse para pausar</span>' : '') + '</div>' +
-      '<div class="conteudo-cena-janela"><div class="conteudo-cena-faixa' + (correr ? ' corre' : '') + '" style="--cena-itens:' + itens.length + ';">' +
-        quadros + (correr ? itens.map(function (c) { return quadro(c, true); }).join('') : '') +
-      '</div></div>' +
-    '</div>';
+    return '';
+  }
+
+  function _linkVideoDoConteudo(c) {
+    var arquivos = c.arquivos || {};
+    for (var rede in arquivos) {
+      if (arquivos[rede] && _idDriveConteudo(arquivos[rede].link_video)) return arquivos[rede].link_video;
+    }
+    return '';
+  }
+
+  function _htmlCarrosselConteudo(lista) {
+    var itens = _videosEmCenaConteudo(lista);
+    var cabecalho = '<div class="conteudo-cena-topo"><span class="conteudo-cena-rotulo">Seus vídeos em cena</span>' +
+      '<span class="conteudo-cena-dica" hidden>Passe o mouse para pausar</span></div>';
+    if (!itens.length) {
+      return '<div class="conteudo-cena">' + cabecalho +
+        '<div class="conteudo-cena-vazio">Os vídeos prontos para postar aparecem aqui, com a capa.</div></div>';
+    }
+    var quadros = itens.map(function (c) {
+      var capa = _capaDoConteudo(c);
+      var assistivel = !!_linkVideoDoConteudo(c);
+      var dataTxt = _textoDataConteudo(c);
+      var dica = c.titulo + (dataTxt ? ' · ' + dataTxt : '') + (assistivel ? ' · clique para assistir' : '');
+      var miolo = capa
+        ? '<img src="' + esc(capa) + '" alt="" loading="lazy">'
+        : '<span class="conteudo-cena-sem-capa">' + esc(c.titulo) + '</span>';
+      // com capa, o titulo vai na pilula da base; sem capa o proprio quadro ja mostra o titulo
+      var conteudo = capa ? miolo + '<span class="conteudo-cena-rotulo-video">' + esc(c.titulo) + '</span>' : miolo;
+      return assistivel
+        ? '<button type="button" class="conteudo-cena-video clicavel" data-cena-id="' + esc(String(c.id)) + '" title="' + esc(dica) + '" aria-label="' + esc(dica) + '">' + conteudo + '</button>'
+        : '<div class="conteudo-cena-video" title="' + esc(dica) + '" role="img" aria-label="' + esc(dica) + '">' + conteudo + '</div>';
+    }).join('');
+    return '<div class="conteudo-cena">' + cabecalho +
+      '<div class="conteudo-cena-janela"><div class="conteudo-cena-faixa" style="--cena-itens:' + itens.length + ';">' + quadros + '</div></div></div>';
+  }
+
+  // So faz a faixa correr se ela nao couber na largura: duplica os quadros para o laco ficar continuo.
+  function _ativarCorridaCena(raiz) {
+    var janela = raiz && raiz.querySelector('.conteudo-cena-janela');
+    var faixa = raiz && raiz.querySelector('.conteudo-cena-faixa');
+    if (!janela || !faixa || faixa.scrollWidth <= janela.clientWidth) return;
+    Array.prototype.slice.call(faixa.children).forEach(function (no) {
+      var copia = no.cloneNode(true);
+      copia.setAttribute('aria-hidden', 'true');
+      copia.removeAttribute('data-cena-id');
+      copia.removeAttribute('title');
+      copia.tabIndex = -1;
+      faixa.appendChild(copia);
+    });
+    faixa.classList.add('corre');
+    var dica = raiz.querySelector('.conteudo-cena-dica');
+    if (dica) dica.hidden = false;
   }
 
   function wireConteudo() {
@@ -9457,7 +9495,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var amanha = _fmtISOData(new Date(dAmanha.getFullYear(), dAmanha.getMonth(), dAmanha.getDate() + 1));
       var html = '';
       var carrosselEl = document.getElementById('conteudo-carrossel');
-      if (carrosselEl) carrosselEl.innerHTML = _htmlCarrosselConteudo(ativos);
+      if (carrosselEl) { carrosselEl.innerHTML = _htmlCarrosselConteudo(ativos); _ativarCorridaCena(carrosselEl); }
       if (abaAtual === 'ideias') {
         var ideias = daEtapa('ideias');
         html = ideias.length ? ideias.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhuma ideia guardada. Cadastre um conteúdo com o status “Ideia”.');
@@ -9512,6 +9550,15 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           mostrarAviso(e.message || 'Não foi possível atualizar o conteúdo agora.');
         });
     }
+
+    var faixaEl = document.getElementById('conteudo-carrossel');
+    if (faixaEl) faixaEl.addEventListener('click', function (ev) {
+      var quadro = ev.target.closest ? ev.target.closest('[data-cena-id]') : null;
+      if (!quadro) return;
+      var c = acharConteudo(quadro.getAttribute('data-cena-id'));
+      var link = c && _linkVideoDoConteudo(c);
+      if (link) abrirPlayerConteudo(c.titulo, _idDriveConteudo(link));
+    });
 
     listaEl.addEventListener('click', function (ev) {
       var botao = ev.target.closest ? ev.target.closest('[data-conteudo-acao]') : null;
