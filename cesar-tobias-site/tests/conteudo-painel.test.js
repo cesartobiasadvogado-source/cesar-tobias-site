@@ -172,7 +172,7 @@ t('legenda do post: texto com esc(), mensagem só no limite, salva só legenda/r
   assert(bloco.includes('app\\.metricool\\.com') && bloco.includes('rel="noopener noreferrer"'), 'link do Metricool sem trava de dominio');
   assert(bloco.includes("_etapaConteudo(c) !== 'agenda'"), 'o bloco aparece fora da Agenda');
   assert(bloco.includes('maxlength="'), 'sem limite de caracteres na legenda');
-  const salvar = app.slice(app.indexOf("acao === 'salvar_publicacao'"), app.indexOf("acao === 'refazer_programacao'"));
+  const salvar = app.slice(app.indexOf("acao === 'salvar_publicacao'"), app.indexOf("acao === 'enviar_metricool'"));
   assert(salvar.includes('{ legenda: legendaNova, revisada: revisadaNova, programar: programarNova }'), 'o salvar manda mais campos do que deveria');
   assert(!/metricool\s*:/.test(salvar), 'salvar nao pode mandar o estado do Metricool (e da rotina)');
   assert(!/status:|data_postagem|arquivos:/.test(salvar), 'salvar legenda nao pode mexer em status/data/arquivos');
@@ -194,6 +194,20 @@ t('pontos de atenção da OAB: detecta promessa, autopromoção, valores e capta
   assert.deepStrictEqual(tem('Você sabia que o prazo para contestar começa na citação? Salve este vídeo para consultar depois.'), []);
   assert.deepStrictEqual(tem(''), []);
   assert.deepStrictEqual(alertas('GARANTIMOS garantimos'), ['promessa ou garantia de resultado']);   // sem repetir
+});
+
+t('botão "Enviar ao Metricool agora": confirma legenda+programar, aprova só a sugestão e nunca mexe no estado do Metricool', () => {
+  const html = app.slice(app.indexOf('function _htmlPublicacaoConteudo'), app.indexOf('// Sugestao de dia/hora'));
+  assert(html.includes('data-conteudo-acao="enviar_metricool"') && html.includes('Enviar ao Metricool agora'), 'botao nao esta no cartao');
+  assert(html.indexOf('enviar_metricool') > html.indexOf('(travada'), 'o botao deve sumir quando o post ja esta no Metricool (travada)');
+  const env = app.slice(app.indexOf("acao === 'enviar_metricool'"), app.indexOf("acao === 'refazer_programacao'"));
+  assert(env.includes('revisada: true, programar: true'), 'o clique nao confirma revisao+programar');
+  assert(env.includes("if (!legendaEnv)"), 'permite enviar sem legenda');
+  assert(env.includes('LIMITE_LEGENDA_CONTEUDO'), 'sem limite de legenda no envio');
+  assert(!/metricool\s*:/.test(env), 'o botao nao pode escrever o estado do Metricool (e do vigia)');
+  assert(!/arquivos\s*:|redes\s*:/.test(env), 'o botao nao pode mexer em arquivos/redes');
+  assert(env.includes("c.status !== 'agendado'") && env.includes("corpoEnv.status = 'agendado'"), 'nao aprova o agendamento junto');
+  assert(env.includes('Defina o dia e a hora'), 'sem aviso quando falta dia/hora');
 });
 
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }

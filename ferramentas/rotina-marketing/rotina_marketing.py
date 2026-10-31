@@ -509,7 +509,11 @@ def executar(config, deps, so_listar=False, log=print):
                 if deps.metricool is None:
                     raise RuntimeError('o cliente do Metricool nao foi configurado')
                 programador = pm.Programador(deps.painel, deps.metricool, deps.tunel, cfg_metricool, editados, deps.agora, log=log)
-                relatorio['programados'] = pm.programar_pendentes(programador, atuais)
+                with pm.trava_programacao(base / '_rotina', agora=deps.agora) as pegou:
+                    if pegou:
+                        relatorio['programados'] = pm.programar_pendentes(programador, atuais)
+                    else:
+                        log('  o vigia do Metricool esta programando agora; fica para o proximo ciclo')
         except Exception as e:  # nunca desfaz o que ja foi editado/entregue
             relatorio['erros'].append({'video': '(legenda/Metricool)', 'erro': str(e)[:300], 'tentativa': 1})
             log('  ERRO na legenda/Metricool: %s' % e)

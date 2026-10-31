@@ -12,7 +12,10 @@ Regras que nao mudam (cada uma tem teste):
 - Modo "rascunho" (padrao): cria um RASCUNHO no Metricool para a pessoa confirmar la. "automatico": agenda
   e o Metricool publica sozinho no horario.
 """
+import contextlib
 import json
+import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -181,6 +184,36 @@ class Programador:
         self._estado(c, **resultado)
         self.log('  "%s": %s no Metricool para %s (%s)' % (c.get('titulo'), resultado['status'], iso, ', '.join(redes)))
         return (resultado['status'], resultado)
+
+
+@contextlib.contextmanager
+def trava_programacao(pasta, agora=time.time, velha_s=20 * 60):
+    """Uma so pessoa por vez programa no Metricool (o vigia e a rotina nao podem enviar o mesmo post ao mesmo
+    tempo). Devolve True se pegou a trava; False se outro esta programando agora (quem chega depois so espera
+    o proximo ciclo). Trava esquecida por queda de energia vence em 20 min."""
+    arq = Path(pasta) / 'programando.lock'
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    pegou = False
+    for _ in range(2):
+        try:
+            os.close(os.open(str(arq), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            pegou = True
+            break
+        except FileExistsError:
+            try:
+                if agora() - arq.stat().st_mtime < velha_s:
+                    break
+                arq.unlink()
+            except OSError:
+                break
+    try:
+        yield pegou
+    finally:
+        if pegou:
+            try:
+                arq.unlink()
+            except OSError:
+                pass
 
 
 def programar_pendentes(programador, conteudos):

@@ -9380,7 +9380,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         : '<label class="conteudo-edicao-opcao"><input type="checkbox" data-pub-campo="revisada"' + (pub.revisada ? ' checked' : '') + '> Revisei a legenda</label>' +
           '<label class="conteudo-edicao-opcao"><input type="checkbox" data-pub-campo="programar"' + (pub.programar ? ' checked' : '') + '> Programar no Metricool depois que eu aprovar o agendamento</label>' +
           dicas.map(function (d) { return '<div class="conteudo-edicao-nota">' + esc(d) + '</div>'; }).join('') +
-          '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="salvar_publicacao" data-conteudo-id="' + id + '">Salvar</button></div>') +
+          '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="enviar_metricool" data-conteudo-id="' + id + '">Enviar ao Metricool agora</button> ' +
+            '<button type="button" class="btn-conexao-secundario" data-conteudo-acao="salvar_publicacao" data-conteudo-id="' + id + '">Salvar</button></div>' +
+          '<div class="conteudo-edicao-nota">“Enviar ao Metricool agora” confirma a legenda e o agendamento. O post chega ao Metricool em cerca de 1 minuto, com o computador ligado.</div>') +
     '</div>';
   }
 
@@ -9693,6 +9695,32 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           .catch(function (e) {
             botao.disabled = false;
             mostrarAviso(e.message || 'Não foi possível salvar a legenda agora.');
+          });
+      }
+      else if (acao === 'enviar_metricool') {
+        var caixaEnv = botao.closest('.conteudo-publicacao');
+        var legendaEnv = caixaEnv.querySelector('[data-pub-campo="legenda"]').value.trim();
+        if (!legendaEnv) { mostrarAviso('Escreva a legenda antes de enviar ao Metricool.'); return; }
+        if (legendaEnv.length > LIMITE_LEGENDA_CONTEUDO) { mostrarAviso('A legenda passa de ' + LIMITE_LEGENDA_CONTEUDO + ' caracteres.'); return; }
+        // clicar aqui vale como "revisei a legenda" + "programar" (+ aprovar a sugestao de dia/hora, se ainda for so sugestao)
+        var corpoEnv = { id: c.id, publicacao: { legenda: legendaEnv, revisada: true, programar: true } };
+        if (legendaEnv !== ((c.publicacao || {}).legenda || '')) corpoEnv.publicacao.legenda_sugerida = false;
+        if (c.status !== 'agendado') {
+          if (!c.sugestao_data && !c.data_postagem) { mostrarAviso('Defina o dia e a hora da postagem (botão Agendar) antes de enviar.'); return; }
+          corpoEnv.status = 'agendado';
+          if (c.sugestao_data) {
+            corpoEnv.data_postagem = c.sugestao_data;
+            corpoEnv.hora_postagem = c.sugestao_hora ? String(c.sugestao_hora).slice(0, 5) : '';
+            corpoEnv.sugestao_data = '';
+            corpoEnv.sugestao_hora = '';
+          }
+        }
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', corpoEnv)
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível enviar ao Metricool agora.');
           });
       }
       else if (acao === 'refazer_programacao') {
