@@ -235,5 +235,26 @@ t('"Editar vídeo agora": pede à fila, mostra barra real (etapa/%), nunca inven
   assert(poll.includes('if (terminou) carregar()'), 'ao terminar nao recarrega o cartao');
 });
 
+t('"Pedir ajuste": só em vídeo editado ainda não aprovado, pede à fila sem mexer no resto, com voz e desfazer', () => {
+  const ini = app.indexOf('function _htmlAjusteConteudo');
+  const html = app.slice(ini, app.indexOf('// ---- Publicacao nas redes'));
+  assert(html.includes("c.status !== 'gravado' || !_temVideoEditadoConteudo(c)"), 'o ajuste aparece fora do momento certo');
+  assert(html.includes("data-conteudo-acao=\"pedir_ajuste\"") && html.includes('data-conteudo-acao="falar_ajuste"') && html.includes('data-conteudo-acao="desfazer_ajuste"'), 'faltam botoes');
+  assert(html.includes('esc(edicao.pedido_ajuste') && html.includes('esc(a.resumo') && html.includes('esc(andamento.erro'), 'texto sem esc()');
+  assert(html.includes('_htmlAndamentoConteudo(c, andamento)'), 'sem barra durante o ajuste');
+  assert(html.includes('maxlength="'), 'pedido sem limite');
+  const iniAcao = app.indexOf("if (acao === 'pedir_ajuste' || acao === 'desfazer_ajuste')");
+  const acao = app.slice(iniAcao, app.indexOf("if (acao === 'para_gravar')", iniAcao));
+  assert(acao.includes("estado: 'fila'") && acao.includes('edAjuste.pedido_ajuste') && acao.includes('edAjuste.desfazer_ajuste = true'), 'o clique nao entra na fila');
+  assert(acao.includes('Escreva (ou fale)') && acao.includes('.trim()'), 'aceita pedido vazio');
+  assert(!/arquivos\s*:|publicacao\s*:|status\s*:|ajustes\s*[:=]/.test(acao.replace("estado: 'fila'", '')), 'o clique mexe em mais do que o pedido (a lista de ajustes e do vigia)');
+  // enquanto o video e refeito, nao da para aprovar nem enviar ao Metricool
+  assert(app.includes('var refazendo = editado && _andamentoAtivoConteudo(c)') && app.includes('&& !refazendo) botoes += botao(\'aprovar_sugestao\''), 'aprova durante o ajuste');
+  assert(app.includes("_etapaConteudo(c) !== 'agenda' || _andamentoAtivoConteudo(c)) return ''"), 'envia ao Metricool durante o ajuste');
+  // voz: so o reconhecimento do navegador, em portugues, e o texto cai na caixa (nao envia sozinho)
+  const voz = app.slice(app.indexOf('function falarAjuste'), app.indexOf("listaEl.addEventListener('click'", app.indexOf('function falarAjuste')));
+  assert(voz.includes("r.lang = 'pt-BR'") && voz.includes('campo.value') && !voz.includes('apiPostJson'), 'a voz envia sozinha ou nao e pt-BR');
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

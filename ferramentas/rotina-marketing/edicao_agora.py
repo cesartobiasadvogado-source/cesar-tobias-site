@@ -19,6 +19,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import ajuste_video as aj
 import edicao_video as ed
 import editar_video as ev
 import publicar_metricool as pm
@@ -139,6 +140,20 @@ def nome_livre(video, editados):
     raise RuntimeError('já existem edições demais deste vídeo; apague as antigas em 2-Editados')
 
 
+def _palavras_do_video(video, base, estado, transcrever, barra):
+    """Palavras marcadas pelo Whisper (do cache da rotina, ou transcreve agora). Avisa a barra."""
+    chave = rm.chave_arquivo(video)
+    item = estado.get(chave) or {}
+    if 'fala' in item and Path(item.get('srt', '')).exists() and Path(item['srt']).with_suffix('.json').exists():
+        srt = Path(item['srt'])
+    else:
+        barra.mudar('rodando', 'Transcrevendo a fala (pode levar alguns minutos)', None, forcar=True)
+        fala, srt = transcrever(video, base / '_rotina' / 'transcricoes')
+        estado.marcar(chave, fala=fala, srt=str(srt), arquivo=video.name)
+    barra.mudar('rodando', 'Fala transcrita', PCT_TRANSCRICAO, forcar=True)
+    return ed.ler_palavras(srt.with_suffix('.json'))
+
+
 def editar_agora(c, config, painel, estado, transcrever=rm.transcrever_whisper, editar=ev.editar, relogio=time.time,
                  hoje=None, log=print):
     """Edita o video do conteudo `c`. Devolve ('pronto', None) ou ('erro', motivo). Nunca levanta."""
@@ -149,15 +164,7 @@ def editar_agora(c, config, painel, estado, transcrever=rm.transcrever_whisper, 
         barra.mudar('rodando', 'Procurando o vídeo bruto', 1, forcar=True)
         video = achar_video(c, brutos, estado)
         chave = rm.chave_arquivo(video)
-        item = estado.get(chave) or {}
-        if 'fala' in item and Path(item.get('srt', '')).exists() and Path(item['srt']).with_suffix('.json').exists():
-            fala, srt = item['fala'], Path(item['srt'])
-        else:
-            barra.mudar('rodando', 'Transcrevendo a fala (pode levar alguns minutos)', None, forcar=True)
-            fala, srt = transcrever(video, base / '_rotina' / 'transcricoes')
-            estado.marcar(chave, fala=fala, srt=str(srt), arquivo=video.name)
-        barra.mudar('rodando', 'Fala transcrita', PCT_TRANSCRICAO, forcar=True)
-        palavras = ed.ler_palavras(srt.with_suffix('.json'))
+        palavras = _palavras_do_video(video, base, estado, transcrever, barra)
         nome = nome_livre(video, editados)
 
         def progresso(etapa, pct):
@@ -197,21 +204,101 @@ def editar_agora(c, config, painel, estado, transcrever=rm.transcrever_whisper, 
         return 'erro', motivo
 
 
-def ciclo_edicao(painel, config, estado=None, editar_fn=editar_agora, relogio=time.time, log=print, **dep):
+def _tem_video(c):
+    return any((v or {}).get('video') for v in (c.get('arquivos') or {}).values())
+
+
+def _pede_ajuste(c):
+    e = c.get('edicao') or {}
+    return bool(e.get('pedido_ajuste') or e.get('desfazer_ajuste'))
+
+
+def ajustar_agora(c, config, painel, estado, transcrever=rm.transcrever_whisper, editar=ev.editar, sondar=ev.sondar,
+                  interpretar_fn=aj.interpretar, relogio=time.time, log=print):
+    """Aplica o pedido de ajuste (ou o "desfazer") num video ja editado: refaz a partir do ORIGINAL com a lista de
+    ajustes e grava um arquivo novo (nunca sobrescreve). Devolve ('pronto', None) ou ('erro', motivo). Nunca levanta."""
+    base = Path(config['pasta_base'])
+    brutos, editados = base / '1-Brutos', base / '2-Editados'
+    barra = Andamento(painel, c, relogio, log)
+    edicao = dict(c.get('edicao') or {})
+    ajustes = list(edicao.get('ajustes') or [])
+    try:
+        barra.mudar('rodando', 'Procurando o vídeo bruto', 1, forcar=True)
+        video = achar_video(c, brutos, estado)
+        palavras = _palavras_do_video(video, base, estado, transcrever, barra)
+        duracao, _ = sondar(video)
+        opcoes = rm.opcoes_de_edicao(edicao)
+        aviso = None
+        if edicao.get('desfazer_ajuste'):
+            if not ajustes:
+                raise aj.AjusteInvalido('não há nenhum ajuste para desfazer')
+            ajustes.pop()
+        else:
+            pedido = (edicao.get('pedido_ajuste') or '').strip()
+            if not pedido:
+                raise aj.AjusteInvalido('o pedido de ajuste está vazio')
+            if len(ajustes) >= aj.MAX_AJUSTES:
+                raise aj.AjusteInvalido('já são %d ajustes neste vídeo: desfaça algum antes de pedir outro' % aj.MAX_AJUSTES)
+            barra.mudar('rodando', 'Entendendo o seu pedido', None, forcar=True)
+            atual = aj.estado_do_video(palavras, duracao, opcoes['cortar_pausas'], opcoes['legenda'], ajustes)
+            novos, aviso = interpretar_fn(pedido, atual['palavras'], atual['trechos'])
+            if len(ajustes) + len(novos) > aj.MAX_AJUSTES:
+                raise aj.AjusteInvalido('já são ajustes demais neste vídeo: desfaça algum antes de pedir outro')
+            ajustes += novos
+        final = aj.estado_do_video(palavras, duracao, opcoes['cortar_pausas'], opcoes['legenda'], ajustes)
+        nome = nome_livre(video, editados)
+
+        def progresso(etapa, pct):
+            barra.mudar('rodando', 'Refazendo o vídeo', 30 + int(pct * 0.65))
+        barra.mudar('rodando', 'Refazendo o vídeo', 30, forcar=True)
+        plano = editar(video, editados, opcoes={'cortar_pausas': final['cortar_pausas'], 'legenda': final['legenda']},
+                       palavras=final['palavras'], nome_base=nome, trechos=final['trechos'], progresso=progresso)
+        barra.mudar('rodando', 'Enviando o resultado para o painel', 97, forcar=True)
+        dados_arq = json.loads(Path(plano['arquivos_json']).read_text(encoding='utf-8'))
+        antes = c.get('arquivos') or {}
+        arquivos = rm.juntar_arquivos(antes, dados_arq, c.get('redes'))
+        for rede, v in arquivos.items():
+            if v.get('video') != (antes.get(rede) or {}).get('video'):
+                v.pop('link_video', None)             # o link colado era do video antigo
+                v.pop('link_capa', None)
+        nova = dict(edicao)
+        nova.pop('pedido_ajuste', None)
+        nova.pop('desfazer_ajuste', None)
+        if ajustes:
+            nova['ajustes'] = ajustes
+        else:
+            nova.pop('ajustes', None)
+        etapa = 'Vídeo refeito' + ((': ' + aviso)[:60] if aviso else '')
+        nova['andamento'] = {'estado': 'pronto', 'etapa': etapa, 'pct': 100, 'inicio': barra.inicio, 'em': agora_iso(relogio())}
+        painel.atualizar(c['id'], {'arquivos': arquivos, 'edicao': nova})
+        log('  "%s": ajuste aplicado (%s)' % (c.get('titulo'), nome))
+        return 'pronto', None
+    except Exception as e:
+        motivo = str(e)[:300] or e.__class__.__name__
+        log('  "%s": ERRO no ajuste: %s' % (c.get('titulo'), motivo))
+        try:
+            barra.mudar('erro', 'Não foi possível ajustar', None, erro=motivo, forcar=True)
+        except Exception:
+            pass
+        return 'erro', motivo
+
+
+def ciclo_edicao(painel, config, estado=None, editar_fn=editar_agora, ajustar_fn=ajustar_agora, relogio=time.time, log=print, **dep):
     """Uma olhada: edita o que foi pedido e arruma o que ficou "rodando" de uma execucao que morreu."""
     base = Path(config['pasta_base'])
     feitos = []
     gravados = painel.listar('gravado')
     for c in gravados:
         if estado_andamento(c) == 'rodando':
-            motivo = 'A edição foi interrompida (o computador desligou ou o vigia fechou). Clique em "Editar vídeo agora" para tentar de novo.'
+            motivo = ('O ajuste foi interrompido (o computador desligou ou o vigia fechou). Peça de novo.' if _tem_video(c)
+                      else 'A edição foi interrompida (o computador desligou ou o vigia fechou). Clique em "Editar vídeo agora" para tentar de novo.')
             ed_nova = dict(c.get('edicao') or {})
             ed_nova['andamento'] = {'estado': 'erro', 'etapa': 'Edição interrompida', 'erro': motivo[:300], 'em': agora_iso(relogio())}
             painel.atualizar(c['id'], {'edicao': ed_nova})
             feitos.append({'conteudo': c.get('titulo'), 'id': c['id'], 'resultado': 'interrompida'})
-    pedidos = [c for c in gravados if estado_andamento(c) == 'fila'
-               and not any((v or {}).get('video') for v in (c.get('arquivos') or {}).values())]
-    if not pedidos:
+    pedidos = [c for c in gravados if estado_andamento(c) == 'fila' and not _tem_video(c)]
+    pedidos_ajuste = [c for c in gravados if estado_andamento(c) == 'fila' and _tem_video(c) and _pede_ajuste(c)]
+    if not pedidos and not pedidos_ajuste:
         return feitos
     with trava_edicao(base / '_rotina', agora=relogio) as pegou:
         if not pegou:
@@ -220,4 +307,7 @@ def ciclo_edicao(painel, config, estado=None, editar_fn=editar_agora, relogio=ti
         for c in pedidos:
             r = editar_fn(c, config, painel, est, relogio=relogio, log=log, **dep)
             feitos.append({'conteudo': c.get('titulo'), 'id': c['id'], 'resultado': r[0], 'detalhe': r[1]})
+        for c in pedidos_ajuste:
+            r = ajustar_fn(c, config, painel, est, relogio=relogio, log=log, **dep)
+            feitos.append({'conteudo': c.get('titulo'), 'id': c['id'], 'resultado': r[0], 'detalhe': r[1], 'ajuste': True})
     return feitos

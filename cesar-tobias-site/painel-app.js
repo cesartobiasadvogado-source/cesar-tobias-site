@@ -9345,6 +9345,41 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     '</div>';
   }
 
+  // ---- Pedir ajuste num video ja editado (texto ou voz) -----------------------------------------------------
+  // O computador da pessoa (vigia) entende o pedido e refaz o video a partir do original, sem apagar o anterior.
+  // So existem: cortar um trecho, trocar palavra da legenda, estilo da legenda e cortar pausas (ou nao).
+  var LIMITE_PEDIDO_AJUSTE_CONTEUDO = 500;
+  function _andamentoAtivoConteudo(c) {
+    var a = (c && c.edicao && c.edicao.andamento) || {};
+    return a.estado === 'fila' || a.estado === 'rodando';
+  }
+
+  function _htmlAjusteConteudo(c) {
+    if (c.status !== 'gravado' || !_temVideoEditadoConteudo(c)) return '';
+    var edicao = c.edicao || {};
+    var andamento = edicao.andamento || {};
+    if (_andamentoAtivoConteudo(c)) return _htmlAndamentoConteudo(c, andamento);
+    var id = esc(String(c.id));
+    var ajustes = Array.isArray(edicao.ajustes) ? edicao.ajustes : [];
+    var erro = andamento.estado === 'erro'
+      ? '<div class="conteudo-metricool conteudo-metricool-erro">Não foi possível ajustar: ' + esc(andamento.erro || 'erro desconhecido') + '</div>' : '';
+    var aviso = (andamento.estado === 'pronto' && /^Vídeo refeito: /.test(andamento.etapa || ''))
+      ? '<div class="conteudo-edicao-nota">' + esc(String(andamento.etapa).slice(14)) + '</div>' : '';
+    var lista = ajustes.length
+      ? '<ol class="conteudo-ajuste-lista">' + ajustes.map(function (a) { return '<li>' + esc(a.resumo || a.tipo) + '</li>'; }).join('') + '</ol>' : '';
+    return '<div class="conteudo-edicao conteudo-ajuste" data-conteudo-id="' + id + '">' +
+      '<div class="conteudo-edicao-titulo">Pedir ajuste no vídeo</div>' + lista + erro + aviso +
+      '<textarea class="conteudo-ajuste-pedido" data-ajuste-campo="pedido" rows="2" maxlength="' + LIMITE_PEDIDO_AJUSTE_CONTEUDO + '" ' +
+        'placeholder="Ex.: corta de 0:10 a 0:12 · troca “acao” por “ação” na legenda · legenda simples · não corta as pausas">' +
+        esc(edicao.pedido_ajuste || '') + '</textarea>' +
+      '<div class="conteudo-edicao-nota">Os tempos são os do vídeo editado (os do player). Ainda não existem zoom, efeito sonoro nem música. O vídeo anterior continua guardado na pasta 2-Editados.</div>' +
+      '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="pedir_ajuste" data-conteudo-id="' + id + '">Pedir ajuste</button> ' +
+        '<button type="button" class="btn-conexao-secundario" data-conteudo-acao="falar_ajuste" data-conteudo-id="' + id + '">Falar</button>' +
+        (ajustes.length ? ' <button type="button" class="btn-conexao-secundario" data-conteudo-acao="desfazer_ajuste" data-conteudo-id="' + id + '">Desfazer o último ajuste</button>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
   // ---- Publicacao nas redes: legenda do post + estado da programacao no Metricool -------------------------
   var LIMITE_LEGENDA_CONTEUDO = 2200;
 
@@ -9399,7 +9434,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
   }
 
   function _htmlPublicacaoConteudo(c) {
-    if (_etapaConteudo(c) !== 'agenda') return '';
+    if (_etapaConteudo(c) !== 'agenda' || _andamentoAtivoConteudo(c)) return '';   // com o video sendo refeito, nada de enviar
     var pub = c.publicacao || {};
     var met = pub.metricool || {};
     var id = esc(String(c.id));
@@ -9451,8 +9486,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     if (c.status === 'para_gravar') botoes += botao('gravei', 'Gravei', 'procpage-btn procpage-btn-primary');
     if (c.status === 'gravado') {
       var editado = _temVideoEditadoConteudo(c);
-      if (editado && c.sugestao_data) botoes += botao('aprovar_sugestao', 'Aprovar agendamento', 'procpage-btn procpage-btn-primary');
-      botoes += botao('agendar', editado ? (c.sugestao_data ? 'Outro horário' : 'Agendar') : 'Agendar manualmente',
+      var refazendo = editado && _andamentoAtivoConteudo(c);        // enquanto o video e refeito nao da para aprovar
+      if (editado && c.sugestao_data && !refazendo) botoes += botao('aprovar_sugestao', 'Aprovar agendamento', 'procpage-btn procpage-btn-primary');
+      if (!refazendo) botoes += botao('agendar', editado ? (c.sugestao_data ? 'Outro horário' : 'Agendar') : 'Agendar manualmente',
         editado && !c.sugestao_data ? 'procpage-btn procpage-btn-primary' : 'btn-conexao-secundario');
       botoes += botao('nao_gravei', 'Desfazer: não gravei', 'btn-conexao-secundario');
     }
@@ -9469,7 +9505,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         '<span class="chip neutral">' + esc(ROTULO_FORMATO_CONTEUDO[c.formato] || c.formato) + '</span>' + redes +
         (dataTxt ? '<span class="conteudo-card-data">' + esc(dataTxt) + '</span>' : '') +
       '</div>' +
-      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) + _htmlEdicaoConteudo(c) + _htmlPublicacaoConteudo(c) +
+      _htmlArquivosConteudo(c) + _htmlSugestaoConteudo(c) + _htmlEdicaoConteudo(c) + _htmlAjusteConteudo(c) + _htmlPublicacaoConteudo(c) +
       (c.roteiro ? '<details class="conteudo-roteiro"><summary>Ver roteiro</summary><div class="conteudo-roteiro-texto">' + esc(c.roteiro) + '</div></details>' : '') +
       (c.observacao ? '<div class="conteudo-card-obs">' + esc(c.observacao) + '</div>' : '') +
       '<div class="conteudo-card-acoes">' + botoes + '</div>' +
@@ -9735,12 +9771,62 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       if (link) abrirPlayerConteudo(c.titulo, _idDriveConteudo(link));
     });
 
+    // Falar o pedido de ajuste: reconhecimento de voz do navegador (Chrome), em português. O texto cai na caixa
+    // para a pessoa conferir antes de mandar.
+    var reconhecimentoAjuste = null;
+    function falarAjuste(botao) {
+      if (reconhecimentoAjuste) { reconhecimentoAjuste.stop(); return; }
+      var Reconhecimento = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Reconhecimento) { mostrarAviso('Este navegador não reconhece voz. Use o Chrome, ou escreva o pedido.'); return; }
+      var campo = botao.closest('.conteudo-ajuste').querySelector('[data-ajuste-campo="pedido"]');
+      var rotulo = botao.textContent;
+      var r = new Reconhecimento();
+      r.lang = 'pt-BR';
+      r.interimResults = false;
+      r.continuous = false;
+      r.onresult = function (e) {
+        var texto = '';
+        for (var i = 0; i < e.results.length; i++) texto += e.results[i][0].transcript + ' ';
+        campo.value = ((campo.value ? campo.value.trim() + ' ' : '') + texto.trim()).slice(0, LIMITE_PEDIDO_AJUSTE_CONTEUDO);
+      };
+      r.onerror = function (e) {
+        mostrarAviso(e.error === 'not-allowed' ? 'Permita o microfone no navegador para falar o pedido.' : 'Não consegui ouvir. Tente de novo ou escreva o pedido.');
+      };
+      r.onend = function () { reconhecimentoAjuste = null; botao.textContent = rotulo; };
+      reconhecimentoAjuste = r;
+      botao.textContent = 'Ouvindo… toque para parar';
+      r.start();
+    }
+
     listaEl.addEventListener('click', function (ev) {
       var botao = ev.target.closest ? ev.target.closest('[data-conteudo-acao]') : null;
       if (!botao) return;
       var c = acharConteudo(botao.getAttribute('data-conteudo-id'));
       if (!c) return;
       var acao = botao.getAttribute('data-conteudo-acao');
+      if (acao === 'falar_ajuste') { falarAjuste(botao); return; }
+      if (acao === 'pedir_ajuste' || acao === 'desfazer_ajuste') {
+        // pede ao vigia do computador para refazer o video; o andamento aparece no cartao
+        var edAjuste = Object.assign({}, c.edicao || {});
+        if (acao === 'pedir_ajuste') {
+          var pedido = String(botao.closest('.conteudo-ajuste').querySelector('[data-ajuste-campo="pedido"]').value || '').trim();
+          if (!pedido) { mostrarAviso('Escreva (ou fale) o que você quer mudar no vídeo.'); return; }
+          edAjuste.pedido_ajuste = pedido.slice(0, LIMITE_PEDIDO_AJUSTE_CONTEUDO);
+          delete edAjuste.desfazer_ajuste;
+        } else {
+          delete edAjuste.pedido_ajuste;
+          edAjuste.desfazer_ajuste = true;
+        }
+        edAjuste.andamento = { estado: 'fila', etapa: 'Na fila', pct: 0, em: new Date().toISOString() };
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, edicao: edAjuste })
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível pedir o ajuste agora.');
+          });
+        return;
+      }
       if (acao === 'para_gravar') mudarStatus(c, 'para_gravar', botao);
       else if (acao === 'gravei') mudarStatus(c, 'gravado', botao);
       else if (acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao);

@@ -197,8 +197,10 @@ def planejar_cortes(video, duracao, tem_audio, opcoes, palavras):
     return calcular_trechos(silencios, duracao)
 
 
-def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, palavras=None, nome_base=None, progresso=None):
-    """`nome_base`: nome dos arquivos de saida (padrao: o do video); serve para editar de novo sem sobrescrever.
+def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, palavras=None, nome_base=None, progresso=None,
+           trechos=None):
+    """`trechos`: [(ini, fim)] do original a manter, ja decididos por quem chama (ajustes pedidos); sem eles, a edicao decide.
+    `nome_base`: nome dos arquivos de saida (padrao: o do video); serve para editar de novo sem sobrescrever.
     `progresso(etapa, pct)`: avisa em que ponto esta (pct de 0 a 100, so da edicao)."""
     avisar = progresso or (lambda etapa, pct: None)
     video = Path(video)
@@ -215,7 +217,10 @@ def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, pal
     avisar('Analisando o vídeo', 3)
     duracao, tem_audio = sondar(video)
     avisar('Planejando os cortes', 8)
-    trechos = planejar_cortes(video, duracao, tem_audio, opcoes, palavras)
+    if trechos is None:
+        trechos = planejar_cortes(video, duracao, tem_audio, opcoes, palavras)
+    elif not trechos or any(f <= i or i < 0 or f > duracao + 0.5 for i, f in trechos):
+        raise ValueError('trechos invalidos')
     mantido = sum(f - i for i, f in trechos)
     modo_legenda = (opcoes or {}).get('legenda', 'nenhuma') if opcoes is not None else None
     texto_ass = None

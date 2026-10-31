@@ -1361,6 +1361,8 @@
   .conteudo-publicacao-selo { font-size: 11px; font-weight: 600; color: var(--accent); }
   .conteudo-publicacao-legenda { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13.5px; line-height: 1.45; background: var(--bg); color: var(--ink); resize: vertical; }
   .conteudo-publicacao-legenda[readonly] { opacity: .8; }
+  .conteudo-ajuste-pedido { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13.5px; line-height: 1.45; background: var(--bg); color: var(--ink); resize: vertical; margin-bottom: 6px; }
+  .conteudo-ajuste-lista { margin: 4px 0 8px; padding-left: 20px; font-size: 13px; color: var(--ink); }
   .conteudo-publicacao-contador { font-size: 11.5px; color: var(--ink-faint); text-align: right; }
   .conteudo-publicacao-alertas:not(:empty) { font-size: 12.5px; padding: 8px 10px; border-radius: 7px; background: var(--warn-soft, #fff4d6); color: var(--warn-ink, #7a5200); }
   .conteudo-metricool { font-size: 13px; padding: 8px 10px; border-radius: 7px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); overflow-wrap: anywhere; }
