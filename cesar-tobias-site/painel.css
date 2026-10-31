@@ -1394,3 +1394,32 @@
   @media (prefers-reduced-motion: reduce) { .conteudo-cena-faixa.corre { animation: none; } }
 .tprev-sugestoes { display: flex; gap: 8px; flex-wrap: wrap; }
 .tprev-sugestoes button:disabled { opacity: .65; cursor: default; }
+
+  /* Vidro (estilo Apple) so nas camadas que flutuam: topo fixo, topbar mobile, menus suspensos e o
+     veu atras dos modais. Nada de vidro em cards, tabelas ou texto de leitura, e nunca vidro sobre
+     vidro: o vidro do topo fica num ::before (nao no proprio header) pra os menus dentro dele nao
+     virarem "vidro dentro de vidro" -- um backdrop-filter no pai quebra o do filho. Sem suporte ou
+     com "reduzir transparencia" ligado, volta pro fundo solido de antes. */
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .hdr-topo, .topbar-mobile { background: transparent; border-bottom-color: transparent; isolation: isolate; }
+    .hdr-topo::before, .topbar-mobile::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background: color-mix(in srgb, var(--sidebar-bg) 74%, transparent);
+      -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.08), 0 1px 12px rgba(0,0,0,0.12);
+    }
+    .hdr-dropdown, .procman-acoes-menu {
+      background: color-mix(in srgb, var(--surface) 80%, transparent);
+      -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+      border-color: color-mix(in srgb, var(--ink) 10%, transparent);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 12px 32px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .modal-overlay, .sidebar-backdrop.visivel {
+      -webkit-backdrop-filter: blur(6px) saturate(130%); backdrop-filter: blur(6px) saturate(130%);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .hdr-topo::before, .topbar-mobile::before { background: var(--sidebar-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .hdr-dropdown, .procman-acoes-menu { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .modal-overlay, .sidebar-backdrop.visivel { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  }
