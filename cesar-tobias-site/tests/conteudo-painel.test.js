@@ -210,5 +210,30 @@ t('botão "Enviar ao Metricool agora": confirma legenda+programar, aprova só a 
   assert(env.includes('Defina o dia e a hora'), 'sem aviso quando falta dia/hora');
 });
 
+t('"Editar vídeo agora": pede à fila, mostra barra real (etapa/%), nunca inventa % e o polling só mexe na barra', () => {
+  const html = app.slice(app.indexOf('var LIMITE_FILA_MS'), app.indexOf('// ---- Publicacao nas redes'));
+  assert(html.includes('data-conteudo-acao="editar_agora"') && html.includes('Editar vídeo agora'), 'sem botao Editar video agora');
+  assert(html.includes('salvar_edicao_agora') && html.includes('Confirmar e editar agora'), 'sem confirmar+editar agora');
+  assert(html.includes("andamento.estado === 'fila' || andamento.estado === 'rodando'"), 'durante a edicao o cartao nao troca os botoes pela barra');
+  assert(html.includes('role="progressbar"') && html.includes('aria-valuenow'), 'barra sem acessibilidade');
+  assert(html.includes('esc(etapa)') && html.includes('esc(andamento.erro'), 'texto do andamento/erro sem esc()');
+  const acao = app.slice(app.indexOf("acao === 'editar_agora'"), app.indexOf("acao === 'salvar_edicao' || acao"));
+  assert(acao.includes("estado: 'fila'") && acao.includes('confirmado = true'), 'o clique nao confirma e entra na fila');
+  assert(!/arquivos\s*:|publicacao\s*:|status\s*:/.test(acao.replace("estado: 'fila'", '')), 'o botao mexe em mais do que a edicao');
+  assert(app.includes("delete edicaoNova.andamento"), 'erro antigo nao sai quando a pessoa altera a escolha');
+  // a barra: porcentagem so quando e numero; sem numero = animada (indeterminada), nunca "0%" falso
+  const mini = new Function(app.slice(app.indexOf('var LIMITE_FILA_MS'), app.indexOf('function _htmlAndamentoConteudo')).replace('var LIMITE_FILA_MS', 'var LIMITE_FILA_MS') +
+    '; return _textoAndamentoConteudo;')();
+  const agora = Date.now();
+  assert(mini({ estado: 'rodando', pct: 42, inicio: new Date(agora - 120000).toISOString(), em: new Date(agora - 5000).toISOString() }).startsWith('42% · há 2 min'));
+  assert(!mini({ estado: 'rodando', pct: null, inicio: new Date(agora).toISOString(), em: new Date(agora).toISOString() }).includes('%'), 'inventou porcentagem');
+  assert(mini({ estado: 'fila', pct: 0, em: new Date(agora - 4 * 60000).toISOString() }).includes('ainda não respondeu'), 'sem aviso de vigia desligado');
+  assert(mini({ estado: 'rodando', pct: 50, inicio: new Date(agora - 60 * 60000).toISOString(), em: new Date(agora - 30 * 60000).toISOString() }).includes('travado'), 'sem aviso de edicao parada');
+  const iniPoll = app.indexOf('function atualizarBarra');
+  const poll = app.slice(iniPoll, app.indexOf('function carregar() {', iniPoll));
+  assert(poll.includes('textContent') && !poll.includes('innerHTML'), 'o acompanhamento redesenha a lista e apaga o que a pessoa digita');
+  assert(poll.includes('if (terminou) carregar()'), 'ao terminar nao recarrega o cartao');
+});
+
 if (falhas) { console.log('\n' + falhas + ' falha(s)'); process.exit(1); }
 console.log('\ntodos passaram');

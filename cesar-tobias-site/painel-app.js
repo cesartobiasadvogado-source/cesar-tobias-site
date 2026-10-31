@@ -9272,21 +9272,62 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     return itens.length ? itens.join(', ') : 'só ajustar formato e volume';
   }
 
+  // Andamento da edicao no computador da pessoa (o vigia grava etapa e porcentagem em edicao.andamento).
+  // pct ausente = etapa sem medida (ex.: transcrevendo): barra animada, sem inventar porcentagem.
+  var LIMITE_FILA_MS = 3 * 60 * 1000;          // sem resposta do vigia depois disso: avisa
+  var LIMITE_PARADO_MS = 20 * 60 * 1000;       // sem atualizar depois disso: parece parado
+  function _textoAndamentoConteudo(a) {
+    var agora = Date.now();
+    var desde = Date.parse(a.inicio || a.em || '');
+    var em = Date.parse(a.em || '');
+    var min = isNaN(desde) ? null : Math.max(0, Math.round((agora - desde) / 60000));
+    var partes = [];
+    if (typeof a.pct === 'number') partes.push(Math.max(0, Math.min(100, a.pct)) + '%');
+    if (a.estado === 'rodando' && min !== null) partes.push(min < 1 ? 'começou agora' : 'há ' + min + ' min');
+    if (a.estado === 'fila' && !isNaN(em) && agora - em > LIMITE_FILA_MS) {
+      partes.push('O computador ainda não respondeu: confira se ele está ligado e se o vigia está aberto.');
+    } else if (a.estado === 'rodando' && !isNaN(em) && agora - em > LIMITE_PARADO_MS) {
+      partes.push('Sem novidade há muito tempo: a edição pode ter travado.');
+    } else if (a.estado === 'rodando' && typeof a.pct !== 'number') {
+      partes.push('pode levar alguns minutos');
+    }
+    return partes.join(' · ');
+  }
+
+  function _htmlAndamentoConteudo(c, a) {
+    var id = esc(String(c.id));
+    var pct = typeof a.pct === 'number' ? Math.max(0, Math.min(100, a.pct)) : null;
+    var etapa = a.estado === 'fila' ? 'Na fila: o computador começa em até 1 minuto' : (a.etapa || 'Editando o vídeo');
+    return '<div class="conteudo-edicao conteudo-andamento" data-conteudo-id="' + id + '">' +
+      '<div class="conteudo-edicao-titulo">Editando o vídeo</div>' +
+      '<div class="conteudo-andamento-etapa">' + esc(etapa) + '</div>' +
+      '<div class="conteudo-barra" role="progressbar" aria-valuemin="0" aria-valuemax="100"' + (pct === null ? '' : ' aria-valuenow="' + pct + '"') + '>' +
+        '<div class="conteudo-barra-preenchida' + (pct === null ? ' indeterminada' : '') + '" style="width:' + (pct === null ? 100 : pct) + '%"></div></div>' +
+      '<div class="conteudo-andamento-info">' + esc(_textoAndamentoConteudo(a)) + '</div>' +
+    '</div>';
+  }
+
   function _htmlEdicaoConteudo(c) {
     var temEditado = Object.keys(c.arquivos || {}).some(function (r) { return c.arquivos[r] && c.arquivos[r].video; });
     if (c.status !== 'gravado' || temEditado) return '';
     var edicao = c.edicao || {};
     var id = esc(String(c.id));
+    var andamento = edicao.andamento || {};
+    if (andamento.estado === 'fila' || andamento.estado === 'rodando') return _htmlAndamentoConteudo(c, andamento);
+    var avisoErro = andamento.estado === 'erro'
+      ? '<div class="conteudo-metricool conteudo-metricool-erro">Não foi possível editar: ' + esc(andamento.erro || 'erro desconhecido') + '</div>' : '';
     var achado = edicao.video_encontrado
       ? '<div class="conteudo-edicao-achado">Vídeo encontrado na pasta: <strong>' + esc(edicao.video_encontrado) + '</strong></div>' : '';
     if (edicao.confirmado) {
       return '<div class="conteudo-edicao conteudo-edicao-confirmada" data-conteudo-id="' + id + '">' +
         '<div class="conteudo-edicao-titulo">Edição escolhida</div>' +
-        '<div class="conteudo-edicao-resumo">' + esc(_resumoEdicaoConteudo(edicao)) + '</div>' + achado +
+        '<div class="conteudo-edicao-resumo">' + esc(_resumoEdicaoConteudo(edicao)) + '</div>' + achado + avisoErro +
         '<div class="conteudo-edicao-nota">' + (edicao.video_encontrado
-          ? 'O vídeo será editado na próxima rodada da rotina (08:30 ou 17:30).'
+          ? 'O vídeo será editado na próxima rodada da rotina (08:30 ou 17:30), ou agora, se você clicar em “Editar vídeo agora”.'
           : 'Falta o vídeo bruto na pasta 1-Brutos. Quando ele chegar, a rotina edita do jeito que você escolheu.') + '</div>' +
-        '<div class="conteudo-card-acoes"><button type="button" class="btn-conexao-secundario" data-conteudo-acao="alterar_edicao" data-conteudo-id="' + id + '">Alterar escolhas</button></div>' +
+        '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="editar_agora" data-conteudo-id="' + id + '">' +
+          (andamento.estado === 'erro' ? 'Tentar editar de novo' : 'Editar vídeo agora') + '</button> ' +
+          '<button type="button" class="btn-conexao-secundario" data-conteudo-acao="alterar_edicao" data-conteudo-id="' + id + '">Alterar escolhas</button></div>' +
       '</div>';
     }
     var legenda = edicao.legenda || 'destaque';
@@ -9298,8 +9339,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       '<label class="conteudo-edicao-opcao"><input type="checkbox" data-edicao-campo="cortar_pausas"' +
         (edicao.cortar_pausas === false ? '' : ' checked') + '> Cortar pausas e respiros</label>' +
       '<label class="conteudo-edicao-opcao">Legenda <select data-edicao-campo="legenda">' + opcoesLegenda + '</select></label>' +
-      '<div class="conteudo-edicao-nota">A rotina só edita depois que você confirmar.</div>' +
-      '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="salvar_edicao" data-conteudo-id="' + id + '">Confirmar edição</button></div>' +
+      '<div class="conteudo-edicao-nota">A rotina só edita depois que você confirmar.</div>' + avisoErro +
+      '<div class="conteudo-card-acoes"><button type="button" class="procpage-btn procpage-btn-primary" data-conteudo-acao="salvar_edicao_agora" data-conteudo-id="' + id + '">Confirmar e editar agora</button> ' +
+        '<button type="button" class="btn-conexao-secundario" data-conteudo-acao="salvar_edicao" data-conteudo-id="' + id + '">Confirmar edição</button></div>' +
     '</div>';
   }
 
@@ -9593,8 +9635,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         var emEdicao = daEtapa('edicao');
         function escolhida(c) { return !!(c.edicao && c.edicao.confirmado); }
         html = _htmlGrupoConteudo('Escolha como editar', emEdicao.filter(function (c) { return !escolhida(c); })) +
-          _htmlGrupoConteudo('Aguardando o vídeo bruto em 1-Brutos', emEdicao.filter(function (c) { return escolhida(c) && !c.edicao.video_encontrado; })) +
-          _htmlGrupoConteudo('Na fila da rotina de edição', emEdicao.filter(function (c) { return escolhida(c) && !!c.edicao.video_encontrado; }));
+          _htmlGrupoConteudo('Editando agora', emEdicao.filter(_emAndamento)) +
+          _htmlGrupoConteudo('Aguardando o vídeo bruto em 1-Brutos', emEdicao.filter(function (c) { return escolhida(c) && !_emAndamento(c) && !c.edicao.video_encontrado; })) +
+          _htmlGrupoConteudo('Na fila da rotina de edição', emEdicao.filter(function (c) { return escolhida(c) && !_emAndamento(c) && !!c.edicao.video_encontrado; }));
         if (!html) html = mensagemVazia('Nada em edição. Quando você apertar “Gravei”, o conteúdo vem para cá.');
       } else if (abaAtual === 'agenda') {
         html = _htmlGrupoConteudo('Prontos: aprove o agendamento', dosStatus('gravado').filter(_temVideoEditadoConteudo)) +
@@ -9604,6 +9647,46 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         html = concluidos.length ? concluidos.map(_htmlCartaoConteudo).join('') : mensagemVazia('Nenhum conteúdo concluído ainda.');
       }
       listaEl.innerHTML = html;
+      acompanhar();
+    }
+
+    // Enquanto algum cartão está sendo editado, olha o painel a cada 3 s e mexe SÓ na barra (não redesenha a
+    // lista: assim ninguém perde o que está digitando). Quando termina, ou dá erro, recarrega tudo.
+    var timerAndamento = null;
+    function _andamentoDe(c) { return (c && c.edicao && c.edicao.andamento) || {}; }
+    function _emAndamento(c) { var e = _andamentoDe(c).estado; return e === 'fila' || e === 'rodando'; }
+
+    function atualizarBarra(c) {
+      var el = listaEl.querySelector('.conteudo-andamento[data-conteudo-id="' + String(c.id).replace(/[^0-9]/g, '') + '"]');
+      if (!el) return;
+      var a = _andamentoDe(c);
+      var pct = typeof a.pct === 'number' ? Math.max(0, Math.min(100, a.pct)) : null;
+      el.querySelector('.conteudo-andamento-etapa').textContent = a.estado === 'fila' ? 'Na fila: o computador começa em até 1 minuto' : (a.etapa || 'Editando o vídeo');
+      var barra = el.querySelector('.conteudo-barra');
+      var cheia = el.querySelector('.conteudo-barra-preenchida');
+      cheia.style.width = (pct === null ? 100 : pct) + '%';
+      cheia.classList.toggle('indeterminada', pct === null);
+      if (pct === null) barra.removeAttribute('aria-valuenow'); else barra.setAttribute('aria-valuenow', String(pct));
+      el.querySelector('.conteudo-andamento-info').textContent = _textoAndamentoConteudo(a);
+    }
+
+    function acompanhar() {
+      if (timerAndamento) { clearTimeout(timerAndamento); timerAndamento = null; }
+      if (!ativos.some(_emAndamento) || !document.body.contains(listaEl)) return;
+      timerAndamento = setTimeout(function () {
+        timerAndamento = null;
+        apiGetJson('/api/painel?acao=conteudo_listar&status=gravado').then(function (r) {
+          var terminou = false;
+          (r.conteudos || []).forEach(function (novo) {
+            var antigo = acharConteudo(novo.id);
+            if (!antigo || !_emAndamento(antigo)) return;
+            if (!_emAndamento(novo) || (_temVideoEditadoConteudo(novo) && !_temVideoEditadoConteudo(antigo))) terminou = true;
+            antigo.edicao = novo.edicao;
+            atualizarBarra(antigo);
+          });
+          if (terminou) carregar(); else acompanhar();
+        }).catch(function () { acompanhar(); });
+      }, 3000);
     }
 
     function carregar() {
@@ -9661,8 +9744,27 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       if (acao === 'para_gravar') mudarStatus(c, 'para_gravar', botao);
       else if (acao === 'gravei') mudarStatus(c, 'gravado', botao);
       else if (acao === 'nao_gravei') mudarStatus(c, 'para_gravar', botao);
+      else if (acao === 'editar_agora' || acao === 'salvar_edicao_agora') {
+        // pede ao vigia do computador para editar já; o andamento aparece no cartão
+        var edAgora = Object.assign({}, c.edicao || {});
+        if (acao === 'salvar_edicao_agora') {
+          var caixaAg = botao.closest('.conteudo-edicao');
+          edAgora.cortar_pausas = !!caixaAg.querySelector('[data-edicao-campo="cortar_pausas"]').checked;
+          edAgora.legenda = caixaAg.querySelector('[data-edicao-campo="legenda"]').value;
+        }
+        edAgora.confirmado = true;
+        edAgora.andamento = { estado: 'fila', etapa: 'Na fila', pct: 0, em: new Date().toISOString() };
+        botao.disabled = true;
+        apiPostJson('/api/painel?acao=conteudo_atualizar', { id: c.id, edicao: edAgora })
+          .then(carregar)
+          .catch(function (e) {
+            botao.disabled = false;
+            mostrarAviso(e.message || 'Não foi possível pedir a edição agora.');
+          });
+      }
       else if (acao === 'salvar_edicao' || acao === 'alterar_edicao') {
         var edicaoNova = Object.assign({}, c.edicao || {});
+        if (edicaoNova.andamento && edicaoNova.andamento.estado === 'erro') delete edicaoNova.andamento;   // o erro antigo sai quando a pessoa mexe
         if (acao === 'alterar_edicao') {
           edicaoNova.confirmado = false;
         } else {

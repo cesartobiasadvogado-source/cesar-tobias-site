@@ -1,5 +1,6 @@
 """Vigia do Metricool: fica ligado no seu computador e, a cada ~30 s, olha o painel. Quando voce clica em
 "Enviar ao Metricool agora" num cartao, ele cria o post no Metricool em ~1 minuto (sem esperar a rotina).
+Quando voce clica em "Editar video agora", ele edita o video na hora e mostra o andamento no cartao.
 
 Nao edita video, nao escreve legenda e nao decide nada: so executa o que voce ja aprovou no painel, com as
 mesmas regras da rotina (publicar_metricool.py): nunca duplica, nunca repete erro sozinho, recusa horario
@@ -12,6 +13,7 @@ import sys
 import time
 from pathlib import Path
 
+import edicao_agora as ea
 import publicar_metricool as pm
 import rotina_marketing as rm
 import tunel_temporario as tt
@@ -61,7 +63,7 @@ def main(argv=None):
         try:
             if painel is None or time.time() - entrou_em > RELOGIN_S:
                 painel, entrou_em = _novo_painel(config), time.time()
-            feitos = um_ciclo(painel, config, fabrica)
+            feitos = ea.ciclo_edicao(painel, config) + um_ciclo(painel, config, fabrica)
             for f in feitos:
                 print(time.strftime('%H:%M:%S'), json.dumps(f, ensure_ascii=False), flush=True)
         except Exception as e:  # nunca morre por causa de internet fora do ar ou painel fora do ar

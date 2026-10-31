@@ -118,6 +118,21 @@ def _rodar(args, **kw):
     return subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='replace', **kw)
 
 
+def _rodar_com_progresso(args, total_s, avisar):
+    """Roda o ffmpeg e chama avisar(fracao 0..1) conforme ele avanca (`-progress pipe:1`). Devolve o mesmo
+    formato do subprocess.run (returncode, stderr). A saida de erro vai para um arquivo para nao travar o pipe."""
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8', errors='replace') as erros:
+        p = subprocess.Popen(args + ['-progress', 'pipe:1'], stdout=subprocess.PIPE, stderr=erros, text=True,
+                             encoding='utf-8', errors='replace')
+        for linha in p.stdout:
+            chave, _, valor = linha.strip().partition('=')
+            if chave in ('out_time_us', 'out_time_ms') and valor.lstrip('-').isdigit() and total_s > 0:
+                avisar(min(max(int(valor) / 1e6 / total_s, 0.0), 1.0))
+        p.wait()
+        erros.seek(0)
+        return subprocess.CompletedProcess(args, p.returncode, '', erros.read())
+
+
 def sondar(video):
     r = _rodar(['ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=codec_type',
                 '-of', 'json', str(video)])
@@ -182,19 +197,24 @@ def planejar_cortes(video, duracao, tem_audio, opcoes, palavras):
     return calcular_trechos(silencios, duracao)
 
 
-def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, palavras=None):
+def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, palavras=None, nome_base=None, progresso=None):
+    """`nome_base`: nome dos arquivos de saida (padrao: o do video); serve para editar de novo sem sobrescrever.
+    `progresso(etapa, pct)`: avisa em que ponto esta (pct de 0 a 100, so da edicao)."""
+    avisar = progresso or (lambda etapa, pct: None)
     video = Path(video)
     if not video.is_file():
         raise FileNotFoundError(str(video))
     saida = _checar_saida(video, pasta_saida)
-    base = video.stem
+    base = nome_base or video.stem
     destino = saida / (base + '_editado.mp4')
     capas = [saida / (base + '_capa_instagram.jpg'), saida / (base + '_capa_tiktok.jpg')]
     json_arquivos = saida / (base + '_arquivos.json')
     for arq in [destino, json_arquivos] + capas:
         if arq.exists():
             raise FileExistsError('ja existe, nao sobrescrevo: ' + str(arq))
+    avisar('Analisando o vídeo', 3)
     duracao, tem_audio = sondar(video)
+    avisar('Planejando os cortes', 8)
     trechos = planejar_cortes(video, duracao, tem_audio, opcoes, palavras)
     mantido = sum(f - i for i, f in trechos)
     modo_legenda = (opcoes or {}).get('legenda', 'nenhuma') if opcoes is not None else None
@@ -221,9 +241,21 @@ def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, pal
             cmd += ['-map', '[aout]', '-c:a', 'aac', '-b:a', '160k']
         cmd += ['-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-r', '30',
                 '-movflags', '+faststart', str(parcial)]
-        r = _rodar(cmd)
+        avisar('Cortando, legendando e ajustando o áudio', 12)
+        if progresso:
+            ultimo = [-1]
+
+            def andou(fracao):
+                pct = 12 + int(fracao * 73)                  # a edicao ocupa de 12% a 85%
+                if pct != ultimo[0]:
+                    ultimo[0] = pct
+                    avisar('Cortando, legendando e ajustando o áudio', pct)
+            r = _rodar_com_progresso(cmd, mantido, andou)
+        else:
+            r = _rodar(cmd)
         if r.returncode != 0:
             raise RuntimeError('ffmpeg (edicao) falhou: ' + r.stderr.strip()[-400:])
+        avisar('Criando as capas', 90)
         # capa: um frame do video ORIGINAL (sem legenda queimada), logo depois de a fala comecar,
         # no mesmo enquadramento 9:16 do video editado
         capa_tmp = Path(tmp) / 'capa.jpg'
@@ -235,6 +267,7 @@ def editar(video, pasta_saida, legenda=None, so_planejar=False, opcoes=None, pal
         shutil.move(str(parcial), str(destino))
         for capa in capas:
             capa.write_bytes(capa_tmp.read_bytes())
+        avisar('Salvando os arquivos', 96)
         miniatura = gerar_miniatura(capa_tmp, tmp)
     json_arquivos.write_text(json.dumps(montar_arquivos(base, miniatura), ensure_ascii=False, indent=2),
                              encoding='utf-8')

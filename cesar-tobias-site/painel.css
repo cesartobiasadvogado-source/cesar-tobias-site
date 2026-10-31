@@ -1348,6 +1348,14 @@
   .conteudo-edicao-opcao select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); font: inherit; }
   .conteudo-edicao-achado { font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
   .conteudo-edicao-nota { font-size: 12px; color: var(--ink-faint); }
+  .conteudo-andamento { border-style: solid; border-color: var(--accent); }
+  .conteudo-andamento-etapa { font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+  .conteudo-andamento-info { font-size: 12px; color: var(--ink-faint); min-height: 1.2em; }
+  .conteudo-barra { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .conteudo-barra-preenchida { height: 100%; border-radius: 999px; background: var(--accent); transition: width .6s ease; }
+  .conteudo-barra-preenchida.indeterminada { background: repeating-linear-gradient(110deg, var(--accent) 0 14px, var(--accent-soft) 14px 28px); background-size: 56px 100%; animation: conteudo-barra-corre 1.1s linear infinite; }
+  @keyframes conteudo-barra-corre { from { background-position: 0 0; } to { background-position: 56px 0; } }
+  @media (prefers-reduced-motion: reduce) { .conteudo-barra-preenchida { transition: none; } .conteudo-barra-preenchida.indeterminada { animation: none; } }
   .conteudo-publicacao { margin-top: 10px; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-sunken); display: flex; flex-direction: column; gap: 8px; }
   .conteudo-publicacao-titulo { font-size: 13px; font-weight: 700; color: var(--ink); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
   .conteudo-publicacao-selo { font-size: 11px; font-weight: 600; color: var(--accent); }
