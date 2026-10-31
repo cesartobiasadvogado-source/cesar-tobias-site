@@ -1423,3 +1423,30 @@
     .hdr-dropdown, .procman-acoes-menu { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
     .modal-overlay, .sidebar-backdrop.visivel { -webkit-backdrop-filter: none; backdrop-filter: none; }
   }
+
+  /* Vidro, reforco: luz de fundo suave (o vidro precisa de algo pra refratar) e topo/menus mais
+     transparentes com brilho de borda. A luz fica atras de tudo (z-index negativo, sem eventos) e
+     nao toca nos cards; so existe onde ha suporte a backdrop-filter. */
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60vw 48vh at 88% -6%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%),
+        radial-gradient(50vw 44vh at 6% 108%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+        radial-gradient(34vw 30vh at 55% 40%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%);
+    }
+    .hdr-topo::before, .topbar-mobile::before {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-bg) 62%, transparent), color-mix(in srgb, var(--sidebar-bg) 50%, transparent));
+      -webkit-backdrop-filter: blur(26px) saturate(190%); backdrop-filter: blur(26px) saturate(190%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(255,255,255,0.10), 0 1px 14px rgba(0,0,0,0.14);
+    }
+    .hdr-dropdown, .procman-acoes-menu {
+      background: color-mix(in srgb, var(--surface) 72%, transparent);
+      -webkit-backdrop-filter: blur(28px) saturate(190%); backdrop-filter: blur(28px) saturate(190%);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    body::before { display: none; }
+    .hdr-topo::before, .topbar-mobile::before { background: var(--sidebar-bg); }
+    .hdr-dropdown, .procman-acoes-menu { background: var(--surface); }
+  }
