@@ -8663,9 +8663,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           '<div style="padding:18px 20px;">' +
             '<div id="prazo-form-erro" role="status" aria-live="polite"></div>' +
             '<div id="prazo-form-processo-select-wrap">' +
-              '<label for="prazo-form-processo">Processo</label>' +
+              '<label for="prazo-form-processo">Processo <span style="font-weight:400;color:var(--ink-faint);">(opcional)</span></label>' +
               '<select id="prazo-form-processo" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:13.5px;background:var(--bg);color:var(--ink);margin-bottom:14px;">' +
-                '<option value="">Selecione o processo</option>' +
+                '<option value="">Sem processo (prazo avulso)</option>' +
               '</select>' +
             '</div>' +
             '<div id="prazo-form-processo-fixo" class="hidden" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></div>' +
@@ -8721,10 +8721,6 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       var erroDiv = document.getElementById('prazo-form-erro');
       erroDiv.innerHTML = '';
       var processoId = processoFixo ? processoFixo.id : document.getElementById('prazo-form-processo').value;
-      if (!processoId) {
-        erroDiv.innerHTML = '<div class="aviso-tenant">Selecione o processo.</div>';
-        return;
-      }
       var corpo = {
         processo_id: processoId,
         titulo: document.getElementById('prazo-form-titulo').value.trim(),
@@ -8783,7 +8779,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       if (processoFixo) {
         wrapSelect.classList.add('hidden');
         fixoEl.classList.remove('hidden');
-        fixoEl.textContent = 'Processo: ' + _rotuloProcessoParaSelect(processoFixo);
+        fixoEl.textContent = processoFixo.id ? 'Processo: ' + _rotuloProcessoParaSelect(processoFixo) : 'Prazo avulso (sem processo)';
         overlay.classList.remove('hidden');
       } else {
         fixoEl.classList.add('hidden');
@@ -8792,11 +8788,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
         selectEl.innerHTML = '<option value="">Carregando...</option>';
         apiGetJson('/api/painel?acao=processo_manual_listar').then(function (dados) {
           var processos = dados.processos || [];
-          selectEl.innerHTML = '<option value="">Selecione o processo</option>' +
+          selectEl.innerHTML = '<option value="">Sem processo (prazo avulso)</option>' +
             processos.map(function (p) {
               return '<option value="' + p.id + '">' + esc(_rotuloProcessoParaSelect(p)) + '</option>';
             }).join('');
-          if (prazoExistente) selectEl.value = prazoExistente.processo_id;
+          if (prazoExistente) selectEl.value = prazoExistente.processo_id || '';
         });
         overlay.classList.remove('hidden');
       }
