@@ -497,56 +497,220 @@
     });
   }
 
-  function _prazoEstaVencendoEmBreve(p) {
-    if (p.status === 'vencido') return true;
-    if (p.status !== 'pendente') return false;
-    var limite = new Date();
-    limite.setDate(limite.getDate() + 3);
-    return p.data_limite <= _fmtISOData(limite);
+  // SINO:inicio -- notificacoes do topo (prazos, tarefas, audiencias, agenda, avisos e WhatsApp).
+  // Cada fonte e buscada separadamente: se uma falhar (ou o usuario nao tiver acesso), as outras seguem.
+  var SINO_LINKS = {
+    prazo: 'painel-prazos.html#sec-prazos', tarefa: 'painel-tarefas.html#sec-tarefas',
+    audiencia: 'painel-audiencias.html#sec-audiencias', agenda: 'painel-agenda.html#sec-agenda-completa',
+    whatsapp: 'painel-configuracoes.html#sec-configuracoes',
+  };
+  var SINO_TIPOS = [
+    { id: 'prazo', rotulo: 'Prazos' }, { id: 'tarefa', rotulo: 'Tarefas' }, { id: 'audiencia', rotulo: 'Audiências' },
+    { id: 'agenda', rotulo: 'Agenda' }, { id: 'aviso', rotulo: 'Avisos' }, { id: 'whatsapp', rotulo: 'WhatsApp' },
+  ];
+  var SINO_ROTULO_TIPO = { prazo: 'Prazo', tarefa: 'Tarefa', audiencia: 'Audiência', agenda: 'Agenda', aviso: 'Aviso', whatsapp: 'WhatsApp' };
+  var SINO_GRUPOS = [
+    { id: 'atrasado', rotulo: 'Atrasados', cor: 'var(--crit)' }, { id: 'hoje', rotulo: 'Hoje', cor: 'var(--warn)' },
+    { id: 'proximo', rotulo: 'Próximos dias', cor: 'var(--ink-faint)' }, { id: 'info', rotulo: 'Avisos do escritório', cor: 'var(--ink-faint)' },
+  ];
+  var SINO_ATUALIZAR_MS = 5 * 60 * 1000;
+  var SINO_POR_GRUPO = 5;
+  var sinoEstado = { itens: [], filtro: 'todos', expandidos: {}, carregadoEm: 0, iniciado: false, carregando: false };
+
+  function _sinoLer(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
+  function _sinoGravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) { /* sem armazenamento: so nao lembra a escolha */ } }
+
+  function _sinoDiasAviso() {
+    var n = parseInt(_sinoLer('painel_sino_dias'), 10);
+    return [1, 3, 5, 7].indexOf(n) !== -1 ? n : 3;
+  }
+
+  function _sinoDiasEntre(isoAlvo, isoHoje) {
+    var a = isoAlvo.split('-'), h = isoHoje.split('-');
+    return Math.round((Date.UTC(+a[0], +a[1] - 1, +a[2]) - Date.UTC(+h[0], +h[1] - 1, +h[2])) / 86400000);
+  }
+
+  // Classifica uma data (AAAA-MM-DD) em atrasado/hoje/proximo, ou null se esta fora da janela de aviso.
+  function _sinoClassificar(dataIso, hojeIso, janela, permiteAtraso) {
+    if (!dataIso || dataIso.length < 10) return null;
+    var dif = _sinoDiasEntre(dataIso.slice(0, 10), hojeIso);
+    if (dif < 0) return permiteAtraso ? { urgencia: 'atrasado', dif: dif } : null;
+    if (dif === 0) return { urgencia: 'hoje', dif: 0 };
+    if (dif <= janela) return { urgencia: 'proximo', dif: dif };
+    return null;
+  }
+
+  function _sinoQuando(verbo, c) {
+    if (c.dif < 0) return verbo.atrasado + ' há ' + (-c.dif) + (c.dif === -1 ? ' dia' : ' dias');
+    if (c.dif === 0) return verbo.hoje;
+    if (c.dif === 1) return verbo.amanha;
+    return verbo.emDias + ' ' + c.dif + ' dias';
+  }
+
+  function sinoMontarItens(f, hojeIso, janela) {
+    var itens = [];
+    (f.prazos || []).forEach(function (p) {
+      if (p.status === 'cumprido') return;
+      var c = _sinoClassificar(p.data_limite, hojeIso, janela, true);
+      if (!c) return;
+      itens.push({ tipo: 'prazo', urgencia: c.urgencia, ordem: p.data_limite, titulo: p.titulo,
+        detalhe: _sinoQuando({ atrasado: 'Venceu', hoje: 'Vence hoje', amanha: 'Vence amanhã', emDias: 'Vence em' }, c) + ' · ' + fmtDataProcesso(p.data_limite) + (p.numero_cnj ? ' · ' + p.numero_cnj : ''),
+        href: SINO_LINKS.prazo });
+    });
+    (f.tarefas || []).forEach(function (t) {
+      if (t.status === 'concluida' || !t.vencimento) return;
+      var data = String(t.vencimento).slice(0, 10);
+      var c = _sinoClassificar(data, hojeIso, janela, true);
+      if (!c) return;
+      itens.push({ tipo: 'tarefa', urgencia: c.urgencia, ordem: data, titulo: t.titulo,
+        detalhe: _sinoQuando({ atrasado: 'Atrasada', hoje: 'Vence hoje', amanha: 'Vence amanhã', emDias: 'Vence em' }, c) + ' · ' + fmtDataProcesso(data) + (t.responsavel ? ' · ' + t.responsavel : ''),
+        href: SINO_LINKS.tarefa });
+    });
+    (f.audiencias || []).forEach(function (a) {
+      if (!a.data) return;
+      var c = _sinoClassificar(a.data, hojeIso, janela, true);
+      if (!c || c.dif < -30) return; // audiencia antiga nunca marcada como realizada nao polui o sino
+      var hora = a.hora ? ' às ' + String(a.hora).slice(0, 5) : '';
+      var quando = c.dif < 0
+        ? 'Passou há ' + (-c.dif) + (c.dif === -1 ? ' dia' : ' dias') + ' · marque como realizada'
+        : _sinoQuando({ hoje: 'Hoje' + hora, amanha: 'Amanhã' + hora, emDias: 'Em' }, c) + (c.dif > 1 ? ' · ' + fmtDataProcesso(a.data) + hora : '');
+      itens.push({ tipo: 'audiencia', urgencia: c.urgencia, ordem: a.data + (a.hora || ''), titulo: (a.tipo_audiencia || 'Audiência') + (a.cliente ? ' — ' + a.cliente : ''),
+        detalhe: quando + (a.numero_processo ? ' · ' + a.numero_processo : ''),
+        href: SINO_LINKS.audiencia });
+    });
+    (f.compromissos || []).forEach(function (c0) {
+      if (!c0.data_inicio || /audi/i.test(c0.tipo || '')) return;
+      var data = String(c0.data_inicio).slice(0, 10);
+      var c = _sinoClassificar(data, hojeIso, janela, false);
+      if (!c) return;
+      var hora = String(c0.data_inicio).length >= 16 ? String(c0.data_inicio).slice(11, 16) : '';
+      var horaTxt = hora ? ' às ' + hora : '';
+      itens.push({ tipo: 'agenda', urgencia: c.urgencia, ordem: data + hora, titulo: c0.titulo,
+        detalhe: _sinoQuando({ hoje: 'Hoje' + horaTxt, amanha: 'Amanhã' + horaTxt, emDias: 'Em' }, c) + (c.dif > 1 ? ' · ' + fmtDataProcesso(data) + horaTxt : '') + (c0.local ? ' · ' + c0.local : ''),
+        href: SINO_LINKS.agenda });
+    });
+    (f.avisos || []).forEach(function (a) {
+      itens.push({ tipo: 'aviso', urgencia: 'info', ordem: '', titulo: a.mensagem, detalhe: '', href: '' });
+    });
+    if (f.whatsappEstado === 'close') {
+      itens.push({ tipo: 'whatsapp', urgencia: 'atrasado', ordem: '', titulo: 'WhatsApp desconectado',
+        detalhe: 'O assistente não recebe mensagens até reconectar', href: SINO_LINKS.whatsapp });
+    }
+    itens.sort(function (x, y) { return x.ordem < y.ordem ? -1 : (x.ordem > y.ordem ? 1 : 0); });
+    return itens;
+  }
+
+  function _sinoItemHtml(it) {
+    var cor = it.urgencia === 'atrasado' ? 'var(--crit)' : (it.urgencia === 'hoje' ? 'var(--warn)' : 'var(--ink-faint)');
+    var conteudo =
+      '<span class="hdr-sino-tag" style="color:' + cor + ';">' + esc(SINO_ROTULO_TIPO[it.tipo]) + '</span>' +
+      '<span class="hdr-sino-titulo">' + esc(it.titulo) + '</span>' +
+      (it.detalhe ? '<span class="hdr-sino-detalhe">' + esc(it.detalhe) + '</span>' : '');
+    return it.href
+      ? '<a href="' + esc(it.href) + '" class="hdr-avisos-item hdr-sino-item">' + conteudo + '</a>'
+      : '<div class="hdr-avisos-item hdr-sino-item">' + conteudo + '</div>';
+  }
+
+  function sinoRender() {
+    var lista = document.getElementById('hdr-avisos-lista');
+    var badge = document.getElementById('hdr-avisos-badge');
+    if (!lista || !badge) return;
+    var itens = sinoEstado.itens;
+
+    // selo: total, cor pela urgencia mais alta
+    if (itens.length === 0) {
+      badge.classList.add('hidden');
+    } else {
+      badge.textContent = itens.length > 99 ? '99+' : itens.length;
+      var temAtraso = itens.some(function (i) { return i.urgencia === 'atrasado'; });
+      var temHoje = itens.some(function (i) { return i.urgencia === 'hoje'; });
+      badge.className = 'hdr-badge' + (temAtraso ? '' : (temHoje ? ' hdr-badge-warn' : ' hdr-badge-info'));
+    }
+
+    var contagem = {};
+    itens.forEach(function (i) { contagem[i.tipo] = (contagem[i.tipo] || 0) + 1; });
+    var filtro = sinoEstado.filtro === 'todos' || contagem[sinoEstado.filtro] ? sinoEstado.filtro : 'todos';
+    sinoEstado.filtro = filtro;
+
+    var chips = '<button type="button" class="hdr-sino-chip' + (filtro === 'todos' ? ' ativo' : '') + '" data-sino-filtro="todos">Todos ' + itens.length + '</button>' +
+      SINO_TIPOS.filter(function (t) { return contagem[t.id]; }).map(function (t) {
+        return '<button type="button" class="hdr-sino-chip' + (filtro === t.id ? ' ativo' : '') + '" data-sino-filtro="' + t.id + '">' + t.rotulo + ' ' + contagem[t.id] + '</button>';
+      }).join('');
+
+    var visiveis = itens.filter(function (i) { return filtro === 'todos' || i.tipo === filtro; });
+    var corpo = '';
+    if (visiveis.length === 0) {
+      corpo = '<div class="hdr-avisos-vazio">Nada por aqui no momento. Tudo em dia.</div>';
+    } else {
+      SINO_GRUPOS.forEach(function (g) {
+        var doGrupo = visiveis.filter(function (i) { return i.urgencia === g.id; });
+        if (!doGrupo.length) return;
+        var limite = filtro === 'todos' && !sinoEstado.expandidos[g.id] ? SINO_POR_GRUPO : doGrupo.length;
+        corpo += '<div class="hdr-sino-grupo" style="color:' + g.cor + ';">' + g.rotulo + ' · ' + doGrupo.length + '</div>';
+        corpo += doGrupo.slice(0, limite).map(_sinoItemHtml).join('');
+        if (doGrupo.length > limite) corpo += '<button type="button" class="hdr-sino-mais" data-sino-mais="' + g.id + '">Ver todos (' + doGrupo.length + ')</button>';
+      });
+    }
+
+    var dias = _sinoDiasAviso();
+    var rodape = '<div class="hdr-sino-rodape"><label>Avisar com ' +
+      '<select id="hdr-sino-dias">' + [1, 3, 5, 7].map(function (n) { return '<option value="' + n + '"' + (n === dias ? ' selected' : '') + '>' + n + (n === 1 ? ' dia' : ' dias') + '</option>'; }).join('') +
+      '</select> de antecedência</label></div>';
+
+    lista.innerHTML = '<div class="hdr-sino-chips">' + chips + '</div>' + corpo + rodape;
   }
 
   function carregarAvisosHeader() {
+    if (sinoEstado.carregando) return;
+    sinoEstado.carregando = true;
+    var hoje = new Date();
+    var hojeIso = _fmtISOData(hoje);
+    var janela = _sinoDiasAviso();
+    var fim = new Date(hoje);
+    fim.setDate(fim.getDate() + janela);
+    function buscar(url, campo) {
+      return apiGetJson(url).then(function (d) { return d[campo] || []; }).catch(function () { return []; });
+    }
     Promise.all([
-      apiGetJson('/api/painel?acao=avisos_listar&apenas_ativos=true').catch(function () { return { avisos: [] }; }),
-      apiGetJson('/api/painel?acao=prazo_listar').catch(function () { return { prazos: [] }; }),
-    ]).then(function (resultados) {
-      var avisos = resultados[0].avisos || [];
-      var prazosUrgentes = (resultados[1].prazos || []).filter(_prazoEstaVencendoEmBreve);
-      var badge = document.getElementById('hdr-avisos-badge');
-      var lista = document.getElementById('hdr-avisos-lista');
-      var total = avisos.length + prazosUrgentes.length;
-
-      if (total === 0) {
-        badge.classList.add('hidden');
-        lista.innerHTML = '<div class="hdr-avisos-vazio">Nada por aqui no momento.</div>';
-        return;
-      }
-      badge.textContent = total;
-      badge.classList.remove('hidden');
-
-      var html = '';
-      if (prazosUrgentes.length) {
-        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Prazos vencendo</div>';
-        html += prazosUrgentes.map(function (p) {
-          var cor = p.status === 'vencido' ? 'var(--crit)' : 'var(--warn)';
-          return '<a href="painel-prazos.html#sec-prazos" class="hdr-avisos-item" style="display:block;">' +
-            '<strong style="color:' + cor + ';">' + (p.status === 'vencido' ? 'Vencido' : 'Vence em breve') + '</strong> — ' + esc(p.titulo) +
-            '<div style="font-size:11px; color:var(--ink-faint);">' + fmtDataProcesso(p.data_limite) + (p.numero_cnj ? ' · ' + esc(p.numero_cnj) : '') + '</div>' +
-          '</a>';
-        }).join('');
-      }
-      if (avisos.length) {
-        html += '<div style="padding:6px 10px 2px; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);">Avisos do escritório</div>';
-        html += avisos.map(function (a) {
-          return '<div class="hdr-avisos-item">' + esc(a.mensagem) + '</div>';
-        }).join('');
-      }
-      lista.innerHTML = html;
+      buscar('/api/painel?acao=avisos_listar&apenas_ativos=true', 'avisos'),
+      buscar('/api/painel?acao=prazo_listar', 'prazos'),
+      buscar('/api/painel?acao=tarefa_listar', 'tarefas'),
+      buscar('/api/painel?acao=pauta_audiencias', 'pauta'),
+      buscar('/api/painel?acao=compromisso_listar&data_de=' + hojeIso + '&data_ate=' + _fmtISOData(fim) + 'T23:59:59', 'compromissos'),
+      apiGetJson('/api/painel?acao=whatsapp_estado').then(function (d) { return d.estado || ''; }).catch(function () { return ''; }),
+    ]).then(function (r) {
+      sinoEstado.itens = sinoMontarItens({ avisos: r[0], prazos: r[1], tarefas: r[2], audiencias: r[3], compromissos: r[4], whatsappEstado: r[5] }, hojeIso, janela);
+      sinoEstado.carregadoEm = Date.now();
+      sinoEstado.carregando = false;
+      sinoRender();
     }).catch(function () {
+      sinoEstado.carregando = false;
       var lista = document.getElementById('hdr-avisos-lista');
-      if (lista) lista.innerHTML = '<div class="hdr-avisos-vazio">Não foi possível carregar os avisos.</div>';
+      if (lista && !sinoEstado.carregadoEm) lista.innerHTML = '<div class="hdr-avisos-vazio">Não foi possível carregar os avisos.</div>';
+    });
+
+    if (!sinoEstado.iniciado) {
+      sinoEstado.iniciado = true;
+      var lista = document.getElementById('hdr-avisos-lista');
+      lista.addEventListener('click', function (ev) {
+        var f = ev.target.closest('[data-sino-filtro]');
+        if (f) { sinoEstado.filtro = f.getAttribute('data-sino-filtro'); sinoRender(); return; }
+        var m = ev.target.closest('[data-sino-mais]');
+        if (m) { sinoEstado.expandidos[m.getAttribute('data-sino-mais')] = true; sinoRender(); }
       });
+      lista.addEventListener('change', function (ev) {
+        if (ev.target.id !== 'hdr-sino-dias') return;
+        _sinoGravar('painel_sino_dias', ev.target.value);
+        carregarAvisosHeader();
+      });
+      // abrir o sino atualiza se os dados tem mais de 1 minuto; fora isso, a cada 5 minutos (so com a aba visivel)
+      document.getElementById('hdr-btn-avisos').addEventListener('click', function () {
+        if (Date.now() - sinoEstado.carregadoEm > 60000) carregarAvisosHeader();
+      });
+      setInterval(function () { if (!document.hidden) carregarAvisosHeader(); }, SINO_ATUALIZAR_MS);
+    }
   }
+  // SINO:fim
 
   function misturarComBranco(hex, fator) {
     var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
