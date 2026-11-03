@@ -852,6 +852,50 @@
     });
   }
 
+  // Prazo de uma recorrencia (serie_id): pergunta se a acao vale so pro prazo clicado ou pra recorrencia
+  // inteira. Resolve 'um', 'serie' ou null (cancelou). Prazo sem serie_id nunca chega aqui.
+  function perguntarEscopoSerie(verbo) {
+    var concluir = verbo === 'concluir';
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML =
+        '<div class="confirm-modal-caixa">' +
+          '<div class="confirm-modal-titulo">' + (concluir ? 'Concluir prazo recorrente' : 'Excluir prazo recorrente') + '</div>' +
+          '<div class="confirm-modal-msg">Este prazo faz parte de uma recorrência. ' + (concluir ? 'Quer concluir só este ou todos os que ainda estão em aberto?' : 'Quer excluir só este ou todos da recorrência?') + '</div>' +
+          '<div class="confirm-modal-acoes">' +
+            '<button type="button" class="btn-conexao-secundario" data-escopo="">Cancelar</button>' +
+            '<button type="button" class="btn-conexao-secundario" data-escopo="um">' + 'Só este' + '</button>' +
+            '<button type="button" class="' + (concluir ? 'btn-conexao' : 'btn-conexao-perigo') + '" data-escopo="serie">' + (concluir ? 'Todos em aberto' : 'Todos da recorrência') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      function fechar(r) {
+        document.removeEventListener('keydown', onEsc);
+        overlay.remove();
+        resolve(r);
+      }
+      function onEsc(e) { if (e.key === 'Escape') fechar(null); }
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) return fechar(null);
+        var b = e.target.closest('[data-escopo]');
+        if (b) fechar(b.getAttribute('data-escopo') || null);
+      });
+      document.addEventListener('keydown', onEsc);
+      overlay.querySelector('[data-escopo=""]').focus();
+    });
+  }
+
+  // Concluir/excluir um prazo: se ele e de uma recorrencia pergunta o escopo; senao segue como sempre.
+  // Resolve {escopo:'serie'|undefined} pra seguir, ou null se o usuario cancelou.
+  function escopoDoPrazo(pz, verbo) {
+    if (pz && pz.serie_id) {
+      return perguntarEscopoSerie(verbo).then(function (r) { return r ? { escopo: r === 'serie' ? 'serie' : undefined } : null; });
+    }
+    if (verbo === 'concluir') return Promise.resolve({});
+    return confirmarModal('Excluir este prazo?').then(function (ok) { return ok ? {} : null; });
+  }
+
   // Substitui o alert() nativo do navegador (feio, fora do visual do site) por um aviso no
   // mesmo estilo dos outros modais -- reaproveita confirmarModal, so escondendo o botao
   // "Cancelar" (somenteOk) e trocando o titulo padrao pra "Aviso".
@@ -8861,7 +8905,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       }).join('');
       container.querySelectorAll('[data-prazo-cumprir]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true }).then(carregar);
+          var pz = prazosCarregados.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-cumprir'); })[0];
+          escopoDoPrazo(pz, 'concluir').then(function (r) {
+            if (!r) return;
+            apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true, escopo: r.escopo }).then(carregar);
+          });
         });
       });
       container.querySelectorAll('[data-prazo-editar]').forEach(function (btn) {
@@ -8872,9 +8920,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       });
       container.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          confirmarModal('Excluir este prazo?').then(function (ok) {
-            if (!ok) return;
-            apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregar);
+          var pz = prazosCarregados.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-excluir'); })[0];
+          escopoDoPrazo(pz, 'excluir').then(function (r) {
+            if (!r) return;
+            apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir'), escopo: r.escopo }).then(carregar);
           });
         });
       });
@@ -11282,7 +11331,11 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           listaEl.innerHTML = _htmlListaPrazosInline(prazosCarregadosFicha);
           listaEl.querySelectorAll('[data-prazo-cumprir]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-              apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true }).then(carregarPrazosFicha);
+              var pz = prazosCarregadosFicha.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-cumprir'); })[0];
+              escopoDoPrazo(pz, 'concluir').then(function (r) {
+                if (!r) return;
+                apiPostJson('/api/painel?acao=prazo_atualizar', { id: btn.getAttribute('data-prazo-cumprir'), cumprido: true, escopo: r.escopo }).then(carregarPrazosFicha);
+              });
             });
           });
           listaEl.querySelectorAll('[data-prazo-editar]').forEach(function (btn) {
@@ -11293,9 +11346,10 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
           });
           listaEl.querySelectorAll('[data-prazo-excluir]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-              confirmarModal('Excluir este prazo?').then(function (ok) {
-                if (!ok) return;
-                apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir') }).then(carregarPrazosFicha);
+              var pz = prazosCarregadosFicha.filter(function (x) { return String(x.id) === btn.getAttribute('data-prazo-excluir'); })[0];
+              escopoDoPrazo(pz, 'excluir').then(function (r) {
+                if (!r) return;
+                apiPostJson('/api/painel?acao=prazo_excluir', { id: btn.getAttribute('data-prazo-excluir'), escopo: r.escopo }).then(carregarPrazosFicha);
               });
             });
           });
