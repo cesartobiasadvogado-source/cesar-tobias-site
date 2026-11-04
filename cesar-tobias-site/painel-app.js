@@ -9131,6 +9131,14 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     document.getElementById('modal-prazo')._abrir(processo, prazoExistente, onSalvo);
   }
 
+  // Pendentes e vencidos primeiro, cumpridos por ultimo; dentro de cada grupo mantem a ordem que o servidor mandou (por data).
+  function prazosPendentesPrimeiro(lista) {
+    return (lista || []).map(function (pz, i) { return { pz: pz, i: i }; }).sort(function (a, b) {
+      var ca = a.pz.status === 'cumprido' ? 1 : 0, cb = b.pz.status === 'cumprido' ? 1 : 0;
+      return ca !== cb ? ca - cb : a.i - b.i;
+    }).map(function (x) { return x.pz; });
+  }
+
   function wireListaPrazos() {
     var statusEl = document.getElementById('prazos-filtro-status');
     var tipoEl = document.getElementById('prazos-filtro-tipo');
@@ -9143,7 +9151,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       if (tipoEl.value) qs += '&tipo=' + encodeURIComponent(tipoEl.value);
       apiGetJson('/api/painel?acao=prazo_listar' + qs)
         .then(function (dados) {
-          prazosCarregados = dados.prazos || [];
+          prazosCarregados = prazosPendentesPrimeiro(dados.prazos);
           renderLista();
         })
         .catch(function () {
@@ -11608,7 +11616,7 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
     function carregarPrazosFicha() {
       apiGetJson('/api/painel?acao=prazo_listar&processo_id=' + processo.id)
         .then(function (dados) {
-          prazosCarregadosFicha = dados.prazos || [];
+          prazosCarregadosFicha = prazosPendentesPrimeiro(dados.prazos);
           var listaEl = document.getElementById('procficha-lista-prazos');
           if (!listaEl) return;
           listaEl.innerHTML = _htmlListaPrazosInline(prazosCarregadosFicha);
