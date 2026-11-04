@@ -515,7 +515,7 @@
   ];
   var SINO_ATUALIZAR_MS = 5 * 60 * 1000;
   var SINO_POR_GRUPO = 5;
-  var sinoEstado = { itens: [], filtro: 'todos', expandidos: {}, carregadoEm: 0, iniciado: false, carregando: false };
+  var sinoEstado = { itens: [], filtro: 'todos', expandidos: {}, vistos: {}, mostrarVistos: false, carregadoEm: 0, iniciado: false, carregando: false };
 
   function _sinoLer(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
   function _sinoGravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) { /* sem armazenamento: so nao lembra a escolha */ } }
@@ -553,7 +553,7 @@
       if (p.status === 'cumprido') return;
       var c = _sinoClassificar(p.data_limite, hojeIso, janela, true);
       if (!c) return;
-      itens.push({ tipo: 'prazo', urgencia: c.urgencia, ordem: p.data_limite, titulo: p.titulo,
+      itens.push({ tipo: 'prazo', id: p.id, serie: p.serie_id, urgencia: c.urgencia, ordem: p.data_limite, titulo: p.titulo,
         detalhe: _sinoQuando({ atrasado: 'Venceu', hoje: 'Vence hoje', amanha: 'Vence amanhã', emDias: 'Vence em' }, c) + ' · ' + fmtDataProcesso(p.data_limite) + (p.numero_cnj ? ' · ' + p.numero_cnj : ''),
         href: SINO_LINKS.prazo });
     });
@@ -562,7 +562,7 @@
       var data = String(t.vencimento).slice(0, 10);
       var c = _sinoClassificar(data, hojeIso, janela, true);
       if (!c) return;
-      itens.push({ tipo: 'tarefa', urgencia: c.urgencia, ordem: data, titulo: t.titulo,
+      itens.push({ tipo: 'tarefa', id: t.id, urgencia: c.urgencia, ordem: data, titulo: t.titulo,
         detalhe: _sinoQuando({ atrasado: 'Atrasada', hoje: 'Vence hoje', amanha: 'Vence amanhã', emDias: 'Vence em' }, c) + ' · ' + fmtDataProcesso(data) + (t.responsavel ? ' · ' + t.responsavel : ''),
         href: SINO_LINKS.tarefa });
     });
@@ -574,7 +574,7 @@
       var quando = c.dif < 0
         ? 'Passou há ' + (-c.dif) + (c.dif === -1 ? ' dia' : ' dias') + ' · marque como realizada'
         : _sinoQuando({ hoje: 'Hoje' + hora, amanha: 'Amanhã' + hora, emDias: 'Em' }, c) + (c.dif > 1 ? ' · ' + fmtDataProcesso(a.data) + hora : '');
-      itens.push({ tipo: 'audiencia', urgencia: c.urgencia, ordem: a.data + (a.hora || ''), titulo: (a.tipo_audiencia || 'Audiência') + (a.cliente ? ' — ' + a.cliente : ''),
+      itens.push({ tipo: 'audiencia', id: a.id, urgencia: c.urgencia, ordem: a.data + (a.hora || ''), titulo: (a.tipo_audiencia || 'Audiência') + (a.cliente ? ' — ' + a.cliente : ''),
         detalhe: quando + (a.numero_processo ? ' · ' + a.numero_processo : ''),
         href: SINO_LINKS.audiencia });
     });
@@ -585,20 +585,33 @@
       if (!c) return;
       var hora = String(c0.data_inicio).length >= 16 ? String(c0.data_inicio).slice(11, 16) : '';
       var horaTxt = hora ? ' às ' + hora : '';
-      itens.push({ tipo: 'agenda', urgencia: c.urgencia, ordem: data + hora, titulo: c0.titulo,
+      itens.push({ tipo: 'agenda', id: c0.id, urgencia: c.urgencia, ordem: data + hora, titulo: c0.titulo,
         detalhe: _sinoQuando({ hoje: 'Hoje' + horaTxt, amanha: 'Amanhã' + horaTxt, emDias: 'Em' }, c) + (c.dif > 1 ? ' · ' + fmtDataProcesso(data) + horaTxt : '') + (c0.local ? ' · ' + c0.local : ''),
         href: SINO_LINKS.agenda });
     });
     (f.avisos || []).forEach(function (a) {
-      itens.push({ tipo: 'aviso', urgencia: 'info', ordem: '', titulo: a.mensagem, detalhe: '', href: '' });
+      itens.push({ tipo: 'aviso', id: a.id, urgencia: 'info', ordem: '', titulo: a.mensagem, detalhe: '', href: '' });
     });
     if (f.whatsappEstado === 'close') {
-      itens.push({ tipo: 'whatsapp', urgencia: 'atrasado', ordem: '', titulo: 'WhatsApp desconectado',
+      itens.push({ tipo: 'whatsapp', id: 'wa', urgencia: 'atrasado', ordem: '', titulo: 'WhatsApp desconectado',
         detalhe: 'O assistente não recebe mensagens até reconectar', href: SINO_LINKS.whatsapp });
     }
     itens.sort(function (x, y) { return x.ordem < y.ordem ? -1 : (x.ordem > y.ordem ? 1 : 0); });
     return itens;
   }
+
+  // Chave de um item do sino: inclui a urgencia, entao um item "visto" volta a aparecer se ficar mais urgente
+  // (ex.: de "proximo" pra "hoje" ou "atrasado").
+  function _sinoChave(it) { return it.tipo + ':' + it.id + ':' + it.urgencia; }
+
+  function _sinoCarregarVistos() {
+    var mapa = {};
+    try { (JSON.parse(_sinoLer('painel_sino_vistos') || '[]') || []).forEach(function (k) { if (typeof k === 'string') mapa[k] = 1; }); } catch (e) { /* guardado corrompido: comeca do zero */ }
+    return mapa;
+  }
+  function _sinoSalvarVistos() { _sinoGravar('painel_sino_vistos', JSON.stringify(Object.keys(sinoEstado.vistos))); }
+
+  var SINO_ACAO_ROTULO = { prazo: 'Concluir', tarefa: 'Concluir', audiencia: 'Realizada' };
 
   function _sinoItemHtml(it) {
     var cor = it.urgencia === 'atrasado' ? 'var(--crit)' : (it.urgencia === 'hoje' ? 'var(--warn)' : 'var(--ink-faint)');
@@ -606,9 +619,17 @@
       '<span class="hdr-sino-tag" style="color:' + cor + ';">' + esc(SINO_ROTULO_TIPO[it.tipo]) + '</span>' +
       '<span class="hdr-sino-titulo">' + esc(it.titulo) + '</span>' +
       (it.detalhe ? '<span class="hdr-sino-detalhe">' + esc(it.detalhe) + '</span>' : '');
-    return it.href
+    var corpo = it.href
       ? '<a href="' + esc(it.href) + '" class="hdr-avisos-item hdr-sino-item">' + conteudo + '</a>'
       : '<div class="hdr-avisos-item hdr-sino-item">' + conteudo + '</div>';
+    var chave = esc(_sinoChave(it));
+    var visto = !!sinoEstado.vistos[_sinoChave(it)];
+    var acoes = '';
+    if (SINO_ACAO_ROTULO[it.tipo] && !visto) acoes += '<button type="button" class="hdr-sino-btn hdr-sino-btn-principal" data-sino-acao="' + chave + '">' + SINO_ACAO_ROTULO[it.tipo] + '</button>';
+    acoes += visto
+      ? '<button type="button" class="hdr-sino-btn" data-sino-desvisto="' + chave + '">Mostrar de novo</button>'
+      : '<button type="button" class="hdr-sino-btn" data-sino-visto="' + chave + '">Marcar como visto</button>';
+    return '<div class="hdr-sino-linha' + (visto ? ' visto' : '') + '">' + corpo + '<div class="hdr-sino-acoes">' + acoes + '</div></div>';
   }
 
   function sinoRender() {
@@ -616,31 +637,34 @@
     var badge = document.getElementById('hdr-avisos-badge');
     if (!lista || !badge) return;
     var itens = sinoEstado.itens;
+    var naoVistos = itens.filter(function (i) { return !sinoEstado.vistos[_sinoChave(i)]; });
+    var qtdVistos = itens.length - naoVistos.length;
 
-    // selo: total, cor pela urgencia mais alta
-    if (itens.length === 0) {
+    // selo: so o que ainda nao foi visto; cor pela urgencia mais alta
+    if (naoVistos.length === 0) {
       badge.classList.add('hidden');
     } else {
-      badge.textContent = itens.length > 99 ? '99+' : itens.length;
-      var temAtraso = itens.some(function (i) { return i.urgencia === 'atrasado'; });
-      var temHoje = itens.some(function (i) { return i.urgencia === 'hoje'; });
+      badge.textContent = naoVistos.length > 99 ? '99+' : naoVistos.length;
+      var temAtraso = naoVistos.some(function (i) { return i.urgencia === 'atrasado'; });
+      var temHoje = naoVistos.some(function (i) { return i.urgencia === 'hoje'; });
       badge.className = 'hdr-badge' + (temAtraso ? '' : (temHoje ? ' hdr-badge-warn' : ' hdr-badge-info'));
     }
 
+    var base = sinoEstado.mostrarVistos ? itens : naoVistos;
     var contagem = {};
-    itens.forEach(function (i) { contagem[i.tipo] = (contagem[i.tipo] || 0) + 1; });
+    base.forEach(function (i) { contagem[i.tipo] = (contagem[i.tipo] || 0) + 1; });
     var filtro = sinoEstado.filtro === 'todos' || contagem[sinoEstado.filtro] ? sinoEstado.filtro : 'todos';
     sinoEstado.filtro = filtro;
 
-    var chips = '<button type="button" class="hdr-sino-chip' + (filtro === 'todos' ? ' ativo' : '') + '" data-sino-filtro="todos">Todos ' + itens.length + '</button>' +
+    var chips = '<button type="button" class="hdr-sino-chip' + (filtro === 'todos' ? ' ativo' : '') + '" data-sino-filtro="todos">Todos ' + base.length + '</button>' +
       SINO_TIPOS.filter(function (t) { return contagem[t.id]; }).map(function (t) {
         return '<button type="button" class="hdr-sino-chip' + (filtro === t.id ? ' ativo' : '') + '" data-sino-filtro="' + t.id + '">' + t.rotulo + ' ' + contagem[t.id] + '</button>';
       }).join('');
 
-    var visiveis = itens.filter(function (i) { return filtro === 'todos' || i.tipo === filtro; });
+    var visiveis = base.filter(function (i) { return filtro === 'todos' || i.tipo === filtro; });
     var corpo = '';
     if (visiveis.length === 0) {
-      corpo = '<div class="hdr-avisos-vazio">Nada por aqui no momento. Tudo em dia.</div>';
+      corpo = '<div class="hdr-avisos-vazio">Nada por aqui no momento. Tudo em dia.' + (qtdVistos && !sinoEstado.mostrarVistos ? '<br>(' + qtdVistos + ' marcado' + (qtdVistos === 1 ? '' : 's') + ' como visto)' : '') + '</div>';
     } else {
       SINO_GRUPOS.forEach(function (g) {
         var doGrupo = visiveis.filter(function (i) { return i.urgencia === g.id; });
@@ -653,11 +677,38 @@
     }
 
     var dias = _sinoDiasAviso();
-    var rodape = '<div class="hdr-sino-rodape"><label>Avisar com ' +
+    var botoes = '';
+    if (naoVistos.length) botoes += '<button type="button" class="hdr-sino-btn" data-sino-tudo="1">Marcar tudo como visto (' + naoVistos.length + ')</button>';
+    if (qtdVistos) botoes += '<button type="button" class="hdr-sino-btn" data-sino-ocultos="1">' + (sinoEstado.mostrarVistos ? 'Esconder os vistos' : 'Mostrar vistos (' + qtdVistos + ')') + '</button>';
+    var rodape = '<div class="hdr-sino-rodape">' + (botoes ? '<div class="hdr-sino-rodape-botoes">' + botoes + '</div>' : '') +
+      '<label>Avisar com ' +
       '<select id="hdr-sino-dias">' + [1, 3, 5, 7].map(function (n) { return '<option value="' + n + '"' + (n === dias ? ' selected' : '') + '>' + n + (n === 1 ? ' dia' : ' dias') + '</option>'; }).join('') +
       '</select> de antecedência</label></div>';
 
     lista.innerHTML = '<div class="hdr-sino-chips">' + chips + '</div>' + corpo + rodape;
+  }
+
+  // Acao rapida direto no sino: usa as mesmas rotas das telas de Prazos, Tarefas e Audiencias.
+  function sinoExecutarAcao(it, btn) {
+    function falhou() { btn.disabled = false; mostrarAviso('Não foi possível concluir agora. Tente de novo em instantes.'); }
+    function feito() { carregarAvisosHeader(); }
+    if (it.tipo === 'prazo') {
+      escopoDoPrazo({ serie_id: it.serie }, 'concluir').then(function (r) {
+        if (!r) return;
+        btn.disabled = true;
+        return apiPostJson('/api/painel?acao=prazo_atualizar', { id: it.id, cumprido: true, escopo: r.escopo }).then(feito);
+      }).catch(falhou);
+    } else if (it.tipo === 'tarefa') {
+      btn.disabled = true;
+      apiPostJson('/api/painel?acao=tarefa_atualizar', { id: it.id, status: 'concluida' }).then(feito).catch(falhou);
+    } else if (it.tipo === 'audiencia') {
+      confirmarModal('Marcar esta audiência como realizada?', { titulo: 'Audiência realizada', textoOk: 'Marcar', perigo: false }).then(function (ok) {
+        if (!ok) return;
+        btn.disabled = true;
+        return apiPost('/api/painel?acao=pauta_audiencias', { op: 'marcar_realizada', id: it.id })
+          .then(function (r) { if (!r.ok) throw new Error('falha'); return r.json(); }).then(feito);
+      }).catch(falhou);
+    }
   }
 
   function carregarAvisosHeader() {
@@ -680,6 +731,12 @@
       apiGetJson('/api/painel?acao=whatsapp_estado').then(function (d) { return d.estado || ''; }).catch(function () { return ''; }),
     ]).then(function (r) {
       sinoEstado.itens = sinoMontarItens({ avisos: r[0], prazos: r[1], tarefas: r[2], audiencias: r[3], compromissos: r[4], whatsappEstado: r[5] }, hojeIso, janela);
+      // "vistos" de itens que nao existem mais (concluidos, vencidos antigos) saem do armazenamento
+      var atuais = {};
+      sinoEstado.itens.forEach(function (i) { atuais[_sinoChave(i)] = 1; });
+      var podou = false;
+      Object.keys(sinoEstado.vistos).forEach(function (k) { if (!atuais[k]) { delete sinoEstado.vistos[k]; podou = true; } });
+      if (podou) _sinoSalvarVistos();
       sinoEstado.carregadoEm = Date.now();
       sinoEstado.carregando = false;
       sinoRender();
@@ -691,12 +748,29 @@
 
     if (!sinoEstado.iniciado) {
       sinoEstado.iniciado = true;
+      sinoEstado.vistos = _sinoCarregarVistos();
       var lista = document.getElementById('hdr-avisos-lista');
+      function itemPorChave(chave) { return sinoEstado.itens.filter(function (i) { return _sinoChave(i) === chave; })[0]; }
       lista.addEventListener('click', function (ev) {
-        var f = ev.target.closest('[data-sino-filtro]');
-        if (f) { sinoEstado.filtro = f.getAttribute('data-sino-filtro'); sinoRender(); return; }
-        var m = ev.target.closest('[data-sino-mais]');
-        if (m) { sinoEstado.expandidos[m.getAttribute('data-sino-mais')] = true; sinoRender(); }
+        // clique dentro do sino nao pode chegar no "fechar menus ao clicar fora" (senao filtros, botoes e o seletor de dias fecham o sino)
+        ev.stopPropagation();
+        var alvo = ev.target.closest('button');
+        if (!alvo) return;
+        var f = alvo.getAttribute('data-sino-filtro');
+        if (f) { sinoEstado.filtro = f; sinoRender(); return; }
+        var m = alvo.getAttribute('data-sino-mais');
+        if (m) { sinoEstado.expandidos[m] = true; sinoRender(); return; }
+        var v = alvo.getAttribute('data-sino-visto');
+        if (v) { sinoEstado.vistos[v] = 1; _sinoSalvarVistos(); sinoRender(); return; }
+        var dv = alvo.getAttribute('data-sino-desvisto');
+        if (dv) { delete sinoEstado.vistos[dv]; _sinoSalvarVistos(); sinoRender(); return; }
+        if (alvo.getAttribute('data-sino-tudo')) {
+          sinoEstado.itens.forEach(function (i) { sinoEstado.vistos[_sinoChave(i)] = 1; });
+          _sinoSalvarVistos(); sinoRender(); return;
+        }
+        if (alvo.getAttribute('data-sino-ocultos')) { sinoEstado.mostrarVistos = !sinoEstado.mostrarVistos; sinoRender(); return; }
+        var a = alvo.getAttribute('data-sino-acao');
+        if (a) { var it = itemPorChave(a); if (it) sinoExecutarAcao(it, alvo); }
       });
       lista.addEventListener('change', function (ev) {
         if (ev.target.id !== 'hdr-sino-dias') return;

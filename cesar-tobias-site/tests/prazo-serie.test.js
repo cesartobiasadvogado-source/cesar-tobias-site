@@ -28,7 +28,7 @@ t('prazo sem serie_id segue como antes (concluir direto; excluir com a confirmac
 t('as duas listas (pagina Prazos e aba da ficha) usam o escopo ao concluir e ao excluir', () => {
   assert.strictEqual(contar("escopoDoPrazo(pz, 'concluir')"), 2);
   assert.strictEqual(contar("escopoDoPrazo(pz, 'excluir')"), 2);
-  assert.strictEqual(contar('cumprido: true, escopo: r.escopo'), 2);
+  assert.strictEqual(contar('cumprido: true, escopo: r.escopo'), 3); // 2 listas + o sino
   assert.strictEqual(contar("prazo_excluir', { id: btn.getAttribute('data-prazo-excluir'), escopo: r.escopo }"), 2);
 });
 
