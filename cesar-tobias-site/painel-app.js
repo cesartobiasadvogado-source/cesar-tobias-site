@@ -503,19 +503,31 @@
     prazo: 'painel-prazos.html#sec-prazos', tarefa: 'painel-tarefas.html#sec-tarefas',
     audiencia: 'painel-audiencias.html#sec-audiencias', agenda: 'painel-agenda.html#sec-agenda-completa',
     whatsapp: 'painel-configuracoes.html#sec-configuracoes',
+    triagem: 'painel-triagem-trabalhista.html#sec-triagem-trabalhista', triagemPrev: 'painel-triagem-previdenciaria.html#sec-triagem-previdenciaria',
+    financeiro: 'painel.html#sec-financeiro-novo',
   };
   var SINO_TIPOS = [
     { id: 'prazo', rotulo: 'Prazos' }, { id: 'tarefa', rotulo: 'Tarefas' }, { id: 'audiencia', rotulo: 'Audiências' },
-    { id: 'agenda', rotulo: 'Agenda' }, { id: 'aviso', rotulo: 'Avisos' }, { id: 'whatsapp', rotulo: 'WhatsApp' },
+    { id: 'agenda', rotulo: 'Agenda' }, { id: 'triagem', rotulo: 'Triagens' }, { id: 'financeiro', rotulo: 'Financeiro' },
+    { id: 'aviso', rotulo: 'Avisos' }, { id: 'whatsapp', rotulo: 'WhatsApp' },
   ];
-  var SINO_ROTULO_TIPO = { prazo: 'Prazo', tarefa: 'Tarefa', audiencia: 'Audiência', agenda: 'Agenda', aviso: 'Aviso', whatsapp: 'WhatsApp' };
+  var SINO_ROTULO_TIPO = { prazo: 'Prazo', tarefa: 'Tarefa', audiencia: 'Audiência', agenda: 'Agenda', triagem: 'Triagem', financeiro: 'Conta a pagar', aviso: 'Aviso', whatsapp: 'WhatsApp' };
   var SINO_GRUPOS = [
     { id: 'atrasado', rotulo: 'Atrasados', cor: 'var(--crit)' }, { id: 'hoje', rotulo: 'Hoje', cor: 'var(--warn)' },
+    { id: 'atencao', rotulo: 'Precisam de atenção', cor: 'var(--warn)' },
     { id: 'proximo', rotulo: 'Próximos dias', cor: 'var(--ink-faint)' }, { id: 'info', rotulo: 'Avisos do escritório', cor: 'var(--ink-faint)' },
   ];
   var SINO_ATUALIZAR_MS = 5 * 60 * 1000;
   var SINO_POR_GRUPO = 5;
-  var sinoEstado = { itens: [], filtro: 'todos', expandidos: {}, vistos: {}, mostrarVistos: false, carregadoEm: 0, iniciado: false, carregando: false };
+  // Triagem sem mexer ha tantos dias entra no sino (a "nao iniciada" avisa mais cedo, porque nem comecou).
+  var SINO_TRIAGEM_PARADA_DIAS = 7;
+  var SINO_TRIAGEM_NAO_INICIADA_DIAS = 2;
+  var SINO_TRIAGEM_ROTULO_STATUS = { nao_iniciada: 'Não iniciada', em_andamento: 'Em andamento', aguardando_documentos: 'Aguardando documentos', aguardando_informacoes: 'Aguardando informações' };
+  // permissoes: null = ainda nao informadas (o sino nao busca triagens nem financeiro); lista = o que o usuario pode ver
+  var sinoEstado = { itens: [], filtro: 'todos', expandidos: {}, vistos: {}, mostrarVistos: false, carregadoEm: 0, iniciado: false, carregando: false, permissoes: null };
+  function sinoDefinirPermissoes(perms) { sinoEstado.permissoes = Array.isArray(perms) ? perms : []; }
+  function _sinoTemPermissao(nome) { return !!sinoEstado.permissoes && sinoEstado.permissoes.indexOf(nome) !== -1; }
+  function _sinoMoeda(n) { return 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
   function _sinoLer(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
   function _sinoGravar(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) { /* sem armazenamento: so nao lembra a escolha */ } }
@@ -589,6 +601,30 @@
         detalhe: _sinoQuando({ hoje: 'Hoje' + horaTxt, amanha: 'Amanhã' + horaTxt, emDias: 'Em' }, c) + (c.dif > 1 ? ' · ' + fmtDataProcesso(data) + horaTxt : '') + (c0.local ? ' · ' + c0.local : ''),
         href: SINO_LINKS.agenda });
     });
+    // triagens (trabalhista e previdenciaria): so as abertas, sem processo criado, e paradas ha tempo
+    (f.triagens || []).forEach(function (t) {
+      if (!t || t.arquivado_em || t.convertido_processo_id || !SINO_TRIAGEM_ROTULO_STATUS[t.status]) return;
+      var data = String(t.atualizado_em || '').slice(0, 10);
+      if (data.length < 10) return;
+      var parada = _sinoDiasEntre(hojeIso, data);
+      var minimo = t.status === 'nao_iniciada' ? SINO_TRIAGEM_NAO_INICIADA_DIAS : SINO_TRIAGEM_PARADA_DIAS;
+      if (parada < minimo) return;
+      var prev = t.origem === 'prev';
+      itens.push({ tipo: 'triagem', id: (prev ? 'p' : 't') + t.id, urgencia: 'atencao', ordem: data, titulo: t.cliente_nome || 'Cliente não definido',
+        detalhe: (prev ? 'Previdenciária' : 'Trabalhista') + ' · ' + SINO_TRIAGEM_ROTULO_STATUS[t.status] + ' · sem andamento há ' + parada + (parada === 1 ? ' dia' : ' dias'),
+        href: (prev ? 'painel-criar-triagem-previdenciaria.html?id=' : 'painel-criar-triagem.html?id=') + encodeURIComponent(t.id) + (prev ? '#sec-criar-triagem-previdenciaria' : '#sec-criar-triagem') });
+    });
+    // contas a pagar do escritorio ainda nao pagas (abertas ou parcialmente pagas)
+    (f.contas || []).forEach(function (c0) {
+      if (!c0 || (c0.status !== 'Aberta' && c0.status !== 'Parcial') || !c0.vencimento) return;
+      var data = String(c0.vencimento).slice(0, 10);
+      var c = _sinoClassificar(data, hojeIso, janela, true);
+      if (!c) return;
+      var restante = Math.max((Number(c0.valor) || 0) - (Number(c0.valor_pago) || 0), 0);
+      itens.push({ tipo: 'financeiro', id: c0.id, urgencia: c.urgencia, ordem: data, titulo: c0.descricao || 'Conta a pagar',
+        detalhe: _sinoQuando({ atrasado: 'Venceu', hoje: 'Vence hoje', amanha: 'Vence amanhã', emDias: 'Vence em' }, c) + ' · ' + fmtDataProcesso(data) + ' · ' + _sinoMoeda(restante) + (c0.status === 'Parcial' ? ' (restante)' : ''),
+        href: SINO_LINKS.financeiro });
+    });
     (f.avisos || []).forEach(function (a) {
       itens.push({ tipo: 'aviso', id: a.id, urgencia: 'info', ordem: '', titulo: a.mensagem, detalhe: '', href: '' });
     });
@@ -614,7 +650,7 @@
   var SINO_ACAO_ROTULO = { prazo: 'Concluir', tarefa: 'Concluir', audiencia: 'Realizada' };
 
   function _sinoItemHtml(it) {
-    var cor = it.urgencia === 'atrasado' ? 'var(--crit)' : (it.urgencia === 'hoje' ? 'var(--warn)' : 'var(--ink-faint)');
+    var cor = it.urgencia === 'atrasado' ? 'var(--crit)' : (it.urgencia === 'hoje' || it.urgencia === 'atencao' ? 'var(--warn)' : 'var(--ink-faint)');
     var conteudo =
       '<span class="hdr-sino-tag" style="color:' + cor + ';">' + esc(SINO_ROTULO_TIPO[it.tipo]) + '</span>' +
       '<span class="hdr-sino-titulo">' + esc(it.titulo) + '</span>' +
@@ -722,6 +758,12 @@
     function buscar(url, campo) {
       return apiGetJson(url).then(function (d) { return d[campo] || []; }).catch(function () { return []; });
     }
+    // triagens e contas a pagar so sao buscadas se o usuario tem a permissao (contas a pagar sao dado financeiro sensivel)
+    var verTriagens = _sinoTemPermissao('processos');
+    var verFinanceiro = _sinoTemPermissao('financeiro');
+    function marcar(origem) {
+      return function (lista) { return lista.map(function (t) { t.origem = origem; return t; }); };
+    }
     Promise.all([
       buscar('/api/painel?acao=avisos_listar&apenas_ativos=true', 'avisos'),
       buscar('/api/painel?acao=prazo_listar', 'prazos'),
@@ -729,8 +771,11 @@
       buscar('/api/painel?acao=pauta_audiencias', 'pauta'),
       buscar('/api/painel?acao=compromisso_listar&data_de=' + hojeIso + '&data_ate=' + _fmtISOData(fim) + 'T23:59:59', 'compromissos'),
       apiGetJson('/api/painel?acao=whatsapp_estado').then(function (d) { return d.estado || ''; }).catch(function () { return ''; }),
+      verTriagens ? buscar('/api/painel?acao=triagem_listar', 'triagens').then(marcar('trab')) : Promise.resolve([]),
+      verTriagens ? buscar('/api/painel?acao=triagem_prev_listar', 'triagens').then(marcar('prev')) : Promise.resolve([]),
+      verFinanceiro ? apiPostJson('/api/painel?acao=executar', { tipo: 'conta_pagar_listar' }).then(function (d) { return d.contas || []; }).catch(function () { return []; }) : Promise.resolve([]),
     ]).then(function (r) {
-      sinoEstado.itens = sinoMontarItens({ avisos: r[0], prazos: r[1], tarefas: r[2], audiencias: r[3], compromissos: r[4], whatsappEstado: r[5] }, hojeIso, janela);
+      sinoEstado.itens = sinoMontarItens({ avisos: r[0], prazos: r[1], tarefas: r[2], audiencias: r[3], compromissos: r[4], whatsappEstado: r[5], triagens: r[6].concat(r[7]), contas: r[8] }, hojeIso, janela);
       // "vistos" de itens que nao existem mais (concluidos, vencidos antigos) saem do armazenamento
       var atuais = {};
       sinoEstado.itens.forEach(function (i) { atuais[_sinoChave(i)] = 1; });
@@ -5434,7 +5479,7 @@
       document.getElementById('hdr-perfil-avatar').textContent = iniciaisAdv;
     }
 
-    if (document.getElementById('hdr-btn-avisos')) carregarAvisosHeader();
+    if (document.getElementById('hdr-btn-avisos')) { sinoDefinirPermissoes(dados.usuario_permissoes); carregarAvisosHeader(); }
     if (document.getElementById('hdr-busca-input')) wireBuscaTopo();
 
     if (!temAcessoPagina) return;
