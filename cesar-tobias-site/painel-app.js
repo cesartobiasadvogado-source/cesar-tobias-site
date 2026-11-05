@@ -10598,6 +10598,9 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       return '<span class="chip neutral" style="color:' + (COR_TIPO_COMPROMISSO[tipo] || 'var(--ink-faint)') + ';">' + esc(ROTULO_TIPO_COMPROMISSO[tipo] || tipo) + '</span>';
     }
 
+    // so link https de verdade vira botao/link clicavel (o valor vem do banco)
+    function _linkMeetSeguro(url) { return typeof url === 'string' && /^https:\/\//i.test(url); }
+
     function renderLista() {
       var container = document.getElementById('ag-conteudo');
       if (compromissosCarregados.length === 0) {
@@ -10611,7 +10614,8 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
             '<td>' + fmtDataProcesso(c.data_inicio.slice(0, 10)) + (_horaMinuto(c.data_inicio) ? ' · ' + _horaMinuto(c.data_inicio) : '') + '</td>' +
             '<td>' + esc(c.responsavel || '—') + '</td><td>' + esc(c.local || '—') + '</td>' +
             '<td>' + esc(c.cliente_nome || c.numero_cnj || '—') + '</td>' +
-            '<td><button type="button" class="btn-conexao-secundario" data-ag-editar="' + c.id + '">Editar</button> ' +
+            '<td>' + (_linkMeetSeguro(c.link_meet) ? '<a class="btn-conexao" href="' + esc(c.link_meet) + '" target="_blank" rel="noopener">Entrar no Meet</a> ' : '') +
+              '<button type="button" class="btn-conexao-secundario" data-ag-editar="' + c.id + '">Editar</button> ' +
               '<button type="button" class="btn-remover" data-ag-excluir="' + c.id + '">Excluir</button></td></tr>';
         }).join('') + '</tbody></table></div>';
       wireAcoesLinha(container);
@@ -10773,7 +10777,13 @@ function _gastoVencimentoFatura(dataISO, fechamento, vencimento) {
       compromissoEmEdicao = compromissoExistente || null;
       document.getElementById('ag-modal-titulo').textContent = compromissoExistente ? 'Editar compromisso' : 'Novo compromisso';
       document.getElementById('ag-form-erro').innerHTML = '';
-      document.getElementById('ag-link-meet-resultado').classList.add('hidden');
+      var linkMeetEl = document.getElementById('ag-link-meet-resultado');
+      if (compromissoExistente && _linkMeetSeguro(compromissoExistente.link_meet)) {
+        linkMeetEl.classList.remove('hidden');
+        linkMeetEl.innerHTML = 'Link do Meet: <a href="' + esc(compromissoExistente.link_meet) + '" target="_blank" rel="noopener" style="color:var(--accent);">' + esc(compromissoExistente.link_meet) + '</a>';
+      } else {
+        linkMeetEl.classList.add('hidden');
+      }
       document.getElementById('ag-form-titulo').value = compromissoExistente ? compromissoExistente.titulo : '';
       document.getElementById('ag-form-tipo').value = compromissoExistente ? compromissoExistente.tipo : 'reuniao';
       document.getElementById('ag-form-responsavel').value = compromissoExistente ? (compromissoExistente.responsavel || '') : '';
